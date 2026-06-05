@@ -1,0 +1,54 @@
+# Render blueprint for Kuik.
+# Deploy: push to GitHub, then "New +" → "Blueprint" in the Render dashboard.
+services:
+  - type: web
+    name: kuik
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: NEXT_PUBLIC_ROOT_DOMAIN
+        value: kuik.mx
+      - key: NEXT_PUBLIC_APP_URL
+        value: https://app.kuik.mx
+      - key: MERCADOPAGO_ACCESS_TOKEN
+        sync: false
+      - key: NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY
+        sync: false
+      - key: MERCADOPAGO_PLAN_AMOUNT
+        value: "199"
+      - key: MERCADOPAGO_PLAN_CURRENCY
+        value: MXN
+      - key: MERCADOPAGO_WEBHOOK_SECRET
+        sync: false
+      - key: CRON_SECRET
+        sync: false
+      - key: RENDER_API_KEY
+        sync: false
+      - key: RENDER_SERVICE_ID
+        sync: false
+
+  # Daily trial/subscription reconciliation.
+  - type: cron
+    name: kuik-expire-trials
+    runtime: node
+    schedule: "0 6 * * *" # 06:00 UTC daily
+    plan: starter
+    buildCommand: "echo no build"
+    startCommand: >
+      curl -fsS -H "Authorization: Bearer $CRON_SECRET"
+      https://app.kuik.mx/api/cron/expire-trials
+    envVars:
+      - key: CRON_SECRET
+        sync: false

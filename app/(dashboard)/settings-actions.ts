@@ -1,0 +1,98 @@
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { createClient } from '@/lib/supabase/server';
+import { requireTenant } from '@/lib/auth';
+import type { ServiceType } from '@/lib/database.types';
+import type { MenuSettings } from '@/lib/menu-settings';
+
+export async function updateTheme(
+  fields: Partial<{
+    primary_color: string;
+    secondary_color: string;
+    background_color: string;
+    text_color: string;
+    font_family: string;
+    logo_url: string | null;
+    background_image_url: string | null;
+    cover_image_url: string | null;
+    slogan: string | null;
+    show_prices: boolean;
+    menu_mode: 'builder' | 'pdf';
+    menu_pdf_url: string | null;
+  }>,
+) {
+  const { tenant } = await requireTenant();
+  const supabase = await createClient();
+  await supabase
+    .from('tenant_theme')
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq('tenant_id', tenant.id);
+  revalidatePath('/design');
+  revalidatePath('/menu');
+  revalidatePath(`/s/${tenant.subdomain}`);
+}
+
+/** Merge a partial set of look-and-feel knobs into tenant_theme.settings (jsonb). */
+export async function updateMenuSettings(partial: Partial<MenuSettings>) {
+  const { tenant } = await requireTenant();
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('tenant_theme')
+    .select('settings')
+    .eq('tenant_id', tenant.id)
+    .single<{ settings: Record<string, unknown> }>();
+  const merged = { ...(data?.settings ?? {}), ...partial };
+  await supabase
+    .from('tenant_theme')
+    .update({ settings: merged, updated_at: new Date().toISOString() })
+    .eq('tenant_id', tenant.id);
+  revalidatePath('/design');
+  revalidatePath(`/s/${tenant.subdomain}`);
+}
+
+export async function updateOrdering(
+  fields: Partial<{
+    ordering_enabled: boolean;
+    service_types: ServiceType[];
+    order_header: string | null;
+    min_order: number | null;
+    delivery_fee: number | null;
+    free_delivery_over: number | null;
+    tips: number[];
+    collect_address: boolean;
+    collect_pickup_time: boolean;
+    collect_table: boolean;
+  }>,
+) {
+  const { tenant } = await requireTenant();
+  const supabase = await createClient();
+  await supabase
+    .from('tenant_ordering')
+    .upsert(
+      { tenant_id: tenant.id, ...fields, updated_at: new Date().toISOString() },
+      { onConflict: 'tenant_id' },
+    );
+  revalidatePath('/ordering');
+  revalidatePath(`/s/${tenant.subdomain}`);
+}
+
+export async function updateContact(
+  fields: Partial<{
+    whatsapp_phone: string | null;
+    address: string | null;
+    instagram: string | null;
+    facebook: string | null;
+    website: string | null;
+    email: string | null;
+  }>,
+) {
+  const { tenant } = await requireTenant();
+  const supabase = await createClient();
+  await supabase
+    .from('tenant_contact')
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq('tenant_id', tenant.id);
+  revalidatePath('/contact');
+  revalidatePath(`/s/${tenant.subdomain}`);
+}
