@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, X, Trash2 } from 'lucide-react';
+import { Plus, X, Trash2, Copy, ClipboardPaste, Check } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import type { Product, PricedOption } from '@/lib/database.types';
 import { BADGES, badgeLabel } from '@/lib/badges';
@@ -9,6 +9,9 @@ import { Input, Textarea, Label, Button } from '@/components/ui';
 import { ImageUploader } from '@/components/dashboard/ImageUploader';
 import { Drawer } from './Drawer';
 import { updateProduct, deleteProduct } from '@/app/(dashboard)/menu/actions';
+
+// Browser-local clipboard so options can be copied between product drawers.
+const OPTIONS_CLIPBOARD = 'kuik_options_clipboard';
 
 export function ProductDrawer({
   tenantId,
@@ -23,6 +26,38 @@ export function ProductDrawer({
   const tc = useTranslations('common');
   const locale = useLocale();
   const [tags, setTags] = useState<string[]>(product.tags ?? []);
+  const [variants, setVariants] = useState<PricedOption[]>(product.variants ?? []);
+  const [modifiers, setModifiers] = useState<PricedOption[]>(product.modifiers ?? []);
+  const [removables, setRemovables] = useState<string[]>(product.removables ?? []);
+  const [pasteKey, setPasteKey] = useState(0);
+  const [copied, setCopied] = useState(false);
+
+  function copyOptions() {
+    localStorage.setItem(OPTIONS_CLIPBOARD, JSON.stringify({ variants, modifiers, removables }));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  }
+
+  function pasteOptions() {
+    const raw = localStorage.getItem(OPTIONS_CLIPBOARD);
+    if (!raw) {
+      alert(t('noClipboard'));
+      return;
+    }
+    try {
+      const c = JSON.parse(raw) as { variants?: PricedOption[]; modifiers?: PricedOption[]; removables?: string[] };
+      const v = c.variants ?? [];
+      const m = c.modifiers ?? [];
+      const r = c.removables ?? [];
+      setVariants(v);
+      setModifiers(m);
+      setRemovables(r);
+      updateProduct(product.id, { variants: v, modifiers: m, removables: r });
+      setPasteKey((k) => k + 1);
+    } catch {
+      alert(t('noClipboard'));
+    }
+  }
 
   function toggleTag(key: string) {
     const next = tags.includes(key) ? tags.filter((x) => x !== key) : [...tags, key];
@@ -155,25 +190,58 @@ export function ProductDrawer({
           </div>
         </div>
 
+        <div className="flex items-center justify-between border-t border-neutral-100 pt-3">
+          <span className="text-sm font-semibold">{t('options')}</span>
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={copyOptions}
+              className="flex items-center gap-1 rounded-lg border border-neutral-300 px-2 py-1 text-xs font-medium hover:bg-neutral-50"
+            >
+              {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? t('copiedOptions') : t('copyOptions')}
+            </button>
+            <button
+              type="button"
+              onClick={pasteOptions}
+              className="flex items-center gap-1 rounded-lg border border-neutral-300 px-2 py-1 text-xs font-medium hover:bg-neutral-50"
+            >
+              <ClipboardPaste className="h-3.5 w-3.5" /> {t('pasteOptions')}
+            </button>
+          </div>
+        </div>
+
         <OptionList
+          key={`variants-${pasteKey}`}
           label={t('variants')}
           hint={t('variantsHint')}
-          value={product.variants ?? []}
-          onChange={(v) => updateProduct(product.id, { variants: v })}
+          value={variants}
+          onChange={(v) => {
+            setVariants(v);
+            updateProduct(product.id, { variants: v });
+          }}
           namePlaceholder={t('variantName')}
         />
         <OptionList
+          key={`modifiers-${pasteKey}`}
           label={t('modifiers')}
           hint={t('modifiersHint')}
-          value={product.modifiers ?? []}
-          onChange={(v) => updateProduct(product.id, { modifiers: v })}
+          value={modifiers}
+          onChange={(v) => {
+            setModifiers(v);
+            updateProduct(product.id, { modifiers: v });
+          }}
           namePlaceholder={t('modifierName')}
         />
         <StringList
+          key={`removables-${pasteKey}`}
           label={t('removables')}
           hint={t('removablesHint')}
-          value={product.removables ?? []}
-          onChange={(v) => updateProduct(product.id, { removables: v })}
+          value={removables}
+          onChange={(v) => {
+            setRemovables(v);
+            updateProduct(product.id, { removables: v });
+          }}
           placeholder={t('removableName')}
         />
 
