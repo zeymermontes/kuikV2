@@ -171,7 +171,7 @@ export function Landing({
             {featured.map((p) => (
               <Link
                 key={p.id}
-                href="/menu"
+                href={`/menu?product=${p.id}`}
                 className="flex w-40 shrink-0 flex-col overflow-hidden rounded-2xl"
                 style={{ backgroundColor: 'var(--brand-surface)' }}
               >

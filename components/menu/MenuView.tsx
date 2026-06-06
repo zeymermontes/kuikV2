@@ -184,6 +184,19 @@ export function MenuView({
     [trackView],
   );
 
+  // Deep link from the landing's featured row: /menu?product=<id> opens its detail.
+  useEffect(() => {
+    const pid = new URLSearchParams(window.location.search).get('product');
+    if (!pid) return;
+    for (const c of menu) {
+      const entry = c.entries.find((e) => e.kind === 'product' && e.id === pid);
+      if (entry) {
+        const id = setTimeout(() => openProduct(entry as unknown as Product), 0);
+        return () => clearTimeout(id);
+      }
+    }
+  }, [menu, openProduct]);
+
   // Badges actually present in the menu (for the filter bar).
   const presentBadges = useMemo(() => {
     const tags = new Set<string>();
