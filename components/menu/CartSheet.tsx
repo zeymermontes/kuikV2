@@ -147,17 +147,9 @@ export function CartSheet({
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <span className="font-medium">{l.name}</span>
-                      {l.variantName && (
-                        <span className="text-sm text-neutral-500"> · {l.variantName}</span>
-                      )}
-                      {l.removed.length > 0 && (
-                        <p className="text-xs text-red-400">
-                          {l.removed.map((r) => `− Sin ${r}`).join('  ')}
-                        </p>
-                      )}
-                      {l.extras.length > 0 && (
+                      {(l.selections ?? []).length > 0 && (
                         <p className="text-xs text-neutral-400">
-                          {l.extras.map((e) => `+ ${e.name}`).join('  ')}
+                          {(l.selections ?? []).map((o) => o.name).join(' · ')}
                         </p>
                       )}
                     </div>

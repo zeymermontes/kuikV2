@@ -151,6 +151,17 @@ export interface PricedOption {
   price: number;
 }
 
+// Dynamic, per-product option group (multiselect). Replaces the fixed
+// variants/modifiers/removables; those remain for backward compatibility.
+export interface OptionGroup {
+  id: string;
+  name: string;
+  description?: string;
+  required: boolean;
+  multiple: boolean; // true = choose many (checkbox); false = choose one (radio)
+  options: PricedOption[];
+}
+
 export interface Product {
   id: string;
   tenant_id: string;
@@ -169,6 +180,7 @@ export interface Product {
   variants: PricedOption[];
   modifiers: PricedOption[];
   removables: string[];
+  option_groups: OptionGroup[];
   created_at: string;
   updated_at: string;
 }

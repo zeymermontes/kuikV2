@@ -4,21 +4,10 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { X, Plus, Minus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import type { Product, PricedOption } from '@/lib/database.types';
+import type { Product } from '@/lib/database.types';
 import type { CartLine } from '@/lib/whatsapp';
+import { resolveOptionGroups, type SelectedOption } from '@/lib/menu-options';
 import { formatPrice } from '@/lib/utils';
-
-/** Build a stable cart key for a product + chosen variant + extras + removals. */
-export function cartKey(
-  productId: string,
-  variant: string | null,
-  extras: PricedOption[],
-  removed: string[] = [],
-): string {
-  const ex = extras.map((e) => e.name).sort().join(',');
-  const rm = [...removed].sort().join(',');
-  return `${productId}|${variant ?? ''}|${ex}|${rm}`;
-}
 
 export function ProductSheet({
   product,
@@ -36,45 +25,41 @@ export function ProductSheet({
   onConfirm: (line: CartLine) => void;
 }) {
   const t = useTranslations('menu');
-  const [variantIdx, setVariantIdx] = useState<number>(product.variants.length > 0 ? 0 : -1);
-  const [extras, setExtras] = useState<Record<string, PricedOption>>({});
-  const [removed, setRemoved] = useState<Record<string, true>>({});
+  const groups = resolveOptionGroups(product);
+  // group id -> selected option indices (single-choice groups hold 0 or 1)
+  const [sel, setSel] = useState<Record<string, number[]>>(() => {
+    const init: Record<string, number[]> = {};
+    for (const g of groups) init[g.id] = !g.multiple && g.required && g.options.length > 0 ? [0] : [];
+    return init;
+  });
   const [qty, setQty] = useState(1);
   const [note, setNote] = useState('');
 
-  const variant = variantIdx >= 0 ? product.variants[variantIdx] : null;
-  const basePrice = variant ? variant.price : product.price;
-  const chosenExtras = Object.values(extras);
-  const chosenRemoved = Object.keys(removed);
-  const unit = (basePrice ?? 0) + chosenExtras.reduce((s, e) => s + e.price, 0);
-
-  function toggleExtra(e: PricedOption) {
-    setExtras((cur) => {
-      const next = { ...cur };
-      if (next[e.name]) delete next[e.name];
-      else next[e.name] = e;
-      return next;
+  function toggle(groupId: string, idx: number, multiple: boolean) {
+    setSel((cur) => {
+      const chosen = cur[groupId] ?? [];
+      if (multiple) {
+        return { ...cur, [groupId]: chosen.includes(idx) ? chosen.filter((i) => i !== idx) : [...chosen, idx] };
+      }
+      return { ...cur, [groupId]: chosen[0] === idx ? [] : [idx] };
     });
   }
 
-  function toggleRemoved(name: string) {
-    setRemoved((cur) => {
-      const next = { ...cur };
-      if (next[name]) delete next[name];
-      else next[name] = true;
-      return next;
-    });
-  }
+  const selections: SelectedOption[] = groups.flatMap((g) =>
+    (sel[g.id] ?? []).map((i) => ({ group: g.name, name: g.options[i].name, price: g.options[i].price || 0 })),
+  );
+  const unit = (product.price ?? 0) + selections.reduce((s, o) => s + o.price, 0);
+  const valid = groups.every((g) => !g.required || (sel[g.id]?.length ?? 0) > 0);
 
   function confirm() {
+    if (!valid) return;
+    const sig = selections.map((s) => `${s.group}:${s.name}`).sort().join(',');
     onConfirm({
-      key: cartKey(product.id, variant?.name ?? null, chosenExtras, chosenRemoved),
+      key: `${product.id}|${sig}`,
       productId: product.id,
       name: product.name,
-      basePrice,
-      variantName: variant?.name,
-      extras: chosenExtras,
-      removed: chosenRemoved,
+      basePrice: product.price,
+      selections,
       qty,
       note: note.trim() || undefined,
     });
@@ -103,95 +88,47 @@ export function ProductSheet({
 
           <div className="px-5 py-4">
             <h2 className="text-xl font-bold">{product.name}</h2>
-            {product.description && (
-              <p className="mt-1 text-sm text-neutral-500">{product.description}</p>
-            )}
+            {product.description && <p className="mt-1 text-sm text-neutral-500">{product.description}</p>}
 
-            {/* Variants (single choice) */}
-            {product.variants.length > 0 && (
-              <div className="mt-5">
-                <h3 className="mb-2 text-sm font-semibold">{t('chooseOption')}</h3>
-                <div className="space-y-2">
-                  {product.variants.map((v, i) => (
-                    <label
-                      key={i}
-                      className="flex cursor-pointer items-center justify-between rounded-xl border border-neutral-200 px-3 py-2.5"
-                    >
-                      <span className="flex items-center gap-2 text-sm">
-                        <input
-                          type="radio"
-                          name="variant"
-                          checked={variantIdx === i}
-                          onChange={() => setVariantIdx(i)}
-                        />
-                        {v.name}
+            {groups.map((g) => {
+              const chosen = sel[g.id] ?? [];
+              return (
+                <div key={g.id} className="mt-5">
+                  <div className="mb-2 flex items-center gap-2">
+                    <h3 className="text-sm font-semibold">{g.name}</h3>
+                    {g.required && (
+                      <span className="rounded-full bg-neutral-900 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                        {t('required')}
                       </span>
-                      {showPrice && (
-                        <span className="text-sm font-medium">
-                          {formatPrice(v.price, currency, locale)}
-                        </span>
-                      )}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Removable ingredients (free, multi choice) */}
-            {product.removables.length > 0 && (
-              <div className="mt-5">
-                <h3 className="mb-2 text-sm font-semibold">{t('removeIngredients')}</h3>
-                <div className="flex flex-wrap gap-2">
-                  {product.removables.map((name, i) => {
-                    const on = Boolean(removed[name]);
-                    return (
-                      <button
+                    )}
+                    {!g.required && <span className="text-xs text-neutral-400">{t('optional')}</span>}
+                  </div>
+                  {g.description && <p className="-mt-1 mb-2 text-xs text-neutral-400">{g.description}</p>}
+                  <div className="space-y-2">
+                    {g.options.map((o, i) => (
+                      <label
                         key={i}
-                        onClick={() => toggleRemoved(name)}
-                        className={`rounded-full border px-3 py-1.5 text-sm transition ${
-                          on
-                            ? 'border-red-300 bg-red-50 text-red-600 line-through'
-                            : 'border-neutral-200 text-neutral-600'
-                        }`}
+                        className="flex cursor-pointer items-center justify-between rounded-xl border border-neutral-200 px-3 py-2.5"
                       >
-                        {on ? '✕ ' : ''}Sin {name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Modifiers / extras (multi choice) */}
-            {product.modifiers.length > 0 && (
-              <div className="mt-5">
-                <h3 className="mb-2 text-sm font-semibold">{t('addExtras')}</h3>
-                <div className="space-y-2">
-                  {product.modifiers.map((m, i) => (
-                    <label
-                      key={i}
-                      className="flex cursor-pointer items-center justify-between rounded-xl border border-neutral-200 px-3 py-2.5"
-                    >
-                      <span className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(extras[m.name])}
-                          onChange={() => toggleExtra(m)}
-                        />
-                        {m.name}
-                      </span>
-                      {showPrice && (
-                        <span className="text-sm font-medium">
-                          + {formatPrice(m.price, currency, locale)}
+                        <span className="flex items-center gap-2 text-sm">
+                          <input
+                            type={g.multiple ? 'checkbox' : 'radio'}
+                            name={g.id}
+                            checked={chosen.includes(i)}
+                            onChange={() => toggle(g.id, i, g.multiple)}
+                          />
+                          {o.name}
                         </span>
-                      )}
-                    </label>
-                  ))}
+                        {showPrice && o.price > 0 && (
+                          <span className="text-sm font-medium">+ {formatPrice(o.price, currency, locale)}</span>
+                        )}
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })}
 
-            {/* Note */}
             <input
               value={note}
               onChange={(e) => setNote(e.target.value)}
@@ -214,11 +151,12 @@ export function ProductSheet({
           </div>
           <button
             onClick={confirm}
-            className="flex flex-1 items-center justify-center gap-2 rounded-full py-3 font-semibold"
+            disabled={!valid}
+            className="flex flex-1 items-center justify-center gap-2 rounded-full py-3 font-semibold disabled:opacity-40"
             style={{ backgroundColor: 'var(--brand-button)', color: 'var(--brand-button-text)' }}
           >
-            {t('addToOrder')}
-            {showPrice && unit > 0 && <span>· {formatPrice(unit * qty, currency, locale)}</span>}
+            {valid ? t('addToOrder') : t('chooseRequired')}
+            {valid && showPrice && unit > 0 && <span>· {formatPrice(unit * qty, currency, locale)}</span>}
           </button>
         </div>
       </div>

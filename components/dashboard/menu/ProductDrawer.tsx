@@ -1,13 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, X, Trash2, Copy, ClipboardPaste, Check } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
-import type { Product, PricedOption } from '@/lib/database.types';
+import type { Product } from '@/lib/database.types';
 import { BADGES, badgeLabel } from '@/lib/badges';
+import { resolveOptionGroups } from '@/lib/menu-options';
 import { Input, Textarea, Label, Button } from '@/components/ui';
 import { ImageUploader } from '@/components/dashboard/ImageUploader';
 import { Drawer } from './Drawer';
+import { OptionGroupsEditor } from './OptionGroupsEditor';
 import { updateProduct, deleteProduct } from '@/app/(dashboard)/menu/actions';
 
 export function ProductDrawer({
@@ -155,29 +157,11 @@ export function ProductDrawer({
           </div>
         </div>
 
-        <OptionList
-          label={t('variants')}
-          hint={t('variantsHint')}
-          value={product.variants ?? []}
-          onChange={(v) => updateProduct(product.id, { variants: v })}
-          namePlaceholder={t('variantName')}
-          clipKey="kuik_clip_variants"
-        />
-        <OptionList
-          label={t('modifiers')}
-          hint={t('modifiersHint')}
-          value={product.modifiers ?? []}
-          onChange={(v) => updateProduct(product.id, { modifiers: v })}
-          namePlaceholder={t('modifierName')}
-          clipKey="kuik_clip_modifiers"
-        />
-        <StringList
-          label={t('removables')}
-          hint={t('removablesHint')}
-          value={product.removables ?? []}
-          onChange={(v) => updateProduct(product.id, { removables: v })}
-          placeholder={t('removableName')}
-          clipKey="kuik_clip_removables"
+        <OptionGroupsEditor
+          value={resolveOptionGroups(product)}
+          onSave={(groups) =>
+            updateProduct(product.id, { option_groups: groups, variants: [], modifiers: [], removables: [] })
+          }
         />
 
         <Button variant="secondary" className="w-full" onClick={onClose}>
@@ -185,190 +169,6 @@ export function ProductDrawer({
         </Button>
       </div>
     </Drawer>
-  );
-}
-
-function OptionList({
-  label,
-  hint,
-  value,
-  onChange,
-  namePlaceholder,
-  clipKey,
-}: {
-  label: string;
-  hint: string;
-  value: PricedOption[];
-  onChange: (v: PricedOption[]) => void;
-  namePlaceholder: string;
-  clipKey: string;
-}) {
-  const [rows, setRows] = useState<PricedOption[]>(value);
-  function commit(next: PricedOption[]) {
-    setRows(next);
-    onChange(next.filter((r) => r.name.trim() !== ''));
-  }
-  return (
-    <div>
-      <div className="flex items-center justify-between">
-        <Label>{label}</Label>
-        <ListCopyPaste
-          clipKey={clipKey}
-          getValue={() => rows.filter((r) => r.name.trim() !== '')}
-          onPaste={(v) => commit((v as PricedOption[]).filter((r) => r && typeof r.name === 'string'))}
-        />
-      </div>
-      <p className="-mt-1 mb-1.5 text-xs text-neutral-400">{hint}</p>
-      <div className="space-y-2">
-        {rows.map((row, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <Input
-              value={row.name}
-              placeholder={namePlaceholder}
-              onChange={(e) => {
-                const next = [...rows];
-                next[i] = { ...next[i], name: e.target.value };
-                setRows(next);
-              }}
-              onBlur={() => commit(rows)}
-              className="flex-1"
-            />
-            <Input
-              type="number"
-              step="0.01"
-              inputMode="decimal"
-              value={row.price === 0 ? '' : row.price}
-              placeholder="$"
-              onChange={(e) => {
-                const next = [...rows];
-                next[i] = { ...next[i], price: Number(e.target.value) || 0 };
-                setRows(next);
-              }}
-              onBlur={() => commit(rows)}
-              className="w-24"
-            />
-            <button onClick={() => commit(rows.filter((_, j) => j !== i))} className="p-1 text-neutral-400 hover:text-red-500">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
-        <button onClick={() => setRows([...rows, { name: '', price: 0 }])} className="flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-900">
-          <Plus className="h-4 w-4" /> {label}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function StringList({
-  label,
-  hint,
-  value,
-  onChange,
-  placeholder,
-  clipKey,
-}: {
-  label: string;
-  hint: string;
-  value: string[];
-  onChange: (v: string[]) => void;
-  placeholder: string;
-  clipKey: string;
-}) {
-  const [rows, setRows] = useState<string[]>(value);
-  function commit(next: string[]) {
-    setRows(next);
-    onChange(next.map((r) => r.trim()).filter(Boolean));
-  }
-  return (
-    <div>
-      <div className="flex items-center justify-between">
-        <Label>{label}</Label>
-        <ListCopyPaste
-          clipKey={clipKey}
-          getValue={() => rows.map((r) => r.trim()).filter(Boolean)}
-          onPaste={(v) => commit((v as string[]).filter((r) => typeof r === 'string'))}
-        />
-      </div>
-      <p className="-mt-1 mb-1.5 text-xs text-neutral-400">{hint}</p>
-      <div className="space-y-2">
-        {rows.map((row, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <Input
-              value={row}
-              placeholder={placeholder}
-              onChange={(e) => {
-                const next = [...rows];
-                next[i] = e.target.value;
-                setRows(next);
-              }}
-              onBlur={() => commit(rows)}
-              className="flex-1"
-            />
-            <button onClick={() => commit(rows.filter((_, j) => j !== i))} className="p-1 text-neutral-400 hover:text-red-500">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
-        <button onClick={() => setRows([...rows, ''])} className="flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-900">
-          <Plus className="h-4 w-4" /> {label}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function ListCopyPaste({
-  clipKey,
-  getValue,
-  onPaste,
-}: {
-  clipKey: string;
-  getValue: () => unknown;
-  onPaste: (v: unknown) => void;
-}) {
-  const t = useTranslations('menuEditor');
-  const [copied, setCopied] = useState(false);
-
-  function copy() {
-    localStorage.setItem(clipKey, JSON.stringify(getValue()));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-  function paste() {
-    const raw = localStorage.getItem(clipKey);
-    if (!raw) {
-      alert(t('noClipboard'));
-      return;
-    }
-    try {
-      const v = JSON.parse(raw);
-      if (Array.isArray(v)) onPaste(v);
-    } catch {
-      alert(t('noClipboard'));
-    }
-  }
-
-  return (
-    <div className="flex gap-1">
-      <button
-        type="button"
-        onClick={copy}
-        title={t('copyOptions')}
-        className="flex items-center gap-1 rounded-md border border-neutral-300 px-1.5 py-0.5 text-[11px] font-medium text-neutral-600 hover:bg-neutral-50"
-      >
-        {copied ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
-        {copied ? t('copiedOptions') : t('copyOptions')}
-      </button>
-      <button
-        type="button"
-        onClick={paste}
-        title={t('pasteOptions')}
-        className="flex items-center gap-1 rounded-md border border-neutral-300 px-1.5 py-0.5 text-[11px] font-medium text-neutral-600 hover:bg-neutral-50"
-      >
-        <ClipboardPaste className="h-3 w-3" /> {t('pasteOptions')}
-      </button>
-    </div>
   );
 }
 

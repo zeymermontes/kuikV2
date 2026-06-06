@@ -1,22 +1,20 @@
 import { formatPrice } from '@/lib/utils';
-import type { PricedOption } from '@/lib/database.types';
+import type { SelectedOption } from '@/lib/menu-options';
 
 export interface CartLine {
-  key: string; // unique per product + variant + extras + removals combination
+  key: string; // unique per product + chosen options combination
   productId: string;
   name: string;
   categoryName?: string; // section it belongs to (for grouping the WhatsApp ticket)
-  basePrice: number | null; // variant price if chosen, else product price
-  variantName?: string;
-  extras: PricedOption[]; // chosen modifiers / add-ons (priced)
-  removed: string[]; // removed ingredients, e.g. ["Cebolla"] (free)
+  basePrice: number | null; // base product price
+  selections: SelectedOption[]; // chosen options across all groups (with extra cost)
   qty: number;
   note?: string;
 }
 
-/** Unit price of one line including its chosen variant and extras. */
+/** Unit price of one line: base price + every chosen option's extra cost. */
 export function lineUnitPrice(l: CartLine): number {
-  const extras = l.extras.reduce((s, e) => s + e.price, 0);
+  const extras = (l.selections ?? []).reduce((s, o) => s + (o.price || 0), 0);
   return (l.basePrice ?? 0) + extras;
 }
 
@@ -91,14 +89,16 @@ export function buildOrderMessage(opts: BuildMessageOptions): string {
     if (g.name) out.push(`*${g.name}*`);
     for (const l of g.lines) {
       const unit = lineUnitPrice(l);
+      const sel = l.selections ?? [];
       const priceStr =
-        showPrices && (l.basePrice != null || l.extras.length > 0)
+        showPrices && (l.basePrice != null || sel.length > 0)
           ? ` — ${money(unit * l.qty)}`
           : '';
-      const variant = l.variantName ? ` (${l.variantName})` : '';
-      out.push(`• ${l.qty}× ${l.name}${variant}${priceStr}`);
-      for (const r of l.removed) out.push(`   − Sin ${r}`);
-      for (const e of l.extras) out.push(`   + ${e.name}`);
+      out.push(`• ${l.qty}× ${l.name}${priceStr}`);
+      for (const o of sel) {
+        const extra = showPrices && o.price > 0 ? ` (+${money(o.price)})` : '';
+        out.push(`   + ${o.name}${extra}`);
+      }
       if (l.note) out.push(`   _${l.note}_`);
     }
     out.push('');

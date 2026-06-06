@@ -5,6 +5,7 @@ import { Plus, Clock, Flame } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Product } from '@/lib/database.types';
 import { getBadge, badgeLabel } from '@/lib/badges';
+import { hasOptions } from '@/lib/menu-options';
 import {
   IMAGE_SHAPE_CLASS,
   type CardStyle,
@@ -46,10 +47,7 @@ export function ProductCard({
 }) {
   const t = useTranslations('menu');
   const dimmed = !product.is_available;
-  const hasOptions =
-    product.variants.length > 0 ||
-    product.modifiers.length > 0 ||
-    product.removables.length > 0;
+  const optioned = hasOptions(product);
   const clickable = orderingEnabled && !dimmed;
   const vertical = cardStyle === 'grid' || cardStyle === 'large';
   const showImage = cardStyle !== 'text' && Boolean(product.image_url);
@@ -79,7 +77,7 @@ export function ProductCard({
       )}
       <span style={{ color: 'var(--brand-primary)', fontFamily: 'var(--font-price)', fontSize: 'var(--fs-price)', fontWeight: 'var(--fw-price)', fontStyle: 'var(--fst-price)' }}>
         {formatPrice(product.price, currency, locale)}
-        {hasOptions && <span className="text-xs font-normal opacity-60"> +</span>}
+        {optioned && <span className="text-xs font-normal opacity-60"> +</span>}
       </span>
     </span>
   );

@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireTenant } from '@/lib/auth';
-import type { SeparatorStyle, PricedOption } from '@/lib/database.types';
+import type { SeparatorStyle, PricedOption, OptionGroup } from '@/lib/database.types';
 
 // All actions resolve the caller's tenant and rely on RLS for authorization.
 async function ctx() {
@@ -90,6 +90,7 @@ export async function updateProduct(
     variants: PricedOption[];
     modifiers: PricedOption[];
     removables: string[];
+    option_groups: OptionGroup[];
   }>,
 ) {
   const { subdomain, supabase } = await ctx();

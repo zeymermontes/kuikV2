@@ -357,9 +357,14 @@ const SCHEMA_ES = `{
           "image": "https://...",    // URL absoluta de la foto del producto en el sitio (si existe).
           "prepTime": "15 min",      // Tiempo de preparación (opcional).
           "calories": 800,           // Calorías (opcional, número).
-          "variants": [ {"name":"Chica","price":150}, {"name":"Grande","price":200} ], // Tamaños/presentaciones con su precio.
-          "modifiers": [ {"name":"Extra queso","price":20} ],   // Extras con costo adicional.
-          "removables": ["Cebolla","Albahaca"]                  // Ingredientes que el cliente puede QUITAR (sin costo).
+          "optionGroups": [          // Grupos de opciones (multiselect) que el cliente elige al ordenar.
+            { "name":"Tamaño", "description":"", "required":true, "multiple":false,  // required=obligatorio. multiple:false = elige UNO (radio); true = elige VARIOS (checkbox).
+              "options":[ {"name":"Chico","price":0}, {"name":"Grande","price":30} ] },  // price = costo EXTRA que se SUMA al precio base (0 si no agrega).
+            { "name":"Extras", "required":false, "multiple":true,
+              "options":[ {"name":"Queso","price":20}, {"name":"Tocino","price":25} ] },
+            { "name":"Quitar ingredientes", "required":false, "multiple":true,
+              "options":[ {"name":"Sin cebolla","price":0}, {"name":"Sin chile","price":0} ] }
+          ]
         }
       ]
     }
@@ -377,6 +382,7 @@ Reglas importantes:
 - "categories": agrupa los productos por su sección tal como aparece en el sitio, en el mismo orden.
 - Precios solo números, sin símbolo de moneda. "available": true salvo que diga agotado.
 - "tags": usa SOLO de esta lista cuando aplique: new, bestseller, spicy, vegan, vegetarian, glutenfree, house, promo.
+- "optionGroups": modela tamaños, extras y "quitar" como grupos. "required"=obligatorio, "multiple":false=elige uno / true=elige varios. El "price" de cada opción es el costo EXTRA que se suma al "price" base del producto (0 si no agrega). Si el producto no tiene opciones, omite "optionGroups".
 - "image" y "background_image": URLs absolutas de las imágenes del sitio (si existen).
 - No inventes datos: si un campo no está, omítelo (o null donde corresponda).
 
@@ -459,9 +465,14 @@ const SCHEMA_EN = `{
           "image": "https://...",    // Absolute URL of the product photo on the site (if any).
           "prepTime": "15 min",      // Prep time (optional).
           "calories": 800,           // Calories (optional, number).
-          "variants": [ {"name":"Small","price":150}, {"name":"Large","price":200} ], // Sizes/options with their price.
-          "modifiers": [ {"name":"Extra cheese","price":20} ],  // Paid add-ons.
-          "removables": ["Onion","Basil"]                       // Ingredients the customer can REMOVE (free).
+          "optionGroups": [          // Option groups (multiselect) the customer picks when ordering.
+            { "name":"Size", "description":"", "required":true, "multiple":false,  // required=mandatory. multiple:false = choose ONE (radio); true = choose MANY (checkbox).
+              "options":[ {"name":"Small","price":0}, {"name":"Large","price":30} ] },  // price = EXTRA cost ADDED to the base price (0 if none).
+            { "name":"Extras", "required":false, "multiple":true,
+              "options":[ {"name":"Cheese","price":20}, {"name":"Bacon","price":25} ] },
+            { "name":"Remove", "required":false, "multiple":true,
+              "options":[ {"name":"No onion","price":0}, {"name":"No chili","price":0} ] }
+          ]
         }
       ]
     }
@@ -479,6 +490,7 @@ Important rules:
 - "categories": group products by their on-page section, in the same order.
 - Prices numbers only, no currency symbol. "available": true unless sold out.
 - "tags": ONLY from this list when relevant: new, bestseller, spicy, vegan, vegetarian, glutenfree, house, promo.
+- "optionGroups": model sizes, extras and "remove" as groups. "required"=mandatory, "multiple":false=choose one / true=choose many. Each option's "price" is the EXTRA cost added to the product's base "price" (0 if none). Omit "optionGroups" if the product has no options.
 - "image" and "background_image": absolute URLs of the site's images (if any).
 - Don't invent data: omit a field (or null where appropriate) if it's missing.
 

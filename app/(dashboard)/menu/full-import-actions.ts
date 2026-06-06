@@ -198,6 +198,16 @@ async function buildProductFields(
   p: ImportProduct,
 ) {
   const image_url = await resolveImage(supabase, tenantId, p.image);
+  const optionGroups = (p.optionGroups ?? [])
+    .filter((g) => g.name && (g.options ?? []).length > 0)
+    .map((g) => ({
+      id: crypto.randomUUID(),
+      name: g.name.trim(),
+      description: g.description?.trim() || undefined,
+      required: g.required ?? false,
+      multiple: g.multiple ?? true,
+      options: (g.options ?? []).filter((o) => o.name).map((o) => ({ name: o.name, price: o.price ?? 0 })),
+    }));
   return {
     name: p.name.trim(),
     description: p.description?.trim() || null,
@@ -207,6 +217,7 @@ async function buildProductFields(
     calories: p.calories ?? null,
     is_available: p.available ?? true,
     tags: p.tags ?? [],
+    option_groups: optionGroups,
     variants: (p.variants ?? []).filter((v) => v.name).map((v) => ({ name: v.name, price: v.price ?? 0 })),
     modifiers: (p.modifiers ?? []).filter((v) => v.name).map((v) => ({ name: v.name, price: v.price ?? 0 })),
     removables: (p.removables ?? []).filter(Boolean),

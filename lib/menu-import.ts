@@ -7,6 +7,14 @@ export interface ImportOption {
   price?: number;
 }
 
+export interface ImportOptionGroup {
+  name: string;
+  description?: string;
+  required?: boolean;
+  multiple?: boolean; // true = choose many, false = choose one
+  options: ImportOption[]; // each option's price is an extra cost (0 if free)
+}
+
 export interface ImportProduct {
   name: string;
   description?: string | null;
@@ -15,9 +23,10 @@ export interface ImportProduct {
   available?: boolean;
   tags?: string[];
   image?: string | null; // ZIP filename, external URL, or an already-hosted URL
-  variants?: ImportOption[];
-  modifiers?: ImportOption[]; // priced extras
-  removables?: string[]; // free "remove" options
+  optionGroups?: ImportOptionGroup[]; // dynamic multiselects
+  variants?: ImportOption[]; // legacy
+  modifiers?: ImportOption[]; // legacy priced extras
+  removables?: string[]; // legacy free "remove" options
   prepTime?: string | null;
   calories?: number | null;
 }
