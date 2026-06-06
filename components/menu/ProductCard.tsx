@@ -128,7 +128,7 @@ export function ProductCard({
       <div
         onClick={clickable ? onOpen : undefined}
         role={clickable ? 'button' : undefined}
-        className={`flex flex-col overflow-hidden ${radiusClass} ${dimmed ? 'opacity-50' : ''} ${clickable ? 'cursor-pointer' : ''}`}
+        className={`animate-fade flex flex-col overflow-hidden ${radiusClass} ${dimmed ? 'opacity-50' : ''} ${clickable ? 'cursor-pointer' : ''}`}
         style={wrapStyle}
       >
         {showImage && (
@@ -164,7 +164,7 @@ export function ProductCard({
     <div
       onClick={clickable ? onOpen : undefined}
       role={clickable ? 'button' : undefined}
-      className={`flex gap-3 ${radiusClass} ${pad} ${dimmed ? 'opacity-50' : ''} ${clickable ? 'cursor-pointer' : ''}`}
+      className={`animate-fade flex gap-3 ${radiusClass} ${pad} ${dimmed ? 'opacity-50' : ''} ${clickable ? 'cursor-pointer' : ''}`}
       style={wrapStyle}
     >
       {showImage && (

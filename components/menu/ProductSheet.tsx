@@ -68,9 +68,9 @@ export function ProductSheet({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="animate-fade absolute inset-0 bg-black/50" onClick={onClose} />
 
-      <div className="relative flex max-h-[88vh] w-full max-w-lg flex-col rounded-t-3xl bg-white text-neutral-900 sm:rounded-3xl">
+      <div className="animate-slide-up relative flex max-h-[88vh] w-full max-w-lg flex-col rounded-t-3xl bg-white text-neutral-900 sm:rounded-3xl">
         <button
           onClick={onClose}
           aria-label="close"
