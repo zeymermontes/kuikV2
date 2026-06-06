@@ -109,9 +109,12 @@ export function MenuView({
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [activeCat, setActiveCat] = useState<string | null>(null);
+  const [navStuck, setNavStuck] = useState(false);
+  const [barH, setBarH] = useState(52);
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const tabRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
   const navRef = useRef<HTMLElement | null>(null);
+  const stickyRef = useRef<HTMLDivElement | null>(null);
 
   const currency = settings.currency;
   const locale = tenant.locale === 'en' ? 'en-US' : 'es-MX';
@@ -243,19 +246,36 @@ export function MenuView({
 
   const gridContainer = settings.cardStyle === 'grid';
   const tabsMode = settings.navMode === 'tabs';
+  const showNav = (settings.stickyTabs || tabsMode) && filteredMenu.length > 1;
 
-  // Sticky tab bar paints the page's (fixed) background so products scrolling
-  // underneath are hidden — even when the bar color is fully transparent.
+  // The category bar's background = the page background (image or color). When
+  // an image is used, the bar is left transparent and a clipped copy of the
+  // FIXED page-background layer is painted behind it only while it's stuck to the
+  // top — this stays pixel-perfect aligned without `background-attachment: fixed`
+  // (which jitters on Android when the URL bar hides and the viewport resizes).
   const navBgImage = settings.darkMode === 'on' ? null : theme.background_image_url;
-  const navBarStyle: React.CSSProperties = {
-    backgroundColor: 'var(--brand-bg)',
-    backgroundImage: navBgImage
-      ? `linear-gradient(var(--tab-bar-bg), var(--tab-bar-bg)), url(${navBgImage})`
-      : 'linear-gradient(var(--tab-bar-bg), var(--tab-bar-bg))',
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    backgroundAttachment: 'fixed',
-  };
+  const navStyle: React.CSSProperties = navBgImage
+    ? { backgroundColor: 'var(--tab-bar-bg)' }
+    : { backgroundColor: 'var(--brand-bg)', backgroundImage: 'linear-gradient(var(--tab-bar-bg), var(--tab-bar-bg))' };
+
+  // Track when the bar is stuck to the top so the occluding strip only shows then.
+  useEffect(() => {
+    const el = stickyRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => setNavStuck(!e.isIntersecting), { threshold: 0 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [showNav]);
+
+  // Keep the occluding strip's height in sync with the bar.
+  useEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setBarH(el.offsetHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [showNav]);
+
   const effectiveActive = activeCat ?? filteredMenu[0]?.id;
   // In tabs mode only the active category renders; in scroll mode, all of them.
   const visibleCats = tabsMode
@@ -335,12 +355,30 @@ export function MenuView({
         </div>
       )}
 
+      {/* Occluding strip: a clipped copy of the FIXED page background, shown only
+          while the bar is stuck — pixel-perfect with the page bg, no jitter. */}
+      {showNav && navStuck && navBgImage && (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 z-10"
+          style={{
+            backgroundColor: 'var(--brand-bg)',
+            backgroundImage: `url(${navBgImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            clipPath: `inset(0 0 calc(100% - ${barH}px) 0)`,
+          }}
+        />
+      )}
+
       {/* Category tab nav (chips). Always shown in tabs mode. */}
-      {(settings.stickyTabs || tabsMode) && filteredMenu.length > 1 && (
+      {showNav && (
+        <>
+        <div ref={stickyRef} aria-hidden className="h-px" />
         <nav
           ref={navRef}
-          className="no-scrollbar sticky top-0 z-20 flex gap-2 overflow-x-auto px-4 py-3"
-          style={navBarStyle}
+          className="no-scrollbar sticky top-0 z-20 flex items-center gap-2 overflow-x-auto px-4 py-3"
+          style={navStyle}
         >
           {filteredMenu.map((cat) => {
             const active = effectiveActive === cat.id;
@@ -371,6 +409,7 @@ export function MenuView({
             );
           })}
         </nav>
+        </>
       )}
 
       {/* Sections */}
