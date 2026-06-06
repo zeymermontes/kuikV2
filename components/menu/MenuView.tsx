@@ -346,10 +346,9 @@ export function MenuView({
                 }}
                 className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition"
                 style={{
-                  backgroundColor: active
-                    ? 'var(--brand-primary)'
-                    : 'color-mix(in srgb, var(--brand-primary) 12%, transparent)',
-                  color: active ? '#fff' : 'var(--brand-primary)',
+                  backgroundColor: active ? 'var(--tab-selected-bg)' : 'var(--tab-unselected-bg)',
+                  color: active ? 'var(--tab-selected-text)' : 'var(--tab-unselected-text)',
+                  fontFamily: 'var(--font-category)',
                 }}
               >
                 <CatIcon cat={cat} size={18} />
@@ -390,7 +389,7 @@ export function MenuView({
                   ) : (
                     <h2
                       className="flex items-center gap-2 text-xl font-bold"
-                      style={{ color: 'var(--brand-secondary)' }}
+                      style={{ color: 'var(--brand-secondary)', fontFamily: 'var(--font-category)' }}
                     >
                       <CatIcon cat={cat} size={24} />
                       {cat.name}

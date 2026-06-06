@@ -16,9 +16,18 @@ export async function updateTheme(
     card_color: string;
     border_color: string;
     separator_color: string;
+    tab_selected_color: string | null;
+    tab_unselected_color: string | null;
+    tab_font_color: string | null;
+    button_color: string | null;
+    button_text_color: string | null;
     font_family: string;
     custom_font_url: string | null;
     custom_font_name: string | null;
+    font_category: string | null;
+    font_product: string | null;
+    font_price: string | null;
+    font_description: string | null;
     logo_url: string | null;
     background_image_url: string | null;
     cover_image_url: string | null;

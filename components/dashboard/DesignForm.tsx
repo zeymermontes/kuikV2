@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { TenantTheme } from '@/lib/database.types';
+import { MENU_FONTS, CUSTOM_FONT } from '@/lib/config';
+import { BADGES } from '@/lib/badges';
 import {
   resolveMenuSettings,
   type MenuSettings,
@@ -58,7 +60,35 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
     updateMenuSettings({ [key]: value });
   }
 
-  const colorFields = [
+  // Upload/remove the custom font. On upload it becomes the main font; on remove
+  // any field still using it reverts to a default.
+  function onCustomFont(url: string | null, fname: string | null) {
+    let patch: Partial<TenantTheme>;
+    if (url) {
+      patch = { custom_font_url: url, custom_font_name: fname, font_family: CUSTOM_FONT };
+    } else {
+      const reset = (v: string | null) => (v === CUSTOM_FONT ? null : v);
+      patch = {
+        custom_font_url: null,
+        custom_font_name: null,
+        font_family: local.font_family === CUSTOM_FONT ? 'Inter' : local.font_family,
+        font_category: reset(local.font_category),
+        font_product: reset(local.font_product),
+        font_price: reset(local.font_price),
+        font_description: reset(local.font_description),
+      };
+    }
+    setLocal((s) => ({ ...s, ...patch }));
+    updateTheme(patch);
+  }
+
+  type ColorKey =
+    | 'primary_color' | 'secondary_color' | 'background_color' | 'card_color'
+    | 'border_color' | 'separator_color' | 'text_color' | 'text_secondary_color'
+    | 'tab_selected_color' | 'tab_unselected_color' | 'tab_font_color'
+    | 'button_color' | 'button_text_color';
+
+  const colorFields: { key: ColorKey; label: string; fallback?: string }[] = [
     { key: 'primary_color', label: t('primary') },
     { key: 'secondary_color', label: t('secondary') },
     { key: 'background_color', label: t('background') },
@@ -67,7 +97,12 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
     { key: 'separator_color', label: t('separator') },
     { key: 'text_color', label: t('text') },
     { key: 'text_secondary_color', label: t('textSecondary') },
-  ] as const;
+    { key: 'button_color', label: t('button'), fallback: local.primary_color },
+    { key: 'button_text_color', label: t('buttonText'), fallback: '#ffffff' },
+    { key: 'tab_selected_color', label: t('tabSelected'), fallback: local.primary_color },
+    { key: 'tab_unselected_color', label: t('tabUnselected'), fallback: '#eeeeee' },
+    { key: 'tab_font_color', label: t('tabFont'), fallback: local.text_color },
+  ];
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
@@ -118,8 +153,8 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
         <Card>
           <h2 className="mb-4 font-semibold">{t('colors')}</h2>
           <div className="grid grid-cols-2 gap-4">
-            {colorFields.map(({ key, label }) => {
-              const { rgb, alpha } = parseColor(local[key]);
+            {colorFields.map(({ key, label, fallback }) => {
+              const { rgb, alpha } = parseColor(local[key] ?? fallback ?? '#000000');
               const pct = Math.round((alpha / 255) * 100);
               return (
                 <div key={key}>
@@ -136,7 +171,7 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
                       value={local[key] ?? ''}
                       maxLength={9}
                       spellCheck={false}
-                      placeholder="#000000"
+                      placeholder={fallback ?? '#000000'}
                       onChange={(e) => setLocal((s) => ({ ...s, [key]: e.target.value }))}
                       onBlur={(e) => {
                         const v = normHex(e.target.value);
@@ -179,18 +214,55 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
         {/* Typography */}
         <Card>
           <Label>{t('font')}</Label>
-          <FontPicker value={local.font_family} onChange={(f) => set('font_family', f)} />
+          <FontPicker
+            value={local.font_family}
+            onChange={(f) => set('font_family', f)}
+            customFontUrl={local.custom_font_url}
+            customFontName={local.custom_font_name}
+          />
           <div className="mt-4 border-t border-neutral-100 pt-4">
             <Label>{t('customFont')}</Label>
             <CustomFontUploader
               value={local.custom_font_url}
               name={local.custom_font_name}
               tenantId={theme.tenant_id}
-              onChange={(url, fname) => {
-                setLocal((s) => ({ ...s, custom_font_url: url, custom_font_name: fname }));
-                updateTheme({ custom_font_url: url, custom_font_name: fname });
-              }}
+              onChange={onCustomFont}
             />
+          </div>
+
+          {/* Per-element fonts */}
+          <div className="mt-4 space-y-2 border-t border-neutral-100 pt-4">
+            <p className="text-xs font-medium text-neutral-500">{t('perElementFonts')}</p>
+            {(
+              [
+                { key: 'font_category', label: t('fontCategory') },
+                { key: 'font_product', label: t('fontProduct') },
+                { key: 'font_price', label: t('fontPrice') },
+                { key: 'font_description', label: t('fontDescription') },
+              ] as const
+            ).map(({ key, label }) => (
+              <div key={key} className="flex items-center justify-between gap-3">
+                <span className="text-sm">{label}</span>
+                <select
+                  value={local[key] ?? ''}
+                  onChange={(e) => set(key, e.target.value || null)}
+                  className="rounded-lg border border-neutral-300 px-2 py-1.5 text-sm"
+                  style={{ fontFamily: local[key] ? `'${local[key]}'` : undefined }}
+                >
+                  <option value="">{t('inheritFont')}</option>
+                  {MENU_FONTS.map((f) => (
+                    <option key={f} value={f} style={{ fontFamily: `'${f}'` }}>
+                      {f}
+                    </option>
+                  ))}
+                  {local.custom_font_url && (
+                    <option value={CUSTOM_FONT} style={{ fontFamily: `'${CUSTOM_FONT}'` }}>
+                      {local.custom_font_name || t('customFont')}
+                    </option>
+                  )}
+                </select>
+              </div>
+            ))}
           </div>
         </Card>
 
@@ -305,6 +377,9 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
   );
 }
 
+const BB = BADGES.find((b) => b.key === 'bestseller');
+const BESTSELLER = BB ? { emoji: BB.emoji, label: BB.es, color: BB.color, text: BB.text } : undefined;
+
 function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettings }) {
   const dark = settings.darkMode === 'on';
   const bg = dark ? '#111114' : local.background_color;
@@ -321,7 +396,25 @@ function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettin
     border: settings.cardBorder ? `1px solid ${border}` : undefined,
     boxShadow: settings.cardShadow ? '0 1px 6px rgba(0,0,0,.08)' : undefined,
   };
-  const colors = { text, textSec, primary: local.primary_color };
+  // Same fallbacks the public menu uses, so the preview matches it exactly.
+  const p = local.primary_color;
+  const tabSelBg = local.tab_selected_color ?? p;
+  const tabUnselBg = local.tab_unselected_color ?? `color-mix(in srgb, ${p} 12%, transparent)`;
+  const tabSelText = local.tab_font_color ?? '#ffffff';
+  const tabUnselText = local.tab_font_color ?? p;
+  const colors = {
+    text,
+    textSec,
+    primary: p,
+    btnBg: local.button_color ?? p,
+    btnText: local.button_text_color ?? '#ffffff',
+  };
+  const ef = (f: string | null) => (f ? `'${f}', '${local.font_family}'` : `'${local.font_family}'`);
+  const fonts = {
+    product: ef(local.font_product),
+    price: ef(local.font_price),
+    description: ef(local.font_description),
+  };
 
   return (
     <div
@@ -337,8 +430,14 @@ function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettin
       <p className="text-xl font-extrabold" style={{ color: text }}>{local.slogan || 'Tu Restaurante'}</p>
       <p className="text-xs" style={{ color: textSec }}>La mejor comida de la ciudad</p>
 
-      <h3 className="pt-1 text-lg font-bold" style={{ color: local.secondary_color }}>Entradas</h3>
-      <PreviewItem cardStyle={cardStyle} colors={colors} name="Tacos al pastor" price="$120" strike="$150" desc="Con piña, cebolla y cilantro." badge="🔥 Más vendido" />
+      {/* Category tabs */}
+      <div className="flex gap-2 pt-1" style={{ fontFamily: ef(local.font_category) }}>
+        <span className="rounded-full px-3 py-1 text-xs font-medium" style={{ backgroundColor: tabSelBg, color: tabSelText }}>Entradas</span>
+        <span className="rounded-full px-3 py-1 text-xs font-medium" style={{ backgroundColor: tabUnselBg, color: tabUnselText }}>Postres</span>
+      </div>
+
+      <h3 className="pt-1 text-lg font-bold" style={{ color: local.secondary_color, fontFamily: ef(local.font_category) }}>Entradas</h3>
+      <PreviewItem cardStyle={cardStyle} colors={colors} fonts={fonts} name="Tacos al pastor" price="$120" strike="$150" desc="Con piña, cebolla y cilantro." badge={BESTSELLER} />
 
       {/* Separator */}
       <div className="flex items-center gap-3 py-1">
@@ -347,7 +446,7 @@ function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettin
         <span className="h-px flex-1" style={{ backgroundColor: sep }} />
       </div>
 
-      <PreviewItem cardStyle={cardStyle} colors={colors} name="Quesadilla" price="$80" desc="Queso fundido y guacamole." />
+      <PreviewItem cardStyle={cardStyle} colors={colors} fonts={fonts} name="Quesadilla" price="$80" desc="Queso fundido y guacamole." />
     </div>
   );
 }
@@ -355,6 +454,7 @@ function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettin
 function PreviewItem({
   cardStyle,
   colors,
+  fonts,
   name,
   price,
   strike,
@@ -362,29 +462,33 @@ function PreviewItem({
   badge,
 }: {
   cardStyle: React.CSSProperties;
-  colors: { text: string; textSec: string; primary: string };
+  colors: { text: string; textSec: string; primary: string; btnBg: string; btnText: string };
+  fonts: { product: string; price: string; description: string };
   name: string;
   price: string;
   strike?: string;
   desc?: string;
-  badge?: string;
+  badge?: { emoji: string; label: string; color: string; text: string };
 }) {
   return (
     <div className="p-3" style={cardStyle}>
       {badge && (
-        <span className="mb-1 inline-block rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
-          {badge}
+        <span
+          className="mb-1 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+          style={{ backgroundColor: badge.color, color: badge.text }}
+        >
+          {badge.emoji} {badge.label}
         </span>
       )}
       <div className="flex items-start justify-between gap-2">
-        <span className="font-semibold" style={{ color: colors.text }}>{name}</span>
-        <span className="flex items-baseline gap-1.5">
+        <span className="font-semibold" style={{ color: colors.text, fontFamily: fonts.product }}>{name}</span>
+        <span className="flex items-baseline gap-1.5" style={{ fontFamily: fonts.price }}>
           {strike && <span className="text-xs line-through" style={{ color: colors.textSec }}>{strike}</span>}
           <span className="font-semibold" style={{ color: colors.primary }}>{price}</span>
         </span>
       </div>
-      {desc && <p className="mt-1 text-sm" style={{ color: colors.textSec }}>{desc}</p>}
-      <button className="mt-3 rounded-full px-4 py-1.5 text-sm font-semibold text-white" style={{ backgroundColor: colors.primary }}>
+      {desc && <p className="mt-1 text-sm" style={{ color: colors.textSec, fontFamily: fonts.description }}>{desc}</p>}
+      <button className="mt-3 rounded-full px-4 py-1.5 text-sm font-semibold" style={{ backgroundColor: colors.btnBg, color: colors.btnText }}>
         Agregar
       </button>
     </div>

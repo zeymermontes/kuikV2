@@ -2,12 +2,24 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getTenantByHostKey } from '@/lib/tenant';
 import { resolveMenuSettings } from '@/lib/menu-settings';
+import { CUSTOM_FONT } from '@/lib/config';
 
 type Params = { tenant: string };
 
-function googleFontHref(family: string): string {
-  const f = family.trim().replace(/ /g, '+');
-  return `https://fonts.googleapis.com/css2?family=${f}:wght@400;500;600;700&display=swap`;
+/** Quote a font value, mapping the custom-font sentinel to its @font-face name. */
+function fontCss(value: string): string {
+  return `'${value}'`; // both the sentinel and Google names are used verbatim as family
+}
+/** CSS value for a per-element font; falls back to the main menu font. */
+function elementFont(font: string | null): string {
+  return font ? `${fontCss(font)}, var(--brand-font)` : 'var(--brand-font)';
+}
+
+function googleFontsHref(families: string[]): string {
+  const params = families
+    .map((f) => `family=${f.trim().replace(/ /g, '+')}:wght@400;500;600;700`)
+    .join('&');
+  return `https://fonts.googleapis.com/css2?${params}&display=swap`;
 }
 
 const DARK = {
@@ -69,21 +81,45 @@ export default async function TenantLayout({
     '--brand-surface': dark ? DARK.surface : theme.card_color ?? '#ffffff',
     '--brand-border': dark ? DARK.border : theme.border_color ?? '#e5e5e5',
     '--brand-separator': theme.separator_color ?? '#e5e5e5',
-    '--brand-font': theme.custom_font_url
-      ? `'KuikCustomFont', '${theme.font_family}', system-ui, sans-serif`
-      : `'${theme.font_family}', system-ui, sans-serif`,
+    '--brand-font': `${fontCss(theme.font_family)}, system-ui, sans-serif`,
+    // Per-element fonts (fall back to the main font).
+    '--font-category': elementFont(theme.font_category),
+    '--font-product': elementFont(theme.font_product),
+    '--font-price': elementFont(theme.font_price),
+    '--font-description': elementFont(theme.font_description),
+    // Category tab colors (fall back to the primary color).
+    '--tab-selected-bg': theme.tab_selected_color ?? theme.primary_color,
+    '--tab-unselected-bg':
+      theme.tab_unselected_color ?? `color-mix(in srgb, ${theme.primary_color} 12%, transparent)`,
+    '--tab-selected-text': theme.tab_font_color ?? '#ffffff',
+    '--tab-unselected-text': theme.tab_font_color ?? theme.primary_color,
+    // Buttons (fall back to the primary color / white text).
+    '--brand-button': theme.button_color ?? theme.primary_color,
+    '--brand-button-text': theme.button_text_color ?? '#ffffff',
   } as React.CSSProperties;
 
   // background image is suppressed in forced-dark mode for legibility
   const showBg = theme.background_image_url && !dark;
 
+  // Google fonts to load: every font value that isn't the uploaded custom one.
+  const googleFonts = Array.from(
+    new Set(
+      [
+        theme.font_family,
+        theme.font_category,
+        theme.font_product,
+        theme.font_price,
+        theme.font_description,
+      ].filter((f): f is string => Boolean(f) && f !== CUSTOM_FONT),
+    ),
+  );
+
   return (
     <>
-      {theme.custom_font_url ? (
-        <style>{`@font-face{font-family:'KuikCustomFont';src:url('${theme.custom_font_url}');font-display:swap;}`}</style>
-      ) : (
-        <link rel="stylesheet" href={googleFontHref(theme.font_family)} />
+      {theme.custom_font_url && (
+        <style>{`@font-face{font-family:'${CUSTOM_FONT}';src:url('${theme.custom_font_url}');font-display:swap;}`}</style>
       )}
+      {googleFonts.length > 0 && <link rel="stylesheet" href={googleFontsHref(googleFonts)} />}
       {settings.darkMode === 'auto' && (
         <style>{`@media (prefers-color-scheme: dark){
           .kuik-root{--brand-bg:${DARK.bg};--brand-text:${DARK.text};--brand-surface:${DARK.surface};background-image:none!important}

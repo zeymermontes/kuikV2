@@ -15,8 +15,8 @@ export function CartBar({
     <div className="pb-safe fixed inset-x-0 bottom-0 z-30 px-4 pb-6">
       <button
         onClick={onOpen}
-        className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-full px-5 py-4 text-white shadow-lg"
-        style={{ backgroundColor: 'var(--brand-primary)' }}
+        className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-full px-5 py-4 shadow-lg"
+        style={{ backgroundColor: 'var(--brand-button)', color: 'var(--brand-button-text)' }}
       >
         <span className="flex items-center gap-2 font-semibold">
           <ShoppingBag className="h-5 w-5" />

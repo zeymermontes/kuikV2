@@ -37,6 +37,9 @@ export const MENU_FONTS = [
 ] as const;
 export type MenuFont = (typeof MENU_FONTS)[number];
 
+/** Sentinel font value referring to the tenant's uploaded custom font. */
+export const CUSTOM_FONT = 'KuikCustomFont';
+
 /** Subdomains that may never be claimed by a tenant. */
 export const RESERVED_SUBDOMAINS = new Set([
   'app', 'www', 'api', 'admin', 'dashboard', 'auth', 'login',

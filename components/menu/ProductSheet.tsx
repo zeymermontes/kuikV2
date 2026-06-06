@@ -214,8 +214,8 @@ export function ProductSheet({
           </div>
           <button
             onClick={confirm}
-            className="flex flex-1 items-center justify-center gap-2 rounded-full py-3 font-semibold text-white"
-            style={{ backgroundColor: 'var(--brand-primary)' }}
+            className="flex flex-1 items-center justify-center gap-2 rounded-full py-3 font-semibold"
+            style={{ backgroundColor: 'var(--brand-button)', color: 'var(--brand-button-text)' }}
           >
             {t('addToOrder')}
             {showPrice && unit > 0 && <span>· {formatPrice(unit * qty, currency, locale)}</span>}
