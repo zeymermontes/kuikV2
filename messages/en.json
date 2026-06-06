@@ -229,6 +229,12 @@
     "soldOutHide": "Hide",
     "logo": "Logo",
     "backgroundImage": "Background image",
+    "backgroundMusic": "Background music",
+    "uploadMusic": "Upload music (MP3)",
+    "replaceMusic": "Replace music",
+    "musicHint": "Plays when the menu opens, after the visitor's first tap.",
+    "volume": "Volume",
+    "listenMusic": "Listen",
     "showPricesGlobal": "Show prices on the menu",
     "preview": "Preview"
   },

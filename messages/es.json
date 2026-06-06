@@ -229,6 +229,12 @@
     "soldOutHide": "Ocultar",
     "logo": "Logo",
     "backgroundImage": "Imagen de fondo",
+    "backgroundMusic": "Música de fondo",
+    "uploadMusic": "Subir música (MP3)",
+    "replaceMusic": "Cambiar música",
+    "musicHint": "Suena al abrir el menú, tras el primer toque del cliente.",
+    "volume": "Volumen",
+    "listenMusic": "Escuchar",
     "showPricesGlobal": "Mostrar precios en el menú",
     "preview": "Vista previa"
   },

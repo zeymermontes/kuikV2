@@ -13,6 +13,7 @@ import { Card, Label, Input } from '@/components/ui';
 import { ImageUploader } from '@/components/dashboard/ImageUploader';
 import { FontPicker } from '@/components/dashboard/FontPicker';
 import { CustomFontUploader } from '@/components/dashboard/CustomFontUploader';
+import { MusicUploader } from '@/components/dashboard/MusicUploader';
 
 // Accept 3/4/6/8-digit hex (the 4/8 forms carry alpha).
 const HEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
@@ -384,6 +385,17 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
             folder="backgrounds"
             shape="wide"
             onChange={(url) => set('background_image_url', url)}
+          />
+        </Card>
+
+        <Card>
+          <Label>{t('backgroundMusic')}</Label>
+          <MusicUploader
+            value={local.background_music_url}
+            volume={local.background_music_volume ?? 50}
+            tenantId={theme.tenant_id}
+            onChange={(url) => set('background_music_url', url)}
+            onVolume={(v) => set('background_music_volume', v)}
           />
         </Card>
       </div>

@@ -34,6 +34,8 @@ export async function updateTheme(
     font_description: string | null;
     logo_url: string | null;
     background_image_url: string | null;
+    background_music_url: string | null;
+    background_music_volume: number;
     cover_image_url: string | null;
     slogan: string | null;
     show_prices: boolean;

@@ -26,6 +26,7 @@ import { SeparatorRow } from './SeparatorRow';
 import { CartBar } from './CartBar';
 import { CartSheet } from './CartSheet';
 import { OpenStatus } from './OpenStatus';
+import { BackgroundMusic } from './BackgroundMusic';
 
 type CartState = Record<string, CartLine>; // keyed by CartLine.key
 
@@ -299,6 +300,9 @@ export function MenuView({
 
   return (
     <div className="mx-auto min-h-screen w-full max-w-2xl pb-28">
+      {theme.background_music_url && (
+        <BackgroundMusic url={theme.background_music_url} volume={theme.background_music_volume ?? 50} />
+      )}
       {/* Cover */}
       {theme.cover_image_url && (
         <div className="relative h-40 w-full overflow-hidden sm:h-52">

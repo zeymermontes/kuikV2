@@ -75,6 +75,8 @@ export interface TenantTheme {
   font_price: string | null;
   font_description: string | null;
   background_image_url: string | null;
+  background_music_url: string | null;
+  background_music_volume: number;
   cover_image_url: string | null;
   slogan: string | null;
   logo_url: string | null;
