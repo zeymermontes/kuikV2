@@ -9,14 +9,16 @@ import type {
   TenantTheme,
   TenantContact,
   TenantOrdering,
+  LoyaltyProgram,
   MenuCategory,
   Product,
 } from '@/lib/database.types';
 import type { CartLine } from '@/lib/whatsapp';
 import { resolveMenuSettings, RADIUS_CLASS } from '@/lib/menu-settings';
 import { BADGES, badgeLabel } from '@/lib/badges';
+import { LoyaltyButton } from './LoyaltyCard';
 import { ProductCard } from './ProductCard';
-import { ProductSheet, cartKey } from './ProductSheet';
+import { ProductSheet } from './ProductSheet';
 import { CategoryBanner } from './CategoryBanner';
 import { SeparatorRow } from './SeparatorRow';
 import { CartBar } from './CartBar';
@@ -78,12 +80,14 @@ export function MenuView({
   theme,
   contact,
   ordering,
+  loyalty,
   menu,
 }: {
   tenant: Tenant;
   theme: TenantTheme;
   contact: TenantContact;
   ordering: TenantOrdering;
+  loyalty: LoyaltyProgram;
   menu: MenuCategory[];
 }) {
   const t = useTranslations('menu');
@@ -126,25 +130,11 @@ export function MenuView({
     [tenant.id],
   );
 
-  // Add a product to the cart: open the sheet if it has options, else quick-add.
-  const handleAdd = useCallback(
+  // Tapping a product always opens its detail sheet (image, options, qty).
+  const openProduct = useCallback(
     (product: Product) => {
       trackView(product.id);
-      if (product.variants.length > 0 || product.modifiers.length > 0) {
-        setActiveProduct(product);
-        return;
-      }
-      dispatch({
-        type: 'addLine',
-        line: {
-          key: cartKey(product.id, null, []),
-          productId: product.id,
-          name: product.name,
-          basePrice: product.price,
-          extras: [],
-          qty: 1,
-        },
-      });
+      setActiveProduct(product);
     },
     [trackView],
   );
@@ -246,6 +236,11 @@ export function MenuView({
         )}
         {theme.slogan && <p className="text-sm opacity-70">{theme.slogan}</p>}
         {settings.showSocial && <SocialRow contact={contact} />}
+        {loyalty.enabled && (
+          <div className="mt-2">
+            <LoyaltyButton tenantId={tenant.id} program={loyalty} />
+          </div>
+        )}
       </header>
 
       {/* Search */}
@@ -386,9 +381,7 @@ export function MenuView({
                         radiusClass={radiusClass}
                         border={settings.cardBorder}
                         shadow={settings.cardShadow}
-                        onAdd={() => handleAdd(entry)}
-                        onInc={() => dispatch({ type: 'inc', key: cartKey(entry.id, null, []) })}
-                        onDec={() => dispatch({ type: 'dec', key: cartKey(entry.id, null, []) })}
+                        onOpen={() => openProduct(entry)}
                       />
                     ),
                   )}

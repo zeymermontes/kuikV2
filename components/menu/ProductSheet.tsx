@@ -8,10 +8,16 @@ import type { Product, PricedOption } from '@/lib/database.types';
 import type { CartLine } from '@/lib/whatsapp';
 import { formatPrice } from '@/lib/utils';
 
-/** Build a stable cart key for a product + chosen variant + extras. */
-export function cartKey(productId: string, variant: string | null, extras: PricedOption[]): string {
+/** Build a stable cart key for a product + chosen variant + extras + removals. */
+export function cartKey(
+  productId: string,
+  variant: string | null,
+  extras: PricedOption[],
+  removed: string[] = [],
+): string {
   const ex = extras.map((e) => e.name).sort().join(',');
-  return `${productId}|${variant ?? ''}|${ex}`;
+  const rm = [...removed].sort().join(',');
+  return `${productId}|${variant ?? ''}|${ex}|${rm}`;
 }
 
 export function ProductSheet({
@@ -32,12 +38,14 @@ export function ProductSheet({
   const t = useTranslations('menu');
   const [variantIdx, setVariantIdx] = useState<number>(product.variants.length > 0 ? 0 : -1);
   const [extras, setExtras] = useState<Record<string, PricedOption>>({});
+  const [removed, setRemoved] = useState<Record<string, true>>({});
   const [qty, setQty] = useState(1);
   const [note, setNote] = useState('');
 
   const variant = variantIdx >= 0 ? product.variants[variantIdx] : null;
   const basePrice = variant ? variant.price : product.price;
   const chosenExtras = Object.values(extras);
+  const chosenRemoved = Object.keys(removed);
   const unit = (basePrice ?? 0) + chosenExtras.reduce((s, e) => s + e.price, 0);
 
   function toggleExtra(e: PricedOption) {
@@ -49,14 +57,24 @@ export function ProductSheet({
     });
   }
 
+  function toggleRemoved(name: string) {
+    setRemoved((cur) => {
+      const next = { ...cur };
+      if (next[name]) delete next[name];
+      else next[name] = true;
+      return next;
+    });
+  }
+
   function confirm() {
     onConfirm({
-      key: cartKey(product.id, variant?.name ?? null, chosenExtras),
+      key: cartKey(product.id, variant?.name ?? null, chosenExtras, chosenRemoved),
       productId: product.id,
       name: product.name,
       basePrice,
       variantName: variant?.name,
       extras: chosenExtras,
+      removed: chosenRemoved,
       qty,
       note: note.trim() || undefined,
     });
@@ -115,6 +133,31 @@ export function ProductSheet({
                       )}
                     </label>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Removable ingredients (free, multi choice) */}
+            {product.removables.length > 0 && (
+              <div className="mt-5">
+                <h3 className="mb-2 text-sm font-semibold">{t('removeIngredients')}</h3>
+                <div className="flex flex-wrap gap-2">
+                  {product.removables.map((name, i) => {
+                    const on = Boolean(removed[name]);
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => toggleRemoved(name)}
+                        className={`rounded-full border px-3 py-1.5 text-sm transition ${
+                          on
+                            ? 'border-red-300 bg-red-50 text-red-600 line-through'
+                            : 'border-neutral-200 text-neutral-600'
+                        }`}
+                      >
+                        {on ? '✕ ' : ''}Sin {name}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}

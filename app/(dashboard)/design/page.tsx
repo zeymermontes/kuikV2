@@ -1,9 +1,9 @@
 import { getTranslations } from 'next-intl/server';
-import { requireTenant } from '@/lib/auth';
+import { requireOwner } from '@/lib/auth';
 import { DesignForm } from '@/components/dashboard/DesignForm';
 
 export default async function DesignPage() {
-  const { theme } = await requireTenant();
+  const { theme } = await requireOwner();
   const t = await getTranslations('design');
 
   return (

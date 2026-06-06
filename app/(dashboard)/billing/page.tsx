@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { CheckCircle2, Clock, AlertCircle } from 'lucide-react';
-import { requireTenant } from '@/lib/auth';
+import { requireOwner } from '@/lib/auth';
 import { getPlatformSettings } from '@/lib/platform';
 import { Card, Button } from '@/components/ui';
 import { formatPrice } from '@/lib/utils';
@@ -11,7 +11,7 @@ export default async function BillingPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  const { subscription } = await requireTenant();
+  const { subscription } = await requireOwner();
   const t = await getTranslations('billing');
   const plan = await getPlatformSettings();
   const { error } = await searchParams;

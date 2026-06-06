@@ -128,6 +128,11 @@ export function CartSheet({
                       {l.variantName && (
                         <span className="text-sm text-neutral-500"> · {l.variantName}</span>
                       )}
+                      {l.removed.length > 0 && (
+                        <p className="text-xs text-red-400">
+                          {l.removed.map((r) => `− Sin ${r}`).join('  ')}
+                        </p>
+                      )}
                       {l.extras.length > 0 && (
                         <p className="text-xs text-neutral-400">
                           {l.extras.map((e) => `+ ${e.name}`).join('  ')}

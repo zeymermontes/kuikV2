@@ -1,12 +1,12 @@
 import { getTranslations } from 'next-intl/server';
 import { ExternalLink } from 'lucide-react';
-import { requireTenant } from '@/lib/auth';
+import { requireOwner } from '@/lib/auth';
 import { tenantUrl } from '@/lib/config';
 import { Card } from '@/components/ui';
 import { DomainManager } from '@/components/dashboard/DomainManager';
 
 export default async function DomainPage() {
-  const { tenant } = await requireTenant();
+  const { tenant } = await requireOwner();
   const t = await getTranslations('domain');
   const url = tenantUrl(tenant.subdomain);
 

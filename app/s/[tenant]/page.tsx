@@ -1,43 +1,40 @@
 import { notFound } from 'next/navigation';
-import { getTenantByHostKey, getMenu } from '@/lib/tenant';
-import { MenuView } from '@/components/menu/MenuView';
-import { PdfMenu } from '@/components/menu/PdfMenu';
+import { getTenantByHostKey, getProductsByIds } from '@/lib/tenant';
+import { MenuScreen } from '@/components/menu/MenuScreen';
+import { Landing } from '@/components/menu/Landing';
 
 type Params = { tenant: string };
 
-// Revalidate the menu periodically; admin edits also trigger on-demand revalidation.
+// Revalidate periodically; admin edits also trigger on-demand revalidation.
 export const revalidate = 60;
 
-export default async function TenantMenuPage({
+export default async function TenantHome({
   params,
 }: {
   params: Promise<Params>;
 }) {
   const { tenant: hostKey } = await params;
-  const data = await getTenantByHostKey(decodeURIComponent(hostKey));
+  const key = decodeURIComponent(hostKey);
+  const data = await getTenantByHostKey(key);
   if (!data) notFound();
 
-  // PDF mode: show the uploaded PDF instead of the interactive menu.
-  if (data.theme.menu_mode === 'pdf' && data.theme.menu_pdf_url) {
+  // Landing as the home screen; otherwise go straight to the menu.
+  if (data.landing.enabled) {
+    const featured = await getProductsByIds(
+      data.tenant.id,
+      data.landing.featured_product_ids,
+    );
     return (
-      <PdfMenu
+      <Landing
         tenant={data.tenant}
         theme={data.theme}
         contact={data.contact}
-        pdfUrl={data.theme.menu_pdf_url}
+        ordering={data.ordering}
+        landing={data.landing}
+        featured={featured}
       />
     );
   }
 
-  const menu = await getMenu(data.tenant.id);
-
-  return (
-    <MenuView
-      tenant={data.tenant}
-      theme={data.theme}
-      contact={data.contact}
-      ordering={data.ordering}
-      menu={menu}
-    />
-  );
+  return <MenuScreen hostKey={key} />;
 }

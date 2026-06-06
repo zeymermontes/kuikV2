@@ -8,6 +8,7 @@ import type {
   TenantTheme,
   TenantContact,
   Subscription,
+  MemberRole,
 } from '@/lib/database.types';
 
 export interface AuthedUser {
@@ -37,6 +38,10 @@ export const requireUser = cache(async (): Promise<AuthedUser> => {
     .single<Profile>();
 
   if (!profile) redirect('/login');
+
+  // Link any pending staff invites for this email (best-effort).
+  await supabase.rpc('claim_pending_invites');
+
   return {
     id: claims.sub,
     email: typeof claims.email === 'string' ? claims.email : null,
@@ -44,22 +49,43 @@ export const requireUser = cache(async (): Promise<AuthedUser> => {
   };
 });
 
-/** The owner's tenant, or null if they haven't onboarded yet. */
-export const getOwnerTenant = cache(async (userId: string): Promise<Tenant | null> => {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from('tenants')
-    .select('*')
-    .eq('owner_id', userId)
-    .order('created_at')
-    .limit(1)
-    .maybeSingle<Tenant>();
-  return data ?? null;
-});
+/**
+ * The user's tenant membership (owner or staff), or null. Falls back to the
+ * legacy owner_id lookup so existing owners keep working before the
+ * tenant_members backfill (migration 0011) has run — without this, an owner
+ * with no membership row would be bounced to /onboarding on every login.
+ */
+export const getMembership = cache(
+  async (userId: string): Promise<{ tenant: Tenant; role: MemberRole } | null> => {
+    const supabase = await createClient();
+
+    const { data: member } = await supabase
+      .from('tenant_members')
+      .select('role, tenants(*)')
+      .eq('user_id', userId)
+      .order('created_at')
+      .limit(1)
+      .maybeSingle<{ role: MemberRole; tenants: Tenant }>();
+    if (member?.tenants) return { tenant: member.tenants, role: member.role };
+
+    // Fallback: treat the legacy tenant owner as the 'owner' role.
+    const { data: owned } = await supabase
+      .from('tenants')
+      .select('*')
+      .eq('owner_id', userId)
+      .order('created_at')
+      .limit(1)
+      .maybeSingle<Tenant>();
+    if (owned) return { tenant: owned, role: 'owner' };
+
+    return null;
+  },
+);
 
 export interface TenantContext {
   user: AuthedUser;
   tenant: Tenant;
+  role: MemberRole;
   theme: TenantTheme;
   contact: TenantContact;
   subscription: Subscription;
@@ -67,12 +93,13 @@ export interface TenantContext {
 
 /**
  * Loads the full tenant context for dashboard pages. Redirects to /login if not
- * authed and /onboarding if the user has no tenant yet.
+ * authed and /onboarding if the user has no tenant/membership yet.
  */
 export const requireTenant = cache(async (): Promise<TenantContext> => {
   const user = await requireUser();
-  const tenant = await getOwnerTenant(user.id);
-  if (!tenant) redirect('/onboarding');
+  const membership = await getMembership(user.id);
+  if (!membership) redirect('/onboarding');
+  const { tenant, role } = membership;
 
   const supabase = await createClient();
   const [{ data: theme }, { data: contact }, { data: subscription }] =
@@ -85,10 +112,25 @@ export const requireTenant = cache(async (): Promise<TenantContext> => {
   return {
     user,
     tenant,
+    role,
     theme: theme!,
     contact: contact!,
     subscription: subscription!,
   };
+});
+
+/** Guards owner-only pages (billing, domain, settings, staff). */
+export const requireOwner = cache(async (): Promise<TenantContext> => {
+  const ctx = await requireTenant();
+  if (ctx.role !== 'owner') redirect('/menu');
+  return ctx;
+});
+
+/** Guards manager+ pages (full menu editing). */
+export const requireManager = cache(async (): Promise<TenantContext> => {
+  const ctx = await requireTenant();
+  if (ctx.role === 'waiter') redirect('/menu');
+  return ctx;
 });
 
 /** Guards super-admin-only pages. */

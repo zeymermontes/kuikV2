@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireTenant } from '@/lib/auth';
-import type { ServiceType } from '@/lib/database.types';
+import type { ServiceType, LoyaltyType } from '@/lib/database.types';
 import type { MenuSettings } from '@/lib/menu-settings';
 
 export async function updateTheme(
@@ -48,6 +48,53 @@ export async function updateMenuSettings(partial: Partial<MenuSettings>) {
     .update({ settings: merged, updated_at: new Date().toISOString() })
     .eq('tenant_id', tenant.id);
   revalidatePath('/design');
+  revalidatePath(`/s/${tenant.subdomain}`);
+}
+
+export async function updateLanding(
+  fields: Partial<{
+    enabled: boolean;
+    welcome_title: string | null;
+    tagline: string | null;
+    featured_product_ids: string[];
+    show_rating: boolean;
+    rating: number | null;
+    reviews_url: string | null;
+    wifi_password: string | null;
+  }>,
+) {
+  const { tenant } = await requireTenant();
+  const supabase = await createClient();
+  await supabase
+    .from('tenant_landing')
+    .upsert(
+      { tenant_id: tenant.id, ...fields, updated_at: new Date().toISOString() },
+      { onConflict: 'tenant_id' },
+    );
+  revalidatePath('/landing');
+  revalidatePath(`/s/${tenant.subdomain}`);
+}
+
+export async function updateLoyalty(
+  fields: Partial<{
+    enabled: boolean;
+    type: LoyaltyType;
+    stamps_needed: number;
+    reward_description: string | null;
+    points_per_currency: number;
+    points_for_reward: number | null;
+    points_reward_description: string | null;
+  }>,
+) {
+  const { tenant } = await requireTenant();
+  const supabase = await createClient();
+  await supabase
+    .from('loyalty_program')
+    .upsert(
+      { tenant_id: tenant.id, ...fields, updated_at: new Date().toISOString() },
+      { onConflict: 'tenant_id' },
+    );
+  revalidatePath('/loyalty');
   revalidatePath(`/s/${tenant.subdomain}`);
 }
 

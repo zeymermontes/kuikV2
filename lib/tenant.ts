@@ -6,6 +6,8 @@ import type {
   TenantTheme,
   TenantContact,
   TenantOrdering,
+  TenantLanding,
+  LoyaltyProgram,
   Category,
   Product,
   Separator,
@@ -31,24 +33,19 @@ export const getTenantByHostKey = cache(
 
     if (!tenant) return null;
 
-    const [{ data: theme }, { data: contact }, { data: ordering }] =
-      await Promise.all([
-        supabase
-          .from('tenant_theme')
-          .select('*')
-          .eq('tenant_id', tenant.id)
-          .single<TenantTheme>(),
-        supabase
-          .from('tenant_contact')
-          .select('*')
-          .eq('tenant_id', tenant.id)
-          .single<TenantContact>(),
-        supabase
-          .from('tenant_ordering')
-          .select('*')
-          .eq('tenant_id', tenant.id)
-          .maybeSingle<TenantOrdering>(),
-      ]);
+    const [
+      { data: theme },
+      { data: contact },
+      { data: ordering },
+      { data: landing },
+      { data: loyalty },
+    ] = await Promise.all([
+      supabase.from('tenant_theme').select('*').eq('tenant_id', tenant.id).single<TenantTheme>(),
+      supabase.from('tenant_contact').select('*').eq('tenant_id', tenant.id).single<TenantContact>(),
+      supabase.from('tenant_ordering').select('*').eq('tenant_id', tenant.id).maybeSingle<TenantOrdering>(),
+      supabase.from('tenant_landing').select('*').eq('tenant_id', tenant.id).maybeSingle<TenantLanding>(),
+      supabase.from('loyalty_program').select('*').eq('tenant_id', tenant.id).maybeSingle<LoyaltyProgram>(),
+    ]);
 
     if (!theme || !contact) return null;
 
@@ -68,7 +65,55 @@ export const getTenantByHostKey = cache(
       updated_at: tenant.created_at,
     };
 
-    return { tenant, theme, contact, ordering: orderingRow };
+    const landingRow: TenantLanding = landing ?? {
+      tenant_id: tenant.id,
+      enabled: false,
+      welcome_title: null,
+      tagline: null,
+      featured_product_ids: [],
+      show_rating: false,
+      rating: null,
+      reviews_url: null,
+      wifi_password: null,
+      updated_at: tenant.created_at,
+    };
+
+    const loyaltyRow: LoyaltyProgram = loyalty ?? {
+      tenant_id: tenant.id,
+      enabled: false,
+      type: 'stamps',
+      stamps_needed: 10,
+      reward_description: null,
+      points_per_currency: 1,
+      points_for_reward: null,
+      points_reward_description: null,
+      updated_at: tenant.created_at,
+    };
+
+    return {
+      tenant,
+      theme,
+      contact,
+      ordering: orderingRow,
+      landing: landingRow,
+      loyalty: loyaltyRow,
+    };
+  },
+);
+
+/** Load specific products by id (for the landing's featured/"most ordered" row). */
+export const getProductsByIds = cache(
+  async (tenantId: string, ids: string[]): Promise<Product[]> => {
+    if (ids.length === 0) return [];
+    const supabase = createAdminClient();
+    const { data } = await supabase
+      .from('products')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .in('id', ids);
+    const rows = (data ?? []) as Product[];
+    // Preserve the configured order.
+    return ids.map((id) => rows.find((p) => p.id === id)).filter(Boolean) as Product[];
   },
 );
 

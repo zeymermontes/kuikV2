@@ -1,12 +1,12 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { requireTenant } from '@/lib/auth';
+import { requireOwner } from '@/lib/auth';
 import { createSubscription } from '@/lib/mercadopago';
 
 /** Starts the MercadoPago subscription flow and redirects to hosted checkout. */
 export async function startSubscription() {
-  const { tenant, user } = await requireTenant();
+  const { tenant, user } = await requireOwner();
 
   let initPoint: string | null = null;
   try {

@@ -2,12 +2,13 @@ import { formatPrice } from '@/lib/utils';
 import type { PricedOption } from '@/lib/database.types';
 
 export interface CartLine {
-  key: string; // unique per product + variant + extras combination
+  key: string; // unique per product + variant + extras + removals combination
   productId: string;
   name: string;
   basePrice: number | null; // variant price if chosen, else product price
   variantName?: string;
-  extras: PricedOption[]; // chosen modifiers / add-ons
+  extras: PricedOption[]; // chosen modifiers / add-ons (priced)
+  removed: string[]; // removed ingredients, e.g. ["Cebolla"] (free)
   qty: number;
   note?: string;
 }
@@ -82,6 +83,7 @@ export function buildOrderMessage(opts: BuildMessageOptions): string {
         : '';
     const variant = l.variantName ? ` (${l.variantName})` : '';
     out.push(`• ${l.qty}× ${l.name}${variant}${priceStr}`);
+    for (const r of l.removed) out.push(`   − Sin ${r}`);
     for (const e of l.extras) out.push(`   + ${e.name}`);
     if (l.note) out.push(`   _${l.note}_`);
   }

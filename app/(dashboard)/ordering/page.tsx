@@ -1,11 +1,11 @@
 import { getTranslations } from 'next-intl/server';
-import { requireTenant } from '@/lib/auth';
+import { requireOwner } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import type { TenantOrdering } from '@/lib/database.types';
 import { OrderingForm } from '@/components/dashboard/OrderingForm';
 
 export default async function OrderingPage() {
-  const { tenant } = await requireTenant();
+  const { tenant } = await requireOwner();
   const t = await getTranslations('ordering');
   const supabase = await createClient();
 

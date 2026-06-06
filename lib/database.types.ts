@@ -3,6 +3,24 @@
 //   supabase gen types typescript --linked > lib/database.types.ts
 
 export type UserRole = 'owner' | 'super_admin';
+export type MemberRole = 'owner' | 'manager' | 'waiter';
+
+export interface TenantMember {
+  tenant_id: string;
+  user_id: string;
+  role: MemberRole;
+  email: string | null;
+  created_at: string;
+}
+
+export interface TenantInvite {
+  id: string;
+  tenant_id: string;
+  email: string;
+  role: MemberRole;
+  created_at: string;
+  accepted_at: string | null;
+}
 export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'canceled';
 export type DomainStatus = 'none' | 'pending' | 'verified' | 'error';
 export type SeparatorStyle = 'line' | 'space' | 'title';
@@ -113,6 +131,7 @@ export interface Product {
   tags: string[];
   variants: PricedOption[];
   modifiers: PricedOption[];
+  removables: string[];
   created_at: string;
   updated_at: string;
 }
@@ -157,6 +176,45 @@ export interface Subscription {
   updated_at: string;
 }
 
+export type LoyaltyType = 'stamps' | 'points';
+
+export interface LoyaltyProgram {
+  tenant_id: string;
+  enabled: boolean;
+  type: LoyaltyType;
+  stamps_needed: number;
+  reward_description: string | null;
+  points_per_currency: number;
+  points_for_reward: number | null;
+  points_reward_description: string | null;
+  updated_at: string;
+}
+
+export interface LoyaltyCustomer {
+  id: string;
+  tenant_id: string;
+  phone: string;
+  name: string | null;
+  code: string;
+  stamps: number;
+  points: number;
+  total_visits: number;
+  created_at: string;
+}
+
+export interface TenantLanding {
+  tenant_id: string;
+  enabled: boolean;
+  welcome_title: string | null;
+  tagline: string | null;
+  featured_product_ids: string[];
+  show_rating: boolean;
+  rating: number | null;
+  reviews_url: string | null;
+  wifi_password: string | null;
+  updated_at: string;
+}
+
 // A category with its products + separators, used by the public menu renderer.
 export type MenuEntry =
   | ({ kind: 'product' } & Product)
@@ -171,4 +229,6 @@ export interface FullTenant {
   theme: TenantTheme;
   contact: TenantContact;
   ordering: TenantOrdering;
+  landing: TenantLanding;
+  loyalty: LoyaltyProgram;
 }

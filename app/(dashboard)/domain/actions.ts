@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { requireTenant } from '@/lib/auth';
+import { requireOwner } from '@/lib/auth';
 import {
   addRenderDomain,
   removeRenderDomain,
@@ -19,7 +19,7 @@ export async function connectDomain(
   _prev: DomainResult,
   formData: FormData,
 ): Promise<DomainResult> {
-  const { tenant } = await requireTenant();
+  const { tenant } = await requireOwner();
   const domain = String(formData.get('domain') ?? '')
     .trim()
     .toLowerCase()
@@ -48,7 +48,7 @@ export async function connectDomain(
 }
 
 export async function checkDomain(): Promise<DomainResult> {
-  const { tenant } = await requireTenant();
+  const { tenant } = await requireOwner();
   if (!tenant.custom_domain) return {};
 
   const verified = await isRenderDomainVerified(tenant.custom_domain);
@@ -63,7 +63,7 @@ export async function checkDomain(): Promise<DomainResult> {
 }
 
 export async function disconnectDomain(): Promise<void> {
-  const { tenant } = await requireTenant();
+  const { tenant } = await requireOwner();
   if (tenant.custom_domain) await removeRenderDomain(tenant.custom_domain);
 
   const supabase = await createClient();

@@ -14,10 +14,11 @@ export default async function DashboardLayout({
     <div className="flex min-h-screen bg-neutral-50">
       <Sidebar
         isSuperAdmin={ctx.user.profile.role === 'super_admin'}
+        role={ctx.role}
         menuUrl={tenantUrl(ctx.tenant.subdomain)}
         locale={ctx.user.profile.locale}
       />
-      <div className="flex min-w-0 flex-1 flex-col pb-20 md:pb-0">
+      <div className="flex min-w-0 flex-1 flex-col pt-14 md:pt-0">
         <TrialBanner subscription={ctx.subscription} />
         <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 sm:px-6">
           {children}

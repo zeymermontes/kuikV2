@@ -89,6 +89,7 @@ export async function updateProduct(
     tags: string[];
     variants: PricedOption[];
     modifiers: PricedOption[];
+    removables: string[];
   }>,
 ) {
   const { subdomain, supabase } = await ctx();
@@ -99,6 +100,16 @@ export async function updateProduct(
 export async function deleteProduct(id: string) {
   const { subdomain, supabase } = await ctx();
   await supabase.from('products').delete().eq('id', id);
+  revalidate(subdomain);
+}
+
+/**
+ * Toggle a product's availability via a security-definer RPC. Works for any
+ * member (including waiters, who lack full menu-write permission).
+ */
+export async function setProductAvailability(id: string, available: boolean) {
+  const { subdomain, supabase } = await ctx();
+  await supabase.rpc('set_product_availability', { p_id: id, p_available: available });
   revalidate(subdomain);
 }
 

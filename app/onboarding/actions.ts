@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { requireUser, getOwnerTenant } from '@/lib/auth';
+import { requireUser, getMembership } from '@/lib/auth';
 import { RESERVED_SUBDOMAINS } from '@/lib/config';
 import { digitsOnly } from '@/lib/utils';
 
@@ -18,8 +18,8 @@ export async function createTenant(
 ): Promise<OnboardingResult> {
   const user = await requireUser();
 
-  // One tenant per owner in MVP.
-  if (await getOwnerTenant(user.id)) redirect('/dashboard');
+  // Already belongs to a tenant (owner or staff) → go to dashboard.
+  if (await getMembership(user.id)) redirect('/dashboard');
 
   const name = String(formData.get('name') ?? '').trim();
   const subdomain = String(formData.get('subdomain') ?? '').trim().toLowerCase();

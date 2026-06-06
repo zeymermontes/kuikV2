@@ -1,9 +1,9 @@
 import { getTranslations } from 'next-intl/server';
-import { requireTenant } from '@/lib/auth';
+import { requireOwner } from '@/lib/auth';
 import { ContactForm } from '@/components/dashboard/ContactForm';
 
 export default async function ContactPage() {
-  const { contact } = await requireTenant();
+  const { contact } = await requireOwner();
   const t = await getTranslations('contact');
 
   return (

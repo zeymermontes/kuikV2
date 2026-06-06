@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { Plus, Minus, Clock, Flame } from 'lucide-react';
+import { Plus, Clock, Flame } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Product } from '@/lib/database.types';
 import { getBadge, badgeLabel } from '@/lib/badges';
@@ -26,9 +26,7 @@ export function ProductCard({
   radiusClass,
   border,
   shadow,
-  onAdd,
-  onInc,
-  onDec,
+  onOpen,
 }: {
   product: Product;
   showPrice: boolean;
@@ -42,13 +40,15 @@ export function ProductCard({
   radiusClass: string;
   border: boolean;
   shadow: boolean;
-  onAdd: () => void;
-  onInc: () => void;
-  onDec: () => void;
+  onOpen: () => void;
 }) {
   const t = useTranslations('menu');
   const dimmed = !product.is_available;
-  const hasOptions = product.variants.length > 0 || product.modifiers.length > 0;
+  const hasOptions =
+    product.variants.length > 0 ||
+    product.modifiers.length > 0 ||
+    product.removables.length > 0;
+  const clickable = orderingEnabled && !dimmed;
   const vertical = cardStyle === 'grid' || cardStyle === 'large';
   const showImage = cardStyle !== 'text' && Boolean(product.image_url);
   const pad = density === 'compact' ? 'p-2' : 'p-3';
@@ -111,37 +111,24 @@ export function ProductCard({
     </div>
   );
 
-  const addControl = orderingEnabled && !dimmed && (
-    hasOptions || qty === 0 ? (
-      <button
-        onClick={onAdd}
-        className="flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-semibold text-white"
-        style={{ backgroundColor: 'var(--brand-primary)' }}
-      >
-        <Plus className="h-4 w-4" />
-        {hasOptions && qty > 0 ? `${qty}` : t('addToOrder')}
-      </button>
-    ) : (
-      <div
-        className="flex items-center gap-3 rounded-full px-2 py-1 text-white"
-        style={{ backgroundColor: 'var(--brand-primary)' }}
-      >
-        <button onClick={onDec} aria-label="−" className="p-1">
-          <Minus className="h-4 w-4" />
-        </button>
-        <span className="min-w-4 text-center text-sm font-semibold">{qty}</span>
-        <button onClick={onInc} aria-label="+" className="p-1">
-          <Plus className="h-4 w-4" />
-        </button>
-      </div>
-    )
+  // Visual add affordance — the whole card is the click target (opens detail).
+  const addControl = clickable && (
+    <span
+      className="flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-semibold text-white"
+      style={{ backgroundColor: 'var(--brand-primary)' }}
+    >
+      <Plus className="h-4 w-4" />
+      {qty > 0 ? `${qty}` : t('addToOrder')}
+    </span>
   );
 
   // ── Vertical card (grid / large) ───────────────────────────────────────────
   if (vertical) {
     return (
       <div
-        className={`flex flex-col overflow-hidden ${radiusClass} ${dimmed ? 'opacity-50' : ''}`}
+        onClick={clickable ? onOpen : undefined}
+        role={clickable ? 'button' : undefined}
+        className={`flex flex-col overflow-hidden ${radiusClass} ${dimmed ? 'opacity-50' : ''} ${clickable ? 'cursor-pointer' : ''}`}
         style={wrapStyle}
       >
         {showImage && (
@@ -175,7 +162,9 @@ export function ProductCard({
   // ── Horizontal card (list / text) ──────────────────────────────────────────
   return (
     <div
-      className={`flex gap-3 ${radiusClass} ${pad} ${dimmed ? 'opacity-50' : ''}`}
+      onClick={clickable ? onOpen : undefined}
+      role={clickable ? 'button' : undefined}
+      className={`flex gap-3 ${radiusClass} ${pad} ${dimmed ? 'opacity-50' : ''} ${clickable ? 'cursor-pointer' : ''}`}
       style={wrapStyle}
     >
       {showImage && (

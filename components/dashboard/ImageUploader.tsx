@@ -23,12 +23,12 @@ export function ImageUploader({
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
 
-  const sizeClass =
-    shape === 'wide'
-      ? 'h-28 w-full'
-      : shape === 'circle'
-        ? 'h-24 w-24 rounded-full'
-        : 'h-24 w-24 rounded-xl';
+  const wide = shape === 'wide';
+  const sizeClass = wide
+    ? 'h-28 w-full'
+    : shape === 'circle'
+      ? 'h-24 w-24 rounded-full'
+      : 'h-24 w-24 rounded-xl';
 
   async function handleFile(file: File) {
     setBusy(true);
@@ -43,13 +43,11 @@ export function ImageUploader({
   }
 
   return (
-    <div className="flex items-center gap-3">
+    <div className={wide ? 'flex flex-col gap-2' : 'flex items-center gap-3'}>
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        className={`relative flex shrink-0 items-center justify-center overflow-hidden border border-dashed border-neutral-300 bg-neutral-50 text-neutral-400 ${sizeClass} ${
-          shape !== 'wide' ? '' : 'rounded-xl'
-        }`}
+        className={`relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-neutral-300 bg-neutral-50 text-neutral-400 ${sizeClass}`}
       >
         {busy ? (
           <Loader2 className="h-5 w-5 animate-spin" />
@@ -60,7 +58,7 @@ export function ImageUploader({
         )}
       </button>
 
-      <div className="flex flex-col gap-1 text-sm">
+      <div className={`flex gap-3 text-sm ${wide ? 'flex-row items-center' : 'flex-col gap-1'}`}>
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
