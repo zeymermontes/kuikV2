@@ -95,9 +95,21 @@ export function buildOrderMessage(opts: BuildMessageOptions): string {
           ? ` — ${money(unit * l.qty)}`
           : '';
       out.push(`• ${l.qty}× ${l.name}${priceStr}`);
+      // List chosen options grouped by their option group (e.g. "Tamaño: Grande").
+      const selGroups: { group: string; items: typeof sel }[] = [];
       for (const o of sel) {
-        const extra = showPrices && o.price > 0 ? ` (+${money(o.price)})` : '';
-        out.push(`   + ${o.name}${extra}`);
+        let sg = selGroups.find((x) => x.group === o.group);
+        if (!sg) {
+          sg = { group: o.group, items: [] };
+          selGroups.push(sg);
+        }
+        sg.items.push(o);
+      }
+      for (const sg of selGroups) {
+        const items = sg.items
+          .map((o) => `${o.name}${showPrices && o.price > 0 ? ` (+${money(o.price)})` : ''}`)
+          .join(', ');
+        out.push(sg.group ? `   ${sg.group}: ${items}` : `   + ${items}`);
       }
       if (l.note) out.push(`   _${l.note}_`);
     }
