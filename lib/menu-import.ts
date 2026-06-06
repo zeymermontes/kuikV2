@@ -21,6 +21,7 @@ export interface ImportProduct {
   price?: number | null;
   compareAtPrice?: number | null;
   available?: boolean;
+  hidden?: boolean; // not shown on the public menu
   tags?: string[];
   image?: string | null; // ZIP filename, external URL, or an already-hosted URL
   optionGroups?: ImportOptionGroup[]; // dynamic multiselects

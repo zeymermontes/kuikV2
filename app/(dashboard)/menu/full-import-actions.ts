@@ -216,6 +216,7 @@ async function buildProductFields(
     prep_time: p.prepTime ?? null,
     calories: p.calories ?? null,
     is_available: p.available ?? true,
+    is_hidden: p.hidden ?? false,
     tags: p.tags ?? [],
     option_groups: optionGroups,
     variants: (p.variants ?? []).filter((v) => v.name).map((v) => ({ name: v.name, price: v.price ?? 0 })),

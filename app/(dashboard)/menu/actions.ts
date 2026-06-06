@@ -86,6 +86,7 @@ export async function updateProduct(
     show_price: boolean;
     image_url: string | null;
     is_available: boolean;
+    is_hidden: boolean;
     tags: string[];
     variants: PricedOption[];
     modifiers: PricedOption[];

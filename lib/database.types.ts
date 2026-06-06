@@ -175,6 +175,7 @@ export interface Product {
   show_price: boolean;
   image_url: string | null;
   is_available: boolean;
+  is_hidden: boolean;
   position: number;
   tags: string[];
   variants: PricedOption[];

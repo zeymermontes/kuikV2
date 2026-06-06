@@ -60,6 +60,11 @@ export function ProductDrawer({
             checked={product.show_price}
             onChange={(v) => updateProduct(product.id, { show_price: v })}
           />
+          <Toggle
+            label={t('hidden')}
+            checked={product.is_hidden}
+            onChange={(v) => updateProduct(product.id, { is_hidden: v })}
+          />
         </div>
 
         <div>

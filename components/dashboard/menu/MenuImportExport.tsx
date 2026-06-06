@@ -265,6 +265,7 @@ export function MenuImportExport({
               price: p.price,
               compareAtPrice: p.compare_at_price,
               available: p.is_available,
+              hidden: p.is_hidden,
               tags: p.tags ?? [],
               image: p.image_url ?? undefined,
               prepTime: p.prep_time ?? undefined,
@@ -455,7 +456,8 @@ const SCHEMA_ES = `{
           "description": "Tomate, mozzarella y albahaca",
           "price": 180,              // Número, sin símbolo de moneda.
           "compareAtPrice": null,    // Precio anterior (tachado) si hay descuento; si no, null.
-          "available": true,         // false si está agotado.
+          "available": true,         // false si está AGOTADO (se muestra como no disponible).
+          "hidden": false,           // true si el producto está OCULTO (no se muestra en el menú).
           "tags": ["bestseller"],    // Solo de: new, bestseller, spicy, vegan, vegetarian, glutenfree, house, promo.
           "image": "https://...",    // URL absoluta de la foto del producto en el sitio (si existe).
           "prepTime": "15 min",      // Tiempo de preparación (opcional).
@@ -563,7 +565,8 @@ const SCHEMA_EN = `{
           "description": "Tomato, mozzarella and basil",
           "price": 180,              // Number, no currency symbol.
           "compareAtPrice": null,    // Previous (struck-through) price if discounted; otherwise null.
-          "available": true,         // false if sold out.
+          "available": true,         // false if SOLD OUT (shown as unavailable).
+          "hidden": false,           // true if the product is HIDDEN (not shown on the menu).
           "tags": ["bestseller"],    // Only from: new, bestseller, spicy, vegan, vegetarian, glutenfree, house, promo.
           "image": "https://...",    // Absolute URL of the product photo on the site (if any).
           "prepTime": "15 min",      // Prep time (optional).

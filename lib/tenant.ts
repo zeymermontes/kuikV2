@@ -142,7 +142,7 @@ export const getProductsByIds = cache(
       .select('*')
       .eq('tenant_id', tenantId)
       .in('id', ids);
-    const rows = (data ?? []) as Product[];
+    const rows = ((data ?? []) as Product[]).filter((p) => !p.is_hidden);
     // Preserve the configured order.
     return ids.map((id) => rows.find((p) => p.id === id)).filter(Boolean) as Product[];
   },
@@ -181,7 +181,8 @@ export const getMenu = cache(
       ]);
 
     const cats = (categories ?? []) as Category[];
-    const prods = (products ?? []) as Product[];
+    // Hidden products never render on the public menu.
+    const prods = ((products ?? []) as Product[]).filter((p) => !p.is_hidden);
     const seps = (separators ?? []) as Separator[];
 
     return cats.map((cat) => {

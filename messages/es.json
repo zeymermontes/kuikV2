@@ -87,6 +87,7 @@
     "price": "Precio",
     "showPrice": "Mostrar precio",
     "available": "Disponible",
+    "hidden": "Oculto",
     "image": "Imagen",
     "uploadImage": "Subir imagen",
     "removeImage": "Quitar imagen",
