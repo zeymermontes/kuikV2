@@ -72,6 +72,16 @@ export function CartSheet({
   const [table, setTable] = useState('');
   const [sending, setSending] = useState(false);
 
+  // Lock background scroll while the sheet is open (only the sheet scrolls; keeps
+  // the mobile URL bar from toggling and shifting the sheet).
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
   const money = (n: number) => formatPrice(n, currency, locale);
   const subtotal = cartSubtotal(lines);
   const deliveryFee =
@@ -129,7 +139,7 @@ export function CartSheet({
     <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center">
       <div className="animate-fade absolute inset-0 bg-black/50" onClick={onClose} />
 
-      <div className="animate-slide-up pb-safe relative flex max-h-[88vh] w-full max-w-2xl flex-col rounded-t-3xl bg-white text-neutral-900 sm:rounded-3xl">
+      <div className="animate-slide-up pb-safe relative flex max-h-[88dvh] w-full max-w-2xl flex-col rounded-t-3xl bg-white text-neutral-900 sm:rounded-3xl">
         <div className="flex items-center justify-between border-b border-neutral-100 px-5 py-4">
           <h2 className="text-lg font-bold">{t('yourOrder')}</h2>
           <button onClick={onClose} aria-label="close" className="p-1 text-neutral-500">

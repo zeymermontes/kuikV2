@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { X, Plus, Minus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -34,6 +34,16 @@ export function ProductSheet({
   });
   const [qty, setQty] = useState(1);
   const [note, setNote] = useState('');
+
+  // Lock background scroll so the mobile URL bar can't toggle and shift the
+  // sheet while scrolling its content.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
 
   function toggle(groupId: string, idx: number, multiple: boolean) {
     setSel((cur) => {
@@ -70,7 +80,7 @@ export function ProductSheet({
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div className="animate-fade absolute inset-0 bg-black/50" onClick={onClose} />
 
-      <div className="animate-slide-up relative flex max-h-[88vh] w-full max-w-lg flex-col rounded-t-3xl bg-white text-neutral-900 sm:rounded-3xl">
+      <div className="animate-slide-up relative flex max-h-[88dvh] w-full max-w-lg flex-col rounded-t-3xl bg-white text-neutral-900 sm:rounded-3xl">
         <button
           onClick={onClose}
           aria-label="close"
