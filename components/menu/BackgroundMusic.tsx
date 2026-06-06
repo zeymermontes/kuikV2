@@ -10,15 +10,20 @@ import { Volume2, VolumeX } from 'lucide-react';
  */
 export function BackgroundMusic({ url, volume }: { url: string; volume: number }) {
   const audioRef = useRef<HTMLAudioElement>(null);
-  const [on, setOn] = useState(false);
+  // Unmuted by default: we intend to play; if the browser blocks autoplay it
+  // starts on the first interaction (but the toggle still reads "on").
+  const [on, setOn] = useState(true);
   const vol = Math.min(1, Math.max(0, (volume ?? 50) / 100));
 
   useEffect(() => {
     const a = audioRef.current;
     if (!a) return;
     a.volume = vol;
+    // Try immediately (works if the visitor already interacted earlier this
+    // session, e.g. on the landing), then fall back to the first interaction.
+    a.play().catch(() => {});
     const start = () => {
-      a.play().then(() => setOn(true)).catch(() => {});
+      a.play().catch(() => {});
     };
     window.addEventListener('pointerdown', start, { once: true });
     window.addEventListener('keydown', start, { once: true });

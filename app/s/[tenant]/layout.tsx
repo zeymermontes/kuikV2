@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getTenantByHostKey } from '@/lib/tenant';
 import { resolveMenuSettings } from '@/lib/menu-settings';
 import { CUSTOM_FONT } from '@/lib/config';
+import { BackgroundMusic } from '@/components/menu/BackgroundMusic';
 
 type Params = { tenant: string };
 
@@ -171,6 +172,9 @@ export default async function TenantLayout({
         />
         {children}
       </div>
+      {theme.background_music_url && (
+        <BackgroundMusic url={theme.background_music_url} volume={theme.background_music_volume ?? 50} />
+      )}
     </>
   );
 }
