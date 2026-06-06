@@ -433,6 +433,7 @@ export function MenuView({
                         radiusClass={radiusClass}
                         border={settings.cardBorder}
                         shadow={settings.cardShadow}
+                        showBadges={settings.showBadges}
                         onOpen={() => openProduct(entry)}
                       />
                     ),

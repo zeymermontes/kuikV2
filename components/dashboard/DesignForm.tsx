@@ -347,6 +347,7 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
           <ToggleRow label={t('stickyTabs')} checked={settings.stickyTabs} onChange={(v) => setS('stickyTabs', v)} />
           <ToggleRow label={t('collapsible')} checked={settings.collapsibleCategories} onChange={(v) => setS('collapsibleCategories', v)} />
           <ToggleRow label={t('showSearch')} checked={settings.showSearch} onChange={(v) => setS('showSearch', v)} />
+          <ToggleRow label={t('showBadges')} checked={settings.showBadges} onChange={(v) => setS('showBadges', v)} />
           <ToggleRow label={t('showFilters')} checked={settings.showFilters} onChange={(v) => setS('showFilters', v)} />
           <ToggleRow label={t('showSocial')} checked={settings.showSocial} onChange={(v) => setS('showSocial', v)} />
           <SelectRow

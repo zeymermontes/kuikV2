@@ -26,6 +26,7 @@ export function ProductCard({
   radiusClass,
   border,
   shadow,
+  showBadges,
   onOpen,
 }: {
   product: Product;
@@ -40,6 +41,7 @@ export function ProductCard({
   radiusClass: string;
   border: boolean;
   shadow: boolean;
+  showBadges: boolean;
   onOpen: () => void;
 }) {
   const t = useTranslations('menu');
@@ -58,9 +60,9 @@ export function ProductCard({
     product.price != null &&
     product.compare_at_price > product.price;
 
-  const badges = product.tags
-    .map(getBadge)
-    .filter((b): b is NonNullable<typeof b> => Boolean(b));
+  const badges = showBadges
+    ? product.tags.map(getBadge).filter((b): b is NonNullable<typeof b> => Boolean(b))
+    : [];
 
   const wrapStyle = {
     backgroundColor: 'var(--brand-surface)',

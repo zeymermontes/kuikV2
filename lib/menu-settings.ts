@@ -27,6 +27,7 @@ export interface MenuSettings {
   collapsibleCategories: boolean;
   showSearch: boolean;
   showFilters: boolean;
+  showBadges: boolean;
   soldOutStyle: SoldOutStyle;
   showSocial: boolean;
   // Per-element typography (bold / italic / size multiplier).
@@ -60,6 +61,7 @@ export const DEFAULT_MENU_SETTINGS: MenuSettings = {
   collapsibleCategories: false,
   showSearch: false,
   showFilters: false,
+  showBadges: true,
   soldOutStyle: 'gray',
   showSocial: true,
   categoryBold: true,
