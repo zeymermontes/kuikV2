@@ -16,6 +16,7 @@ export function ContactForm({ contact }: { contact: TenantContact }) {
     { key: 'website', label: t('website') },
     { key: 'email', label: t('email') },
     { key: 'address', label: t('address') },
+    { key: 'maps_url', label: t('mapsUrl') },
   ] as const;
 
   return (

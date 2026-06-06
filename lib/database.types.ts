@@ -106,6 +106,7 @@ export interface TenantContact {
   tenant_id: string;
   whatsapp_phone: string | null;
   address: string | null;
+  maps_url: string | null;
   hours: unknown | null;
   instagram: string | null;
   facebook: string | null;
@@ -123,6 +124,7 @@ export interface Branch {
   slug: string;
   whatsapp_phone: string | null;
   address: string | null;
+  maps_url: string | null;
   hours: unknown | null;
   menu_mode: BranchMenuMode;
   is_visible: boolean;

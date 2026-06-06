@@ -16,6 +16,7 @@ import type {
 } from '@/lib/database.types';
 import type { CartLine } from '@/lib/whatsapp';
 import { resolveMenuSettings, RADIUS_CLASS } from '@/lib/menu-settings';
+import { mapHref } from '@/lib/hours';
 import { BADGES, badgeLabel } from '@/lib/badges';
 import { LoyaltyButton } from './LoyaltyCard';
 import { ProductCard } from './ProductCard';
@@ -310,6 +311,17 @@ export function MenuView({
         )}
         {theme.slogan && <p className="text-sm opacity-70">{theme.slogan}</p>}
         <OpenStatus hours={contact.hours} />
+        {mapHref(contact.maps_url, contact.address) && (
+          <a
+            href={mapHref(contact.maps_url, contact.address)!}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium"
+            style={{ backgroundColor: 'var(--brand-surface)', color: 'var(--brand-primary)' }}
+          >
+            <MapPin className="h-4 w-4" /> {t('directions')}
+          </a>
+        )}
         {settings.showSocial && <SocialRow contact={contact} />}
         {loyalty.enabled && plan === 'pro' && (
           <div className="mt-2">
@@ -610,8 +622,6 @@ function SocialRow({ contact }: { contact: TenantContact }) {
     items.push({ href: `https://instagram.com/${contact.instagram.replace(/^@/, '')}`, icon: Camera });
   if (contact.facebook) items.push({ href: contact.facebook, icon: Share2 });
   if (contact.website) items.push({ href: contact.website, icon: Globe });
-  if (contact.address)
-    items.push({ href: `https://maps.google.com/?q=${encodeURIComponent(contact.address)}`, icon: MapPin });
   if (items.length === 0) return null;
 
   return (

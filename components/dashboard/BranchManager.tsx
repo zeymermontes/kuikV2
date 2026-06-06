@@ -144,6 +144,14 @@ export function BranchManager({ branches, baseUrl }: { branches: Branch[]; baseU
                 onBlur={(e) => start(async () => updateBranch(b.id, { address: e.target.value || null }))}
               />
             </div>
+            <div>
+              <Label>{t('mapsUrl')}</Label>
+              <Input
+                defaultValue={b.maps_url ?? ''}
+                placeholder="https://maps.app.goo.gl/…"
+                onBlur={(e) => start(async () => updateBranch(b.id, { maps_url: e.target.value || null }))}
+              />
+            </div>
           </div>
           <div>
             <Label>{t('hours')}</Label>

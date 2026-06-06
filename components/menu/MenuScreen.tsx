@@ -31,6 +31,7 @@ export async function MenuScreen({ hostKey, branchSlug }: { hostKey: string; bra
         ...data.contact,
         whatsapp_phone: branch.whatsapp_phone ?? data.contact.whatsapp_phone,
         address: branch.address ?? data.contact.address,
+        maps_url: branch.maps_url ?? data.contact.maps_url,
         hours: branch.hours ?? data.contact.hours,
       }
     : data.contact;

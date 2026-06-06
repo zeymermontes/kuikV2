@@ -51,3 +51,12 @@ export function isOpenNow(hours: WeekHours, now: Date): boolean {
 export function todayHours(hours: WeekHours, now: Date): DayHours {
   return hours[weekdayIndex(now)];
 }
+
+/** Google Maps link: an explicit URL if set, else a search by address. */
+export function mapHref(mapsUrl: string | null, address: string | null): string | null {
+  if (mapsUrl && mapsUrl.trim()) return mapsUrl.trim();
+  if (address && address.trim()) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address.trim())}`;
+  }
+  return null;
+}
