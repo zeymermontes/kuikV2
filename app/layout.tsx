@@ -10,6 +10,8 @@ export const metadata: Metadata = {
   title: 'Kuik — Menú digital para restaurantes',
   description:
     'Crea el menú digital de tu restaurante, personalízalo y recibe pedidos por WhatsApp.',
+  // Default icon (overridden per-tenant on the menu site with the restaurant logo).
+  icons: { icon: '/icon.svg' },
 };
 
 export default async function RootLayout({
