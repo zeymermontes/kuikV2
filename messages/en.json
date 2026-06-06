@@ -315,9 +315,9 @@
     "tips": "Suggested tips (%)",
     "tipsHint": "Comma-separated, e.g. 10, 15, 20",
     "customerFields": "Customer details",
-    "collectAddress": "Ask for address",
-    "collectPickupTime": "Ask for time",
-    "collectTable": "Ask for table number"
+    "collectAddress": "Ask for address (delivery)",
+    "collectPickupTime": "Ask for time (pickup)",
+    "collectTable": "Ask for table number (dine-in)"
   },
   "contact": {
     "title": "Contact information",

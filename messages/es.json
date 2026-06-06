@@ -315,9 +315,9 @@
     "tips": "Propinas sugeridas (%)",
     "tipsHint": "Separadas por comas, ej. 10, 15, 20",
     "customerFields": "Datos del cliente",
-    "collectAddress": "Pedir dirección",
-    "collectPickupTime": "Pedir hora",
-    "collectTable": "Pedir número de mesa"
+    "collectAddress": "Pedir dirección (a domicilio)",
+    "collectPickupTime": "Pedir hora (para recoger)",
+    "collectTable": "Pedir número de mesa (comer aquí)"
   },
   "contact": {
     "title": "Información de contacto",

@@ -99,9 +99,9 @@ export function CartSheet({
       header: ordering.order_header,
       customerName: customerName.trim() || undefined,
       serviceLabel: serviceLabel(service),
-      address: address.trim() || undefined,
-      pickupTime: pickupTime.trim() || undefined,
-      table: table.trim() || undefined,
+      address: service === 'delivery' ? address.trim() || undefined : undefined,
+      pickupTime: service === 'pickup' ? pickupTime.trim() || undefined : undefined,
+      table: service === 'dinein' ? table.trim() || undefined : undefined,
       tipPercent: tip || undefined,
       deliveryFee: deliveryFee || undefined,
     });
@@ -247,7 +247,7 @@ export function CartSheet({
                 placeholder={t('yourName')}
                 className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm focus:border-neutral-400 focus:outline-none"
               />
-              {ordering.collect_address && (
+              {ordering.collect_address && service === 'delivery' && (
                 <input
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
@@ -255,7 +255,7 @@ export function CartSheet({
                   className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm focus:border-neutral-400 focus:outline-none"
                 />
               )}
-              {ordering.collect_pickup_time && (
+              {ordering.collect_pickup_time && service === 'pickup' && (
                 <input
                   value={pickupTime}
                   onChange={(e) => setPickupTime(e.target.value)}
@@ -263,7 +263,7 @@ export function CartSheet({
                   className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm focus:border-neutral-400 focus:outline-none"
                 />
               )}
-              {ordering.collect_table && (
+              {ordering.collect_table && service === 'dinein' && (
                 <input
                   value={table}
                   onChange={(e) => setTable(e.target.value)}
