@@ -7,7 +7,8 @@ import { createSubscription } from '@/lib/mercadopago';
 
 /** Starts the MercadoPago subscription flow for a plan and redirects to checkout. */
 export async function startSubscription(plan: 'basic' | 'pro') {
-  const { tenant, user } = await requireOwner();
+  const { tenant, user, subscription } = await requireOwner();
+  const additional = subscription.is_additional;
 
   // Record the chosen tier now; the webhook flips status to active on payment.
   const supabase = await createClient();
@@ -18,8 +19,9 @@ export async function startSubscription(plan: 'basic' | 'pro') {
     const result = await createSubscription({
       tenantId: tenant.id,
       payerEmail: user.email ?? '',
-      reason: `Kuik ${plan === 'pro' ? 'Pro' : 'Básico'} — ${tenant.name}`,
+      reason: `Kuik ${additional ? 'Adicional' : plan === 'pro' ? 'Pro' : 'Básico'} — ${tenant.name}`,
       plan,
+      additional,
     });
     initPoint = result.initPoint;
   } catch (err) {

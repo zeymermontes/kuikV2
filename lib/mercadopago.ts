@@ -33,14 +33,20 @@ export async function createSubscription({
   payerEmail,
   reason,
   plan = 'basic',
+  additional = false,
 }: {
   tenantId: string;
   payerEmail: string;
   reason: string;
   plan?: 'basic' | 'pro';
+  additional?: boolean;
 }): Promise<{ id: string; initPoint: string }> {
   const settings = await getPlatformSettings();
-  const amount = plan === 'pro' ? settings.pro_amount : settings.plan_amount;
+  const amount = additional
+    ? settings.extra_amount
+    : plan === 'pro'
+      ? settings.pro_amount
+      : settings.plan_amount;
   const preapproval = new PreApproval(mpClient());
 
   const result = await preapproval.create({

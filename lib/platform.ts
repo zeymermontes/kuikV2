@@ -8,6 +8,7 @@ export interface PlatformSettings {
   plan_name: string; // basic name
   pro_amount: number;
   pro_name: string;
+  extra_amount: number; // per additional restaurant
 }
 
 // Fallback used if the platform_settings row hasn't been created yet.
@@ -17,6 +18,7 @@ const FALLBACK: PlatformSettings = {
   plan_name: 'Kuik Básico',
   pro_amount: Number(process.env.MERCADOPAGO_PRO_AMOUNT ?? '499'),
   pro_name: 'Kuik Pro',
+  extra_amount: Number(process.env.MERCADOPAGO_EXTRA_AMOUNT ?? '299'),
 };
 
 /**
@@ -29,7 +31,7 @@ export const getPlatformSettings = cache(async (): Promise<PlatformSettings> => 
     const supabase = createAdminClient();
     const query = supabase
       .from('platform_settings')
-      .select('plan_amount, plan_currency, plan_name, pro_amount, pro_name')
+      .select('plan_amount, plan_currency, plan_name, pro_amount, pro_name, extra_amount')
       .eq('id', 1)
       .maybeSingle<PlatformSettings>();
     // Never let a slow DB hang the marketing page — fall back after 3s.

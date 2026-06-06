@@ -58,30 +58,46 @@ export default async function BillingPage({
       </Card>
 
       <h2 className="mb-3 font-semibold">{t('choosePlan')}</h2>
-      <div className="grid max-w-2xl gap-4 sm:grid-cols-2">
-        <PlanCard
-          name={plan.plan_name}
-          price={fmt(plan.plan_amount)}
-          features={[t('f_menu'), t('f_whatsapp'), t('f_custom'), t('f_dashboard'), t('f_subdomain')]}
-          tier="basic"
-          current={currentTier === 'basic'}
-          perMonth={t('perMonth')}
-          currentLabel={t('currentPlan')}
-          ctaLabel={t('subscribe')}
-        />
-        <PlanCard
-          name={plan.pro_name}
-          price={fmt(plan.pro_amount)}
-          highlight={t('mostPopular')}
-          intro={t('everythingInBasic')}
-          features={[t('f_domain'), t('f_loyalty'), t('f_branches'), t('f_reports')]}
-          tier="pro"
-          current={currentTier === 'pro'}
-          perMonth={t('perMonth')}
-          currentLabel={t('currentPlan')}
-          ctaLabel={currentTier === 'basic' ? t('upgrade') : t('subscribe')}
-        />
-      </div>
+      {subscription.is_additional ? (
+        <div className="max-w-sm">
+          <PlanCard
+            name={t('additionalRestaurant')}
+            price={fmt(plan.extra_amount)}
+            intro={t('additionalIntro')}
+            features={[t('f_domain'), t('f_loyalty'), t('f_branches'), t('f_reports')]}
+            tier="pro"
+            current={subscription.status === 'active'}
+            perMonth={t('perMonth')}
+            currentLabel={t('currentPlan')}
+            ctaLabel={t('subscribe')}
+          />
+        </div>
+      ) : (
+        <div className="grid max-w-2xl gap-4 sm:grid-cols-2">
+          <PlanCard
+            name={plan.plan_name}
+            price={fmt(plan.plan_amount)}
+            features={[t('f_menu'), t('f_whatsapp'), t('f_custom'), t('f_dashboard'), t('f_subdomain')]}
+            tier="basic"
+            current={currentTier === 'basic'}
+            perMonth={t('perMonth')}
+            currentLabel={t('currentPlan')}
+            ctaLabel={t('subscribe')}
+          />
+          <PlanCard
+            name={plan.pro_name}
+            price={fmt(plan.pro_amount)}
+            highlight={t('mostPopular')}
+            intro={t('everythingInBasic')}
+            features={[t('f_domain'), t('f_loyalty'), t('f_branches'), t('f_reports')]}
+            tier="pro"
+            current={currentTier === 'pro'}
+            perMonth={t('perMonth')}
+            currentLabel={t('currentPlan')}
+            ctaLabel={currentTier === 'basic' ? t('upgrade') : t('subscribe')}
+          />
+        </div>
+      )}
     </div>
   );
 }

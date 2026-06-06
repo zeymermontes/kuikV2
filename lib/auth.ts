@@ -1,5 +1,6 @@
 import 'server-only';
 import { cache } from 'react';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import type {
@@ -49,36 +50,48 @@ export const requireUser = cache(async (): Promise<AuthedUser> => {
   };
 });
 
+export interface Membership {
+  tenant: Tenant;
+  role: MemberRole;
+}
+
+/** All restaurants the user belongs to (owner or staff). */
+export const getMemberships = cache(async (userId: string): Promise<Membership[]> => {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('tenant_members')
+    .select('role, tenants(*)')
+    .eq('user_id', userId)
+    .order('created_at');
+  const rows = (data ?? []) as unknown as {
+    role: MemberRole;
+    tenants: Tenant | Tenant[] | null;
+  }[];
+  const memberships = rows
+    .map((r) => ({ role: r.role, tenant: Array.isArray(r.tenants) ? r.tenants[0] : r.tenants }))
+    .filter((m): m is Membership => Boolean(m.tenant));
+  if (memberships.length > 0) return memberships;
+
+  // Legacy fallback (pre-0011 backfill): owner_id lookup.
+  const { data: owned } = await supabase
+    .from('tenants')
+    .select('*')
+    .eq('owner_id', userId)
+    .order('created_at');
+  return ((owned ?? []) as Tenant[]).map((tenant) => ({ tenant, role: 'owner' as MemberRole }));
+});
+
 /**
- * The user's tenant membership (owner or staff), or null. Falls back to the
- * legacy owner_id lookup so existing owners keep working before the
- * tenant_members backfill (migration 0011) has run — without this, an owner
- * with no membership row would be bounced to /onboarding on every login.
+ * The user's active restaurant. Picks the one stored in the `kuik_tenant` cookie
+ * (set by the restaurant switcher), else the first. Null if the user has none.
  */
 export const getMembership = cache(
-  async (userId: string): Promise<{ tenant: Tenant; role: MemberRole } | null> => {
-    const supabase = await createClient();
-
-    const { data: member } = await supabase
-      .from('tenant_members')
-      .select('role, tenants(*)')
-      .eq('user_id', userId)
-      .order('created_at')
-      .limit(1)
-      .maybeSingle<{ role: MemberRole; tenants: Tenant }>();
-    if (member?.tenants) return { tenant: member.tenants, role: member.role };
-
-    // Fallback: treat the legacy tenant owner as the 'owner' role.
-    const { data: owned } = await supabase
-      .from('tenants')
-      .select('*')
-      .eq('owner_id', userId)
-      .order('created_at')
-      .limit(1)
-      .maybeSingle<Tenant>();
-    if (owned) return { tenant: owned, role: 'owner' };
-
-    return null;
+  async (userId: string): Promise<Membership | null> => {
+    const all = await getMemberships(userId);
+    if (all.length === 0) return null;
+    const cookieStore = await cookies();
+    const active = cookieStore.get('kuik_tenant')?.value;
+    return all.find((m) => m.tenant.id === active) ?? all[0];
   },
 );
 

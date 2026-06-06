@@ -11,7 +11,7 @@ export function SeparatorRow({ separator }: { separator: Separator }) {
     return (
       <h3
         className="pt-3 pb-1 text-lg font-bold tracking-tight"
-        style={{ color: 'var(--brand-secondary)' }}
+        style={{ color: 'var(--brand-separator)' }}
       >
         {separator.label}
       </h3>
@@ -21,13 +21,13 @@ export function SeparatorRow({ separator }: { separator: Separator }) {
   // 'line' — a divider with optional centered label.
   return (
     <div className="flex items-center gap-3 py-2">
-      <span className="h-px flex-1 bg-black/10" />
+      <span className="h-px flex-1" style={{ backgroundColor: 'var(--brand-separator)' }} />
       {separator.label && (
-        <span className="text-xs font-medium uppercase tracking-wide text-black/40">
+        <span className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--brand-text-secondary)' }}>
           {separator.label}
         </span>
       )}
-      <span className="h-px flex-1 bg-black/10" />
+      <span className="h-px flex-1" style={{ backgroundColor: 'var(--brand-separator)' }} />
     </div>
   );
 }

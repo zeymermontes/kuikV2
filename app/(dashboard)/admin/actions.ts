@@ -58,6 +58,7 @@ export async function updatePricing(input: {
   planName: string;
   proAmount: number;
   proName: string;
+  extraAmount: number;
 }) {
   await requireSuperAdmin();
   if (!(input.amount > 0) || !input.currency) return;
@@ -72,6 +73,7 @@ export async function updatePricing(input: {
       plan_name: input.planName || 'Kuik Básico',
       pro_amount: input.proAmount,
       pro_name: input.proName || 'Kuik Pro',
+      extra_amount: input.extraAmount,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'id' },

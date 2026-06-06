@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -23,9 +23,11 @@ import {
   Menu as MenuIcon,
   X,
 } from 'lucide-react';
+import { ChevronsUpDown, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { MemberRole } from '@/lib/database.types';
 import { signOut } from '@/app/(auth)/actions';
+import { setActiveTenant } from '@/app/(dashboard)/tenant-actions';
 import { LocaleSwitch } from './LocaleSwitch';
 
 // `roles` lists which member roles see each item.
@@ -49,17 +51,25 @@ export function Sidebar({
   role,
   menuUrl,
   locale,
+  tenants,
+  activeTenantId,
 }: {
   isSuperAdmin: boolean;
   role: MemberRole;
   menuUrl: string;
   locale: string;
+  tenants: { id: string; name: string }[];
+  activeTenantId: string;
 }) {
   const pathname = usePathname();
   const t = useTranslations('nav');
   const tDash = useTranslations('dashboard');
   const tAuth = useTranslations('auth');
   const [open, setOpen] = useState(false);
+
+  const switcher = (
+    <RestaurantSwitcher tenants={tenants} activeId={activeTenantId} newLabel={t('newRestaurant')} />
+  );
 
   const nav = (
     <nav className="flex flex-1 flex-col gap-1">
@@ -101,7 +111,8 @@ export function Sidebar({
     <>
       {/* Desktop sidebar */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-neutral-200 bg-white p-4 md:flex">
-        <div className="mb-6 px-2 text-xl font-bold tracking-tight">Kuik</div>
+        <div className="mb-4 px-2 text-xl font-bold tracking-tight">Kuik</div>
+        {switcher}
         {nav}
         {footer}
       </aside>
@@ -125,12 +136,61 @@ export function Sidebar({
                 <X className="h-5 w-5" />
               </button>
             </div>
+            {switcher}
             {nav}
             {footer}
           </div>
         </div>
       )}
     </>
+  );
+}
+
+function RestaurantSwitcher({
+  tenants,
+  activeId,
+  newLabel,
+}: {
+  tenants: { id: string; name: string }[];
+  activeId: string;
+  newLabel: string;
+}) {
+  const [openMenu, setOpenMenu] = useState(false);
+  const [, startTransition] = useTransition();
+  const active = tenants.find((x) => x.id === activeId);
+
+  return (
+    <div className="relative mb-3">
+      <button
+        onClick={() => setOpenMenu((o) => !o)}
+        className="flex w-full items-center justify-between gap-2 rounded-lg border border-neutral-200 px-3 py-2 text-sm font-medium hover:bg-neutral-50"
+      >
+        <span className="truncate">{active?.name ?? '—'}</span>
+        <ChevronsUpDown className="h-4 w-4 shrink-0 text-neutral-400" />
+      </button>
+      {openMenu && (
+        <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg">
+          {tenants.map((tn) => (
+            <button
+              key={tn.id}
+              onClick={() => startTransition(() => setActiveTenant(tn.id))}
+              className={cn(
+                'block w-full truncate px-3 py-2 text-left text-sm hover:bg-neutral-100',
+                tn.id === activeId && 'font-semibold',
+              )}
+            >
+              {tn.name}
+            </button>
+          ))}
+          <Link
+            href="/onboarding"
+            className="flex items-center gap-1.5 border-t border-neutral-100 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100"
+          >
+            <Plus className="h-4 w-4" /> {newLabel}
+          </Link>
+        </div>
+      )}
+    </div>
   );
 }
 

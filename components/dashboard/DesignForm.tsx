@@ -3,13 +3,39 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { TenantTheme } from '@/lib/database.types';
-import { MENU_FONTS } from '@/lib/config';
 import {
   resolveMenuSettings,
   type MenuSettings,
 } from '@/lib/menu-settings';
 import { Card, Label, Input } from '@/components/ui';
 import { ImageUploader } from '@/components/dashboard/ImageUploader';
+import { FontPicker } from '@/components/dashboard/FontPicker';
+import { CustomFontUploader } from '@/components/dashboard/CustomFontUploader';
+
+// Accept 3/4/6/8-digit hex (the 4/8 forms carry alpha).
+const HEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+
+function normHex(v: string): string | null {
+  let s = v.trim();
+  if (s && !s.startsWith('#')) s = `#${s}`;
+  return HEX.test(s) ? s : null;
+}
+
+/** Split a hex color into its solid #rrggbb part and an alpha 0–255. */
+function parseColor(hex: string): { rgb: string; alpha: number } {
+  const m = /^#([0-9a-fA-F]+)$/.exec((hex ?? '').trim());
+  let h = m?.[1] ?? '';
+  if (h.length === 3 || h.length === 4) h = h.split('').map((c) => c + c).join('');
+  if (h.length === 6) return { rgb: `#${h}`, alpha: 255 };
+  if (h.length === 8) return { rgb: `#${h.slice(0, 6)}`, alpha: parseInt(h.slice(6, 8), 16) };
+  return { rgb: '#000000', alpha: 255 };
+}
+
+/** Combine #rrggbb + alpha into #rrggbb or #rrggbbaa. */
+function toHex(rgb: string, alpha: number): string {
+  if (alpha >= 255) return rgb;
+  return `${rgb}${Math.round(alpha).toString(16).padStart(2, '0')}`;
+}
 import {
   updateTheme,
   updateMenuSettings,
@@ -36,7 +62,11 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
     { key: 'primary_color', label: t('primary') },
     { key: 'secondary_color', label: t('secondary') },
     { key: 'background_color', label: t('background') },
+    { key: 'card_color', label: t('card') },
+    { key: 'border_color', label: t('border') },
+    { key: 'separator_color', label: t('separator') },
     { key: 'text_color', label: t('text') },
+    { key: 'text_secondary_color', label: t('textSecondary') },
   ] as const;
 
   return (
@@ -88,20 +118,49 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
         <Card>
           <h2 className="mb-4 font-semibold">{t('colors')}</h2>
           <div className="grid grid-cols-2 gap-4">
-            {colorFields.map(({ key, label }) => (
-              <div key={key}>
-                <Label>{label}</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={local[key]}
-                    onChange={(e) => set(key, e.target.value)}
-                    className="h-9 w-12 cursor-pointer rounded border border-neutral-200"
-                  />
-                  <span className="text-sm text-neutral-500">{local[key]}</span>
+            {colorFields.map(({ key, label }) => {
+              const { rgb, alpha } = parseColor(local[key]);
+              const pct = Math.round((alpha / 255) * 100);
+              return (
+                <div key={key}>
+                  <Label>{label}</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={rgb}
+                      onChange={(e) => set(key, toHex(e.target.value, alpha))}
+                      className="h-9 w-10 shrink-0 cursor-pointer rounded border border-neutral-200"
+                    />
+                    <input
+                      type="text"
+                      value={local[key] ?? ''}
+                      maxLength={9}
+                      spellCheck={false}
+                      placeholder="#000000"
+                      onChange={(e) => setLocal((s) => ({ ...s, [key]: e.target.value }))}
+                      onBlur={(e) => {
+                        const v = normHex(e.target.value);
+                        if (v) set(key, v);
+                        else setLocal((s) => ({ ...s, [key]: theme[key] }));
+                      }}
+                      className="w-full min-w-0 rounded-lg border border-neutral-300 px-2 py-1.5 font-mono text-xs uppercase outline-none focus:border-neutral-900"
+                    />
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={pct}
+                      onChange={(e) => set(key, toHex(rgb, Math.round((Number(e.target.value) / 100) * 255)))}
+                      className="h-1 flex-1 cursor-pointer accent-neutral-900"
+                      title={t('opacity')}
+                    />
+                    <span className="w-8 text-right text-[10px] text-neutral-400">{pct}%</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className="mt-4">
             <SelectRow
@@ -120,17 +179,19 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
         {/* Typography */}
         <Card>
           <Label>{t('font')}</Label>
-          <select
-            value={local.font_family}
-            onChange={(e) => set('font_family', e.target.value)}
-            className="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm"
-          >
-            {MENU_FONTS.map((f) => (
-              <option key={f} value={f}>
-                {f}
-              </option>
-            ))}
-          </select>
+          <FontPicker value={local.font_family} onChange={(f) => set('font_family', f)} />
+          <div className="mt-4 border-t border-neutral-100 pt-4">
+            <Label>{t('customFont')}</Label>
+            <CustomFontUploader
+              value={local.custom_font_url}
+              name={local.custom_font_name}
+              tenantId={theme.tenant_id}
+              onChange={(url, fname) => {
+                setLocal((s) => ({ ...s, custom_font_url: url, custom_font_name: fname }));
+                updateTheme({ custom_font_url: url, custom_font_name: fname });
+              }}
+            />
+          </div>
         </Card>
 
         {/* Layout & cards */}
@@ -238,44 +299,94 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
       {/* Live preview */}
       <div className="lg:sticky lg:top-6 lg:self-start">
         <Label>{t('preview')}</Label>
-        <div
-          className="overflow-hidden rounded-2xl border border-neutral-200 p-5"
-          style={{
-            backgroundColor: settings.darkMode === 'on' ? '#111114' : local.background_color,
-            color: settings.darkMode === 'on' ? '#f5f5f5' : local.text_color,
-            fontFamily: `'${local.font_family}', sans-serif`,
-            backgroundImage: local.background_image_url
-              ? `url(${local.background_image_url})`
-              : undefined,
-            backgroundSize: 'cover',
-          }}
-        >
-          <p className="text-lg font-bold">{local.slogan || 'Tu Restaurante'}</p>
-          <div
-            className="mt-3 p-3"
-            style={{
-              backgroundColor: settings.darkMode === 'on' ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.85)',
-              borderRadius: 16,
-              border: settings.cardBorder ? '1px solid rgba(0,0,0,.1)' : undefined,
-              boxShadow: settings.cardShadow ? '0 1px 4px rgba(0,0,0,.1)' : undefined,
-            }}
-          >
-            <div className="flex items-center justify-between">
-              <span className="font-semibold">Producto ejemplo</span>
-              <span style={{ color: local.primary_color }} className="font-semibold">
-                $120
-              </span>
-            </div>
-            <p className="mt-1 text-sm opacity-70">Descripción del platillo.</p>
-            <button
-              className="mt-3 rounded-full px-4 py-1.5 text-sm font-semibold text-white"
-              style={{ backgroundColor: local.primary_color }}
-            >
-              Agregar
-            </button>
-          </div>
-        </div>
+        <Preview local={local} settings={settings} />
       </div>
+    </div>
+  );
+}
+
+function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettings }) {
+  const dark = settings.darkMode === 'on';
+  const bg = dark ? '#111114' : local.background_color;
+  const text = dark ? '#f5f5f5' : local.text_color;
+  const textSec = dark ? 'rgba(245,245,245,.6)' : local.text_secondary_color ?? '#737373';
+  const card = dark ? 'rgba(255,255,255,.07)' : local.card_color ?? '#ffffff';
+  const border = dark ? 'rgba(255,255,255,.12)' : local.border_color ?? '#e5e5e5';
+  const sep = local.separator_color ?? '#e5e5e5';
+  const radius = { none: 0, sm: 8, md: 12, lg: 16, xl: 24 }[settings.cornerRadius] ?? 16;
+
+  const cardStyle: React.CSSProperties = {
+    backgroundColor: card,
+    borderRadius: radius,
+    border: settings.cardBorder ? `1px solid ${border}` : undefined,
+    boxShadow: settings.cardShadow ? '0 1px 6px rgba(0,0,0,.08)' : undefined,
+  };
+  const colors = { text, textSec, primary: local.primary_color };
+
+  return (
+    <div
+      className="space-y-3 overflow-hidden rounded-2xl border border-neutral-200 p-5"
+      style={{
+        backgroundColor: bg,
+        color: text,
+        fontFamily: `'${local.font_family}', sans-serif`,
+        backgroundImage: local.background_image_url ? `url(${local.background_image_url})` : undefined,
+        backgroundSize: 'cover',
+      }}
+    >
+      <p className="text-xl font-extrabold" style={{ color: text }}>{local.slogan || 'Tu Restaurante'}</p>
+      <p className="text-xs" style={{ color: textSec }}>La mejor comida de la ciudad</p>
+
+      <h3 className="pt-1 text-lg font-bold" style={{ color: local.secondary_color }}>Entradas</h3>
+      <PreviewItem cardStyle={cardStyle} colors={colors} name="Tacos al pastor" price="$120" strike="$150" desc="Con piña, cebolla y cilantro." badge="🔥 Más vendido" />
+
+      {/* Separator */}
+      <div className="flex items-center gap-3 py-1">
+        <span className="h-px flex-1" style={{ backgroundColor: sep }} />
+        <span className="text-xs font-medium uppercase tracking-wide" style={{ color: textSec }}>Especiales</span>
+        <span className="h-px flex-1" style={{ backgroundColor: sep }} />
+      </div>
+
+      <PreviewItem cardStyle={cardStyle} colors={colors} name="Quesadilla" price="$80" desc="Queso fundido y guacamole." />
+    </div>
+  );
+}
+
+function PreviewItem({
+  cardStyle,
+  colors,
+  name,
+  price,
+  strike,
+  desc,
+  badge,
+}: {
+  cardStyle: React.CSSProperties;
+  colors: { text: string; textSec: string; primary: string };
+  name: string;
+  price: string;
+  strike?: string;
+  desc?: string;
+  badge?: string;
+}) {
+  return (
+    <div className="p-3" style={cardStyle}>
+      {badge && (
+        <span className="mb-1 inline-block rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+          {badge}
+        </span>
+      )}
+      <div className="flex items-start justify-between gap-2">
+        <span className="font-semibold" style={{ color: colors.text }}>{name}</span>
+        <span className="flex items-baseline gap-1.5">
+          {strike && <span className="text-xs line-through" style={{ color: colors.textSec }}>{strike}</span>}
+          <span className="font-semibold" style={{ color: colors.primary }}>{price}</span>
+        </span>
+      </div>
+      {desc && <p className="mt-1 text-sm" style={{ color: colors.textSec }}>{desc}</p>}
+      <button className="mt-3 rounded-full px-4 py-1.5 text-sm font-semibold text-white" style={{ backgroundColor: colors.primary }}>
+        Agregar
+      </button>
     </div>
   );
 }

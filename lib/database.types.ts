@@ -54,7 +54,13 @@ export interface TenantTheme {
   secondary_color: string;
   background_color: string;
   text_color: string;
+  text_secondary_color: string;
+  card_color: string;
+  border_color: string;
+  separator_color: string;
   font_family: string;
+  custom_font_url: string | null;
+  custom_font_name: string | null;
   background_image_url: string | null;
   cover_image_url: string | null;
   slogan: string | null;
@@ -187,6 +193,7 @@ export interface Subscription {
   tenant_id: string;
   status: SubscriptionStatus;
   plan: 'basic' | 'pro';
+  is_additional: boolean;
   trial_ends_at: string | null;
   current_period_end: string | null;
   mp_preapproval_id: string | null;

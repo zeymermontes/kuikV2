@@ -12,6 +12,7 @@ export function PricingSettings({ settings }: { settings: PlatformSettings }) {
   const [amount, setAmount] = useState(String(settings.plan_amount));
   const [proName, setProName] = useState(settings.pro_name);
   const [proAmount, setProAmount] = useState(String(settings.pro_amount));
+  const [extraAmount, setExtraAmount] = useState(String(settings.extra_amount));
   const [currency, setCurrency] = useState(settings.plan_currency);
   const [saved, setSaved] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -25,6 +26,7 @@ export function PricingSettings({ settings }: { settings: PlatformSettings }) {
         planName: name,
         proAmount: Number(proAmount),
         proName,
+        extraAmount: Number(extraAmount),
       });
       setSaved(true);
     });
@@ -49,6 +51,10 @@ export function PricingSettings({ settings }: { settings: PlatformSettings }) {
         <div>
           <Label>Pro — monto/mes</Label>
           <Input type="number" step="0.01" inputMode="decimal" value={proAmount} onChange={(e) => setProAmount(e.target.value)} />
+        </div>
+        <div>
+          <Label>Restaurante adicional — monto/mes</Label>
+          <Input type="number" step="0.01" inputMode="decimal" value={extraAmount} onChange={(e) => setExtraAmount(e.target.value)} />
         </div>
         <div>
           <Label>Moneda</Label>

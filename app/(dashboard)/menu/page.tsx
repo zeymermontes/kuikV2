@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import type { Category, Product, Separator, BranchLite } from '@/lib/database.types';
 import { MenuEditor } from '@/components/dashboard/menu/MenuEditor';
 import { MenuModeSwitch } from '@/components/dashboard/MenuModeSwitch';
+import { MenuImportExport } from '@/components/dashboard/menu/MenuImportExport';
 import { WaiterMenu } from '@/components/dashboard/menu/WaiterMenu';
 
 export default async function MenuPage({
@@ -83,6 +84,12 @@ export default async function MenuPage({
           )}
         </>
       )}
+
+      <MenuImportExport
+        branchId={activeBranchId}
+        categories={(categories ?? []) as Category[]}
+        products={(products ?? []) as Product[]}
+      />
 
       <MenuEditor
         tenantId={tenant.id}

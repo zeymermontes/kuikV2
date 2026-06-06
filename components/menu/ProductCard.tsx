@@ -64,7 +64,7 @@ export function ProductCard({
 
   const wrapStyle = {
     backgroundColor: 'var(--brand-surface)',
-    border: border ? '1px solid rgba(0,0,0,.08)' : undefined,
+    border: border ? '1px solid var(--brand-border)' : undefined,
     boxShadow: shadow ? '0 1px 6px rgba(0,0,0,.08)' : undefined,
   };
 
@@ -97,7 +97,7 @@ export function ProductCard({
   );
 
   const meta = (product.prep_time || product.calories != null) && (
-    <div className="mt-1 flex items-center gap-3 text-xs opacity-60">
+    <div className="mt-1 flex items-center gap-3 text-xs" style={{ color: 'var(--brand-text-secondary)' }}>
       {product.prep_time && (
         <span className="flex items-center gap-1">
           <Clock className="h-3 w-3" /> {product.prep_time}
@@ -143,7 +143,7 @@ export function ProductCard({
             {priceBlock}
           </div>
           {product.description && (
-            <p className="mt-1 text-sm opacity-60 line-clamp-2">{product.description}</p>
+            <p className="mt-1 text-sm line-clamp-2" style={{ color: 'var(--brand-text-secondary)' }}>{product.description}</p>
           )}
           {meta}
           <div className="mt-auto flex items-center justify-between pt-2">
@@ -185,7 +185,7 @@ export function ProductCard({
         </div>
 
         {product.description && (
-          <p className="mt-1 text-sm opacity-60 line-clamp-3">{product.description}</p>
+          <p className="mt-1 text-sm line-clamp-3" style={{ color: 'var(--brand-text-secondary)' }}>{product.description}</p>
         )}
         {meta}
 

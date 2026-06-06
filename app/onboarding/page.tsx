@@ -6,7 +6,7 @@ import { ROOT_DOMAIN } from '@/lib/config';
 import { createTenant, type OnboardingResult } from './actions';
 import { Field, Input, Button } from '@/components/ui';
 
-const ERROR_KEYS = new Set(['subdomainTaken', 'subdomainInvalid', 'name']);
+const ERROR_KEYS = new Set(['subdomainTaken', 'subdomainInvalid', 'name', 'needPro']);
 
 export default function OnboardingPage() {
   const t = useTranslations('onboarding');

@@ -10,7 +10,13 @@ function googleFontHref(family: string): string {
   return `https://fonts.googleapis.com/css2?family=${f}:wght@400;500;600;700&display=swap`;
 }
 
-const DARK = { bg: '#111114', text: '#f5f5f5', surface: 'rgba(255,255,255,0.07)' };
+const DARK = {
+  bg: '#111114',
+  text: '#f5f5f5',
+  textSecondary: 'rgba(245,245,245,0.6)',
+  surface: 'rgba(255,255,255,0.07)',
+  border: 'rgba(255,255,255,0.12)',
+};
 
 export async function generateMetadata({
   params,
@@ -59,8 +65,13 @@ export default async function TenantLayout({
     '--brand-secondary': theme.secondary_color,
     '--brand-bg': dark ? DARK.bg : theme.background_color,
     '--brand-text': dark ? DARK.text : theme.text_color,
-    '--brand-surface': dark ? DARK.surface : 'rgba(255,255,255,0.82)',
-    '--brand-font': `'${theme.font_family}', system-ui, sans-serif`,
+    '--brand-text-secondary': dark ? DARK.textSecondary : theme.text_secondary_color ?? '#737373',
+    '--brand-surface': dark ? DARK.surface : theme.card_color ?? '#ffffff',
+    '--brand-border': dark ? DARK.border : theme.border_color ?? '#e5e5e5',
+    '--brand-separator': theme.separator_color ?? '#e5e5e5',
+    '--brand-font': theme.custom_font_url
+      ? `'KuikCustomFont', '${theme.font_family}', system-ui, sans-serif`
+      : `'${theme.font_family}', system-ui, sans-serif`,
   } as React.CSSProperties;
 
   // background image is suppressed in forced-dark mode for legibility
@@ -68,7 +79,11 @@ export default async function TenantLayout({
 
   return (
     <>
-      <link rel="stylesheet" href={googleFontHref(theme.font_family)} />
+      {theme.custom_font_url ? (
+        <style>{`@font-face{font-family:'KuikCustomFont';src:url('${theme.custom_font_url}');font-display:swap;}`}</style>
+      ) : (
+        <link rel="stylesheet" href={googleFontHref(theme.font_family)} />
+      )}
       {settings.darkMode === 'auto' && (
         <style>{`@media (prefers-color-scheme: dark){
           .kuik-root{--brand-bg:${DARK.bg};--brand-text:${DARK.text};--brand-surface:${DARK.surface};background-image:none!important}

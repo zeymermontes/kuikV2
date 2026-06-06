@@ -12,7 +12,13 @@ export async function updateTheme(
     secondary_color: string;
     background_color: string;
     text_color: string;
+    text_secondary_color: string;
+    card_color: string;
+    border_color: string;
+    separator_color: string;
     font_family: string;
+    custom_font_url: string | null;
+    custom_font_name: string | null;
     logo_url: string | null;
     background_image_url: string | null;
     cover_image_url: string | null;

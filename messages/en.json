@@ -41,7 +41,8 @@
     "whatsappHelp": "Include country code, digits only (e.g. 5215555555555)",
     "create": "Create menu",
     "subdomainTaken": "That subdomain is already taken",
-    "subdomainInvalid": "Use lowercase letters, numbers and hyphens only"
+    "subdomainInvalid": "Use lowercase letters, numbers and hyphens only",
+    "needPro": "You need a Pro restaurant to add another."
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -56,6 +57,7 @@
     "staff": "Team",
     "domain": "Domain",
     "billing": "Billing",
+    "newRestaurant": "New restaurant",
     "superAdmin": "Super Admin"
   },
   "dashboard": {
@@ -136,12 +138,22 @@
     "primary": "Primary",
     "secondary": "Secondary",
     "background": "Background",
-    "text": "Text",
+    "card": "Cards",
+    "border": "Borders",
+    "separator": "Separators",
+    "text": "Primary text",
+    "textSecondary": "Secondary text",
+    "opacity": "Opacity",
     "darkMode": "Dark mode",
     "darkOff": "Off",
     "darkOn": "On",
     "darkAuto": "Auto",
     "font": "Font",
+    "customFont": "Custom font",
+    "uploadFont": "Upload font",
+    "replaceFont": "Replace font",
+    "customFontHint": "Upload your font (woff2, woff, ttf or otf). Overrides the one above.",
+    "customFontActive": "Your custom font is active.",
     "layout": "Card layout",
     "cardStyle": "Card style",
     "cardList": "List",
@@ -341,12 +353,34 @@
     "f_domain": "Custom domain",
     "f_loyalty": "Loyalty program",
     "f_branches": "Branches",
-    "f_reports": "Advanced reports"
+    "f_reports": "Advanced reports",
+    "additionalRestaurant": "Additional restaurant",
+    "additionalIntro": "Extra restaurant on your Pro account:"
   },
   "pro": {
     "locked": "{feature} is a Pro feature",
     "lockedHint": "Upgrade your plan to unlock this feature.",
     "upgrade": "Upgrade to Pro"
+  },
+  "menuImport": {
+    "title": "Import / export Excel",
+    "subtitle": "Load your menu from an Excel file, or download it. Updates by name, no duplicates.",
+    "import": "Import Excel",
+    "export": "Download menu",
+    "template": "Template",
+    "copyAI": "Copy for AI",
+    "copied": "Copied!",
+    "emptyFile": "No valid rows found (make sure it has Category and Product columns).",
+    "parseError": "Could not read the file.",
+    "confirmTitle": "Import summary",
+    "newCategories": "New categories",
+    "newProducts": "New products",
+    "updatedProducts": "Products to update",
+    "missingProducts": "Products no longer in the file",
+    "addUpdateOnly": "Add & update only",
+    "deleteMissing": "Also delete the {n} missing",
+    "importing": "Importing…",
+    "cancel": "Cancel"
   },
   "branches": {
     "title": "Branches",

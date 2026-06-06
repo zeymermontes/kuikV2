@@ -41,7 +41,8 @@
     "whatsappHelp": "Incluye código de país, solo dígitos (ej. 5215555555555)",
     "create": "Crear menú",
     "subdomainTaken": "Ese subdominio ya está en uso",
-    "subdomainInvalid": "Usa solo letras minúsculas, números y guiones"
+    "subdomainInvalid": "Usa solo letras minúsculas, números y guiones",
+    "needPro": "Necesitas un restaurante en plan Pro para agregar otro."
   },
   "nav": {
     "dashboard": "Panel",
@@ -56,6 +57,7 @@
     "staff": "Equipo",
     "domain": "Dominio",
     "billing": "Suscripción",
+    "newRestaurant": "Nuevo restaurante",
     "superAdmin": "Super Admin"
   },
   "dashboard": {
@@ -136,12 +138,22 @@
     "primary": "Principal",
     "secondary": "Secundario",
     "background": "Fondo",
-    "text": "Texto",
+    "card": "Tarjetas",
+    "border": "Bordes",
+    "separator": "Separadores",
+    "text": "Texto principal",
+    "textSecondary": "Texto secundario",
+    "opacity": "Opacidad",
     "darkMode": "Modo oscuro",
     "darkOff": "Apagado",
     "darkOn": "Encendido",
     "darkAuto": "Automático",
     "font": "Tipografía",
+    "customFont": "Fuente propia",
+    "uploadFont": "Subir fuente",
+    "replaceFont": "Cambiar fuente",
+    "customFontHint": "Sube tu fuente (woff2, woff, ttf u otf). Reemplaza a la de arriba.",
+    "customFontActive": "Tu fuente personalizada está activa.",
     "layout": "Diseño de tarjetas",
     "cardStyle": "Estilo de tarjeta",
     "cardList": "Lista",
@@ -341,12 +353,34 @@
     "f_domain": "Dominio propio",
     "f_loyalty": "Programa de lealtad",
     "f_branches": "Sucursales",
-    "f_reports": "Reportes avanzados"
+    "f_reports": "Reportes avanzados",
+    "additionalRestaurant": "Restaurante adicional",
+    "additionalIntro": "Restaurante extra en tu cuenta Pro:"
   },
   "pro": {
     "locked": "{feature} es una función Pro",
     "lockedHint": "Mejora tu plan para desbloquear esta función.",
     "upgrade": "Mejorar a Pro"
+  },
+  "menuImport": {
+    "title": "Importar / exportar Excel",
+    "subtitle": "Carga tu menú desde un Excel, o descárgalo. Actualiza por nombre sin duplicar.",
+    "import": "Importar Excel",
+    "export": "Descargar menú",
+    "template": "Plantilla",
+    "copyAI": "Copiar para IA",
+    "copied": "¡Copiado!",
+    "emptyFile": "No se encontraron filas válidas (revisa que tenga columnas Categoría y Producto).",
+    "parseError": "No se pudo leer el archivo.",
+    "confirmTitle": "Resumen de importación",
+    "newCategories": "Categorías nuevas",
+    "newProducts": "Productos nuevos",
+    "updatedProducts": "Productos a actualizar",
+    "missingProducts": "Productos que ya no están en el archivo",
+    "addUpdateOnly": "Solo agregar y actualizar",
+    "deleteMissing": "Eliminar los {n} faltantes también",
+    "importing": "Importando…",
+    "cancel": "Cancelar"
   },
   "branches": {
     "title": "Sucursales",
