@@ -123,6 +123,7 @@ export interface Branch {
   slug: string;
   whatsapp_phone: string | null;
   address: string | null;
+  hours: unknown | null;
   menu_mode: BranchMenuMode;
   is_visible: boolean;
   position: number;

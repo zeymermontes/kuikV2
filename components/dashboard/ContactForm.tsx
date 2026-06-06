@@ -2,7 +2,8 @@
 
 import { useTranslations } from 'next-intl';
 import type { TenantContact } from '@/lib/database.types';
-import { Card, Field, Input } from '@/components/ui';
+import { Card, Field, Input, Label } from '@/components/ui';
+import { HoursEditor } from '@/components/dashboard/HoursEditor';
 import { updateContact } from '@/app/(dashboard)/settings-actions';
 import { digitsOnly } from '@/lib/utils';
 
@@ -38,6 +39,11 @@ export function ContactForm({ contact }: { contact: TenantContact }) {
           />
         </Field>
       ))}
+
+      <div className="mt-4 border-t border-neutral-100 pt-4">
+        <Label>{t('hours')}</Label>
+        <HoursEditor value={contact.hours} onChange={(hours) => updateContact({ hours })} />
+      </div>
     </Card>
   );
 }

@@ -147,6 +147,7 @@ export async function updateContact(
   fields: Partial<{
     whatsapp_phone: string | null;
     address: string | null;
+    hours: unknown;
     instagram: string | null;
     facebook: string | null;
     website: string | null;

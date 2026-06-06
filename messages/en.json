@@ -344,6 +344,19 @@
     "collectPickupTime": "Ask for time (pickup)",
     "collectTable": "Ask for table number (dine-in)"
   },
+  "hours": {
+    "mon": "Mon",
+    "tue": "Tue",
+    "wed": "Wed",
+    "thu": "Thu",
+    "fri": "Fri",
+    "sat": "Sat",
+    "sun": "Sun",
+    "open": "Open",
+    "closed": "Closed",
+    "openNow": "Open now",
+    "closedNow": "Closed"
+  },
   "contact": {
     "title": "Contact information",
     "whatsapp": "WhatsApp",
@@ -435,6 +448,7 @@
     "addBranch": "Add branch",
     "name": "Name",
     "namePlaceholder": "Downtown, North…",
+    "hours": "Hours",
     "whatsapp": "WhatsApp",
     "address": "Address",
     "menuMode": "Menu",

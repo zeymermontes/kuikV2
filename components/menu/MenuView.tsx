@@ -24,6 +24,7 @@ import { CategoryBanner } from './CategoryBanner';
 import { SeparatorRow } from './SeparatorRow';
 import { CartBar } from './CartBar';
 import { CartSheet } from './CartSheet';
+import { OpenStatus } from './OpenStatus';
 
 type CartState = Record<string, CartLine>; // keyed by CartLine.key
 
@@ -308,6 +309,7 @@ export function MenuView({
           </h1>
         )}
         {theme.slogan && <p className="text-sm opacity-70">{theme.slogan}</p>}
+        <OpenStatus hours={contact.hours} />
         {settings.showSocial && <SocialRow contact={contact} />}
         {loyalty.enabled && plan === 'pro' && (
           <div className="mt-2">

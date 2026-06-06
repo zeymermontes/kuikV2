@@ -344,6 +344,19 @@
     "collectPickupTime": "Pedir hora (para recoger)",
     "collectTable": "Pedir número de mesa (comer aquí)"
   },
+  "hours": {
+    "mon": "Lun",
+    "tue": "Mar",
+    "wed": "Mié",
+    "thu": "Jue",
+    "fri": "Vie",
+    "sat": "Sáb",
+    "sun": "Dom",
+    "open": "Abierto",
+    "closed": "Cerrado",
+    "openNow": "Abierto ahora",
+    "closedNow": "Cerrado"
+  },
   "contact": {
     "title": "Información de contacto",
     "whatsapp": "WhatsApp",
@@ -435,6 +448,7 @@
     "addBranch": "Agregar sucursal",
     "name": "Nombre",
     "namePlaceholder": "Centro, Norte…",
+    "hours": "Horario",
     "whatsapp": "WhatsApp",
     "address": "Dirección",
     "menuMode": "Menú",

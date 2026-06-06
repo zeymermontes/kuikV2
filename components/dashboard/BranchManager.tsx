@@ -6,6 +6,7 @@ import { Plus, Trash2, ExternalLink, Pencil } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Branch, BranchMenuMode } from '@/lib/database.types';
 import { Card, Label, Input, Button } from '@/components/ui';
+import { HoursEditor } from '@/components/dashboard/HoursEditor';
 import { createBranch, updateBranch, deleteBranch } from '@/app/(dashboard)/branches/actions';
 
 export function BranchManager({ branches, baseUrl }: { branches: Branch[]; baseUrl: string }) {
@@ -143,6 +144,10 @@ export function BranchManager({ branches, baseUrl }: { branches: Branch[]; baseU
                 onBlur={(e) => start(async () => updateBranch(b.id, { address: e.target.value || null }))}
               />
             </div>
+          </div>
+          <div>
+            <Label>{t('hours')}</Label>
+            <HoursEditor value={b.hours} onChange={(hours) => start(async () => updateBranch(b.id, { hours }))} />
           </div>
         </Card>
       ))}
