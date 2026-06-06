@@ -2,7 +2,7 @@
 
 import { useMemo, useReducer, useState, useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { Search, Camera, Share2, Globe, MapPin, ChevronDown, X } from 'lucide-react';
+import { Search, Globe, MapPin, ChevronDown, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type {
   Tenant,
@@ -311,18 +311,7 @@ export function MenuView({
         )}
         {theme.slogan && <p className="text-sm opacity-70">{theme.slogan}</p>}
         <OpenStatus hours={contact.hours} />
-        {mapHref(contact.maps_url, contact.address) && (
-          <a
-            href={mapHref(contact.maps_url, contact.address)!}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium"
-            style={{ backgroundColor: 'var(--brand-surface)', color: 'var(--brand-primary)' }}
-          >
-            <MapPin className="h-4 w-4" /> {t('directions')}
-          </a>
-        )}
-        {settings.showSocial && <SocialRow contact={contact} />}
+        <ContactLinks contact={contact} showSocial={settings.showSocial} />
         {loyalty.enabled && plan === 'pro' && (
           <div className="mt-2">
             <LoyaltyButton tenantId={tenant.id} program={loyalty} />
@@ -616,26 +605,54 @@ function CatIcon({ cat, size }: { cat: MenuCategory; size: number }) {
   return null;
 }
 
-function SocialRow({ contact }: { contact: TenantContact }) {
-  const items: { href: string; icon: typeof Globe }[] = [];
-  if (contact.instagram)
-    items.push({ href: `https://instagram.com/${contact.instagram.replace(/^@/, '')}`, icon: Camera });
-  if (contact.facebook) items.push({ href: contact.facebook, icon: Share2 });
-  if (contact.website) items.push({ href: contact.website, icon: Globe });
+function InstagramIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <rect x="2" y="2" width="20" height="20" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function FacebookIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M22 12a10 10 0 1 0-11.56 9.88v-6.99H7.9V12h2.54V9.8c0-2.5 1.49-3.89 3.78-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.44 2.89h-2.34v6.99A10 10 0 0 0 22 12z" />
+    </svg>
+  );
+}
+
+// "Get directions" + social links as labeled pills in one row.
+function ContactLinks({ contact, showSocial }: { contact: TenantContact; showSocial: boolean }) {
+  const t = useTranslations('menu');
+  const map = mapHref(contact.maps_url, contact.address);
+  const items: { href: string; label: string; icon: React.ReactNode }[] = [];
+  if (map) items.push({ href: map, label: t('directions'), icon: <MapPin className="h-4 w-4" /> });
+  if (showSocial) {
+    if (contact.instagram)
+      items.push({
+        href: `https://instagram.com/${contact.instagram.replace(/^@/, '')}`,
+        label: 'Instagram',
+        icon: <InstagramIcon className="h-4 w-4" />,
+      });
+    if (contact.facebook) items.push({ href: contact.facebook, label: 'Facebook', icon: <FacebookIcon className="h-4 w-4" /> });
+    if (contact.website) items.push({ href: contact.website, label: t('website'), icon: <Globe className="h-4 w-4" /> });
+  }
   if (items.length === 0) return null;
 
   return (
-    <div className="mt-1 flex items-center gap-3">
-      {items.map(({ href, icon: Icon }, i) => (
+    <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+      {items.map(({ href, label, icon }, i) => (
         <a
           key={i}
           href={href}
           target="_blank"
           rel="noreferrer"
-          className="flex h-9 w-9 items-center justify-center rounded-full"
-          style={{ backgroundColor: 'var(--brand-surface)' }}
+          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium"
+          style={{ backgroundColor: 'var(--brand-surface)', color: 'var(--brand-primary)' }}
         >
-          <Icon className="h-4 w-4" style={{ color: 'var(--brand-primary)' }} />
+          {icon} {label}
         </a>
       ))}
     </div>
