@@ -29,6 +29,7 @@ export function ProductCard({
   shadow,
   showBadges,
   onOpen,
+  id,
 }: {
   product: Product;
   showPrice: boolean;
@@ -44,6 +45,7 @@ export function ProductCard({
   shadow: boolean;
   showBadges: boolean;
   onOpen: () => void;
+  id?: string;
 }) {
   const t = useTranslations('menu');
   const dimmed = !product.is_available;
@@ -126,6 +128,7 @@ export function ProductCard({
   if (vertical) {
     return (
       <div
+        id={id}
         onClick={clickable ? onOpen : undefined}
         role={clickable ? 'button' : undefined}
         className={`animate-fade flex flex-col overflow-hidden ${radiusClass} ${dimmed ? 'opacity-50' : ''} ${clickable ? 'cursor-pointer' : ''}`}
@@ -162,6 +165,7 @@ export function ProductCard({
   // ── Horizontal card (list / text) ──────────────────────────────────────────
   return (
     <div
+      id={id}
       onClick={clickable ? onOpen : undefined}
       role={clickable ? 'button' : undefined}
       className={`animate-fade flex gap-3 ${radiusClass} ${pad} ${dimmed ? 'opacity-50' : ''} ${clickable ? 'cursor-pointer' : ''}`}

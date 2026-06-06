@@ -184,17 +184,32 @@ export function MenuView({
     [trackView],
   );
 
-  // Deep link from the landing's featured row: /menu?product=<id> opens its detail.
+  // Deep link from the landing's featured row: /menu?product=<id> opens its
+  // detail and scrolls the menu to that product.
   useEffect(() => {
     const pid = new URLSearchParams(window.location.search).get('product');
     if (!pid) return;
+    let foundCat: MenuCategory | null = null;
+    let foundEntry: Product | null = null;
     for (const c of menu) {
       const entry = c.entries.find((e) => e.kind === 'product' && e.id === pid);
       if (entry) {
-        const id = setTimeout(() => openProduct(entry as unknown as Product), 0);
-        return () => clearTimeout(id);
+        foundCat = c;
+        foundEntry = entry as unknown as Product;
+        break;
       }
     }
+    if (!foundEntry) return;
+    // Make sure the product's tab is active (tabs mode renders one section).
+    const t1 = setTimeout(() => setActiveCat(foundCat!.id), 0);
+    const t2 = setTimeout(() => {
+      openProduct(foundEntry!);
+      document.getElementById(`prod-${pid}`)?.scrollIntoView({ block: 'center' });
+    }, 160);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, [menu, openProduct]);
 
   // Badges actually present in the menu (for the filter bar).
@@ -519,6 +534,7 @@ export function MenuView({
                         shadow={settings.cardShadow}
                         showBadges={settings.showBadges}
                         onOpen={() => openProduct(entry)}
+                        id={`prod-${entry.id}`}
                       />
                     ),
                   )}
