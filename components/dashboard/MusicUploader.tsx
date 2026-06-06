@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { Music, Loader2, X, Play, Pause } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { uploadFile } from '@/lib/upload';
+import { perceptualVolume } from '@/lib/utils';
 
 export function MusicUploader({
   value,
@@ -44,14 +45,14 @@ export function MusicUploader({
       a.pause();
       setPlaying(false);
     } else {
-      a.volume = vol / 100;
+      a.volume = perceptualVolume(vol);
       a.play().then(() => setPlaying(true)).catch(() => {});
     }
   }
 
   function changeVol(v: number) {
     setVol(v);
-    if (audioRef.current) audioRef.current.volume = v / 100;
+    if (audioRef.current) audioRef.current.volume = perceptualVolume(v);
   }
 
   return (

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
+import { perceptualVolume } from '@/lib/utils';
 
 /**
  * Plays the tenant's background music. Browsers (esp. iOS Safari) block autoplay
@@ -13,7 +14,7 @@ export function BackgroundMusic({ url, volume }: { url: string; volume: number }
   const audioRef = useRef<HTMLAudioElement>(null);
   const wantOn = useRef(true); // visitor intent: play unless they mute
   const [on, setOn] = useState(true);
-  const vol = Math.min(1, Math.max(0, (volume ?? 50) / 100));
+  const vol = perceptualVolume(volume ?? 50);
 
   useEffect(() => {
     const a = audioRef.current;

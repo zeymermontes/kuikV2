@@ -29,3 +29,13 @@ export function formatPrice(
 export function digitsOnly(input: string): string {
   return input.replace(/\D/g, '');
 }
+
+/**
+ * Map a 0–100 volume slider to an audio amplitude using a perceptual
+ * (quadratic) curve — loudness is perceived ~logarithmically, so a linear
+ * slider feels uneven. Returns 0–1.
+ */
+export function perceptualVolume(v: number): number {
+  const x = Math.min(100, Math.max(0, v)) / 100;
+  return x * x;
+}
