@@ -136,22 +136,31 @@ export default async function TenantLayout({
       {googleFonts.length > 0 && <link rel="stylesheet" href={googleFontsHref(googleFonts)} />}
       {settings.darkMode === 'auto' && (
         <style>{`@media (prefers-color-scheme: dark){
-          .kuik-root{--brand-bg:${DARK.bg};--brand-text:${DARK.text};--brand-surface:${DARK.surface};background-image:none!important}
+          .kuik-root{--brand-bg:${DARK.bg};--brand-text:${DARK.text};--brand-text-secondary:${DARK.textSecondary};--brand-surface:${DARK.surface};--brand-border:${DARK.border}}
+          .kuik-root .kuik-bg{background-image:none!important}
         }`}</style>
       )}
       <div
-        className="kuik-root"
+        className="kuik-root relative"
         style={{
           ...themeVars,
-          backgroundColor: 'var(--brand-bg)',
           color: 'var(--brand-text)',
           fontFamily: 'var(--brand-font)',
-          backgroundImage: showBg ? `url(${theme.background_image_url})` : undefined,
-          backgroundSize: 'cover',
-          backgroundAttachment: 'fixed',
           minHeight: '100%',
         }}
       >
+        {/* Fixed background layer — avoids the `background-attachment: fixed`
+            repaint jank on mobile while keeping the image perfectly still. */}
+        <div
+          aria-hidden
+          className="kuik-bg pointer-events-none fixed inset-0 -z-10"
+          style={{
+            backgroundColor: 'var(--brand-bg)',
+            backgroundImage: showBg ? `url(${theme.background_image_url})` : undefined,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        />
         {children}
       </div>
     </>

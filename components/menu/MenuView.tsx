@@ -243,6 +243,19 @@ export function MenuView({
 
   const gridContainer = settings.cardStyle === 'grid';
   const tabsMode = settings.navMode === 'tabs';
+
+  // Sticky tab bar paints the page's (fixed) background so products scrolling
+  // underneath are hidden — even when the bar color is fully transparent.
+  const navBgImage = settings.darkMode === 'on' ? null : theme.background_image_url;
+  const navBarStyle: React.CSSProperties = {
+    backgroundColor: 'var(--brand-bg)',
+    backgroundImage: navBgImage
+      ? `linear-gradient(var(--tab-bar-bg), var(--tab-bar-bg)), url(${navBgImage})`
+      : 'linear-gradient(var(--tab-bar-bg), var(--tab-bar-bg))',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundAttachment: 'fixed',
+  };
   const effectiveActive = activeCat ?? filteredMenu[0]?.id;
   // In tabs mode only the active category renders; in scroll mode, all of them.
   const visibleCats = tabsMode
@@ -327,7 +340,7 @@ export function MenuView({
         <nav
           ref={navRef}
           className="no-scrollbar sticky top-0 z-20 flex gap-2 overflow-x-auto px-4 py-3"
-          style={{ backgroundColor: 'var(--tab-bar-bg)' }}
+          style={navBarStyle}
         >
           {filteredMenu.map((cat) => {
             const active = effectiveActive === cat.id;
