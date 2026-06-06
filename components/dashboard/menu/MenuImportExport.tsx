@@ -232,6 +232,12 @@ export function MenuImportExport({
     copyText(locale === 'en' ? TABLE_PROMPT_EN : TABLE_PROMPT_ES, 'table');
   }
 
+  function copyZipPrompt() {
+    const url = prompt(t('scrapeAskUrl'));
+    if (!url) return;
+    copyText((locale === 'en' ? ZIP_PROMPT_EN : ZIP_PROMPT_ES).replace('{URL}', url.trim()), 'zip');
+  }
+
   return (
     <div className="mb-5 rounded-2xl border border-neutral-200 bg-white p-4">
       <h2 className="mb-1 flex items-center gap-2 font-semibold">
@@ -262,6 +268,10 @@ export function MenuImportExport({
         <Button variant="ghost" onClick={copyScrapePrompt}>
           {copied === 'scrape' ? <Check className="h-4 w-4 text-green-600" /> : <Bot className="h-4 w-4" />}
           {copied === 'scrape' ? t('copied') : t('scrapeAI')}
+        </Button>
+        <Button variant="ghost" onClick={copyZipPrompt}>
+          {copied === 'zip' ? <Check className="h-4 w-4 text-green-600" /> : <FileArchive className="h-4 w-4" />}
+          {copied === 'zip' ? t('copied') : t('zipAI')}
         </Button>
       </div>
 
@@ -373,6 +383,23 @@ Reglas importantes:
 Puedes entregar el resultado como un archivo .json, o dentro de un .zip junto a una carpeta "images/" con las fotos (en ese caso, en "image" y "background_image" pon el nombre del archivo, p.ej. "margarita.jpg").
 Devuelve solo el JSON.`;
 
+const ZIP_PROMPT_ES = `Eres un asistente con navegación web y capacidad de ejecutar código (descargar archivos y crear un .zip). A partir de esta página de menú de restaurante: {URL}
+
+Genera un ARCHIVO .ZIP listo para importar, que contenga:
+1) "menu.json" en la raíz, con esta estructura exacta:
+${SCHEMA_ES}
+2) Una carpeta "images/" con TODAS las imágenes (fotos de productos y la imagen de fondo).
+
+Reglas:
+- Las "//" son explicaciones; NO las incluyas en menu.json. Debe ser JSON puro y válido.
+- En "image" y "background_image" NO uses URLs: usa el NOMBRE de archivo de la imagen ya descargada (p.ej. "margarita.jpg"), y guarda ese archivo dentro de "images/" con ese mismo nombre. Usa nombres únicos y sin espacios.
+- Descarga realmente cada imagen del sitio y agrégala a la carpeta "images/" del .zip.
+- TODOS los colores en #RRGGBB; detecta los colores reales del sitio (fondo, tarjetas, botones, pestañas de categorías, textos, acentos).
+- Precios solo números. "tags" solo de: new, bestseller, spicy, vegan, vegetarian, glutenfree, house, promo.
+- No inventes datos: omite el campo (o null) si no está.
+
+Entrégame el archivo .zip para descargar.`;
+
 const TABLE_PROMPT_ES = `Ayúdame a crear el menú de mi restaurante como una tabla que pueda pegar en Excel/Google Sheets. Usa EXACTAMENTE estas columnas en la primera fila:
 Categoría | Producto | Descripción | Precio | Precio anterior | Disponible | Etiquetas
 
@@ -457,3 +484,20 @@ Important rules:
 
 You may deliver the result as a .json file, or inside a .zip with an "images/" folder of the photos (in that case put the file name in "image" and "background_image", e.g. "margherita.jpg").
 Return only the JSON.`;
+
+const ZIP_PROMPT_EN = `You are an assistant with web browsing and code execution (download files and create a .zip). From this restaurant menu page: {URL}
+
+Produce a ready-to-import .ZIP FILE containing:
+1) "menu.json" at the root, with this exact structure:
+${SCHEMA_EN}
+2) An "images/" folder with ALL images (product photos and the background image).
+
+Rules:
+- The "//" are explanations; do NOT include them in menu.json. It must be pure, valid JSON.
+- In "image" and "background_image" do NOT use URLs: use the FILE NAME of the downloaded image (e.g. "margherita.jpg"), and save that file inside "images/" with the same name. Use unique names with no spaces.
+- Actually download each image from the site and add it to the .zip's "images/" folder.
+- ALL colors in #RRGGBB; detect the site's real colors (background, cards, buttons, category tabs, text, accent).
+- Prices numbers only. "tags" only from: new, bestseller, spicy, vegan, vegetarian, glutenfree, house, promo.
+- Don't invent data: omit the field (or null) if missing.
+
+Give me the .zip file to download.`;

@@ -382,6 +382,7 @@
     "importZip": "Import ZIP",
     "importJson": "Import JSON (AI)",
     "scrapeAI": "Scan a site with AI",
+    "zipAI": "ZIP prompt (AI)",
     "scrapeAskUrl": "Paste the other restaurant's menu URL:",
     "zipNoJson": "The ZIP has no .json file (menu.json).",
     "designIncluded": "Includes design & colors",
