@@ -22,6 +22,9 @@ export async function updateTheme(
     tab_font_color: string | null;
     button_color: string | null;
     button_text_color: string | null;
+    search_bg_color: string | null;
+    search_text_color: string | null;
+    search_border_color: string | null;
     font_family: string;
     custom_font_url: string | null;
     custom_font_name: string | null;

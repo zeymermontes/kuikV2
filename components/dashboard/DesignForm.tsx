@@ -86,7 +86,8 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
     | 'primary_color' | 'secondary_color' | 'background_color' | 'card_color'
     | 'border_color' | 'separator_color' | 'text_color' | 'text_secondary_color'
     | 'tab_bar_color' | 'tab_selected_color' | 'tab_unselected_color' | 'tab_font_color'
-    | 'button_color' | 'button_text_color';
+    | 'button_color' | 'button_text_color'
+    | 'search_bg_color' | 'search_text_color' | 'search_border_color';
 
   const colorFields: { key: ColorKey; label: string; fallback?: string }[] = [
     { key: 'primary_color', label: t('primary') },
@@ -103,6 +104,9 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
     { key: 'tab_selected_color', label: t('tabSelected'), fallback: local.primary_color },
     { key: 'tab_unselected_color', label: t('tabUnselected'), fallback: '#eeeeee' },
     { key: 'tab_font_color', label: t('tabFont'), fallback: local.text_color },
+    { key: 'search_bg_color', label: t('searchBg'), fallback: local.card_color },
+    { key: 'search_text_color', label: t('searchText'), fallback: local.text_color },
+    { key: 'search_border_color', label: t('searchBorder'), fallback: local.border_color },
   ];
 
   return (
@@ -425,6 +429,9 @@ function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettin
     btnBg: local.button_color ?? p,
     btnText: local.button_text_color ?? '#ffffff',
   };
+  const searchBg = local.search_bg_color ?? local.card_color ?? '#ffffff';
+  const searchText = local.search_text_color ?? text;
+  const searchBorder = local.search_border_color ?? local.border_color ?? '#e5e5e5';
   const ef = (f: string | null) => (f ? `'${f}', '${local.font_family}'` : `'${local.font_family}'`);
   const elStyle = (f: string | null, b: boolean, i: boolean, size: number, base: number): React.CSSProperties => ({
     fontFamily: ef(f),
@@ -452,6 +459,16 @@ function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettin
     >
       <p className="text-xl font-extrabold" style={{ color: text }}>{local.slogan || 'Tu Restaurante'}</p>
       <p className="text-xs" style={{ color: textSec }}>La mejor comida de la ciudad</p>
+
+      {/* Search bar */}
+      <div
+        className="flex items-center gap-2 rounded-full border px-3 py-2 text-xs"
+        style={{ backgroundColor: searchBg, color: searchText, borderColor: searchBorder }}
+      >
+        <span className="opacity-50">🔍</span>
+        <span className="flex-1 opacity-50">Buscar…</span>
+        <span className="opacity-50">✕</span>
+      </div>
 
       {/* Category tab bar */}
       <div

@@ -2,7 +2,7 @@
 
 import { useMemo, useReducer, useState, useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { Search, Camera, Share2, Globe, MapPin, ChevronDown } from 'lucide-react';
+import { Search, Camera, Share2, Globe, MapPin, ChevronDown, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type {
   Tenant,
@@ -322,14 +322,28 @@ export function MenuView({
       {/* Search */}
       {settings.showSearch && (
         <div className="px-4 pb-2">
-          <div className="flex items-center gap-2 rounded-full px-4 py-2.5" style={{ backgroundColor: 'var(--brand-surface)' }}>
-            <Search className="h-4 w-4 opacity-50" />
+          <div
+            className="flex items-center gap-2 rounded-full border px-4 py-2.5"
+            style={{ backgroundColor: 'var(--search-bg)', color: 'var(--search-text)', borderColor: 'var(--search-border)' }}
+          >
+            <Search className="h-4 w-4 shrink-0 opacity-50" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t('search')}
-              className="w-full bg-transparent text-sm outline-none"
+              className="w-full bg-transparent text-sm outline-none placeholder:opacity-50"
+              style={{ color: 'var(--search-text)' }}
             />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                aria-label={t('clearSearch')}
+                className="shrink-0 opacity-50 transition hover:opacity-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
       )}

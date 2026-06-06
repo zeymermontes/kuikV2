@@ -110,6 +110,10 @@ export default async function TenantLayout({
     // Buttons (fall back to the primary color / white text).
     '--brand-button': theme.button_color ?? theme.primary_color,
     '--brand-button-text': theme.button_text_color ?? '#ffffff',
+    // Search bar (fall back to surface / text / border).
+    '--search-bg': theme.search_bg_color ?? 'var(--brand-surface)',
+    '--search-text': theme.search_text_color ?? 'var(--brand-text)',
+    '--search-border': theme.search_border_color ?? 'var(--brand-border)',
   } as React.CSSProperties;
 
   // background image is suppressed in forced-dark mode for legibility
