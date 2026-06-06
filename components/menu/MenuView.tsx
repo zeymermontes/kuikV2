@@ -360,13 +360,15 @@ export function MenuView({
       {showNav && navStuck && navBgImage && (
         <div
           aria-hidden
-          className="pointer-events-none fixed inset-0 z-10"
+          className="pointer-events-none fixed left-0 top-0 z-10"
           style={{
+            width: '100vw',
+            height: '100lvh',
             backgroundColor: 'var(--brand-bg)',
             backgroundImage: `url(${navBgImage})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
-            clipPath: `inset(0 0 calc(100% - ${barH}px) 0)`,
+            clipPath: `inset(0 0 calc(100lvh - ${barH}px) 0)`,
           }}
         />
       )}

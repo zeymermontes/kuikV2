@@ -149,12 +149,16 @@ export default async function TenantLayout({
           minHeight: '100%',
         }}
       >
-        {/* Fixed background layer — avoids the `background-attachment: fixed`
-            repaint jank on mobile while keeping the image perfectly still. */}
+        {/* Fixed background layer. Sized to the LARGE viewport (100lvh) so it
+            still covers the bottom when the mobile URL bar retracts during a
+            momentum scroll — and never resizes (no `background-attachment: fixed`
+            repaint jank, no "lifting" gap). */}
         <div
           aria-hidden
-          className="kuik-bg pointer-events-none fixed inset-0 -z-10"
+          className="kuik-bg pointer-events-none fixed left-0 top-0 -z-10"
           style={{
+            width: '100vw',
+            height: '100lvh',
             backgroundColor: 'var(--brand-bg)',
             backgroundImage: showBg ? `url(${theme.background_image_url})` : undefined,
             backgroundSize: 'cover',
