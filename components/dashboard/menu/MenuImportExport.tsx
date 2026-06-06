@@ -2,18 +2,26 @@
 
 import { useRef, useState, useTransition } from 'react';
 import * as XLSX from 'xlsx';
-import { unzipSync } from 'fflate';
-import { Download, Upload, FileSpreadsheet, Sparkles, Check, Loader2, FileArchive, Bot } from 'lucide-react';
+import { unzipSync, zipSync } from 'fflate';
+import { Download, Upload, FileSpreadsheet, Sparkles, Check, Loader2, FileArchive, Bot, FileJson } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
-import type { Category, Product } from '@/lib/database.types';
+import type { Category, Product, TenantTheme } from '@/lib/database.types';
 import { BADGES } from '@/lib/badges';
+import { resolveOptionGroups } from '@/lib/menu-options';
 import { uploadFile } from '@/lib/upload';
 import { Button } from '@/components/ui';
 import {
   previewFullImport,
   applyFullImport,
 } from '@/app/(dashboard)/menu/full-import-actions';
-import type { FullImportPayload, ImportCategory, ImportPreview } from '@/lib/menu-import';
+import {
+  IMPORT_DESIGN_KEYS,
+  type FullImportPayload,
+  type ImportCategory,
+  type ImportDesign,
+  type ImportPreview,
+  type ImportProduct,
+} from '@/lib/menu-import';
 
 const HEADERS = ['Categoría', 'Producto', 'Descripción', 'Precio', 'Precio anterior', 'Disponible', 'Etiquetas'];
 
@@ -57,11 +65,13 @@ export function MenuImportExport({
   branchId,
   categories,
   products,
+  theme,
 }: {
   tenantId: string;
   branchId: string | null;
   categories: Category[];
   products: Product[];
+  theme: TenantTheme;
 }) {
   const t = useTranslations('menuImport');
   const locale = useLocale();
@@ -222,6 +232,93 @@ export function MenuImportExport({
     XLSX.writeFile(wb, 'menu.xlsx');
   }
 
+  // Build the full import payload from the current menu (round-trips with import).
+  function buildPayload(): FullImportPayload {
+    const design: ImportDesign = {};
+    for (const k of IMPORT_DESIGN_KEYS) {
+      const v = theme[k];
+      if (v != null) (design as Record<string, unknown>)[k] = v;
+    }
+    if (theme.background_image_url) design.background_image = theme.background_image_url;
+
+    const byCat = new Map<string, Product[]>();
+    for (const p of products) (byCat.get(p.category_id) ?? byCat.set(p.category_id, []).get(p.category_id)!).push(p);
+
+    const cats: ImportCategory[] = [...categories]
+      .sort((a, b) => a.position - b.position)
+      .map((c) => ({
+        name: c.name,
+        icon: c.icon ?? undefined,
+        products: (byCat.get(c.id) ?? [])
+          .sort((a, b) => a.position - b.position)
+          .map((p): ImportProduct => {
+            const groups = resolveOptionGroups(p).map((g) => ({
+              name: g.name,
+              description: g.description,
+              required: g.required,
+              multiple: g.multiple,
+              options: g.options.map((o) => ({ name: o.name, price: o.price })),
+            }));
+            return {
+              name: p.name,
+              description: p.description ?? undefined,
+              price: p.price,
+              compareAtPrice: p.compare_at_price,
+              available: p.is_available,
+              tags: p.tags ?? [],
+              image: p.image_url ?? undefined,
+              prepTime: p.prep_time ?? undefined,
+              calories: p.calories ?? undefined,
+              ...(groups.length ? { optionGroups: groups } : {}),
+            };
+          }),
+      }));
+
+    return { design, categories: cats };
+  }
+
+  function download(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportJson() {
+    download(new Blob([JSON.stringify(buildPayload(), null, 2)], { type: 'application/json' }), 'menu.json');
+  }
+
+  async function exportZip() {
+    setBusy('exportzip');
+    try {
+      const payload = buildPayload();
+      const files: Record<string, Uint8Array> = {};
+      let n = 0;
+      const localize = async (url: string | null | undefined, hint: string): Promise<string | null | undefined> => {
+        if (!url) return url;
+        try {
+          const res = await fetch(url);
+          if (!res.ok) return url;
+          const bytes = new Uint8Array(await res.arrayBuffer());
+          const ext = (url.split('.').pop()?.split('?')[0] || 'jpg').slice(0, 4);
+          const name = `${hint.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 24) || 'img'}-${n++}.${ext}`;
+          files[`images/${name}`] = bytes;
+          return name;
+        } catch {
+          return url;
+        }
+      };
+      if (payload.design?.background_image) payload.design.background_image = await localize(payload.design.background_image, 'background');
+      for (const c of payload.categories) for (const p of c.products) if (p.image) p.image = await localize(p.image, p.name);
+      files['menu.json'] = new TextEncoder().encode(JSON.stringify(payload, null, 2));
+      download(new Blob([zipSync(files) as unknown as BlobPart]), 'menu.zip');
+    } finally {
+      setBusy('');
+    }
+  }
+
   function copyScrapePrompt() {
     const url = prompt(t('scrapeAskUrl'));
     if (!url) return;
@@ -257,6 +354,12 @@ export function MenuImportExport({
         </Button>
         <Button variant="secondary" onClick={exportMenu}>
           <Download className="h-4 w-4" /> {t('export')}
+        </Button>
+        <Button variant="secondary" onClick={exportJson}>
+          <FileJson className="h-4 w-4" /> {t('exportJson')}
+        </Button>
+        <Button variant="secondary" onClick={exportZip} disabled={!!busy}>
+          {busy === 'exportzip' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileArchive className="h-4 w-4" />} {t('exportZip')}
         </Button>
         <Button variant="ghost" onClick={downloadTemplate}>
           <FileSpreadsheet className="h-4 w-4" /> {t('template')}

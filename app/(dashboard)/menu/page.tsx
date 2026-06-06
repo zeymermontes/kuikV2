@@ -90,6 +90,7 @@ export default async function MenuPage({
         branchId={activeBranchId}
         categories={(categories ?? []) as Category[]}
         products={(products ?? []) as Product[]}
+        theme={theme}
       />
 
       <MenuEditor
