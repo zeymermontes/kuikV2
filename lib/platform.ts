@@ -12,10 +12,10 @@ export interface PlatformSettings {
 
 // Fallback used if the platform_settings row hasn't been created yet.
 const FALLBACK: PlatformSettings = {
-  plan_amount: Number(process.env.MERCADOPAGO_PLAN_AMOUNT ?? '199'),
+  plan_amount: Number(process.env.MERCADOPAGO_PLAN_AMOUNT ?? '299'),
   plan_currency: process.env.MERCADOPAGO_PLAN_CURRENCY ?? 'MXN',
   plan_name: 'Kuik Básico',
-  pro_amount: Number(process.env.MERCADOPAGO_PRO_AMOUNT ?? '399'),
+  pro_amount: Number(process.env.MERCADOPAGO_PRO_AMOUNT ?? '499'),
   pro_name: 'Kuik Pro',
 };
 

@@ -27,7 +27,9 @@ services:
       - key: NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY
         sync: false
       - key: MERCADOPAGO_PLAN_AMOUNT
-        value: "199"
+        value: "299"
+      - key: MERCADOPAGO_PRO_AMOUNT
+        value: "499"
       - key: MERCADOPAGO_PLAN_CURRENCY
         value: MXN
       - key: MERCADOPAGO_WEBHOOK_SECRET
