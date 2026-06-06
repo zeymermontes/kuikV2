@@ -61,15 +61,17 @@ export async function updatePricing(
   if (!(amount > 0) || !currency) return;
 
   const supabase = createAdminClient();
-  await supabase
-    .from('platform_settings')
-    .update({
+  // upsert (not update) so the price persists even if the seed row is missing.
+  await supabase.from('platform_settings').upsert(
+    {
+      id: 1,
       plan_amount: amount,
       plan_currency: currency.toUpperCase().slice(0, 3),
       plan_name: planName || 'Kuik Pro',
       updated_at: new Date().toISOString(),
-    })
-    .eq('id', 1);
+    },
+    { onConflict: 'id' },
+  );
 
   revalidatePath('/admin');
   revalidatePath('/billing');

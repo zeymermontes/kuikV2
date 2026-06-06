@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Plus, Minus, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Tenant, TenantContact, TenantOrdering, ServiceType } from '@/lib/database.types';
@@ -46,6 +46,28 @@ export function CartSheet({
   const [tip, setTip] = useState(0);
   const [customerName, setCustomerName] = useState('');
   const [address, setAddress] = useState('');
+
+  // Remember the customer's name across visits (saved on this device).
+  useEffect(() => {
+    const id = setTimeout(() => {
+      try {
+        const n = localStorage.getItem('kuik:name');
+        if (n) setCustomerName(n);
+      } catch {
+        // ignore
+      }
+    }, 0);
+    return () => clearTimeout(id);
+  }, []);
+
+  function onName(v: string) {
+    setCustomerName(v);
+    try {
+      localStorage.setItem('kuik:name', v);
+    } catch {
+      // ignore
+    }
+  }
   const [pickupTime, setPickupTime] = useState('');
   const [table, setTable] = useState('');
   const [sending, setSending] = useState(false);
@@ -221,7 +243,7 @@ export function CartSheet({
               {/* Customer fields */}
               <input
                 value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
+                onChange={(e) => onName(e.target.value)}
                 placeholder={t('yourName')}
                 className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm focus:border-neutral-400 focus:outline-none"
               />

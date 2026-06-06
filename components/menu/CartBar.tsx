@@ -12,7 +12,7 @@ export function CartBar({
   onOpen: () => void;
 }) {
   return (
-    <div className="pb-safe fixed inset-x-0 bottom-0 z-30 px-4 pb-4">
+    <div className="pb-safe fixed inset-x-0 bottom-0 z-30 px-4 pb-6">
       <button
         onClick={onOpen}
         className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-full px-5 py-4 text-white shadow-lg"

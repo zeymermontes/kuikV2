@@ -5,6 +5,7 @@ export interface CartLine {
   key: string; // unique per product + variant + extras + removals combination
   productId: string;
   name: string;
+  categoryName?: string; // section it belongs to (for grouping the WhatsApp ticket)
   basePrice: number | null; // variant price if chosen, else product price
   variantName?: string;
   extras: PricedOption[]; // chosen modifiers / add-ons (priced)
@@ -75,18 +76,35 @@ export function buildOrderMessage(opts: BuildMessageOptions): string {
   if (table) out.push(`Mesa: ${table}`);
   if (serviceLabel || customerName || address || pickupTime || table) out.push('');
 
+  // Group the items by their section (category), preserving first-seen order.
+  const groups: { name?: string; lines: CartLine[] }[] = [];
   for (const l of lines) {
-    const unit = lineUnitPrice(l);
-    const priceStr =
-      showPrices && (l.basePrice != null || l.extras.length > 0)
-        ? ` — ${money(unit * l.qty)}`
-        : '';
-    const variant = l.variantName ? ` (${l.variantName})` : '';
-    out.push(`• ${l.qty}× ${l.name}${variant}${priceStr}`);
-    for (const r of l.removed) out.push(`   − Sin ${r}`);
-    for (const e of l.extras) out.push(`   + ${e.name}`);
-    if (l.note) out.push(`   _${l.note}_`);
+    let g = groups.find((x) => x.name === l.categoryName);
+    if (!g) {
+      g = { name: l.categoryName, lines: [] };
+      groups.push(g);
+    }
+    g.lines.push(l);
   }
+
+  for (const g of groups) {
+    if (g.name) out.push(`*${g.name}*`);
+    for (const l of g.lines) {
+      const unit = lineUnitPrice(l);
+      const priceStr =
+        showPrices && (l.basePrice != null || l.extras.length > 0)
+          ? ` — ${money(unit * l.qty)}`
+          : '';
+      const variant = l.variantName ? ` (${l.variantName})` : '';
+      out.push(`• ${l.qty}× ${l.name}${variant}${priceStr}`);
+      for (const r of l.removed) out.push(`   − Sin ${r}`);
+      for (const e of l.extras) out.push(`   + ${e.name}`);
+      if (l.note) out.push(`   _${l.note}_`);
+    }
+    out.push('');
+  }
+  // drop the trailing blank line before totals
+  if (out[out.length - 1] === '') out.pop();
 
   if (showPrices) {
     const subtotal = cartSubtotal(lines);

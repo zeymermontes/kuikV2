@@ -32,10 +32,13 @@ type CartAction =
   | { type: 'dec'; key: string }
   | { type: 'note'; key: string; note: string }
   | { type: 'remove'; key: string }
+  | { type: 'replace'; state: CartState }
   | { type: 'clear' };
 
 function cartReducer(state: CartState, a: CartAction): CartState {
   switch (a.type) {
+    case 'replace':
+      return a.state;
     case 'addLine': {
       const ex = state[a.line.key];
       return {
@@ -117,6 +120,36 @@ export function MenuView({
     for (const l of lines) m[l.productId] = (m[l.productId] ?? 0) + l.qty;
     return m;
   }, [lines]);
+
+  // Map each product to its section name (for grouping the WhatsApp ticket).
+  const catNameByProduct = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const c of menu) for (const e of c.entries) if (e.kind === 'product') m[e.id] = c.name;
+    return m;
+  }, [menu]);
+
+  // Persist the cart in the browser, per restaurant, so it survives reloads.
+  const cartStoreKey = `kuik:cart:${tenant.id}`;
+  useEffect(() => {
+    const id = setTimeout(() => {
+      try {
+        const raw = localStorage.getItem(cartStoreKey);
+        if (raw) dispatch({ type: 'replace', state: JSON.parse(raw) });
+      } catch {
+        // ignore corrupt/unavailable storage
+      }
+    }, 0);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant.id]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(cartStoreKey, JSON.stringify(cart));
+    } catch {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart]);
 
   const trackView = useCallback(
     (productId: string) => {
@@ -403,7 +436,12 @@ export function MenuView({
           currency={currency}
           locale={locale}
           onClose={() => setActiveProduct(null)}
-          onConfirm={(line) => dispatch({ type: 'addLine', line })}
+          onConfirm={(line) =>
+            dispatch({
+              type: 'addLine',
+              line: { ...line, categoryName: catNameByProduct[line.productId] },
+            })
+          }
         />
       )}
 
