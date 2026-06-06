@@ -87,7 +87,8 @@ export default async function TenantLayout({
     '--font-product': elementFont(theme.font_product),
     '--font-price': elementFont(theme.font_price),
     '--font-description': elementFont(theme.font_description),
-    // Category tab colors (fall back to the primary color).
+    // Category tab bar + colors (fall back to the primary color).
+    '--tab-bar-bg': theme.tab_bar_color ?? 'color-mix(in srgb, var(--brand-bg) 90%, transparent)',
     '--tab-selected-bg': theme.tab_selected_color ?? theme.primary_color,
     '--tab-unselected-bg':
       theme.tab_unselected_color ?? `color-mix(in srgb, ${theme.primary_color} 12%, transparent)`,

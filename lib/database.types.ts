@@ -58,6 +58,7 @@ export interface TenantTheme {
   card_color: string;
   border_color: string;
   separator_color: string;
+  tab_bar_color: string | null;
   tab_selected_color: string | null;
   tab_unselected_color: string | null;
   tab_font_color: string | null;

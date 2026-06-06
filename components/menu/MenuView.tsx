@@ -326,7 +326,8 @@ export function MenuView({
       {(settings.stickyTabs || tabsMode) && filteredMenu.length > 1 && (
         <nav
           ref={navRef}
-          className="no-scrollbar sticky top-0 z-20 flex gap-2 overflow-x-auto border-b border-black/5 bg-[var(--brand-bg)]/90 px-4 py-3 backdrop-blur"
+          className="no-scrollbar sticky top-0 z-20 flex gap-2 overflow-x-auto border-b border-black/5 px-4 py-3 backdrop-blur"
+          style={{ backgroundColor: 'var(--tab-bar-bg)' }}
         >
           {filteredMenu.map((cat) => {
             const active = effectiveActive === cat.id;

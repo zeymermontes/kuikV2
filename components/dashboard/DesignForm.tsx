@@ -85,7 +85,7 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
   type ColorKey =
     | 'primary_color' | 'secondary_color' | 'background_color' | 'card_color'
     | 'border_color' | 'separator_color' | 'text_color' | 'text_secondary_color'
-    | 'tab_selected_color' | 'tab_unselected_color' | 'tab_font_color'
+    | 'tab_bar_color' | 'tab_selected_color' | 'tab_unselected_color' | 'tab_font_color'
     | 'button_color' | 'button_text_color';
 
   const colorFields: { key: ColorKey; label: string; fallback?: string }[] = [
@@ -99,6 +99,7 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
     { key: 'text_secondary_color', label: t('textSecondary') },
     { key: 'button_color', label: t('button'), fallback: local.primary_color },
     { key: 'button_text_color', label: t('buttonText'), fallback: '#ffffff' },
+    { key: 'tab_bar_color', label: t('tabBar'), fallback: local.background_color },
     { key: 'tab_selected_color', label: t('tabSelected'), fallback: local.primary_color },
     { key: 'tab_unselected_color', label: t('tabUnselected'), fallback: '#eeeeee' },
     { key: 'tab_font_color', label: t('tabFont'), fallback: local.text_color },
@@ -430,8 +431,14 @@ function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettin
       <p className="text-xl font-extrabold" style={{ color: text }}>{local.slogan || 'Tu Restaurante'}</p>
       <p className="text-xs" style={{ color: textSec }}>La mejor comida de la ciudad</p>
 
-      {/* Category tabs */}
-      <div className="flex gap-2 pt-1" style={{ fontFamily: ef(local.font_category) }}>
+      {/* Category tab bar */}
+      <div
+        className="-mx-5 flex gap-2 px-5 py-2"
+        style={{
+          fontFamily: ef(local.font_category),
+          backgroundColor: local.tab_bar_color ?? `color-mix(in srgb, ${bg} 90%, transparent)`,
+        }}
+      >
         <span className="rounded-full px-3 py-1 text-xs font-medium" style={{ backgroundColor: tabSelBg, color: tabSelText }}>Entradas</span>
         <span className="rounded-full px-3 py-1 text-xs font-medium" style={{ backgroundColor: tabUnselBg, color: tabUnselText }}>Postres</span>
       </div>

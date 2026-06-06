@@ -145,6 +145,7 @@
     "textSecondary": "Secondary text",
     "button": "Buttons",
     "buttonText": "Button text",
+    "tabBar": "Section bar",
     "tabSelected": "Active tab",
     "tabUnselected": "Inactive tab",
     "tabFont": "Tab text",

@@ -145,6 +145,7 @@
     "textSecondary": "Texto secundario",
     "button": "Botones",
     "buttonText": "Texto de botones",
+    "tabBar": "Barra de secciones",
     "tabSelected": "Pestaña activa",
     "tabUnselected": "Pestaña inactiva",
     "tabFont": "Texto de pestañas",
