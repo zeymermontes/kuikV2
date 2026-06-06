@@ -326,7 +326,7 @@ export function MenuView({
       {(settings.stickyTabs || tabsMode) && filteredMenu.length > 1 && (
         <nav
           ref={navRef}
-          className="no-scrollbar sticky top-0 z-20 flex gap-2 overflow-x-auto border-b border-black/5 px-4 py-3 backdrop-blur"
+          className="no-scrollbar sticky top-0 z-20 flex gap-2 overflow-x-auto px-4 py-3"
           style={{ backgroundColor: 'var(--tab-bar-bg)' }}
         >
           {filteredMenu.map((cat) => {
@@ -389,8 +389,14 @@ export function MenuView({
                     <CategoryBanner name={cat.banner_name ?? cat.name} imageUrl={cat.banner_image_url} />
                   ) : (
                     <h2
-                      className="flex items-center gap-2 text-xl font-bold"
-                      style={{ color: 'var(--brand-secondary)', fontFamily: 'var(--font-category)' }}
+                      className="flex items-center gap-2"
+                      style={{
+                        color: 'var(--brand-secondary)',
+                        fontFamily: 'var(--font-category)',
+                        fontSize: 'var(--fs-category)',
+                        fontWeight: 'var(--fw-category)',
+                        fontStyle: 'var(--fst-category)',
+                      }}
                     >
                       <CatIcon cat={cat} size={24} />
                       {cat.name}

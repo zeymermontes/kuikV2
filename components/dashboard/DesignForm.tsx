@@ -231,37 +231,51 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
             />
           </div>
 
-          {/* Per-element fonts */}
-          <div className="mt-4 space-y-2 border-t border-neutral-100 pt-4">
+          {/* Per-element fonts + style */}
+          <div className="mt-4 space-y-3 border-t border-neutral-100 pt-4">
             <p className="text-xs font-medium text-neutral-500">{t('perElementFonts')}</p>
             {(
               [
-                { key: 'font_category', label: t('fontCategory') },
-                { key: 'font_product', label: t('fontProduct') },
-                { key: 'font_price', label: t('fontPrice') },
-                { key: 'font_description', label: t('fontDescription') },
+                { font: 'font_category', label: t('fontCategory'), bold: 'categoryBold', italic: 'categoryItalic', size: 'categorySize' },
+                { font: 'font_product', label: t('fontProduct'), bold: 'productBold', italic: 'productItalic', size: 'productSize' },
+                { font: 'font_price', label: t('fontPrice'), bold: 'priceBold', italic: 'priceItalic', size: 'priceSize' },
+                { font: 'font_description', label: t('fontDescription'), bold: 'descriptionBold', italic: 'descriptionItalic', size: 'descriptionSize' },
               ] as const
-            ).map(({ key, label }) => (
-              <div key={key} className="flex items-center justify-between gap-3">
-                <span className="text-sm">{label}</span>
-                <select
-                  value={local[key] ?? ''}
-                  onChange={(e) => set(key, e.target.value || null)}
-                  className="rounded-lg border border-neutral-300 px-2 py-1.5 text-sm"
-                  style={{ fontFamily: local[key] ? `'${local[key]}'` : undefined }}
-                >
-                  <option value="">{t('inheritFont')}</option>
-                  {MENU_FONTS.map((f) => (
-                    <option key={f} value={f} style={{ fontFamily: `'${f}'` }}>
-                      {f}
-                    </option>
-                  ))}
-                  {local.custom_font_url && (
-                    <option value={CUSTOM_FONT} style={{ fontFamily: `'${CUSTOM_FONT}'` }}>
-                      {local.custom_font_name || t('customFont')}
-                    </option>
-                  )}
-                </select>
+            ).map(({ font, label, bold, italic, size }) => (
+              <div key={font} className="rounded-lg border border-neutral-200 p-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium">{label}</span>
+                  <select
+                    value={local[font] ?? ''}
+                    onChange={(e) => set(font, e.target.value || null)}
+                    className="rounded-lg border border-neutral-300 px-2 py-1.5 text-sm"
+                    style={{ fontFamily: local[font] ? `'${local[font]}'` : undefined }}
+                  >
+                    <option value="">{t('inheritFont')}</option>
+                    {MENU_FONTS.map((f) => (
+                      <option key={f} value={f} style={{ fontFamily: `'${f}'` }}>{f}</option>
+                    ))}
+                    {local.custom_font_url && (
+                      <option value={CUSTOM_FONT} style={{ fontFamily: `'${CUSTOM_FONT}'` }}>
+                        {local.custom_font_name || t('customFont')}
+                      </option>
+                    )}
+                  </select>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <StyleToggle active={settings[bold]} onClick={() => setS(bold, !settings[bold])} className="font-bold">B</StyleToggle>
+                  <StyleToggle active={settings[italic]} onClick={() => setS(italic, !settings[italic])} className="italic">I</StyleToggle>
+                  <input
+                    type="range"
+                    min={0.7}
+                    max={2}
+                    step={0.05}
+                    value={settings[size]}
+                    onChange={(e) => setS(size, Number(e.target.value))}
+                    className="h-1 flex-1 cursor-pointer accent-neutral-900"
+                  />
+                  <span className="w-9 text-right text-[10px] text-neutral-400">{Math.round(settings[size] * 100)}%</span>
+                </div>
               </div>
             ))}
           </div>
@@ -411,10 +425,17 @@ function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettin
     btnText: local.button_text_color ?? '#ffffff',
   };
   const ef = (f: string | null) => (f ? `'${f}', '${local.font_family}'` : `'${local.font_family}'`);
-  const fonts = {
-    product: ef(local.font_product),
-    price: ef(local.font_price),
-    description: ef(local.font_description),
+  const elStyle = (f: string | null, b: boolean, i: boolean, size: number, base: number): React.CSSProperties => ({
+    fontFamily: ef(f),
+    fontWeight: b ? 700 : 400,
+    fontStyle: i ? 'italic' : 'normal',
+    fontSize: `${base * size}rem`,
+  });
+  const styles = {
+    category: elStyle(local.font_category, settings.categoryBold, settings.categoryItalic, settings.categorySize, 1.25),
+    product: elStyle(local.font_product, settings.productBold, settings.productItalic, settings.productSize, 1),
+    price: elStyle(local.font_price, settings.priceBold, settings.priceItalic, settings.priceSize, 1),
+    description: elStyle(local.font_description, settings.descriptionBold, settings.descriptionItalic, settings.descriptionSize, 0.875),
   };
 
   return (
@@ -443,8 +464,8 @@ function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettin
         <span className="rounded-full px-3 py-1 text-xs font-medium" style={{ backgroundColor: tabUnselBg, color: tabUnselText }}>Postres</span>
       </div>
 
-      <h3 className="pt-1 text-lg font-bold" style={{ color: local.secondary_color, fontFamily: ef(local.font_category) }}>Entradas</h3>
-      <PreviewItem cardStyle={cardStyle} colors={colors} fonts={fonts} name="Tacos al pastor" price="$120" strike="$150" desc="Con piña, cebolla y cilantro." badge={BESTSELLER} />
+      <h3 className="pt-1" style={{ color: local.secondary_color, ...styles.category }}>Entradas</h3>
+      <PreviewItem cardStyle={cardStyle} colors={colors} styles={styles} name="Tacos al pastor" price="$120" strike="$150" desc="Con piña, cebolla y cilantro." badge={BESTSELLER} />
 
       {/* Separator */}
       <div className="flex items-center gap-3 py-1">
@@ -453,7 +474,7 @@ function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettin
         <span className="h-px flex-1" style={{ backgroundColor: sep }} />
       </div>
 
-      <PreviewItem cardStyle={cardStyle} colors={colors} fonts={fonts} name="Quesadilla" price="$80" desc="Queso fundido y guacamole." />
+      <PreviewItem cardStyle={cardStyle} colors={colors} styles={styles} name="Quesadilla" price="$80" desc="Queso fundido y guacamole." />
     </div>
   );
 }
@@ -461,7 +482,7 @@ function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettin
 function PreviewItem({
   cardStyle,
   colors,
-  fonts,
+  styles,
   name,
   price,
   strike,
@@ -470,7 +491,7 @@ function PreviewItem({
 }: {
   cardStyle: React.CSSProperties;
   colors: { text: string; textSec: string; primary: string; btnBg: string; btnText: string };
-  fonts: { product: string; price: string; description: string };
+  styles: { product: React.CSSProperties; price: React.CSSProperties; description: React.CSSProperties };
   name: string;
   price: string;
   strike?: string;
@@ -488,17 +509,41 @@ function PreviewItem({
         </span>
       )}
       <div className="flex items-start justify-between gap-2">
-        <span className="font-semibold" style={{ color: colors.text, fontFamily: fonts.product }}>{name}</span>
-        <span className="flex items-baseline gap-1.5" style={{ fontFamily: fonts.price }}>
+        <span style={{ color: colors.text, ...styles.product }}>{name}</span>
+        <span className="flex items-baseline gap-1.5" style={styles.price}>
           {strike && <span className="text-xs line-through" style={{ color: colors.textSec }}>{strike}</span>}
-          <span className="font-semibold" style={{ color: colors.primary }}>{price}</span>
+          <span style={{ color: colors.primary }}>{price}</span>
         </span>
       </div>
-      {desc && <p className="mt-1 text-sm" style={{ color: colors.textSec, fontFamily: fonts.description }}>{desc}</p>}
+      {desc && <p className="mt-1" style={{ color: colors.textSec, ...styles.description }}>{desc}</p>}
       <button className="mt-3 rounded-full px-4 py-1.5 text-sm font-semibold" style={{ backgroundColor: colors.btnBg, color: colors.btnText }}>
         Agregar
       </button>
     </div>
+  );
+}
+
+function StyleToggle({
+  active,
+  onClick,
+  className,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex h-7 w-7 items-center justify-center rounded-md border text-sm ${
+        active ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-300 text-neutral-600'
+      } ${className ?? ''}`}
+    >
+      {children}
+    </button>
   );
 }
 

@@ -29,6 +29,19 @@ export interface MenuSettings {
   showFilters: boolean;
   soldOutStyle: SoldOutStyle;
   showSocial: boolean;
+  // Per-element typography (bold / italic / size multiplier).
+  categoryBold: boolean;
+  categoryItalic: boolean;
+  categorySize: number;
+  productBold: boolean;
+  productItalic: boolean;
+  productSize: number;
+  priceBold: boolean;
+  priceItalic: boolean;
+  priceSize: number;
+  descriptionBold: boolean;
+  descriptionItalic: boolean;
+  descriptionSize: number;
 }
 
 export const DEFAULT_MENU_SETTINGS: MenuSettings = {
@@ -49,6 +62,18 @@ export const DEFAULT_MENU_SETTINGS: MenuSettings = {
   showFilters: false,
   soldOutStyle: 'gray',
   showSocial: true,
+  categoryBold: true,
+  categoryItalic: false,
+  categorySize: 1,
+  productBold: true,
+  productItalic: false,
+  productSize: 1,
+  priceBold: true,
+  priceItalic: false,
+  priceSize: 1,
+  descriptionBold: false,
+  descriptionItalic: false,
+  descriptionSize: 1,
 };
 
 /** Merge a tenant's stored settings over the defaults, ignoring unknown keys. */

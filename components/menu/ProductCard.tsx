@@ -75,7 +75,7 @@ export function ProductCard({
           {formatPrice(product.compare_at_price!, currency, locale)}
         </span>
       )}
-      <span className="font-semibold" style={{ color: 'var(--brand-primary)', fontFamily: 'var(--font-price)' }}>
+      <span style={{ color: 'var(--brand-primary)', fontFamily: 'var(--font-price)', fontSize: 'var(--fs-price)', fontWeight: 'var(--fw-price)', fontStyle: 'var(--fst-price)' }}>
         {formatPrice(product.price, currency, locale)}
         {hasOptions && <span className="text-xs font-normal opacity-60"> +</span>}
       </span>
@@ -139,11 +139,11 @@ export function ProductCard({
         <div className={`flex flex-1 flex-col ${pad}`}>
           {badgeRow}
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-semibold leading-tight" style={{ fontFamily: 'var(--font-product)' }}>{product.name}</h3>
+            <h3 className="leading-tight" style={{ fontFamily: 'var(--font-product)', fontSize: 'var(--fs-product)', fontWeight: 'var(--fw-product)', fontStyle: 'var(--fst-product)' }}>{product.name}</h3>
             {priceBlock}
           </div>
           {product.description && (
-            <p className="mt-1 text-sm line-clamp-2" style={{ color: 'var(--brand-text-secondary)', fontFamily: 'var(--font-description)' }}>{product.description}</p>
+            <p className="mt-1 line-clamp-2" style={{ color: 'var(--brand-text-secondary)', fontFamily: 'var(--font-description)', fontSize: 'var(--fs-description)', fontWeight: 'var(--fw-description)', fontStyle: 'var(--fst-description)' }}>{product.description}</p>
           )}
           {meta}
           <div className="mt-auto flex items-center justify-between pt-2">
@@ -180,12 +180,12 @@ export function ProductCard({
       <div className="flex min-w-0 flex-1 flex-col">
         {badgeRow}
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-semibold leading-tight" style={{ fontFamily: 'var(--font-product)' }}>{product.name}</h3>
+          <h3 className="leading-tight" style={{ fontFamily: 'var(--font-product)', fontSize: 'var(--fs-product)', fontWeight: 'var(--fw-product)', fontStyle: 'var(--fst-product)' }}>{product.name}</h3>
           {priceBlock}
         </div>
 
         {product.description && (
-          <p className="mt-1 text-sm line-clamp-3" style={{ color: 'var(--brand-text-secondary)', fontFamily: 'var(--font-description)' }}>{product.description}</p>
+          <p className="mt-1 line-clamp-3" style={{ color: 'var(--brand-text-secondary)', fontFamily: 'var(--font-description)', fontSize: 'var(--fs-description)', fontWeight: 'var(--fw-description)', fontStyle: 'var(--fst-description)' }}>{product.description}</p>
         )}
         {meta}
 
