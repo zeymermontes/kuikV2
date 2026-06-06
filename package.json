@@ -18,6 +18,7 @@
     "@tanstack/react-query": "^5.101.0",
     "browser-image-compression": "^2.0.2",
     "clsx": "^2.1.1",
+    "fflate": "^0.8.3",
     "lucide-react": "^1.17.0",
     "mercadopago": "^3.1.0",
     "next": "16.2.7",

@@ -86,6 +86,7 @@ export default async function MenuPage({
       )}
 
       <MenuImportExport
+        tenantId={tenant.id}
         branchId={activeBranchId}
         categories={(categories ?? []) as Category[]}
         products={(products ?? []) as Product[]}
