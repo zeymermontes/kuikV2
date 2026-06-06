@@ -35,6 +35,18 @@ export function BackgroundMusic({ url, volume }: { url: string; volume: number }
     return cleanup;
   }, [vol]);
 
+  // Pause when the tab is hidden / backgrounded; resume on return (unless muted).
+  useEffect(() => {
+    const onVisibility = () => {
+      const a = audioRef.current;
+      if (!a) return;
+      if (document.hidden) a.pause();
+      else if (wantOn.current) a.play().catch(() => {});
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
+
   function toggle() {
     const a = audioRef.current;
     if (!a) return;
