@@ -10,9 +10,6 @@ import { ImageUploader } from '@/components/dashboard/ImageUploader';
 import { Drawer } from './Drawer';
 import { updateProduct, deleteProduct } from '@/app/(dashboard)/menu/actions';
 
-// Browser-local clipboard so options can be copied between product drawers.
-const OPTIONS_CLIPBOARD = 'kuik_options_clipboard';
-
 export function ProductDrawer({
   tenantId,
   product,
@@ -26,38 +23,6 @@ export function ProductDrawer({
   const tc = useTranslations('common');
   const locale = useLocale();
   const [tags, setTags] = useState<string[]>(product.tags ?? []);
-  const [variants, setVariants] = useState<PricedOption[]>(product.variants ?? []);
-  const [modifiers, setModifiers] = useState<PricedOption[]>(product.modifiers ?? []);
-  const [removables, setRemovables] = useState<string[]>(product.removables ?? []);
-  const [pasteKey, setPasteKey] = useState(0);
-  const [copied, setCopied] = useState(false);
-
-  function copyOptions() {
-    localStorage.setItem(OPTIONS_CLIPBOARD, JSON.stringify({ variants, modifiers, removables }));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
-  }
-
-  function pasteOptions() {
-    const raw = localStorage.getItem(OPTIONS_CLIPBOARD);
-    if (!raw) {
-      alert(t('noClipboard'));
-      return;
-    }
-    try {
-      const c = JSON.parse(raw) as { variants?: PricedOption[]; modifiers?: PricedOption[]; removables?: string[] };
-      const v = c.variants ?? [];
-      const m = c.modifiers ?? [];
-      const r = c.removables ?? [];
-      setVariants(v);
-      setModifiers(m);
-      setRemovables(r);
-      updateProduct(product.id, { variants: v, modifiers: m, removables: r });
-      setPasteKey((k) => k + 1);
-    } catch {
-      alert(t('noClipboard'));
-    }
-  }
 
   function toggleTag(key: string) {
     const next = tags.includes(key) ? tags.filter((x) => x !== key) : [...tags, key];
@@ -190,59 +155,29 @@ export function ProductDrawer({
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-t border-neutral-100 pt-3">
-          <span className="text-sm font-semibold">{t('options')}</span>
-          <div className="flex gap-1.5">
-            <button
-              type="button"
-              onClick={copyOptions}
-              className="flex items-center gap-1 rounded-lg border border-neutral-300 px-2 py-1 text-xs font-medium hover:bg-neutral-50"
-            >
-              {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
-              {copied ? t('copiedOptions') : t('copyOptions')}
-            </button>
-            <button
-              type="button"
-              onClick={pasteOptions}
-              className="flex items-center gap-1 rounded-lg border border-neutral-300 px-2 py-1 text-xs font-medium hover:bg-neutral-50"
-            >
-              <ClipboardPaste className="h-3.5 w-3.5" /> {t('pasteOptions')}
-            </button>
-          </div>
-        </div>
-
         <OptionList
-          key={`variants-${pasteKey}`}
           label={t('variants')}
           hint={t('variantsHint')}
-          value={variants}
-          onChange={(v) => {
-            setVariants(v);
-            updateProduct(product.id, { variants: v });
-          }}
+          value={product.variants ?? []}
+          onChange={(v) => updateProduct(product.id, { variants: v })}
           namePlaceholder={t('variantName')}
+          clipKey="kuik_clip_variants"
         />
         <OptionList
-          key={`modifiers-${pasteKey}`}
           label={t('modifiers')}
           hint={t('modifiersHint')}
-          value={modifiers}
-          onChange={(v) => {
-            setModifiers(v);
-            updateProduct(product.id, { modifiers: v });
-          }}
+          value={product.modifiers ?? []}
+          onChange={(v) => updateProduct(product.id, { modifiers: v })}
           namePlaceholder={t('modifierName')}
+          clipKey="kuik_clip_modifiers"
         />
         <StringList
-          key={`removables-${pasteKey}`}
           label={t('removables')}
           hint={t('removablesHint')}
-          value={removables}
-          onChange={(v) => {
-            setRemovables(v);
-            updateProduct(product.id, { removables: v });
-          }}
+          value={product.removables ?? []}
+          onChange={(v) => updateProduct(product.id, { removables: v })}
           placeholder={t('removableName')}
+          clipKey="kuik_clip_removables"
         />
 
         <Button variant="secondary" className="w-full" onClick={onClose}>
@@ -259,12 +194,14 @@ function OptionList({
   value,
   onChange,
   namePlaceholder,
+  clipKey,
 }: {
   label: string;
   hint: string;
   value: PricedOption[];
   onChange: (v: PricedOption[]) => void;
   namePlaceholder: string;
+  clipKey: string;
 }) {
   const [rows, setRows] = useState<PricedOption[]>(value);
   function commit(next: PricedOption[]) {
@@ -273,7 +210,14 @@ function OptionList({
   }
   return (
     <div>
-      <Label>{label}</Label>
+      <div className="flex items-center justify-between">
+        <Label>{label}</Label>
+        <ListCopyPaste
+          clipKey={clipKey}
+          getValue={() => rows.filter((r) => r.name.trim() !== '')}
+          onPaste={(v) => commit((v as PricedOption[]).filter((r) => r && typeof r.name === 'string'))}
+        />
+      </div>
       <p className="-mt-1 mb-1.5 text-xs text-neutral-400">{hint}</p>
       <div className="space-y-2">
         {rows.map((row, i) => (
@@ -322,12 +266,14 @@ function StringList({
   value,
   onChange,
   placeholder,
+  clipKey,
 }: {
   label: string;
   hint: string;
   value: string[];
   onChange: (v: string[]) => void;
   placeholder: string;
+  clipKey: string;
 }) {
   const [rows, setRows] = useState<string[]>(value);
   function commit(next: string[]) {
@@ -336,7 +282,14 @@ function StringList({
   }
   return (
     <div>
-      <Label>{label}</Label>
+      <div className="flex items-center justify-between">
+        <Label>{label}</Label>
+        <ListCopyPaste
+          clipKey={clipKey}
+          getValue={() => rows.map((r) => r.trim()).filter(Boolean)}
+          onPaste={(v) => commit((v as string[]).filter((r) => typeof r === 'string'))}
+        />
+      </div>
       <p className="-mt-1 mb-1.5 text-xs text-neutral-400">{hint}</p>
       <div className="space-y-2">
         {rows.map((row, i) => (
@@ -361,6 +314,60 @@ function StringList({
           <Plus className="h-4 w-4" /> {label}
         </button>
       </div>
+    </div>
+  );
+}
+
+function ListCopyPaste({
+  clipKey,
+  getValue,
+  onPaste,
+}: {
+  clipKey: string;
+  getValue: () => unknown;
+  onPaste: (v: unknown) => void;
+}) {
+  const t = useTranslations('menuEditor');
+  const [copied, setCopied] = useState(false);
+
+  function copy() {
+    localStorage.setItem(clipKey, JSON.stringify(getValue()));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+  function paste() {
+    const raw = localStorage.getItem(clipKey);
+    if (!raw) {
+      alert(t('noClipboard'));
+      return;
+    }
+    try {
+      const v = JSON.parse(raw);
+      if (Array.isArray(v)) onPaste(v);
+    } catch {
+      alert(t('noClipboard'));
+    }
+  }
+
+  return (
+    <div className="flex gap-1">
+      <button
+        type="button"
+        onClick={copy}
+        title={t('copyOptions')}
+        className="flex items-center gap-1 rounded-md border border-neutral-300 px-1.5 py-0.5 text-[11px] font-medium text-neutral-600 hover:bg-neutral-50"
+      >
+        {copied ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
+        {copied ? t('copiedOptions') : t('copyOptions')}
+      </button>
+      <button
+        type="button"
+        onClick={paste}
+        title={t('pasteOptions')}
+        className="flex items-center gap-1 rounded-md border border-neutral-300 px-1.5 py-0.5 text-[11px] font-medium text-neutral-600 hover:bg-neutral-50"
+      >
+        <ClipboardPaste className="h-3 w-3" /> {t('pasteOptions')}
+      </button>
     </div>
   );
 }
