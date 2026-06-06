@@ -19,7 +19,7 @@ function revalidate(subdomain: string) {
 }
 
 // ── Categories ─────────────────────────────────────────────────────────────
-export async function addCategory(name: string) {
+export async function addCategory(name: string, branchId: string | null = null) {
   const { tenantId, subdomain, supabase } = await ctx();
   const { count } = await supabase
     .from('categories')
@@ -27,7 +27,7 @@ export async function addCategory(name: string) {
     .eq('tenant_id', tenantId);
   await supabase
     .from('categories')
-    .insert({ tenant_id: tenantId, name, position: count ?? 0 });
+    .insert({ tenant_id: tenantId, name, position: count ?? 0, branch_id: branchId });
   revalidate(subdomain);
 }
 

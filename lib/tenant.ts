@@ -1,6 +1,7 @@
 import 'server-only';
 import { cache } from 'react';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { effectivePlan } from '@/lib/plan';
 import type {
   Tenant,
   TenantTheme,
@@ -8,6 +9,9 @@ import type {
   TenantOrdering,
   TenantLanding,
   LoyaltyProgram,
+  SubscriptionStatus,
+  Branch,
+  BranchLite,
   Category,
   Product,
   Separator,
@@ -39,15 +43,26 @@ export const getTenantByHostKey = cache(
       { data: ordering },
       { data: landing },
       { data: loyalty },
+      { data: sub },
     ] = await Promise.all([
       supabase.from('tenant_theme').select('*').eq('tenant_id', tenant.id).single<TenantTheme>(),
       supabase.from('tenant_contact').select('*').eq('tenant_id', tenant.id).single<TenantContact>(),
       supabase.from('tenant_ordering').select('*').eq('tenant_id', tenant.id).maybeSingle<TenantOrdering>(),
       supabase.from('tenant_landing').select('*').eq('tenant_id', tenant.id).maybeSingle<TenantLanding>(),
       supabase.from('loyalty_program').select('*').eq('tenant_id', tenant.id).maybeSingle<LoyaltyProgram>(),
+      supabase.from('subscriptions').select('status, plan').eq('tenant_id', tenant.id).maybeSingle<{ status: SubscriptionStatus; plan: 'basic' | 'pro' }>(),
     ]);
 
+    const { data: branchRows } = await supabase
+      .from('branches')
+      .select('id, name, slug, menu_mode')
+      .eq('tenant_id', tenant.id)
+      .eq('is_visible', true)
+      .order('position');
+
     if (!theme || !contact) return null;
+
+    const plan = effectivePlan(sub ?? { status: 'trialing', plan: 'basic' });
 
     // Ordering row may be missing for tenants created before this feature.
     const orderingRow: TenantOrdering = ordering ?? {
@@ -97,7 +112,23 @@ export const getTenantByHostKey = cache(
       ordering: orderingRow,
       landing: landingRow,
       loyalty: loyaltyRow,
+      plan,
+      branches: (branchRows ?? []) as BranchLite[],
     };
+  },
+);
+
+/** Load a single visible branch by slug. */
+export const getBranch = cache(
+  async (tenantId: string, slug: string): Promise<Branch | null> => {
+    const supabase = createAdminClient();
+    const { data } = await supabase
+      .from('branches')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .eq('slug', slug)
+      .maybeSingle<Branch>();
+    return data ?? null;
   },
 );
 
@@ -122,17 +153,21 @@ export const getProductsByIds = cache(
  * separators) for a tenant, ready for rendering.
  */
 export const getMenu = cache(
-  async (tenantId: string): Promise<MenuCategory[]> => {
+  async (tenantId: string, branchId: string | null = null): Promise<MenuCategory[]> => {
     const supabase = createAdminClient();
+
+    // branchId NULL → the main menu; a branch id → that branch's independent menu.
+    let catQuery = supabase
+      .from('categories')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .eq('is_visible', true)
+      .order('position');
+    catQuery = branchId ? catQuery.eq('branch_id', branchId) : catQuery.is('branch_id', null);
 
     const [{ data: categories }, { data: products }, { data: separators }] =
       await Promise.all([
-        supabase
-          .from('categories')
-          .select('*')
-          .eq('tenant_id', tenantId)
-          .eq('is_visible', true)
-          .order('position'),
+        catQuery,
         supabase
           .from('products')
           .select('*')

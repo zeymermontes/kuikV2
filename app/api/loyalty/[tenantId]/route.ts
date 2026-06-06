@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { LoyaltyProgram, LoyaltyCustomer } from '@/lib/database.types';
+import { effectivePlan } from '@/lib/plan';
+import type { LoyaltyProgram, LoyaltyCustomer, SubscriptionStatus } from '@/lib/database.types';
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous chars
 
@@ -40,6 +41,16 @@ export async function POST(
     .maybeSingle<LoyaltyProgram>();
 
   if (!program || !program.enabled) {
+    return NextResponse.json({ error: 'not_enabled' }, { status: 404 });
+  }
+
+  // Loyalty is a Pro-plan feature.
+  const { data: sub } = await supabase
+    .from('subscriptions')
+    .select('status, plan')
+    .eq('tenant_id', tenantId)
+    .maybeSingle<{ status: SubscriptionStatus; plan: 'basic' | 'pro' }>();
+  if (effectivePlan(sub ?? { status: 'trialing', plan: 'basic' }) !== 'pro') {
     return NextResponse.json({ error: 'not_enabled' }, { status: 404 });
   }
 

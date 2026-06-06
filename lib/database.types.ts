@@ -95,9 +95,27 @@ export interface TenantContact {
   updated_at: string;
 }
 
+export type BranchMenuMode = 'shared' | 'independent';
+
+export interface Branch {
+  id: string;
+  tenant_id: string;
+  name: string;
+  slug: string;
+  whatsapp_phone: string | null;
+  address: string | null;
+  menu_mode: BranchMenuMode;
+  is_visible: boolean;
+  position: number;
+  created_at: string;
+}
+
+export type BranchLite = Pick<Branch, 'id' | 'name' | 'slug' | 'menu_mode'>;
+
 export interface Category {
   id: string;
   tenant_id: string;
+  branch_id: string | null;
   name: string;
   position: number;
   icon: string | null;
@@ -168,6 +186,7 @@ export interface OrderItem {
 export interface Subscription {
   tenant_id: string;
   status: SubscriptionStatus;
+  plan: 'basic' | 'pro';
   trial_ends_at: string | null;
   current_period_end: string | null;
   mp_preapproval_id: string | null;
@@ -231,4 +250,6 @@ export interface FullTenant {
   ordering: TenantOrdering;
   landing: TenantLanding;
   loyalty: LoyaltyProgram;
+  plan: 'basic' | 'pro';
+  branches: BranchLite[];
 }

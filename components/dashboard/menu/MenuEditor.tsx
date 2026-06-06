@@ -58,11 +58,13 @@ export function MenuEditor({
   categories,
   products,
   separators,
+  branchId = null,
 }: {
   tenantId: string;
   categories: Category[];
   products: Product[];
   separators: Separator[];
+  branchId?: string | null;
 }) {
   const t = useTranslations('menuEditor');
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -133,7 +135,7 @@ export function MenuEditor({
         <div className="flex items-center justify-between border-b border-neutral-100 px-3 py-2.5">
           <span className="text-sm font-semibold">{t('categories')}</span>
           <button
-            onClick={() => startTransition(() => addCategory(t('newCategory')))}
+            onClick={() => startTransition(() => addCategory(t('newCategory'), branchId))}
             className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-100"
           >
             <Plus className="h-3.5 w-3.5" /> {t('addCategory')}

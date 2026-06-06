@@ -1,14 +1,26 @@
 import { getTranslations } from 'next-intl/server';
 import { requireTenant } from '@/lib/auth';
+import { isPro } from '@/lib/plan';
 import { createClient } from '@/lib/supabase/server';
 import type { LoyaltyProgram } from '@/lib/database.types';
 import { LoyaltyForm } from '@/components/dashboard/LoyaltyForm';
 import { LoyaltyAccredit } from '@/components/dashboard/LoyaltyAccredit';
+import { ProUpsell } from '@/components/dashboard/ProUpsell';
 
 export default async function LoyaltyPage() {
-  const { tenant, role } = await requireTenant();
+  const { tenant, role, subscription } = await requireTenant();
   const t = await getTranslations('loyalty');
   const supabase = await createClient();
+
+  if (!isPro(subscription)) {
+    return (
+      <div>
+        <h1 className="mb-1 text-2xl font-bold">{t('title')}</h1>
+        <p className="mb-6 text-sm text-neutral-500">{t('subtitle')}</p>
+        <ProUpsell feature={t('title')} />
+      </div>
+    );
+  }
 
   const { data } = await supabase
     .from('loyalty_program')

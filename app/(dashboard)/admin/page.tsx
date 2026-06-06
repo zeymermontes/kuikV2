@@ -7,6 +7,7 @@ import { formatPrice } from '@/lib/utils';
 import { Card } from '@/components/ui';
 import { AwardMonthsButton } from '@/components/dashboard/AwardMonthsButton';
 import { PricingSettings } from '@/components/dashboard/PricingSettings';
+import { PlanSelect } from '@/components/dashboard/PlanSelect';
 import type { SubscriptionStatus } from '@/lib/database.types';
 
 interface Overview {
@@ -16,6 +17,7 @@ interface Overview {
   custom_domain: string | null;
   owner_email: string;
   status: SubscriptionStatus | null;
+  plan: 'basic' | 'pro' | null;
   trial_ends_at: string | null;
   current_period_end: string | null;
   free_months_granted: number | null;
@@ -71,6 +73,7 @@ export default async function AdminPage() {
               <th className="px-4 py-3">{t('tenants')}</th>
               <th className="px-4 py-3">{t('owner')}</th>
               <th className="px-4 py-3">{t('status')}</th>
+              <th className="px-4 py-3">{t('plan')}</th>
               <th className="px-4 py-3">{t('trialEnds')}</th>
               <th className="px-4 py-3" />
             </tr>
@@ -107,6 +110,9 @@ export default async function AdminPage() {
                         +{r.free_months_granted}
                       </span>
                     )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <PlanSelect tenantId={r.tenant_id} plan={r.plan ?? 'basic'} />
                   </td>
                   <td className="px-4 py-3 text-neutral-500">
                     {end ? new Date(end).toLocaleDateString() : '—'}

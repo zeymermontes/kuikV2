@@ -52,22 +52,26 @@ export async function awardFreeMonths(tenantId: string, months: number) {
 }
 
 /** Super-admin: update the platform subscription price/currency/plan name. */
-export async function updatePricing(
-  amount: number,
-  currency: string,
-  planName: string,
-) {
+export async function updatePricing(input: {
+  amount: number;
+  currency: string;
+  planName: string;
+  proAmount: number;
+  proName: string;
+}) {
   await requireSuperAdmin();
-  if (!(amount > 0) || !currency) return;
+  if (!(input.amount > 0) || !input.currency) return;
 
   const supabase = createAdminClient();
   // upsert (not update) so the price persists even if the seed row is missing.
   await supabase.from('platform_settings').upsert(
     {
       id: 1,
-      plan_amount: amount,
-      plan_currency: currency.toUpperCase().slice(0, 3),
-      plan_name: planName || 'Kuik Pro',
+      plan_amount: input.amount,
+      plan_currency: input.currency.toUpperCase().slice(0, 3),
+      plan_name: input.planName || 'Kuik Básico',
+      pro_amount: input.proAmount,
+      pro_name: input.proName || 'Kuik Pro',
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'id' },
@@ -76,4 +80,19 @@ export async function updatePricing(
   revalidatePath('/admin');
   revalidatePath('/billing');
   revalidatePath('/');
+}
+
+/** Super-admin: override a tenant's plan tier. */
+export async function setTenantPlan(tenantId: string, plan: 'basic' | 'pro') {
+  const actor = await requireSuperAdmin();
+  const supabase = createAdminClient();
+  await supabase.from('subscriptions').update({ plan }).eq('tenant_id', tenantId);
+  await supabase.from('audit_log').insert({
+    actor_id: actor.id,
+    tenant_id: tenantId,
+    action: 'set_plan',
+    detail: { plan },
+  });
+  revalidatePath('/admin');
+  revalidatePath(`/s/`);
 }

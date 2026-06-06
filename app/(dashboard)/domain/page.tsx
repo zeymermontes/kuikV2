@@ -1,12 +1,14 @@
 import { getTranslations } from 'next-intl/server';
 import { ExternalLink } from 'lucide-react';
 import { requireOwner } from '@/lib/auth';
+import { isPro } from '@/lib/plan';
 import { tenantUrl } from '@/lib/config';
 import { Card } from '@/components/ui';
 import { DomainManager } from '@/components/dashboard/DomainManager';
+import { ProUpsell } from '@/components/dashboard/ProUpsell';
 
 export default async function DomainPage() {
-  const { tenant } = await requireOwner();
+  const { tenant, subscription } = await requireOwner();
   const t = await getTranslations('domain');
   const url = tenantUrl(tenant.subdomain);
 
@@ -27,7 +29,11 @@ export default async function DomainPage() {
         </a>
       </Card>
 
-      <DomainManager tenant={tenant} />
+      {isPro(subscription) ? (
+        <DomainManager tenant={tenant} />
+      ) : (
+        <ProUpsell feature={t('customDomain')} />
+      )}
     </div>
   );
 }

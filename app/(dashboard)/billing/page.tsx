@@ -1,8 +1,8 @@
 import { getTranslations } from 'next-intl/server';
-import { CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { CheckCircle2, Clock, AlertCircle, Check, Sparkles } from 'lucide-react';
 import { requireOwner } from '@/lib/auth';
 import { getPlatformSettings } from '@/lib/platform';
-import { Card, Button } from '@/components/ui';
+import { Card } from '@/components/ui';
 import { formatPrice } from '@/lib/utils';
 import { startSubscription } from './actions';
 
@@ -22,8 +22,10 @@ export default async function BillingPage({
     past_due: { icon: AlertCircle, tone: 'text-red-600', label: t('pastDue') },
     canceled: { icon: AlertCircle, tone: 'text-neutral-500', label: t('canceled') },
   }[subscription.status];
-
   const Icon = statusMeta.icon;
+  const currentTier = subscription.status === 'active' ? subscription.plan : null;
+
+  const fmt = (n: number) => formatPrice(n, plan.plan_currency);
 
   return (
     <div>
@@ -39,22 +41,15 @@ export default async function BillingPage({
         <div className={`flex items-center gap-2 font-semibold ${statusMeta.tone}`}>
           <Icon className="h-5 w-5" />
           {statusMeta.label}
+          {subscription.status === 'trialing' && (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs">{t('trialPro')}</span>
+          )}
         </div>
-
         {subscription.status === 'trialing' && subscription.trial_ends_at && (
           <p className="mt-2 text-sm text-neutral-600">
-            {t('trialEnds', {
-              date: new Date(subscription.trial_ends_at).toLocaleDateString(),
-            })}
+            {t('trialEnds', { date: new Date(subscription.trial_ends_at).toLocaleDateString() })}
           </p>
         )}
-
-        {subscription.status === 'active' && subscription.current_period_end && (
-          <p className="mt-2 text-sm text-neutral-600">
-            {new Date(subscription.current_period_end).toLocaleDateString()}
-          </p>
-        )}
-
         {subscription.free_months_granted > 0 && (
           <p className="mt-2 text-sm text-green-700">
             {t('freeMonths', { count: subscription.free_months_granted })}
@@ -62,25 +57,101 @@ export default async function BillingPage({
         )}
       </Card>
 
-      <Card className="max-w-md">
-        <div className="mb-1 text-sm font-medium text-neutral-500">{plan.plan_name}</div>
-        <div className="mb-4 flex items-baseline gap-1">
-          <span className="text-3xl font-bold">
-            {formatPrice(plan.plan_amount, plan.plan_currency)}
-          </span>
-          <span className="text-neutral-500">{t('perMonth')}</span>
-        </div>
+      <h2 className="mb-3 font-semibold">{t('choosePlan')}</h2>
+      <div className="grid max-w-2xl gap-4 sm:grid-cols-2">
+        <PlanCard
+          name={plan.plan_name}
+          price={fmt(plan.plan_amount)}
+          features={[t('f_menu'), t('f_whatsapp'), t('f_custom'), t('f_dashboard'), t('f_subdomain')]}
+          tier="basic"
+          current={currentTier === 'basic'}
+          perMonth={t('perMonth')}
+          currentLabel={t('currentPlan')}
+          ctaLabel={t('subscribe')}
+        />
+        <PlanCard
+          name={plan.pro_name}
+          price={fmt(plan.pro_amount)}
+          highlight={t('mostPopular')}
+          intro={t('everythingInBasic')}
+          features={[t('f_domain'), t('f_loyalty'), t('f_branches'), t('f_reports')]}
+          tier="pro"
+          current={currentTier === 'pro'}
+          perMonth={t('perMonth')}
+          currentLabel={t('currentPlan')}
+          ctaLabel={currentTier === 'basic' ? t('upgrade') : t('subscribe')}
+        />
+      </div>
+    </div>
+  );
+}
 
-        {subscription.status !== 'active' ? (
-          <form action={startSubscription}>
-            <Button type="submit" className="w-full">
-              {t('subscribe')}
-            </Button>
-          </form>
-        ) : (
-          <p className="text-sm text-neutral-500">{t('active')}</p>
-        )}
-      </Card>
+function PlanCard({
+  name,
+  price,
+  perMonth,
+  features,
+  intro,
+  highlight,
+  tier,
+  current,
+  currentLabel,
+  ctaLabel,
+}: {
+  name: string;
+  price: string;
+  perMonth: string;
+  features: string[];
+  intro?: string;
+  highlight?: string;
+  tier: 'basic' | 'pro';
+  current: boolean;
+  currentLabel: string;
+  ctaLabel: string;
+}) {
+  return (
+    <div
+      className={`relative flex flex-col rounded-2xl border p-5 ${
+        tier === 'pro' ? 'border-neutral-900' : 'border-neutral-200'
+      } bg-white`}
+    >
+      {highlight && (
+        <span className="absolute -top-2 right-4 rounded-full bg-neutral-900 px-2 py-0.5 text-[10px] font-semibold text-white">
+          {highlight}
+        </span>
+      )}
+      <div className="text-sm font-semibold text-neutral-500">{name}</div>
+      <div className="mt-1 flex items-baseline gap-1">
+        <span className="text-3xl font-bold">{price}</span>
+        <span className="text-neutral-500">{perMonth}</span>
+      </div>
+
+      {intro && <p className="mt-3 text-xs font-medium text-neutral-500">{intro}</p>}
+      <ul className="mt-3 flex-1 space-y-1.5">
+        {features.map((f) => (
+          <li key={f} className="flex items-center gap-2 text-sm">
+            <Check className="h-4 w-4 shrink-0 text-green-600" /> {f}
+          </li>
+        ))}
+      </ul>
+
+      {current ? (
+        <div className="mt-5 rounded-full bg-neutral-100 py-2.5 text-center text-sm font-semibold text-neutral-500">
+          {currentLabel}
+        </div>
+      ) : (
+        <form action={startSubscription.bind(null, tier)} className="mt-5">
+          <button
+            type="submit"
+            className={`flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-sm font-semibold ${
+              tier === 'pro' ? 'bg-neutral-900 text-white hover:bg-neutral-700' : 'border border-neutral-300 hover:bg-neutral-50'
+            }`}
+          >
+            {tier === 'pro' && <Sparkles className="h-4 w-4" />}
+            {ctaLabel}
+          </button>
+        </form>
+      )}
     </div>
   );
 }

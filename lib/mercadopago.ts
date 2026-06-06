@@ -32,12 +32,15 @@ export async function createSubscription({
   tenantId,
   payerEmail,
   reason,
+  plan = 'basic',
 }: {
   tenantId: string;
   payerEmail: string;
   reason: string;
+  plan?: 'basic' | 'pro';
 }): Promise<{ id: string; initPoint: string }> {
   const settings = await getPlatformSettings();
+  const amount = plan === 'pro' ? settings.pro_amount : settings.plan_amount;
   const preapproval = new PreApproval(mpClient());
 
   const result = await preapproval.create({
@@ -49,7 +52,7 @@ export async function createSubscription({
       auto_recurring: {
         frequency: 1,
         frequency_type: 'months',
-        transaction_amount: settings.plan_amount,
+        transaction_amount: amount,
         currency_id: settings.plan_currency,
       },
       status: 'pending',

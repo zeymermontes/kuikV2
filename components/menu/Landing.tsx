@@ -164,7 +164,9 @@ export function Landing({
       {/* Featured / most ordered */}
       {featured.length > 0 && (
         <section className="mt-8">
-          <h2 className="mb-3 px-5 text-lg font-bold">{t('mostOrdered')}</h2>
+          <h2 className="mb-3 px-5 text-lg font-bold" style={{ color: 'var(--brand-secondary)' }}>
+            {t('mostOrdered')}
+          </h2>
           <div className="no-scrollbar flex gap-3 overflow-x-auto px-5 pb-2">
             {featured.map((p) => (
               <Link

@@ -10,6 +10,7 @@ import type {
   TenantContact,
   TenantOrdering,
   LoyaltyProgram,
+  BranchLite,
   MenuCategory,
   Product,
 } from '@/lib/database.types';
@@ -84,6 +85,9 @@ export function MenuView({
   contact,
   ordering,
   loyalty,
+  plan,
+  branches = [],
+  currentBranch = null,
   menu,
 }: {
   tenant: Tenant;
@@ -91,6 +95,9 @@ export function MenuView({
   contact: TenantContact;
   ordering: TenantOrdering;
   loyalty: LoyaltyProgram;
+  plan: 'basic' | 'pro';
+  branches?: BranchLite[];
+  currentBranch?: string | null;
   menu: MenuCategory[];
 }) {
   const t = useTranslations('menu');
@@ -269,10 +276,13 @@ export function MenuView({
         )}
         {theme.slogan && <p className="text-sm opacity-70">{theme.slogan}</p>}
         {settings.showSocial && <SocialRow contact={contact} />}
-        {loyalty.enabled && (
+        {loyalty.enabled && plan === 'pro' && (
           <div className="mt-2">
             <LoyaltyButton tenantId={tenant.id} program={loyalty} />
           </div>
+        )}
+        {branches.length > 0 && (
+          <BranchPicker branches={branches} current={currentBranch} />
         )}
       </header>
 
@@ -378,7 +388,10 @@ export function MenuView({
                   {hasBanner ? (
                     <CategoryBanner name={cat.banner_name ?? cat.name} imageUrl={cat.banner_image_url} />
                   ) : (
-                    <h2 className="flex items-center gap-2 text-xl font-bold">
+                    <h2
+                      className="flex items-center gap-2 text-xl font-bold"
+                      style={{ color: 'var(--brand-secondary)' }}
+                    >
                       <CatIcon cat={cat} size={24} />
                       {cat.name}
                     </h2>
@@ -462,6 +475,32 @@ export function MenuView({
         />
       )}
     </div>
+  );
+}
+
+function BranchPicker({ branches, current }: { branches: BranchLite[]; current: string | null }) {
+  const t = useTranslations('menu');
+  return (
+    <label
+      className="mt-2 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium"
+      style={{ backgroundColor: 'var(--brand-surface)' }}
+    >
+      <MapPin className="h-4 w-4" style={{ color: 'var(--brand-primary)' }} />
+      <select
+        value={current ?? ''}
+        onChange={(e) => {
+          window.location.href = e.target.value ? `/b/${e.target.value}` : '/menu';
+        }}
+        className="bg-transparent outline-none"
+      >
+        <option value="">{t('chooseBranch')}</option>
+        {branches.map((b) => (
+          <option key={b.id} value={b.slug}>
+            {b.name}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
