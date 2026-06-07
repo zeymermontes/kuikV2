@@ -355,8 +355,9 @@
   },
   "orders": {
     "title": "Pedidos",
-    "subtitle": "Pedidos que llegan por WhatsApp, en tiempo casi real.",
-    "liveHint": "Se actualiza cada 10 s",
+    "subtitle": "Pedidos que llegan por WhatsApp, en tiempo real.",
+    "live": "En vivo",
+    "connecting": "Conectando…",
     "refresh": "Actualizar",
     "emptyCol": "Sin pedidos",
     "table": "Mesa",

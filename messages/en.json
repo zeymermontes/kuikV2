@@ -355,8 +355,9 @@
   },
   "orders": {
     "title": "Orders",
-    "subtitle": "Orders coming in through WhatsApp, in near real-time.",
-    "liveHint": "Updates every 10s",
+    "subtitle": "Orders coming in through WhatsApp, in real-time.",
+    "live": "Live",
+    "connecting": "Connecting…",
     "refresh": "Refresh",
     "emptyCol": "No orders",
     "table": "Table",

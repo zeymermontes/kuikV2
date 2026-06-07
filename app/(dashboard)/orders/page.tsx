@@ -7,7 +7,7 @@ import { listOrders } from './actions';
 export const dynamic = 'force-dynamic';
 
 export default async function OrdersPage() {
-  const { theme } = await requireTenant();
+  const { tenant, theme } = await requireTenant();
   const t = await getTranslations('orders');
   const currency = resolveMenuSettings(theme.settings).currency;
   const initial = await listOrders();
@@ -16,7 +16,7 @@ export default async function OrdersPage() {
     <div>
       <h1 className="mb-1 text-2xl font-bold">{t('title')}</h1>
       <p className="mb-6 text-sm text-neutral-500">{t('subtitle')}</p>
-      <OrdersBoard initial={initial} currency={currency} />
+      <OrdersBoard initial={initial} currency={currency} tenantId={tenant.id} />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { Clock, UtensilsCrossed, ShoppingBag, Check, RefreshCw } from 'lucide-re
 import { useTranslations, useLocale } from 'next-intl';
 import type { OrderRow, OrderStatus } from '@/lib/database.types';
 import { formatPrice } from '@/lib/utils';
+import { createClient } from '@/lib/supabase/client';
 import { listOrders, setOrderStatus } from '@/app/(dashboard)/orders/actions';
 
 type Line = { name?: string; qty?: number; selections?: { name?: string }[] };
@@ -15,11 +16,20 @@ const COLUMNS: { status: OrderStatus; next: OrderStatus; tone: string }[] = [
   { status: 'ready', next: 'done', tone: 'border-green-200 bg-green-50' },
 ];
 
-export function OrdersBoard({ initial, currency }: { initial: OrderRow[]; currency: string }) {
+export function OrdersBoard({
+  initial,
+  currency,
+  tenantId,
+}: {
+  initial: OrderRow[];
+  currency: string;
+  tenantId: string;
+}) {
   const t = useTranslations('orders');
   const locale = useLocale();
   const [orders, setOrders] = useState<OrderRow[]>(initial);
   const [refreshing, setRefreshing] = useState(false);
+  const [live, setLive] = useState(false);
 
   async function refresh() {
     setRefreshing(true);
@@ -32,11 +42,43 @@ export function OrdersBoard({ initial, currency }: { initial: OrderRow[]; curren
     }
   }
 
-  // Poll for new/updated orders every 10s.
+  // Live updates over websockets (Supabase Realtime). RLS scopes rows to the tenant.
   useEffect(() => {
-    const id = setInterval(refresh, 10_000);
-    return () => clearInterval(id);
-  }, []);
+    const supabase = createClient();
+    const upsert = (row: OrderRow) =>
+      setOrders((cur) => {
+        if (row.status === 'done') return cur.filter((o) => o.id !== row.id);
+        const i = cur.findIndex((o) => o.id === row.id);
+        if (i === -1) return [...cur, row].sort((a, b) => a.created_at.localeCompare(b.created_at));
+        const next = [...cur];
+        next[i] = row;
+        return next;
+      });
+
+    const channel = supabase
+      .channel(`orders-${tenantId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders', filter: `tenant_id=eq.${tenantId}` },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            const id = (payload.old as { id?: string }).id;
+            if (id) setOrders((cur) => cur.filter((o) => o.id !== id));
+          } else {
+            upsert(payload.new as OrderRow);
+          }
+        },
+      )
+      .subscribe((status) => {
+        setLive(status === 'SUBSCRIBED');
+        // Re-sync once connected to catch anything missed since the server render.
+        if (status === 'SUBSCRIBED') refresh();
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tenantId]);
 
   function advance(o: OrderRow, next: OrderStatus) {
     setOrders((cur) =>
@@ -50,7 +92,10 @@ export function OrdersBoard({ initial, currency }: { initial: OrderRow[]; curren
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-sm text-neutral-500">{t('liveHint')}</span>
+        <span className="flex items-center gap-1.5 text-sm text-neutral-500">
+          <span className={`h-2 w-2 rounded-full ${live ? 'bg-green-500' : 'bg-neutral-300'}`} />
+          {live ? t('live') : t('connecting')}
+        </span>
         <button
           onClick={refresh}
           className="flex items-center gap-1.5 rounded-lg border border-neutral-300 px-2.5 py-1 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
