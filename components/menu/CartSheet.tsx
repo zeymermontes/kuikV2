@@ -129,6 +129,8 @@ export function CartSheet({
           items: lines,
           total: showPrices ? total : null,
           customer_name: customerName.trim() || null,
+          service_type: serviceLabel(service),
+          table_label: service === 'dinein' ? table.trim() || null : null,
         }),
         keepalive: true,
       });

@@ -47,6 +47,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "menu": "Menu",
+    "orders": "Orders",
     "landing": "Home",
     "design": "Design",
     "ordering": "Ordering",
@@ -351,6 +352,20 @@
     "collectAddress": "Ask for address (delivery)",
     "collectPickupTime": "Ask for time (pickup)",
     "collectTable": "Ask for table number (dine-in)"
+  },
+  "orders": {
+    "title": "Orders",
+    "subtitle": "Orders coming in through WhatsApp, in near real-time.",
+    "liveHint": "Updates every 10s",
+    "refresh": "Refresh",
+    "emptyCol": "No orders",
+    "table": "Table",
+    "status_new": "New",
+    "status_preparing": "Preparing",
+    "status_ready": "Ready",
+    "advance_new": "Accept",
+    "advance_preparing": "Ready",
+    "advance_ready": "Delivered"
   },
   "tables": {
     "title": "Table QR codes",

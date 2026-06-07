@@ -202,6 +202,8 @@ export interface Separator {
   created_at: string;
 }
 
+export type OrderStatus = 'new' | 'preparing' | 'ready' | 'done';
+
 export interface OrderRow {
   id: string;
   tenant_id: string;
@@ -210,6 +212,9 @@ export interface OrderRow {
   customer_name: string | null;
   note: string | null;
   channel: string;
+  status: OrderStatus;
+  service_type: string | null;
+  table_label: string | null;
   created_at: string;
 }
 

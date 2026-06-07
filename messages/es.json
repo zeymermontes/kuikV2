@@ -47,6 +47,7 @@
   "nav": {
     "dashboard": "Panel",
     "menu": "Menú",
+    "orders": "Pedidos",
     "landing": "Inicio",
     "design": "Diseño",
     "ordering": "Pedidos",
@@ -351,6 +352,20 @@
     "collectAddress": "Pedir dirección (a domicilio)",
     "collectPickupTime": "Pedir hora (para recoger)",
     "collectTable": "Pedir número de mesa (comer aquí)"
+  },
+  "orders": {
+    "title": "Pedidos",
+    "subtitle": "Pedidos que llegan por WhatsApp, en tiempo casi real.",
+    "liveHint": "Se actualiza cada 10 s",
+    "refresh": "Actualizar",
+    "emptyCol": "Sin pedidos",
+    "table": "Mesa",
+    "status_new": "Nuevos",
+    "status_preparing": "Preparando",
+    "status_ready": "Listos",
+    "advance_new": "Aceptar",
+    "advance_preparing": "Listo",
+    "advance_ready": "Entregado"
   },
   "tables": {
     "title": "QR por mesa",

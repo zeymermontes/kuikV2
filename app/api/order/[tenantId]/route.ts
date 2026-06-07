@@ -8,7 +8,13 @@ export async function POST(
 ) {
   const { tenantId } = await params;
 
-  let body: { items?: unknown; total?: number | null; customer_name?: string | null };
+  let body: {
+    items?: unknown;
+    total?: number | null;
+    customer_name?: string | null;
+    service_type?: string | null;
+    table_label?: string | null;
+  };
   try {
     body = await req.json();
   } catch {
@@ -25,6 +31,8 @@ export async function POST(
     items: body.items,
     total: body.total ?? null,
     customer_name: body.customer_name ?? null,
+    service_type: body.service_type ?? null,
+    table_label: body.table_label ?? null,
     channel: 'whatsapp',
   });
 
