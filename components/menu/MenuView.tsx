@@ -2,7 +2,7 @@
 
 import { useMemo, useReducer, useState, useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { Search, Globe, MapPin, ChevronDown, X } from 'lucide-react';
+import { Search, Globe, MapPin, ChevronDown, X, CalendarCheck } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type {
   Tenant,
@@ -26,6 +26,7 @@ import { SeparatorRow } from './SeparatorRow';
 import { CartBar } from './CartBar';
 import { CartSheet } from './CartSheet';
 import { OpenStatus } from './OpenStatus';
+import { ReservationSheet } from './ReservationSheet';
 
 type CartState = Record<string, CartLine>; // keyed by CartLine.key
 
@@ -110,6 +111,7 @@ export function MenuView({
   const [query, setQuery] = useState('');
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [presetTable, setPresetTable] = useState<string | null>(null);
+  const [showReserve, setShowReserve] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [navStuck, setNavStuck] = useState(false);
@@ -349,6 +351,15 @@ export function MenuView({
         {theme.slogan && <p className="text-sm opacity-70">{theme.slogan}</p>}
         <OpenStatus hours={contact.hours} />
         <ContactLinks contact={contact} showSocial={settings.showSocial} />
+        {contact.reservations_enabled && (
+          <button
+            onClick={() => setShowReserve(true)}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium"
+            style={{ backgroundColor: 'var(--brand-button)', color: 'var(--brand-button-text)' }}
+          >
+            <CalendarCheck className="h-4 w-4" /> {t('reserve')}
+          </button>
+        )}
         {loyalty.enabled && plan === 'pro' && (
           <div className="mt-2">
             <LoyaltyButton tenantId={tenant.id} program={loyalty} />
@@ -557,6 +568,8 @@ export function MenuView({
       {orderingEnabled && itemCount > 0 && (
         <CartBar count={itemCount} onOpen={() => setSheetOpen(true)} label={t('yourOrder')} />
       )}
+
+      {showReserve && <ReservationSheet tenantId={tenant.id} onClose={() => setShowReserve(false)} />}
 
       {activeProduct && (
         <ProductSheet

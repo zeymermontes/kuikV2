@@ -151,6 +151,7 @@ export async function updateContact(
     address: string | null;
     maps_url: string | null;
     hours: unknown;
+    reservations_enabled: boolean;
     instagram: string | null;
     facebook: string | null;
     website: string | null;

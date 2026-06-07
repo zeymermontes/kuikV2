@@ -110,6 +110,7 @@ export interface TenantContact {
   address: string | null;
   maps_url: string | null;
   hours: unknown | null;
+  reservations_enabled: boolean;
   instagram: string | null;
   facebook: string | null;
   website: string | null;
@@ -199,6 +200,22 @@ export interface Separator {
   label: string | null;
   style: SeparatorStyle;
   position: number;
+  created_at: string;
+}
+
+export type ReservationStatus = 'pending' | 'confirmed' | 'seated' | 'cancelled';
+
+export interface Reservation {
+  id: string;
+  tenant_id: string;
+  branch_id: string | null;
+  customer_name: string;
+  phone: string | null;
+  party_size: number;
+  date: string;
+  time: string;
+  note: string | null;
+  status: ReservationStatus;
   created_at: string;
 }
 
