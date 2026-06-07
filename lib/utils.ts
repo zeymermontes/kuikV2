@@ -30,6 +30,11 @@ export function digitsOnly(input: string): string {
   return input.replace(/\D/g, '');
 }
 
+/** ISO timestamp for `days` ago (kept here so callers stay render-pure). */
+export function daysAgoISO(days: number): string {
+  return new Date(Date.now() - days * 86_400_000).toISOString();
+}
+
 /**
  * Map a 0–100 volume slider to an audio amplitude using a perceptual
  * (quadratic) curve — loudness is perceived ~logarithmically, so a linear

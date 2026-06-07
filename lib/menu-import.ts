@@ -20,6 +20,7 @@ export interface ImportProduct {
   description?: string | null;
   price?: number | null;
   compareAtPrice?: number | null;
+  cost?: number | null;
   available?: boolean;
   hidden?: boolean; // not shown on the public menu
   tags?: string[];

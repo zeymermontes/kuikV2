@@ -213,6 +213,7 @@ async function buildProductFields(
     description: p.description?.trim() || null,
     price: p.price ?? null,
     compare_at_price: p.compareAtPrice ?? null,
+    cost: p.cost ?? null,
     prep_time: p.prepTime ?? null,
     calories: p.calories ?? null,
     is_available: p.available ?? true,

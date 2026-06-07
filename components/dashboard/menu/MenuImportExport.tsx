@@ -264,6 +264,7 @@ export function MenuImportExport({
               description: p.description ?? undefined,
               price: p.price,
               compareAtPrice: p.compare_at_price,
+              cost: p.cost,
               available: p.is_available,
               hidden: p.is_hidden,
               tags: p.tags ?? [],

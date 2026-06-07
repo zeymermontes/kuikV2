@@ -4,7 +4,7 @@ import { requireManager } from '@/lib/auth';
 import { isPro } from '@/lib/plan';
 import { createClient } from '@/lib/supabase/server';
 import { resolveMenuSettings } from '@/lib/menu-settings';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, daysAgoISO } from '@/lib/utils';
 import { Card } from '@/components/ui';
 import { ProUpsell } from '@/components/dashboard/ProUpsell';
 import { ExportButton } from '@/components/dashboard/ExportButton';
@@ -61,6 +61,43 @@ export default async function ReportsPage({
   const maxRevenue = Math.max(1, ...salesRows.map((r) => Number(r.revenue)));
   const maxHour = Math.max(1, ...hourRows.map((r) => Number(r.orders)));
 
+  // ── Profitability (logged orders × per-product cost) ──────────────────────
+  const since = daysAgoISO(days);
+  const [{ data: orderRows }, { data: prodRows }] = await Promise.all([
+    supabase.from('orders').select('items').eq('tenant_id', tenant.id).gte('created_at', since),
+    supabase.from('products').select('id, name, cost').eq('tenant_id', tenant.id),
+  ]);
+  const costById = new Map(
+    ((prodRows ?? []) as { id: string; name: string; cost: number | null }[]).map((p) => [p.id, p]),
+  );
+  type Line = { productId?: string; qty?: number; basePrice?: number | null; selections?: { price?: number }[] };
+  const perProduct = new Map<string, { name: string; units: number; revenue: number; cost: number }>();
+  let pRevenue = 0;
+  let pCost = 0;
+  for (const o of (orderRows ?? []) as { items: Line[] }[]) {
+    for (const l of o.items ?? []) {
+      if (!l.productId) continue;
+      const qty = Number(l.qty) || 0;
+      const extras = (l.selections ?? []).reduce((s, x) => s + (Number(x.price) || 0), 0);
+      const rev = ((Number(l.basePrice) || 0) + extras) * qty;
+      const prod = costById.get(l.productId);
+      const cost = (Number(prod?.cost) || 0) * qty;
+      pRevenue += rev;
+      pCost += cost;
+      const cur = perProduct.get(l.productId) ?? { name: prod?.name ?? '—', units: 0, revenue: 0, cost: 0 };
+      cur.units += qty;
+      cur.revenue += rev;
+      cur.cost += cost;
+      perProduct.set(l.productId, cur);
+    }
+  }
+  const pProfit = pRevenue - pCost;
+  const pMargin = pRevenue > 0 ? (pProfit / pRevenue) * 100 : 0;
+  const topProfit = [...perProduct.values()]
+    .map((p) => ({ ...p, profit: p.revenue - p.cost }))
+    .sort((a, b) => b.profit - a.profit)
+    .slice(0, 10);
+
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -89,6 +126,8 @@ export default async function ReportsPage({
         <Kpi label={t('orders')} value={String(stat.total_orders ?? 0)} />
         <Kpi label={t('views')} value={String(stat.total_views ?? 0)} />
         <Kpi label={t('members')} value={String(loySummary.members ?? 0)} />
+        <Kpi label={t('profit')} value={formatPrice(pProfit, currency)} />
+        <Kpi label={t('margin')} value={`${Math.round(pMargin)}%`} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
@@ -157,6 +196,37 @@ export default async function ReportsPage({
                 </li>
               ))}
             </ol>
+          )}
+        </Card>
+
+        {/* Profitability by product */}
+        <Card>
+          <h2 className="mb-3 font-semibold">{t('profitByProduct')}</h2>
+          {topProfit.length === 0 ? (
+            <Empty label={t('noCostData')} />
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-neutral-400">
+                  <th className="pb-1 font-medium">{t('product')}</th>
+                  <th className="pb-1 text-right font-medium">{t('units')}</th>
+                  <th className="pb-1 text-right font-medium">{t('profit')}</th>
+                  <th className="pb-1 text-right font-medium">{t('margin')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topProfit.map((p, i) => (
+                  <tr key={i} className="border-t border-neutral-100">
+                    <td className="truncate py-1.5">{p.name}</td>
+                    <td className="py-1.5 text-right text-neutral-500">{p.units}</td>
+                    <td className="py-1.5 text-right font-medium">{formatPrice(p.profit, currency)}</td>
+                    <td className="py-1.5 text-right text-neutral-500">
+                      {p.revenue > 0 ? Math.round((p.profit / p.revenue) * 100) : 0}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </Card>
 

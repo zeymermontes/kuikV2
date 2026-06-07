@@ -109,6 +109,19 @@ export function ProductDrawer({
               }
             />
           </div>
+          <div className="flex-1">
+            <Label>{t('cost')}</Label>
+            <Input
+              type="number"
+              step="0.01"
+              inputMode="decimal"
+              placeholder={t('costHint')}
+              defaultValue={product.cost ?? ''}
+              onBlur={(e) =>
+                updateProduct(product.id, { cost: e.target.value === '' ? null : Number(e.target.value) })
+              }
+            />
+          </div>
         </div>
 
         <div className="flex gap-3">
