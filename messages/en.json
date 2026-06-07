@@ -352,6 +352,13 @@
     "collectPickupTime": "Ask for time (pickup)",
     "collectTable": "Ask for table number (dine-in)"
   },
+  "tables": {
+    "title": "Table QR codes",
+    "subtitle": "Print one QR per table. Scanning it sets the order to dine-in with that table number.",
+    "count": "Number of tables",
+    "print": "Print QR codes",
+    "table": "Table"
+  },
   "hours": {
     "mon": "Mon",
     "tue": "Tue",

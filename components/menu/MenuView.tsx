@@ -109,6 +109,7 @@ export function MenuView({
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [query, setQuery] = useState('');
   const [activeTags, setActiveTags] = useState<string[]>([]);
+  const [presetTable, setPresetTable] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [navStuck, setNavStuck] = useState(false);
@@ -183,6 +184,14 @@ export function MenuView({
     },
     [trackView],
   );
+
+  // Table QR: /menu?mesa=<n> pre-selects dine-in with that table number.
+  useEffect(() => {
+    const m = new URLSearchParams(window.location.search).get('mesa');
+    if (!m) return;
+    const id = setTimeout(() => setPresetTable(m), 0);
+    return () => clearTimeout(id);
+  }, []);
 
   // Deep link from the landing's featured row: /menu?product=<id> opens its
   // detail and scrolls the menu to that product.
@@ -574,6 +583,7 @@ export function MenuView({
           currency={currency}
           locale={locale}
           lines={lines}
+          presetTable={presetTable}
           onClose={() => setSheetOpen(false)}
           onInc={(key) => dispatch({ type: 'inc', key })}
           onDec={(key) => dispatch({ type: 'dec', key })}

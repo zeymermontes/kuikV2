@@ -21,6 +21,7 @@ export function CartSheet({
   currency,
   locale,
   lines,
+  presetTable,
   onClose,
   onInc,
   onDec,
@@ -34,6 +35,7 @@ export function CartSheet({
   currency: string;
   locale: string;
   lines: CartLine[];
+  presetTable?: string | null;
   onClose: () => void;
   onInc: (key: string) => void;
   onDec: (key: string) => void;
@@ -42,7 +44,10 @@ export function CartSheet({
 }) {
   const t = useTranslations('menu');
   const serviceTypes = ordering.service_types.length > 0 ? ordering.service_types : (['pickup'] as ServiceType[]);
-  const [service, setService] = useState<ServiceType>(serviceTypes[0]);
+  // A table QR (?mesa=) defaults to dine-in at that table.
+  const [service, setService] = useState<ServiceType>(
+    presetTable && serviceTypes.includes('dinein') ? 'dinein' : serviceTypes[0],
+  );
   const [tip, setTip] = useState(0);
   const [customerName, setCustomerName] = useState('');
   const [address, setAddress] = useState('');
@@ -69,7 +74,7 @@ export function CartSheet({
     }
   }
   const [pickupTime, setPickupTime] = useState('');
-  const [table, setTable] = useState('');
+  const [table, setTable] = useState(presetTable ?? '');
   const [sending, setSending] = useState(false);
 
   // Lock background scroll while the sheet is open (only the sheet scrolls; keeps

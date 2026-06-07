@@ -352,6 +352,13 @@
     "collectPickupTime": "Pedir hora (para recoger)",
     "collectTable": "Pedir número de mesa (comer aquí)"
   },
+  "tables": {
+    "title": "QR por mesa",
+    "subtitle": "Imprime un QR por mesa. Al escanearlo, el pedido se marca para comer aquí con su número de mesa.",
+    "count": "Número de mesas",
+    "print": "Imprimir QRs",
+    "table": "Mesa"
+  },
   "hours": {
     "mon": "Lun",
     "tue": "Mar",
