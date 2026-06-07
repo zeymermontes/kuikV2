@@ -139,14 +139,12 @@ export function ProductSheet({
               );
             })}
 
-            {groups.length > 0 && (
-              <input
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder={t('notePlaceholder')}
-                className="mt-5 w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm focus:border-neutral-400 focus:outline-none"
-              />
-            )}
+            <input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder={t('notePlaceholder')}
+              className="mt-5 w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm focus:border-neutral-400 focus:outline-none"
+            />
           </div>
         </div>
 
