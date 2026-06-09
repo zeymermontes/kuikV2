@@ -1,4 +1,11 @@
 import type { SelectedOption } from '@/lib/menu-options';
+import type { Category, Product } from '@/lib/database.types';
+
+// Menu snapshot cached in IndexedDB so the POS can build orders offline.
+export interface PosMenu {
+  categories: Category[];
+  products: Product[];
+}
 
 // POS entities. All carry tenant_id and an `updated_at` ISO string used as the
 // last-write-wins clock for offline sync.

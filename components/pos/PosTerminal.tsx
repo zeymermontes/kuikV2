@@ -4,12 +4,28 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Plus, Wifi, WifiOff, CloudUpload, Check } from 'lucide-react';
 import { posDb } from '@/lib/pos/db';
-import { startSync, enqueueUpsert, newId, nowISO, type SyncState } from '@/lib/pos/sync';
-import type { PosTab } from '@/lib/pos/types';
+import { startSync, nowISO, type SyncState } from '@/lib/pos/sync';
+import { openTab } from '@/lib/pos/tabs';
+import type { PosTab, PosMenu } from '@/lib/pos/types';
+import { formatPrice } from '@/lib/utils';
+import { TabScreen } from './TabScreen';
 
-export function PosTerminal({ tenantId, userId }: { tenantId: string; userId: string }) {
+export function PosTerminal({
+  tenantId,
+  userId,
+  currency,
+  locale,
+  menu: initialMenu,
+}: {
+  tenantId: string;
+  userId: string;
+  currency: string;
+  locale: string;
+  menu: PosMenu;
+}) {
   const db = useMemo(() => posDb(tenantId), [tenantId]);
   const [sync, setSync] = useState<SyncState>({ online: true, live: false, pending: 0 });
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Register the POS service worker (offline shell).
   useEffect(() => {
@@ -18,8 +34,16 @@ export function PosTerminal({ tenantId, userId }: { tenantId: string; userId: st
     }
   }, []);
 
-  // Start the offline sync engine (outbox flush + realtime pull).
+  // Cache the menu for offline order building.
+  useEffect(() => {
+    db.menu_cache.put({ id: 'menu', data: initialMenu, cached_at: nowISO() });
+  }, [db, initialMenu]);
+
+  // Start the offline sync engine.
   useEffect(() => startSync(db, tenantId, setSync), [db, tenantId]);
+
+  const cached = useLiveQuery(() => db.menu_cache.get('menu'), [db]);
+  const menu = (cached?.data as PosMenu | undefined) ?? initialMenu;
 
   const tabs = useLiveQuery(
     () => db.tabs.where('status').anyOf('open', 'held').reverse().sortBy('updated_at'),
@@ -27,33 +51,31 @@ export function PosTerminal({ tenantId, userId }: { tenantId: string; userId: st
     [] as PosTab[],
   );
 
-  async function openTab() {
+  const selected = (tabs ?? []).find((t) => t.id === selectedId) ?? null;
+
+  async function newTab() {
     const label = window.prompt('Mesa / nombre de la cuenta')?.trim();
     if (label === undefined) return;
-    const t = nowISO();
-    const tab: PosTab = {
-      id: newId(),
-      tenant_id: tenantId,
-      branch_id: null,
-      table_label: label || null,
-      customer_name: null,
-      status: 'open',
-      opened_by: userId,
-      opened_at: t,
-      closed_at: null,
-      subtotal: 0,
-      tip: 0,
-      total: 0,
-      shift_id: null,
-      created_at: t,
-      updated_at: t,
-    };
-    await enqueueUpsert(db, 'tabs', tab);
+    const tab = await openTab(db, tenantId, userId, label || null);
+    setSelectedId(tab.id);
+  }
+
+  if (selected) {
+    return (
+      <TabScreen
+        db={db}
+        tab={selected}
+        menu={menu}
+        tenantId={tenantId}
+        currency={currency}
+        locale={locale}
+        onBack={() => setSelectedId(null)}
+      />
+    );
   }
 
   return (
     <div className="flex min-h-dvh flex-col bg-neutral-50 text-neutral-900">
-      {/* Status bar */}
       <header className="flex items-center justify-between border-b border-neutral-200 bg-white px-4 py-3">
         <h1 className="text-lg font-bold">Kuik POS</h1>
         <div className="flex items-center gap-3 text-sm">
@@ -75,10 +97,9 @@ export function PosTerminal({ tenantId, userId }: { tenantId: string; userId: st
         </div>
       </header>
 
-      {/* Tabs */}
       <main className="flex-1 p-4">
         <button
-          onClick={openTab}
+          onClick={newTab}
           className="mb-4 flex items-center gap-2 rounded-xl bg-neutral-900 px-4 py-3 font-semibold text-white"
         >
           <Plus className="h-5 w-5" /> Nueva cuenta
@@ -89,15 +110,19 @@ export function PosTerminal({ tenantId, userId }: { tenantId: string; userId: st
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {(tabs ?? []).map((tab) => (
-              <div key={tab.id} className="rounded-2xl border border-neutral-200 bg-white p-4">
+              <button
+                key={tab.id}
+                onClick={() => setSelectedId(tab.id)}
+                className="rounded-2xl border border-neutral-200 bg-white p-4 text-left active:bg-neutral-100"
+              >
                 <div className="flex items-center justify-between">
                   <span className="font-semibold">{tab.table_label || 'Cuenta'}</span>
                   <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
                     {tab.status === 'held' ? 'En espera' : 'Abierta'}
                   </span>
                 </div>
-                <p className="mt-2 text-sm text-neutral-400">${tab.total.toFixed(2)}</p>
-              </div>
+                <p className="mt-2 text-sm text-neutral-500">{formatPrice(tab.total, currency, locale)}</p>
+              </button>
             ))}
           </div>
         )}
