@@ -213,6 +213,7 @@ export function TabScreen({
             setShowPay(false);
             onPaid();
           }}
+          onFire={() => fireToKitchen(db, tenantId, userId, tab, live, stationOf)}
         />
       )}
     </div>

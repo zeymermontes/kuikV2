@@ -11,6 +11,7 @@ import { openShift, closeShift } from '@/lib/pos/payments';
 import type { PosTab, PosMenu, RegisterShift } from '@/lib/pos/types';
 import { formatPrice } from '@/lib/utils';
 import { TabScreen } from './TabScreen';
+import { PosModal } from './PosModal';
 
 export function PosTerminal({
   tenantId,
@@ -31,6 +32,9 @@ export function PosTerminal({
   const db = useMemo(() => posDb(tenantId), [tenantId]);
   const [sync, setSync] = useState<SyncState>({ online: true, live: false, pending: 0 });
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [modal, setModal] = useState<'newTab' | 'openReg' | 'closeReg' | null>(null);
+  const [field, setField] = useState('');
+  const [zShift, setZShift] = useState<RegisterShift | null>(null);
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
@@ -58,28 +62,27 @@ export function PosTerminal({
 
   const selected = (tabs ?? []).find((x) => x.id === selectedId) ?? null;
 
-  async function newTab() {
-    const label = window.prompt(t('tabPrompt'))?.trim();
-    if (label === undefined) return;
-    const tab = await openTab(db, tenantId, userId, label || null);
+  function openModal(kind: 'newTab' | 'openReg' | 'closeReg') {
+    setField('');
+    setModal(kind);
+  }
+
+  async function confirmNewTab() {
+    const tab = await openTab(db, tenantId, userId, field.trim() || null);
+    setModal(null);
     setSelectedId(tab.id);
   }
 
-  async function toggleRegister() {
-    if (!shift) {
-      const v = window.prompt(t('openCashPrompt'));
-      if (v === null) return;
-      await openShift(db, tenantId, userId, Number(v) || 0);
-    } else {
-      const v = window.prompt(t('closeCashPrompt'));
-      if (v === null) return;
-      const closed = await closeShift(db, shift as RegisterShift, userId, Number(v) || 0);
-      window.alert(
-        `${t('zTitle')}\n${t('zExpected')}: ${formatPrice(closed.expected_cash ?? 0, currency, locale)}\n` +
-          `${t('zCounted')}: ${formatPrice(closed.closing_cash ?? 0, currency, locale)}\n` +
-          `${t('zDiff')}: ${formatPrice(closed.over_short ?? 0, currency, locale)}`,
-      );
-    }
+  async function confirmOpenReg() {
+    await openShift(db, tenantId, userId, Number(field) || 0);
+    setModal(null);
+  }
+
+  async function confirmCloseReg() {
+    if (!shift) return;
+    const closed = await closeShift(db, shift as RegisterShift, userId, Number(field) || 0);
+    setModal(null);
+    setZShift(closed);
   }
 
   if (selected) {
@@ -137,13 +140,13 @@ export function PosTerminal({
       <main className="flex-1 p-4">
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <button
-            onClick={newTab}
+            onClick={() => openModal('newTab')}
             className="flex items-center gap-2 rounded-xl bg-neutral-900 px-4 py-3 font-semibold text-white"
           >
             <Plus className="h-5 w-5" /> {t('newTab')}
           </button>
           <button
-            onClick={toggleRegister}
+            onClick={() => openModal(shift ? 'closeReg' : 'openReg')}
             className={`rounded-xl border px-4 py-3 text-sm font-medium ${
               shift ? 'border-amber-300 text-amber-700' : 'border-neutral-300 text-neutral-600'
             }`}
@@ -179,6 +182,70 @@ export function PosTerminal({
           </div>
         )}
       </main>
+
+      {modal === 'newTab' && (
+        <PosModal title={t('newTab')} onClose={() => setModal(null)}>
+          <input
+            autoFocus
+            value={field}
+            onChange={(e) => setField(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && confirmNewTab()}
+            placeholder={t('tableLabelPh')}
+            className="mb-4 w-full rounded-xl border border-neutral-200 px-3 py-3 text-base focus:border-neutral-400 focus:outline-none"
+          />
+          <button onClick={confirmNewTab} className="w-full rounded-full bg-neutral-900 py-3 font-semibold text-white">
+            {t('create')}
+          </button>
+        </PosModal>
+      )}
+
+      {(modal === 'openReg' || modal === 'closeReg') && (
+        <PosModal title={modal === 'openReg' ? t('openRegister') : t('closeRegister')} onClose={() => setModal(null)}>
+          <label className="mb-1 block text-xs text-neutral-500">
+            {modal === 'openReg' ? t('openingCash') : t('countedCash')}
+          </label>
+          <input
+            autoFocus
+            type="number"
+            inputMode="decimal"
+            value={field}
+            onChange={(e) => setField(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && (modal === 'openReg' ? confirmOpenReg() : confirmCloseReg())}
+            placeholder="0"
+            className="mb-4 w-full rounded-xl border border-neutral-200 px-3 py-3 text-base focus:border-neutral-400 focus:outline-none"
+          />
+          <button
+            onClick={modal === 'openReg' ? confirmOpenReg : confirmCloseReg}
+            className="w-full rounded-full bg-neutral-900 py-3 font-semibold text-white"
+          >
+            {modal === 'openReg' ? t('openRegister') : t('closeRegister')}
+          </button>
+        </PosModal>
+      )}
+
+      {zShift && (
+        <PosModal title={t('zTitle')} onClose={() => setZShift(null)}>
+          <dl className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-neutral-500">{t('zExpected')}</dt>
+              <dd className="font-medium">{formatPrice(zShift.expected_cash ?? 0, currency, locale)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-neutral-500">{t('zCounted')}</dt>
+              <dd className="font-medium">{formatPrice(zShift.closing_cash ?? 0, currency, locale)}</dd>
+            </div>
+            <div className="flex justify-between border-t border-neutral-100 pt-2 text-base font-bold">
+              <dt>{t('zDiff')}</dt>
+              <dd className={zShift.over_short && zShift.over_short < 0 ? 'text-red-600' : 'text-green-600'}>
+                {formatPrice(zShift.over_short ?? 0, currency, locale)}
+              </dd>
+            </div>
+          </dl>
+          <button onClick={() => setZShift(null)} className="mt-5 w-full rounded-full bg-neutral-900 py-3 font-semibold text-white">
+            {t('done')}
+          </button>
+        </PosModal>
+      )}
     </div>
   );
 }

@@ -434,7 +434,21 @@
     "col_ready": "Ready",
     "advance": "Advance",
     "deliver": "Deliver",
-    "counter": "Counter"
+    "counter": "Counter",
+    "cancel": "Cancel",
+    "create": "Create tab",
+    "tableLabelPh": "Table or name (optional)",
+    "openingCash": "Opening cash",
+    "countedCash": "Counted cash",
+    "paidTitle": "Payment complete",
+    "paidSubtitle": "{x} charged",
+    "sendKitchenQ": "Send the order to the kitchen?",
+    "sendKitchen": "Send to kitchen",
+    "noClose": "No, close",
+    "done": "Done",
+    "exact": "Exact",
+    "chargeClose": "Charge & close",
+    "due": "Due"
   },
   "orders": {
     "title": "Orders",

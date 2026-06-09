@@ -434,7 +434,21 @@
     "col_ready": "Listas",
     "advance": "Avanzar",
     "deliver": "Entregar",
-    "counter": "Mostrador"
+    "counter": "Mostrador",
+    "cancel": "Cancelar",
+    "create": "Crear cuenta",
+    "tableLabelPh": "Mesa o nombre (opcional)",
+    "openingCash": "Efectivo de apertura",
+    "countedCash": "Efectivo contado",
+    "paidTitle": "Pago completo",
+    "paidSubtitle": "{x} cobrado",
+    "sendKitchenQ": "¿Enviar el pedido a cocina?",
+    "sendKitchen": "Enviar a cocina",
+    "noClose": "No, cerrar",
+    "done": "Listo",
+    "exact": "Exacto",
+    "chargeClose": "Cobrar y cerrar",
+    "due": "Falta"
   },
   "orders": {
     "title": "Pedidos",
