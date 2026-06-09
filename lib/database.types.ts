@@ -3,7 +3,7 @@
 //   supabase gen types typescript --linked > lib/database.types.ts
 
 export type UserRole = 'owner' | 'super_admin';
-export type MemberRole = 'owner' | 'manager' | 'waiter';
+export type MemberRole = 'owner' | 'manager' | 'cashier' | 'waiter';
 
 export interface TenantMember {
   tenant_id: string;

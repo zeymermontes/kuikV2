@@ -40,6 +40,7 @@ export async function updateCategory(
     banner_name: string | null;
     banner_image_url: string | null;
     is_visible: boolean;
+    station: string | null;
   }>,
 ) {
   const { subdomain, supabase } = await ctx();

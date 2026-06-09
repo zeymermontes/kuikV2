@@ -37,11 +37,11 @@ import { LocaleSwitch } from './LocaleSwitch';
 // `roles` lists which member roles see each item.
 const NAV = [
   { href: '/dashboard', icon: LayoutDashboard, key: 'dashboard', roles: ['owner', 'manager'] },
-  { href: '/menu', icon: UtensilsCrossed, key: 'menu', roles: ['owner', 'manager', 'waiter'] },
-  { href: '/orders', icon: ClipboardList, key: 'orders', roles: ['owner', 'manager', 'waiter'] },
-  { href: '/pos', icon: Calculator, key: 'pos', roles: ['owner', 'manager', 'waiter'] },
-  { href: '/kds', icon: Monitor, key: 'kds', roles: ['owner', 'manager', 'waiter'] },
-  { href: '/reservations', icon: CalendarCheck, key: 'reservations', roles: ['owner', 'manager', 'waiter'] },
+  { href: '/menu', icon: UtensilsCrossed, key: 'menu', roles: ['owner', 'manager', 'cashier', 'waiter'] },
+  { href: '/orders', icon: ClipboardList, key: 'orders', roles: ['owner', 'manager', 'cashier', 'waiter'] },
+  { href: '/pos', icon: Calculator, key: 'pos', roles: ['owner', 'manager', 'cashier', 'waiter'] },
+  { href: '/kds', icon: Monitor, key: 'kds', roles: ['owner', 'manager', 'cashier', 'waiter'] },
+  { href: '/reservations', icon: CalendarCheck, key: 'reservations', roles: ['owner', 'manager', 'cashier', 'waiter'] },
   { href: '/loyalty', icon: Gift, key: 'loyalty', roles: ['owner', 'manager', 'waiter'] },
   { href: '/reports', icon: BarChart3, key: 'reports', roles: ['owner', 'manager'] },
   { href: '/branches', icon: Store, key: 'branches', roles: ['owner', 'manager'] },

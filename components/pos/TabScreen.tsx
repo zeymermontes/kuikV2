@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useTranslations } from 'next-intl';
 import { ChevronLeft, Plus, Minus, Trash2 } from 'lucide-react';
 import type { PosDexie } from '@/lib/pos/db';
 import type { PosTab, PosMenu, TabItem } from '@/lib/pos/types';
@@ -39,6 +40,7 @@ export function TabScreen({
   onBack: () => void;
   onPaid: () => void;
 }) {
+  const t = useTranslations('pos');
   const [activeCat, setActiveCat] = useState<string>(menu.categories[0]?.id ?? '');
   const [sheetProduct, setSheetProduct] = useState<Product | null>(null);
   const [showPay, setShowPay] = useState(false);
@@ -92,21 +94,21 @@ export function TabScreen({
             <ChevronLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="font-bold">{tab.table_label || 'Cuenta'}</h1>
-            <p className="text-xs text-neutral-400">{live.length} artículos</p>
+            <h1 className="font-bold">{tab.table_label || t('tab')}</h1>
+            <p className="text-xs text-neutral-400">{t('items', { n: live.length })}</p>
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto px-3 py-2">
           {live.length === 0 ? (
-            <p className="py-10 text-center text-sm text-neutral-400">Agrega productos del menú →</p>
+            <p className="py-10 text-center text-sm text-neutral-400">{t('addHint')}</p>
           ) : (
             live.map((it) => (
               <div key={it.id} className="flex items-start justify-between gap-2 border-b border-neutral-50 py-2">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">
                     {it.name}
-                    {it.fired_at && <span className="ml-1.5 text-[10px] font-semibold text-green-600">✓ cocina</span>}
+                    {it.fired_at && <span className="ml-1.5 text-[10px] font-semibold text-green-600">{t('fired')}</span>}
                   </p>
                   {it.selections.length > 0 && (
                     <p className="text-xs text-neutral-400">{it.selections.map((s) => s.name).join(', ')}</p>
@@ -132,7 +134,7 @@ export function TabScreen({
 
         <footer className="space-y-2 border-t border-neutral-100 px-4 py-3">
           <div className="flex items-center justify-between text-lg font-bold">
-            <span>Total</span>
+            <span>{t('total')}</span>
             <span>{formatPrice(subtotal, currency, locale)}</span>
           </div>
           <div className="flex gap-2">
@@ -141,14 +143,14 @@ export function TabScreen({
               disabled={unfired.length === 0}
               className="flex-1 rounded-full border border-neutral-300 py-3 font-semibold text-neutral-700 disabled:opacity-40"
             >
-              Enviar a cocina{unfired.length > 0 ? ` (${unfired.length})` : ''}
+              {t('fireKitchen')}{unfired.length > 0 ? ` (${unfired.length})` : ''}
             </button>
             <button
               onClick={() => setShowPay(true)}
               disabled={live.length === 0}
               className="flex-1 rounded-full bg-green-600 py-3 font-semibold text-white disabled:opacity-40"
             >
-              Cobrar
+              {t('charge')}
             </button>
           </div>
         </footer>

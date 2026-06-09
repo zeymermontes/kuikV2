@@ -2,13 +2,16 @@ import { getLocale } from 'next-intl/server';
 import { requireTenant } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { resolveMenuSettings } from '@/lib/menu-settings';
+import { isPro } from '@/lib/plan';
 import type { Category, Product } from '@/lib/database.types';
 import { PosTerminal } from '@/components/pos/PosTerminal';
+import { PosLocked } from '@/components/pos/PosLocked';
 
 export const dynamic = 'force-dynamic';
 
 export default async function PosPage() {
-  const { tenant, user, theme } = await requireTenant();
+  const { tenant, user, theme, subscription } = await requireTenant();
+  if (!isPro(subscription)) return <PosLocked title="POS" />;
   const supabase = await createClient();
   const locale = await getLocale();
 

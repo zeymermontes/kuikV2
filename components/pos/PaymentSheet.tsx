@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useTranslations } from 'next-intl';
 import { X, Check, Printer } from 'lucide-react';
 import type { PosDexie } from '@/lib/pos/db';
 import type { PosTab, Payment, PaymentMethod, TabItem } from '@/lib/pos/types';
@@ -10,12 +11,6 @@ import { printReceipt } from '@/lib/pos/print';
 import { formatPrice } from '@/lib/utils';
 
 const METHODS: PaymentMethod[] = ['cash', 'card', 'transfer', 'other'];
-const METHOD_LABEL: Record<PaymentMethod, string> = {
-  cash: 'Efectivo',
-  card: 'Tarjeta',
-  transfer: 'Transfer.',
-  other: 'Otro',
-};
 
 export function PaymentSheet({
   db,
@@ -40,6 +35,8 @@ export function PaymentSheet({
   onClose: () => void;
   onPaid: () => void;
 }) {
+  const t = useTranslations('pos');
+  const methodLabel = (m: PaymentMethod) => t(`method_${m}`);
   const payments = useLiveQuery(
     () => db.payments.where('tab_id').equals(tab.id).toArray(),
     [db, tab.id],
@@ -104,24 +101,24 @@ export function PaymentSheet({
         </button>
 
         <div className="mb-1 flex items-center justify-between">
-          <h2 className="text-lg font-bold">Cobrar</h2>
+          <h2 className="text-lg font-bold">{t('charge')}</h2>
           <button
             onClick={() => printReceipt(tab, items ?? [], payments ?? [], restaurantName, currency, locale)}
             className="flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-900"
           >
-            <Printer className="h-4 w-4" /> Recibo
+            <Printer className="h-4 w-4" /> {t('receipt')}
           </button>
         </div>
         <div className="mb-4 flex items-center justify-between text-sm">
-          <span className="text-neutral-500">Total {formatPrice(tab.total, currency, locale)}</span>
-          <span className="font-semibold">Falta {formatPrice(due, currency, locale)}</span>
+          <span className="text-neutral-500">{t('totalLabel', { x: formatPrice(tab.total, currency, locale) })}</span>
+          <span className="font-semibold">{t('dueLabel', { x: formatPrice(due, currency, locale) })}</span>
         </div>
 
         {(payments ?? []).length > 0 && (
           <ul className="mb-4 space-y-1 text-sm">
             {(payments ?? []).map((p) => (
               <li key={p.id} className="flex justify-between text-neutral-500">
-                <span>{METHOD_LABEL[p.method]}</span>
+                <span>{methodLabel(p.method)}</span>
                 <span>{formatPrice(p.amount, currency, locale)}</span>
               </li>
             ))}
@@ -139,12 +136,12 @@ export function PaymentSheet({
                     method === m ? 'bg-neutral-900 text-white' : 'border border-neutral-300 text-neutral-600'
                   }`}
                 >
-                  {METHOD_LABEL[m]}
+                  {methodLabel(m)}
                 </button>
               ))}
             </div>
 
-            <label className="mb-1 block text-xs text-neutral-500">Monto</label>
+            <label className="mb-1 block text-xs text-neutral-500">{t('amount')}</label>
             <input
               type="number"
               inputMode="decimal"
@@ -155,7 +152,7 @@ export function PaymentSheet({
 
             {method === 'cash' && (
               <>
-                <label className="mb-1 block text-xs text-neutral-500">Recibido</label>
+                <label className="mb-1 block text-xs text-neutral-500">{t('received')}</label>
                 <input
                   type="number"
                   inputMode="decimal"
@@ -166,14 +163,14 @@ export function PaymentSheet({
                 />
                 {change > 0 && (
                   <p className="mb-2 text-sm font-semibold text-green-600">
-                    Cambio: {formatPrice(change, currency, locale)}
+                    {t('change', { x: formatPrice(change, currency, locale) })}
                   </p>
                 )}
               </>
             )}
 
             <button onClick={record} className="mt-2 w-full rounded-full bg-neutral-900 py-3 font-semibold text-white">
-              Registrar pago
+              {t('recordPayment')}
             </button>
           </>
         ) : (
@@ -181,7 +178,7 @@ export function PaymentSheet({
             onClick={finish}
             className="flex w-full items-center justify-center gap-2 rounded-full bg-green-600 py-3 font-semibold text-white"
           >
-            <Check className="h-5 w-5" /> Cerrar cuenta
+            <Check className="h-5 w-5" /> {t('closeTab')}
           </button>
         )}
       </div>

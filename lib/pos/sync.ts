@@ -47,6 +47,11 @@ export async function pendingCount(db: PosDexie): Promise<number> {
   return db.outbox.where('status').equals('pending').count();
 }
 
+/** Requeue mutations that hit a hard (rejected) error so they flush again. */
+export async function retryDead(db: PosDexie): Promise<void> {
+  await db.outbox.where('status').equals('dead').modify({ status: 'pending', attempts: 0, error: undefined });
+}
+
 /** Flush queued mutations to Supabase in order. Network errors retry; hard errors go to `dead`. */
 export async function flushOutbox(db: PosDexie, supabase: Supabase): Promise<void> {
   const pending = await db.outbox.where('status').equals('pending').sortBy('seq');

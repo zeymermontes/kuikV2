@@ -7,7 +7,7 @@ import type { TenantMember, TenantInvite, MemberRole } from '@/lib/database.type
 import { Card, Input, Button } from '@/components/ui';
 import { inviteStaff, changeRole, removeMember, cancelInvite } from '@/app/(dashboard)/staff/actions';
 
-const STAFF_ROLES: MemberRole[] = ['manager', 'waiter'];
+const STAFF_ROLES: MemberRole[] = ['manager', 'cashier', 'waiter'];
 
 export function StaffManager({
   currentUserId,

@@ -1,16 +1,17 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Clock, Check, Printer } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { nowISO, nowMs } from '@/lib/pos/sync';
 import { printKitchenTicket } from '@/lib/pos/print';
 import type { KitchenTicket, TicketStatus } from '@/lib/pos/types';
 
-const COLUMNS: { status: TicketStatus; next: TicketStatus; label: string; tone: string }[] = [
-  { status: 'new', next: 'preparing', label: 'Nuevas', tone: 'border-blue-200 bg-blue-50' },
-  { status: 'preparing', next: 'ready', label: 'Preparando', tone: 'border-amber-200 bg-amber-50' },
-  { status: 'ready', next: 'served', label: 'Listas', tone: 'border-green-200 bg-green-50' },
+const COLUMNS: { status: TicketStatus; next: TicketStatus; key: string; tone: string }[] = [
+  { status: 'new', next: 'preparing', key: 'col_new', tone: 'border-blue-200 bg-blue-50' },
+  { status: 'preparing', next: 'ready', key: 'col_preparing', tone: 'border-amber-200 bg-amber-50' },
+  { status: 'ready', next: 'served', key: 'col_ready', tone: 'border-green-200 bg-green-50' },
 ];
 
 function beep() {
@@ -28,6 +29,7 @@ function beep() {
 }
 
 export function KdsBoard({ tenantId, station, locale }: { tenantId: string; station: string | null; locale: string }) {
+  const t = useTranslations('pos');
   const supabase = useMemo(() => createClient(), []);
   const [tickets, setTickets] = useState<KitchenTicket[]>([]);
   const [now, setNow] = useState(0);
@@ -100,7 +102,7 @@ export function KdsBoard({ tenantId, station, locale }: { tenantId: string; stat
   return (
     <div className="min-h-dvh bg-neutral-900 p-4 text-neutral-100">
       <div className="mb-3 flex items-center justify-between">
-        <h1 className="text-lg font-bold">Cocina {station ? `· ${station}` : ''}</h1>
+        <h1 className="text-lg font-bold">{t('kitchen')} {station ? `· ${station}` : ''}</h1>
       </div>
       <div className="grid gap-4 md:grid-cols-3">
         {COLUMNS.map((col) => {
@@ -108,18 +110,18 @@ export function KdsBoard({ tenantId, station, locale }: { tenantId: string; stat
           return (
             <div key={col.status} className="rounded-2xl bg-neutral-800 p-3">
               <h2 className="mb-3 flex items-center justify-between font-semibold">
-                {col.label}
+                {t(col.key)}
                 <span className="rounded-full bg-neutral-700 px-2 py-0.5 text-xs">{items.length}</span>
               </h2>
               <div className="space-y-3">
-                {items.map((t) => {
-                  const its = (t.items as { name: string; qty: number; selections?: { name: string }[]; note?: string }[]) ?? [];
+                {items.map((tk) => {
+                  const its = (tk.items as { name: string; qty: number; selections?: { name: string }[]; note?: string }[]) ?? [];
                   return (
-                    <div key={t.id} className={`rounded-xl border bg-white p-3 text-neutral-900 ${col.tone}`}>
+                    <div key={tk.id} className={`rounded-xl border bg-white p-3 text-neutral-900 ${col.tone}`}>
                       <div className="mb-2 flex items-center justify-between text-xs">
-                        <span className="font-semibold">{t.table_label || 'Mostrador'}</span>
-                        <span className={`flex items-center gap-1 ${tone(t.fired_at)}`}>
-                          <Clock className="h-3 w-3" /> {mins(t.fired_at)}m
+                        <span className="font-semibold">{tk.table_label || t('counter')}</span>
+                        <span className={`flex items-center gap-1 ${tone(tk.fired_at)}`}>
+                          <Clock className="h-3 w-3" /> {mins(tk.fired_at)}m
                         </span>
                       </div>
                       <ul className="space-y-1 text-sm">
@@ -135,13 +137,13 @@ export function KdsBoard({ tenantId, station, locale }: { tenantId: string; stat
                       </ul>
                       <div className="mt-3 flex gap-2">
                         <button
-                          onClick={() => advance(t, col.next)}
+                          onClick={() => advance(tk, col.next)}
                           className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-neutral-900 py-2 text-sm font-semibold text-white"
                         >
-                          <Check className="h-4 w-4" /> {col.status === 'ready' ? 'Entregar' : 'Avanzar'}
+                          <Check className="h-4 w-4" /> {col.status === 'ready' ? t('deliver') : t('advance')}
                         </button>
                         <button
-                          onClick={() => printKitchenTicket(t, locale)}
+                          onClick={() => printKitchenTicket(tk, locale)}
                           className="rounded-lg border border-neutral-300 px-2 text-neutral-500"
                         >
                           <Printer className="h-4 w-4" />
