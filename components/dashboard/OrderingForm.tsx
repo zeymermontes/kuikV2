@@ -158,6 +158,49 @@ export function OrderingForm({ ordering }: { ordering: TenantOrdering }) {
         <ToggleRow label={t('collectPickupTime')} checked={o.collect_pickup_time} onChange={(v) => set('collect_pickup_time', v)} />
         <ToggleRow label={t('collectTable')} checked={o.collect_table} onChange={(v) => set('collect_table', v)} />
       </Card>
+
+      {/* POS cash count */}
+      <Card className="space-y-3">
+        <div>
+          <h2 className="font-semibold">{t('cashCount')}</h2>
+          <p className="text-sm text-neutral-500">{t('cashCountHint')}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => set('cash_count_mode', 'total')}
+            className={`rounded-xl border px-3 py-3 text-sm font-semibold ${
+              o.cash_count_mode !== 'denominations' ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-300 text-neutral-600'
+            }`}
+          >
+            {t('cashTotal')}
+          </button>
+          <button
+            onClick={() => set('cash_count_mode', 'denominations')}
+            className={`rounded-xl border px-3 py-3 text-sm font-semibold ${
+              o.cash_count_mode === 'denominations' ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-300 text-neutral-600'
+            }`}
+          >
+            {t('cashDenoms')}
+          </button>
+        </div>
+        {o.cash_count_mode === 'denominations' && (
+          <div>
+            <Label>{t('cashDenomList')}</Label>
+            <Input
+              defaultValue={(o.cash_denominations ?? []).join(', ')}
+              placeholder="1000, 500, 200, 100, 50, 20, 10, 5, 2, 1"
+              onBlur={(e) => {
+                const list = e.target.value
+                  .split(',')
+                  .map((x) => parseFloat(x.trim()))
+                  .filter((n) => Number.isFinite(n) && n > 0);
+                set('cash_denominations', list.length ? list : null);
+              }}
+            />
+            <p className="mt-1 text-xs text-neutral-400">{t('cashDenomListHint')}</p>
+          </div>
+        )}
+      </Card>
       </>
       )}
     </div>

@@ -23,6 +23,8 @@ export function PosTerminal({
   restaurantName,
   currency,
   locale,
+  cashCountMode,
+  cashDenominations,
   menu: initialMenu,
 }: {
   tenantId: string;
@@ -30,6 +32,8 @@ export function PosTerminal({
   restaurantName: string;
   currency: string;
   locale: string;
+  cashCountMode: 'total' | 'denominations';
+  cashDenominations: number[] | null;
   menu: PosMenu;
 }) {
   const t = useTranslations('pos');
@@ -253,8 +257,29 @@ export function PosTerminal({
       )}
 
       {modal === 'closeReg' && (
-        <PosModal title={t('denomTitle')} onClose={() => setModal(null)}>
-          <DenomCount onTotal={(tot) => setField(String(tot))} currency={currency} locale={locale} />
+        <PosModal title={cashCountMode === 'denominations' ? t('denomTitle') : t('closeRegister')} onClose={() => setModal(null)}>
+          {cashCountMode === 'denominations' ? (
+            <DenomCount
+              onTotal={(tot) => setField(String(tot))}
+              currency={currency}
+              locale={locale}
+              denoms={cashDenominations ?? undefined}
+            />
+          ) : (
+            <>
+              <label className="mb-1 block text-xs text-neutral-500">{t('countedCash')}</label>
+              <input
+                autoFocus
+                type="number"
+                inputMode="decimal"
+                value={field}
+                onChange={(e) => setField(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && confirmCloseReg()}
+                placeholder="0"
+                className="w-full rounded-xl border border-neutral-200 px-3 py-3 text-base focus:border-neutral-400 focus:outline-none"
+              />
+            </>
+          )}
           <button onClick={confirmCloseReg} className="mt-4 w-full rounded-full bg-neutral-900 py-3 font-semibold text-white">
             {t('closeRegister')}
           </button>

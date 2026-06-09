@@ -101,6 +101,8 @@ export interface TenantOrdering {
   collect_address: boolean;
   collect_pickup_time: boolean;
   collect_table: boolean;
+  cash_count_mode: 'total' | 'denominations';
+  cash_denominations: number[] | null;
   updated_at: string;
 }
 

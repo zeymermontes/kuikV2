@@ -357,6 +357,12 @@
     "tips": "Propinas sugeridas (%)",
     "tipsHint": "Separadas por comas, ej. 10, 15, 20",
     "customerFields": "Datos del cliente",
+    "cashCount": "Conteo de efectivo (POS)",
+    "cashCountHint": "Cómo cuentas el efectivo al cerrar la caja.",
+    "cashTotal": "Solo total",
+    "cashDenoms": "Por denominación",
+    "cashDenomList": "Denominaciones",
+    "cashDenomListHint": "Separadas por coma. Vacío = predeterminadas.",
     "collectAddress": "Pedir dirección (a domicilio)",
     "collectPickupTime": "Pedir hora (para recoger)",
     "collectTable": "Pedir número de mesa (comer aquí)"

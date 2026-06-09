@@ -357,6 +357,12 @@
     "tips": "Suggested tips (%)",
     "tipsHint": "Comma-separated, e.g. 10, 15, 20",
     "customerFields": "Customer details",
+    "cashCount": "Cash count (POS)",
+    "cashCountHint": "How you count cash when closing the register.",
+    "cashTotal": "Total only",
+    "cashDenoms": "By denomination",
+    "cashDenomList": "Denominations",
+    "cashDenomListHint": "Comma-separated. Empty = defaults.",
     "collectAddress": "Ask for address (delivery)",
     "collectPickupTime": "Ask for time (pickup)",
     "collectTable": "Ask for table number (dine-in)"

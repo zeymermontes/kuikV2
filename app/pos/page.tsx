@@ -15,7 +15,7 @@ export default async function PosPage() {
   const supabase = await createClient();
   const locale = await getLocale();
 
-  const [{ data: categories }, { data: products }] = await Promise.all([
+  const [{ data: categories }, { data: products }, { data: ordering }] = await Promise.all([
     supabase
       .from('categories')
       .select('*')
@@ -24,9 +24,11 @@ export default async function PosPage() {
       .eq('is_visible', true)
       .order('position'),
     supabase.from('products').select('*').eq('tenant_id', tenant.id).eq('is_hidden', false).order('position'),
+    supabase.from('tenant_ordering').select('cash_count_mode, cash_denominations').eq('tenant_id', tenant.id).maybeSingle(),
   ]);
 
   const currency = resolveMenuSettings(theme.settings).currency;
+  const cash = (ordering as { cash_count_mode?: 'total' | 'denominations'; cash_denominations?: number[] | null } | null) ?? null;
 
   return (
     <PosTerminal
@@ -35,6 +37,8 @@ export default async function PosPage() {
       restaurantName={tenant.name}
       currency={currency}
       locale={locale}
+      cashCountMode={cash?.cash_count_mode ?? 'total'}
+      cashDenominations={cash?.cash_denominations ?? null}
       menu={{ categories: (categories ?? []) as Category[], products: (products ?? []) as Product[] }}
     />
   );

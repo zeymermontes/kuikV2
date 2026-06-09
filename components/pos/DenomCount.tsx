@@ -3,31 +3,33 @@
 import { useState } from 'react';
 import { formatPrice } from '@/lib/utils';
 
-const DENOMS = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1];
+const DEFAULT_DENOMS = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1];
 
 /** Count cash by denomination; reports the running total to the parent. */
 export function DenomCount({
   onTotal,
   currency,
   locale,
+  denoms = DEFAULT_DENOMS,
 }: {
   onTotal: (total: number) => void;
   currency: string;
   locale: string;
+  denoms?: number[];
 }) {
   const [counts, setCounts] = useState<Record<number, number>>({});
-  const total = DENOMS.reduce((s, d) => s + d * (counts[d] || 0), 0);
+  const total = denoms.reduce((s, d) => s + d * (counts[d] || 0), 0);
 
   function set(d: number, n: number) {
     const next = { ...counts, [d]: Math.max(0, n) };
     setCounts(next);
-    onTotal(DENOMS.reduce((s, x) => s + x * (next[x] || 0), 0));
+    onTotal(denoms.reduce((s, x) => s + x * (next[x] || 0), 0));
   }
 
   return (
     <div>
       <div className="max-h-56 space-y-1.5 overflow-y-auto pr-1">
-        {DENOMS.map((d) => (
+        {denoms.map((d) => (
           <div key={d} className="flex items-center gap-2">
             <span className="w-20 text-sm text-neutral-500">{formatPrice(d, currency, locale)}</span>
             <span className="text-neutral-300">×</span>
