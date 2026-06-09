@@ -12,6 +12,7 @@ import type { PosTab, PosMenu, RegisterShift } from '@/lib/pos/types';
 import { formatPrice } from '@/lib/utils';
 import { TabScreen } from './TabScreen';
 import { PosModal } from './PosModal';
+import { ZReport } from './ZReport';
 
 export function PosTerminal({
   tenantId,
@@ -37,8 +38,15 @@ export function PosTerminal({
   const [zShift, setZShift] = useState<RegisterShift | null>(null);
 
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
+    if (!('serviceWorker' in navigator)) return;
+    if (process.env.NODE_ENV === 'production') {
       navigator.serviceWorker.register('/sw-pos.js', { scope: '/pos' }).catch(() => {});
+    } else {
+      // In dev, make sure no stale POS service worker serves cached bundles.
+      navigator.serviceWorker.getRegistrations().then((regs) =>
+        regs.filter((r) => r.scope.includes('/pos')).forEach((r) => r.unregister()),
+      );
+      caches?.keys?.().then((keys) => keys.filter((k) => k.startsWith('kuik-pos')).forEach((k) => caches.delete(k)));
     }
   }, []);
 
@@ -224,27 +232,7 @@ export function PosTerminal({
       )}
 
       {zShift && (
-        <PosModal title={t('zTitle')} onClose={() => setZShift(null)}>
-          <dl className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-neutral-500">{t('zExpected')}</dt>
-              <dd className="font-medium">{formatPrice(zShift.expected_cash ?? 0, currency, locale)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-neutral-500">{t('zCounted')}</dt>
-              <dd className="font-medium">{formatPrice(zShift.closing_cash ?? 0, currency, locale)}</dd>
-            </div>
-            <div className="flex justify-between border-t border-neutral-100 pt-2 text-base font-bold">
-              <dt>{t('zDiff')}</dt>
-              <dd className={zShift.over_short && zShift.over_short < 0 ? 'text-red-600' : 'text-green-600'}>
-                {formatPrice(zShift.over_short ?? 0, currency, locale)}
-              </dd>
-            </div>
-          </dl>
-          <button onClick={() => setZShift(null)} className="mt-5 w-full rounded-full bg-neutral-900 py-3 font-semibold text-white">
-            {t('done')}
-          </button>
-        </PosModal>
+        <ZReport db={db} shift={zShift} currency={currency} locale={locale} onClose={() => setZShift(null)} />
       )}
     </div>
   );

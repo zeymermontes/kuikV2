@@ -1,9 +1,10 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Image from 'next/image';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslations } from 'next-intl';
-import { ChevronLeft, Plus, Minus, Trash2 } from 'lucide-react';
+import { ChevronLeft, Plus, Minus, Trash2, UtensilsCrossed } from 'lucide-react';
 import type { PosDexie } from '@/lib/pos/db';
 import type { PosTab, PosMenu, TabItem } from '@/lib/pos/types';
 import { addLineToTab, setItemQty, voidItem } from '@/lib/pos/tabs';
@@ -171,19 +172,44 @@ export function TabScreen({
             </button>
           ))}
         </div>
-        <div className="grid flex-1 grid-cols-2 gap-2 overflow-y-auto p-3 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid flex-1 grid-cols-3 content-start gap-2.5 overflow-y-auto p-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {products.map((p) => (
             <button
               key={p.id}
               onClick={() => tapProduct(p)}
-              className="flex flex-col justify-between rounded-xl border border-neutral-200 bg-white p-3 text-left active:bg-neutral-100"
+              className="group flex flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white text-left shadow-sm transition active:scale-[0.97]"
             >
-              <span className="text-sm font-medium">{p.name}</span>
-              {p.price != null && (
-                <span className="mt-2 text-sm text-neutral-500">{formatPrice(p.price, currency, locale)}</span>
-              )}
+              <div className="relative aspect-square w-full bg-neutral-100">
+                {p.image_url ? (
+                  <Image
+                    src={p.image_url}
+                    alt={p.name}
+                    fill
+                    sizes="(min-width:1024px) 18vw, 30vw"
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-neutral-300">
+                    <UtensilsCrossed className="h-7 w-7" />
+                  </div>
+                )}
+                {hasOptions(p) && (
+                  <span className="absolute right-1.5 top-1.5 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                    +
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-1 flex-col justify-between p-2">
+                <p className="line-clamp-2 text-xs font-medium leading-tight">{p.name}</p>
+                {p.price != null && (
+                  <p className="mt-1 text-xs font-bold text-neutral-700">{formatPrice(p.price, currency, locale)}</p>
+                )}
+              </div>
             </button>
           ))}
+          {products.length === 0 && (
+            <p className="col-span-full py-10 text-center text-sm text-neutral-400">—</p>
+          )}
         </div>
       </section>
 
