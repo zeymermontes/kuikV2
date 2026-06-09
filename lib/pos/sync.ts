@@ -9,6 +9,7 @@ type Supabase = ReturnType<typeof createClient>;
 type Row = { id: string; updated_at: string; tenant_id: string };
 
 export const nowISO = () => new Date().toISOString();
+export const nowMs = () => Date.now();
 export const newId = () => crypto.randomUUID();
 
 function tableFor(db: PosDexie, entity: SyncEntity): Table<Row, string> {

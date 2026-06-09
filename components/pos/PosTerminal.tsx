@@ -14,12 +14,14 @@ import { TabScreen } from './TabScreen';
 export function PosTerminal({
   tenantId,
   userId,
+  restaurantName,
   currency,
   locale,
   menu: initialMenu,
 }: {
   tenantId: string;
   userId: string;
+  restaurantName: string;
   currency: string;
   locale: string;
   menu: PosMenu;
@@ -89,6 +91,7 @@ export function PosTerminal({
         tenantId={tenantId}
         userId={userId}
         shiftId={shiftId}
+        restaurantName={restaurantName}
         currency={currency}
         locale={locale}
         onBack={() => setSelectedId(null)}

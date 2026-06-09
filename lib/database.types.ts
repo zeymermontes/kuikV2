@@ -148,6 +148,7 @@ export interface Category {
   banner_image_url: string | null;
   banner_name: string | null;
   is_visible: boolean;
+  station: string | null;
   created_at: string;
 }
 

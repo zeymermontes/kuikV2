@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { X, Check } from 'lucide-react';
+import { X, Check, Printer } from 'lucide-react';
 import type { PosDexie } from '@/lib/pos/db';
-import type { PosTab, Payment, PaymentMethod } from '@/lib/pos/types';
+import type { PosTab, Payment, PaymentMethod, TabItem } from '@/lib/pos/types';
 import { addPayment, closeTab } from '@/lib/pos/payments';
+import { printReceipt } from '@/lib/pos/print';
 import { formatPrice } from '@/lib/utils';
 
 const METHODS: PaymentMethod[] = ['cash', 'card', 'transfer', 'other'];
@@ -22,6 +23,7 @@ export function PaymentSheet({
   tenantId,
   userId,
   shiftId,
+  restaurantName,
   currency,
   locale,
   onClose,
@@ -32,6 +34,7 @@ export function PaymentSheet({
   tenantId: string;
   userId: string;
   shiftId: string | null;
+  restaurantName: string;
   currency: string;
   locale: string;
   onClose: () => void;
@@ -41,6 +44,11 @@ export function PaymentSheet({
     () => db.payments.where('tab_id').equals(tab.id).toArray(),
     [db, tab.id],
     [] as Payment[],
+  );
+  const items = useLiveQuery(
+    () => db.tab_items.where('tab_id').equals(tab.id).toArray(),
+    [db, tab.id],
+    [] as TabItem[],
   );
   const paid = (payments ?? []).reduce((s, p) => s + p.amount, 0);
   const due = Math.max(0, tab.total - paid);
@@ -95,7 +103,15 @@ export function PaymentSheet({
           <X className="h-5 w-5" />
         </button>
 
-        <h2 className="mb-1 text-lg font-bold">Cobrar</h2>
+        <div className="mb-1 flex items-center justify-between">
+          <h2 className="text-lg font-bold">Cobrar</h2>
+          <button
+            onClick={() => printReceipt(tab, items ?? [], payments ?? [], restaurantName, currency, locale)}
+            className="flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-900"
+          >
+            <Printer className="h-4 w-4" /> Recibo
+          </button>
+        </div>
         <div className="mb-4 flex items-center justify-between text-sm">
           <span className="text-neutral-500">Total {formatPrice(tab.total, currency, locale)}</span>
           <span className="font-semibold">Falta {formatPrice(due, currency, locale)}</span>

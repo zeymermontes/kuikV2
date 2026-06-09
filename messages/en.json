@@ -48,6 +48,8 @@
     "dashboard": "Dashboard",
     "menu": "Menu",
     "orders": "Orders",
+    "pos": "POS",
+    "kds": "Kitchen",
     "reservations": "Reservations",
     "landing": "Home",
     "design": "Design",

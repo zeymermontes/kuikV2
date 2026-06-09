@@ -48,6 +48,8 @@
     "dashboard": "Panel",
     "menu": "Menú",
     "orders": "Pedidos",
+    "pos": "POS",
+    "kds": "Cocina",
     "reservations": "Reservaciones",
     "landing": "Inicio",
     "design": "Diseño",

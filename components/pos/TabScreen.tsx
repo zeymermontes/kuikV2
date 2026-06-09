@@ -6,6 +6,7 @@ import { ChevronLeft, Plus, Minus, Trash2 } from 'lucide-react';
 import type { PosDexie } from '@/lib/pos/db';
 import type { PosTab, PosMenu, TabItem } from '@/lib/pos/types';
 import { addLineToTab, setItemQty, voidItem } from '@/lib/pos/tabs';
+import { fireToKitchen } from '@/lib/pos/kitchen';
 import { hasOptions } from '@/lib/menu-options';
 import { formatPrice } from '@/lib/utils';
 import type { Product } from '@/lib/database.types';
@@ -20,6 +21,7 @@ export function TabScreen({
   tenantId,
   userId,
   shiftId,
+  restaurantName,
   currency,
   locale,
   onBack,
@@ -31,6 +33,7 @@ export function TabScreen({
   tenantId: string;
   userId: string;
   shiftId: string | null;
+  restaurantName: string;
   currency: string;
   locale: string;
   onBack: () => void;
@@ -47,11 +50,22 @@ export function TabScreen({
   );
   const live = (items ?? []).filter((i) => !i.voided_at);
   const subtotal = live.reduce((s, i) => s + i.line_total, 0);
+  const unfired = live.filter((i) => !i.fired_at);
 
   const products = useMemo(
     () => menu.products.filter((p) => p.category_id === activeCat && p.is_available),
     [menu.products, activeCat],
   );
+
+  // Map a product to its kitchen station (category.station, else category name).
+  const stationOf = useMemo(() => {
+    const catById = new Map(menu.categories.map((c) => [c.id, c]));
+    const prodById = new Map(menu.products.map((p) => [p.id, p]));
+    return (productId: string | null) => {
+      const cat = productId ? catById.get(prodById.get(productId)?.category_id ?? '') : undefined;
+      return cat?.station || cat?.name || 'Cocina';
+    };
+  }, [menu.categories, menu.products]);
 
   function tapProduct(p: Product) {
     if (hasOptions(p)) {
@@ -90,7 +104,10 @@ export function TabScreen({
             live.map((it) => (
               <div key={it.id} className="flex items-start justify-between gap-2 border-b border-neutral-50 py-2">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium">{it.name}</p>
+                  <p className="text-sm font-medium">
+                    {it.name}
+                    {it.fired_at && <span className="ml-1.5 text-[10px] font-semibold text-green-600">✓ cocina</span>}
+                  </p>
                   {it.selections.length > 0 && (
                     <p className="text-xs text-neutral-400">{it.selections.map((s) => s.name).join(', ')}</p>
                   )}
@@ -118,13 +135,22 @@ export function TabScreen({
             <span>Total</span>
             <span>{formatPrice(subtotal, currency, locale)}</span>
           </div>
-          <button
-            onClick={() => setShowPay(true)}
-            disabled={live.length === 0}
-            className="w-full rounded-full bg-green-600 py-3 font-semibold text-white disabled:opacity-40"
-          >
-            Cobrar
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => fireToKitchen(db, tenantId, userId, tab, live, stationOf)}
+              disabled={unfired.length === 0}
+              className="flex-1 rounded-full border border-neutral-300 py-3 font-semibold text-neutral-700 disabled:opacity-40"
+            >
+              Enviar a cocina{unfired.length > 0 ? ` (${unfired.length})` : ''}
+            </button>
+            <button
+              onClick={() => setShowPay(true)}
+              disabled={live.length === 0}
+              className="flex-1 rounded-full bg-green-600 py-3 font-semibold text-white disabled:opacity-40"
+            >
+              Cobrar
+            </button>
+          </div>
         </footer>
       </section>
 
@@ -177,6 +203,7 @@ export function TabScreen({
           tenantId={tenantId}
           userId={userId}
           shiftId={shiftId}
+          restaurantName={restaurantName}
           currency={currency}
           locale={locale}
           onClose={() => setShowPay(false)}

@@ -29,6 +29,7 @@ export default async function PosPage() {
     <PosTerminal
       tenantId={tenant.id}
       userId={user.id}
+      restaurantName={tenant.name}
       currency={currency}
       locale={locale}
       menu={{ categories: (categories ?? []) as Category[], products: (products ?? []) as Product[] }}
