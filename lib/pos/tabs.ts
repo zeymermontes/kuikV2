@@ -13,6 +13,7 @@ export async function openTab(
   tenantId: string,
   userId: string,
   label: string | null,
+  shiftId: string | null = null,
 ): Promise<PosTab> {
   const t = nowISO();
   const tab: PosTab = {
@@ -28,7 +29,7 @@ export async function openTab(
     subtotal: 0,
     tip: 0,
     total: 0,
-    shift_id: null,
+    shift_id: shiftId,
     created_at: t,
     updated_at: t,
   };

@@ -12,6 +12,7 @@ import { formatPrice } from '@/lib/utils';
 
 const METHODS: PaymentMethod[] = ['cash', 'card', 'transfer', 'other'];
 const BILLS = [50, 100, 200, 500, 1000];
+const TIP_PCTS = [0, 10, 15, 20];
 
 export function PaymentSheet({
   db,
@@ -44,12 +45,16 @@ export function PaymentSheet({
 
   const payments = useLiveQuery(() => db.payments.where('tab_id').equals(tab.id).toArray(), [db, tab.id], [] as Payment[]);
   const items = useLiveQuery(() => db.tab_items.where('tab_id').equals(tab.id).toArray(), [db, tab.id], [] as TabItem[]);
+
+  const [tipPct, setTipPct] = useState(0);
+  const tip = Math.round(tab.total * tipPct) / 100;
+  const grandTotal = tab.total + tip;
   const paid = (payments ?? []).reduce((s, p) => s + p.amount, 0);
-  const due = Math.max(0, tab.total - paid);
+  const due = Math.max(0, grandTotal - paid);
   const unfired = (items ?? []).filter((i) => !i.voided_at && !i.fired_at);
 
   const [method, setMethod] = useState<PaymentMethod>('cash');
-  const [amount, setAmount] = useState<number>(tab.total);
+  const [amount, setAmount] = useState<number>(grandTotal);
   const [tendered, setTendered] = useState<string>('');
   const [done, setDone] = useState(false);
 
@@ -79,23 +84,19 @@ export function PaymentSheet({
       tab,
       method,
       amount,
+      tip: covers ? tip : 0,
       tendered: method === 'cash' ? tenderedNum || null : null,
       shiftId,
       userId,
     });
     setTendered('');
     if (covers) {
-      await closeTab(db, tab);
+      await closeTab(db, tab, tip);
       setDone(true);
     }
   }
 
-  async function finish() {
-    await closeTab(db, tab);
-    setDone(true);
-  }
-
-  // ── Success screen: confirm sending the order to the kitchen ──────────────
+  // ── Success screen: print / send to kitchen / close ───────────────────────
   if (done) {
     return (
       <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
@@ -105,43 +106,29 @@ export function PaymentSheet({
             <Check className="h-8 w-8" />
           </div>
           <h2 className="text-xl font-bold">{t('paidTitle')}</h2>
-          <p className="mt-1 text-sm text-neutral-500">{t('paidSubtitle', { x: money(tab.total) })}</p>
+          <p className="mt-1 text-sm text-neutral-500">{t('paidSubtitle', { x: money(grandTotal) })}</p>
 
-          <button
-            onClick={() => printReceipt(tab, items ?? [], payments ?? [], restaurantName, currency, locale)}
-            className="mx-auto mt-3 flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-900"
-          >
-            <Printer className="h-4 w-4" /> {t('receipt')}
-          </button>
-
-          {unfired.length > 0 ? (
-            <div className="mt-6">
-              <p className="mb-3 flex items-center justify-center gap-2 font-semibold">
-                <ChefHat className="h-5 w-5" /> {t('sendKitchenQ')}
-              </p>
-              <div className="flex gap-2">
+          <div className="mt-6 space-y-2">
+            <div className="flex gap-2">
+              <button
+                onClick={() => printReceipt(tab, items ?? [], payments ?? [], restaurantName, currency, locale)}
+                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-neutral-300 py-3 font-semibold text-neutral-700"
+              >
+                <Printer className="h-5 w-5" /> {t('printTicket')}
+              </button>
+              {unfired.length > 0 && (
                 <button
-                  onClick={onPaid}
-                  className="flex-1 rounded-full border border-neutral-300 py-3 font-semibold text-neutral-700"
+                  onClick={() => onFire()}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-full border border-neutral-300 py-3 font-semibold text-neutral-700"
                 >
-                  {t('noClose')}
+                  <ChefHat className="h-5 w-5" /> {t('sendKitchen')}
                 </button>
-                <button
-                  onClick={async () => {
-                    await onFire();
-                    onPaid();
-                  }}
-                  className="flex-1 rounded-full bg-neutral-900 py-3 font-semibold text-white"
-                >
-                  {t('sendKitchen')}
-                </button>
-              </div>
+              )}
             </div>
-          ) : (
-            <button onClick={onPaid} className="mt-6 w-full rounded-full bg-neutral-900 py-3 font-semibold text-white">
-              {t('done')}
+            <button onClick={onPaid} className="w-full rounded-full bg-neutral-900 py-3 font-semibold text-white">
+              {t('close')}
             </button>
-          )}
+          </div>
         </div>
       </div>
     );
@@ -167,14 +154,36 @@ export function PaymentSheet({
         </div>
 
         {/* Big amount due */}
-        <div className="mb-4 rounded-2xl bg-neutral-50 p-4 text-center">
+        <div className="mb-3 rounded-2xl bg-neutral-50 p-4 text-center">
           <p className="text-xs uppercase tracking-wide text-neutral-400">{paid > 0 ? t('due') : t('total')}</p>
           <p className="text-3xl font-extrabold">{money(due)}</p>
-          {paid > 0 && <p className="mt-1 text-xs text-neutral-400">{t('totalLabel', { x: money(tab.total) })}</p>}
+          {tip > 0 && (
+            <p className="mt-1 text-xs text-neutral-400">
+              {t('total')} {money(tab.total)} · {t('tip')} {money(tip)}
+            </p>
+          )}
+        </div>
+
+        {/* Tip */}
+        <div className="mb-3">
+          <label className="mb-1 block text-xs text-neutral-500">{t('tip')}</label>
+          <div className="grid grid-cols-4 gap-2">
+            {TIP_PCTS.map((p) => (
+              <button
+                key={p}
+                onClick={() => setTipPct(p)}
+                className={`rounded-xl py-2 text-sm font-semibold ${
+                  tipPct === p ? 'bg-neutral-900 text-white' : 'border border-neutral-300 text-neutral-600'
+                }`}
+              >
+                {p === 0 ? t('noTip') : `${p}%`}
+              </button>
+            ))}
+          </div>
         </div>
 
         {(payments ?? []).length > 0 && (
-          <ul className="mb-4 space-y-1 text-sm">
+          <ul className="mb-3 space-y-1 text-sm">
             {(payments ?? []).map((p) => (
               <li key={p.id} className="flex justify-between text-neutral-500">
                 <span>{methodLabel(p.method)}</span>
@@ -244,7 +253,10 @@ export function PaymentSheet({
           </>
         ) : (
           <button
-            onClick={finish}
+            onClick={async () => {
+              await closeTab(db, tab, tip);
+              setDone(true);
+            }}
             className="flex w-full items-center justify-center gap-2 rounded-full bg-green-600 py-3.5 font-semibold text-white"
           >
             <Check className="h-5 w-5" /> {t('closeTab')}

@@ -42,8 +42,14 @@ export async function paidTotal(db: PosDexie, tabId: string): Promise<number> {
   return pays.reduce((s, p) => s + p.amount, 0);
 }
 
-export async function closeTab(db: PosDexie, tab: PosTab): Promise<void> {
-  await enqueueUpsert(db, 'tabs', { ...tab, status: 'paid', closed_at: nowISO() });
+export async function closeTab(db: PosDexie, tab: PosTab, tip = 0): Promise<void> {
+  await enqueueUpsert(db, 'tabs', {
+    ...tab,
+    status: 'paid',
+    closed_at: nowISO(),
+    tip,
+    total: tab.subtotal + tip,
+  });
 }
 
 // ── Register shifts ──────────────────────────────────────────────────────────

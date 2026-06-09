@@ -13,6 +13,8 @@ import { formatPrice } from '@/lib/utils';
 import { TabScreen } from './TabScreen';
 import { PosModal } from './PosModal';
 import { ZReport } from './ZReport';
+import { HistoryScreen } from './HistoryScreen';
+import { History } from 'lucide-react';
 
 export function PosTerminal({
   tenantId,
@@ -36,6 +38,7 @@ export function PosTerminal({
   const [modal, setModal] = useState<'newTab' | 'openReg' | 'closeReg' | null>(null);
   const [field, setField] = useState('');
   const [zShift, setZShift] = useState<RegisterShift | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
@@ -76,7 +79,7 @@ export function PosTerminal({
   }
 
   async function confirmNewTab() {
-    const tab = await openTab(db, tenantId, userId, field.trim() || null);
+    const tab = await openTab(db, tenantId, userId, field.trim() || null, shiftId);
     setModal(null);
     setSelectedId(tab.id);
   }
@@ -107,6 +110,19 @@ export function PosTerminal({
         locale={locale}
         onBack={() => setSelectedId(null)}
         onPaid={() => setSelectedId(null)}
+      />
+    );
+  }
+
+  if (showHistory) {
+    return (
+      <HistoryScreen
+        db={db}
+        shiftId={shiftId}
+        restaurantName={restaurantName}
+        currency={currency}
+        locale={locale}
+        onBack={() => setShowHistory(false)}
       />
     );
   }
@@ -160,6 +176,12 @@ export function PosTerminal({
             }`}
           >
             {shift ? t('closeRegister') : t('openRegister')}
+          </button>
+          <button
+            onClick={() => setShowHistory(true)}
+            className="flex items-center gap-2 rounded-xl border border-neutral-300 px-4 py-3 text-sm font-medium text-neutral-600"
+          >
+            <History className="h-4 w-4" /> {t('history')}
           </button>
           {shift && (
             <span className="text-sm text-neutral-400">

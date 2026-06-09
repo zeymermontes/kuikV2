@@ -453,7 +453,16 @@
     "done": "Done",
     "exact": "Exact",
     "chargeClose": "Charge & close",
-    "due": "Due"
+    "due": "Due",
+    "tip": "Tip",
+    "noTip": "No tip",
+    "printTicket": "Print ticket",
+    "close": "Close",
+    "history": "History",
+    "historyTitle": "Shift orders",
+    "noHistory": "No charged orders this shift.",
+    "reprint": "Reprint",
+    "searchProducts": "Search product…"
   },
   "orders": {
     "title": "Orders",

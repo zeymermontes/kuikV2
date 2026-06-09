@@ -453,7 +453,16 @@
     "done": "Listo",
     "exact": "Exacto",
     "chargeClose": "Cobrar y cerrar",
-    "due": "Falta"
+    "due": "Falta",
+    "tip": "Propina",
+    "noTip": "Sin propina",
+    "printTicket": "Imprimir ticket",
+    "close": "Cerrar",
+    "history": "Historial",
+    "historyTitle": "Órdenes del turno",
+    "noHistory": "Sin órdenes cobradas en el turno.",
+    "reprint": "Reimprimir",
+    "searchProducts": "Buscar producto…"
   },
   "orders": {
     "title": "Pedidos",

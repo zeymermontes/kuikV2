@@ -45,6 +45,7 @@ export function TabScreen({
   const [activeCat, setActiveCat] = useState<string>(menu.categories[0]?.id ?? '');
   const [sheetProduct, setSheetProduct] = useState<Product | null>(null);
   const [showPay, setShowPay] = useState(false);
+  const [query, setQuery] = useState('');
 
   const items = useLiveQuery(
     () => db.tab_items.where('tab_id').equals(tab.id).toArray(),
@@ -55,10 +56,12 @@ export function TabScreen({
   const subtotal = live.reduce((s, i) => s + i.line_total, 0);
   const unfired = live.filter((i) => !i.fired_at);
 
-  const products = useMemo(
-    () => menu.products.filter((p) => p.category_id === activeCat && p.is_available),
-    [menu.products, activeCat],
-  );
+  const products = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return menu.products.filter((p) =>
+      p.is_available && (q ? p.name.toLowerCase().includes(q) : p.category_id === activeCat),
+    );
+  }, [menu.products, activeCat, query]);
 
   // Map a product to its kitchen station (category.station, else category name).
   const stationOf = useMemo(() => {
@@ -159,7 +162,15 @@ export function TabScreen({
 
       {/* Menu */}
       <section className="flex flex-1 flex-col">
-        <div className="no-scrollbar flex gap-2 overflow-x-auto border-b border-neutral-200 bg-white px-3 py-2">
+        <div className="border-b border-neutral-200 bg-white px-3 pt-2">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t('searchProducts')}
+            className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none"
+          />
+        </div>
+        <div className={`no-scrollbar flex gap-2 overflow-x-auto border-b border-neutral-200 bg-white px-3 py-2 ${query ? 'hidden' : ''}`}>
           {menu.categories.map((c) => (
             <button
               key={c.id}
