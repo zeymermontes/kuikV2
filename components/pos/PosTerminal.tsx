@@ -72,7 +72,10 @@ export function PosTerminal({
   const shiftId = shift?.id ?? null;
   const failed = useLiveQuery(() => db.outbox.where('status').equals('dead').count(), [db], 0);
 
-  const selected = (tabs ?? []).find((x) => x.id === selectedId) ?? null;
+  // Look the open tab up by id (not from the open/held list) so it stays mounted
+  // after payment marks it 'paid' — otherwise the success screen would unmount.
+  const selectedTab = useLiveQuery(() => (selectedId ? db.tabs.get(selectedId) : undefined), [db, selectedId]);
+  const selected = selectedTab ?? null;
 
   function openModal(kind: 'newTab' | 'openReg' | 'closeReg') {
     setField('');
