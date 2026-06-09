@@ -4,15 +4,15 @@ import { useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslations } from 'next-intl';
-import { ChevronLeft, Plus, Minus, Trash2, UtensilsCrossed } from 'lucide-react';
+import { ChevronLeft, Plus, Minus, Trash2, UtensilsCrossed, Percent, Users, Ban } from 'lucide-react';
 import type { PosDexie } from '@/lib/pos/db';
 import type { PosTab, PosMenu, TabItem } from '@/lib/pos/types';
-import { addLineToTab, setItemQty, voidItem } from '@/lib/pos/tabs';
+import { addLineToTab, setItemQty, voidItem, setDiscount, setGuests, voidTab } from '@/lib/pos/tabs';
 import { fireToKitchen } from '@/lib/pos/kitchen';
 import { hasOptions } from '@/lib/menu-options';
+import { PosModal } from './PosModal';
 import { formatPrice } from '@/lib/utils';
 import type { Product } from '@/lib/database.types';
-import type { CartLine } from '@/lib/whatsapp';
 import { ProductSheet } from '@/components/menu/ProductSheet';
 import { PaymentSheet } from './PaymentSheet';
 
@@ -46,6 +46,24 @@ export function TabScreen({
   const [sheetProduct, setSheetProduct] = useState<Product | null>(null);
   const [showPay, setShowPay] = useState(false);
   const [query, setQuery] = useState('');
+  const [modal, setModal] = useState<'discount' | 'guests' | 'void' | null>(null);
+  const [field, setField] = useState('');
+  const [pctMode, setPctMode] = useState(false);
+
+  function feedback() {
+    try {
+      navigator.vibrate?.(10);
+      const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new Ctx();
+      const o = ctx.createOscillator();
+      o.frequency.value = 660;
+      o.connect(ctx.destination);
+      o.start();
+      o.stop(ctx.currentTime + 0.05);
+    } catch {
+      // best effort
+    }
+  }
 
   const items = useLiveQuery(
     () => db.tab_items.where('tab_id').equals(tab.id).toArray(),
@@ -58,8 +76,10 @@ export function TabScreen({
 
   const products = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return menu.products.filter((p) =>
-      p.is_available && (q ? p.name.toLowerCase().includes(q) : p.category_id === activeCat),
+    return menu.products.filter(
+      (p) =>
+        p.is_available &&
+        (q ? p.name.toLowerCase().includes(q) || (p.sku ?? '').toLowerCase().includes(q) : p.category_id === activeCat),
     );
   }, [menu.products, activeCat, query]);
 
@@ -77,16 +97,37 @@ export function TabScreen({
     if (hasOptions(p)) {
       setSheetProduct(p);
     } else {
-      const line: CartLine = {
-        key: p.id,
-        productId: p.id,
-        name: p.name,
-        basePrice: p.price,
-        selections: [],
-        qty: 1,
-      };
-      addLineToTab(db, tenantId, tab.id, line);
+      feedback();
+      addLineToTab(db, tenantId, tab.id, { key: p.id, productId: p.id, name: p.name, basePrice: p.price, selections: [], qty: 1 });
     }
+  }
+
+  // Barcode scanner / Enter: if the search matches exactly one product, add it.
+  function onSearchEnter() {
+    if (products.length === 1) {
+      tapProduct(products[0]);
+      setQuery('');
+    }
+  }
+
+  async function applyDiscount() {
+    const v = Number(field) || 0;
+    await setDiscount(db, tab, pctMode ? Math.round(tab.subtotal * v) / 100 : v);
+    setModal(null);
+  }
+  async function applyGuests() {
+    await setGuests(db, tab, Number(field) || 1);
+    setModal(null);
+  }
+  async function applyVoid() {
+    await voidTab(db, tab, field.trim() || null);
+    setModal(null);
+    onBack();
+  }
+  function openTabModal(kind: 'discount' | 'guests' | 'void') {
+    setField(kind === 'guests' ? String(tab.guests) : '');
+    setPctMode(false);
+    setModal(kind);
   }
 
   return (
@@ -97,10 +138,22 @@ export function TabScreen({
           <button onClick={onBack} className="rounded-lg p-1.5 hover:bg-neutral-100">
             <ChevronLeft className="h-5 w-5" />
           </button>
-          <div>
+          <div className="flex-1">
             <h1 className="font-bold">{tab.table_label || t('tab')}</h1>
-            <p className="text-xs text-neutral-400">{t('items', { n: live.length })}</p>
+            <p className="text-xs text-neutral-400">
+              {t('items', { n: live.length })}
+              {tab.guests > 1 ? ` · ${tab.guests} ${t('guests').toLowerCase()}` : ''}
+            </p>
           </div>
+          <button onClick={() => openTabModal('discount')} title={t('discount')} className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100">
+            <Percent className="h-4 w-4" />
+          </button>
+          <button onClick={() => openTabModal('guests')} title={t('guests')} className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100">
+            <Users className="h-4 w-4" />
+          </button>
+          <button onClick={() => openTabModal('void')} title={t('voidTab')} className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-red-500">
+            <Ban className="h-4 w-4" />
+          </button>
         </header>
 
         <div className="flex-1 overflow-y-auto px-3 py-2">
@@ -137,9 +190,15 @@ export function TabScreen({
         </div>
 
         <footer className="space-y-2 border-t border-neutral-100 px-4 py-3">
+          {tab.discount > 0 && (
+            <div className="flex items-center justify-between text-sm text-green-600">
+              <span>{t('discount')}</span>
+              <span>− {formatPrice(tab.discount, currency, locale)}</span>
+            </div>
+          )}
           <div className="flex items-center justify-between text-lg font-bold">
             <span>{t('total')}</span>
-            <span>{formatPrice(subtotal, currency, locale)}</span>
+            <span>{formatPrice(Math.max(0, subtotal - tab.discount), currency, locale)}</span>
           </div>
           <div className="flex gap-2">
             <button
@@ -151,12 +210,13 @@ export function TabScreen({
             </button>
             <button
               onClick={() => setShowPay(true)}
-              disabled={live.length === 0}
+              disabled={live.length === 0 || !shiftId}
               className="flex-1 rounded-full bg-green-600 py-3 font-semibold text-white disabled:opacity-40"
             >
               {t('charge')}
             </button>
           </div>
+          {!shiftId && <p className="text-center text-xs text-amber-600">{t('openRegisterFirst')}</p>}
         </footer>
       </section>
 
@@ -166,6 +226,7 @@ export function TabScreen({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && onSearchEnter()}
             placeholder={t('searchProducts')}
             className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none"
           />
@@ -252,6 +313,64 @@ export function TabScreen({
           }}
           onFire={() => fireToKitchen(db, tenantId, userId, tab, live, stationOf)}
         />
+      )}
+
+      {modal === 'discount' && (
+        <PosModal title={t('discount')} onClose={() => setModal(null)}>
+          <div className="mb-3 flex overflow-hidden rounded-lg border border-neutral-300 text-sm">
+            <button onClick={() => setPctMode(false)} className={`flex-1 py-2 ${!pctMode ? 'bg-neutral-900 text-white' : 'text-neutral-600'}`}>
+              {currency}
+            </button>
+            <button onClick={() => setPctMode(true)} className={`flex-1 py-2 ${pctMode ? 'bg-neutral-900 text-white' : 'text-neutral-600'}`}>
+              {t('pct')}
+            </button>
+          </div>
+          <input
+            autoFocus
+            type="number"
+            inputMode="decimal"
+            value={field}
+            onChange={(e) => setField(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && applyDiscount()}
+            placeholder="0"
+            className="mb-4 w-full rounded-xl border border-neutral-200 px-3 py-3 text-base focus:border-neutral-400 focus:outline-none"
+          />
+          <button onClick={applyDiscount} className="w-full rounded-full bg-neutral-900 py-3 font-semibold text-white">
+            {t('apply')}
+          </button>
+        </PosModal>
+      )}
+
+      {modal === 'guests' && (
+        <PosModal title={t('guests')} onClose={() => setModal(null)}>
+          <input
+            autoFocus
+            type="number"
+            inputMode="numeric"
+            value={field}
+            onChange={(e) => setField(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && applyGuests()}
+            className="mb-4 w-full rounded-xl border border-neutral-200 px-3 py-3 text-base focus:border-neutral-400 focus:outline-none"
+          />
+          <button onClick={applyGuests} className="w-full rounded-full bg-neutral-900 py-3 font-semibold text-white">
+            {t('apply')}
+          </button>
+        </PosModal>
+      )}
+
+      {modal === 'void' && (
+        <PosModal title={t('voidTab')} onClose={() => setModal(null)}>
+          <input
+            autoFocus
+            value={field}
+            onChange={(e) => setField(e.target.value)}
+            placeholder={t('voidReason')}
+            className="mb-4 w-full rounded-xl border border-neutral-200 px-3 py-3 text-base focus:border-neutral-400 focus:outline-none"
+          />
+          <button onClick={applyVoid} className="w-full rounded-full bg-red-600 py-3 font-semibold text-white">
+            {t('voidTab')}
+          </button>
+        </PosModal>
       )}
     </div>
   );

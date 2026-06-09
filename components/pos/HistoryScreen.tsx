@@ -2,11 +2,12 @@
 
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslations } from 'next-intl';
-import { ChevronLeft, Printer, Clock } from 'lucide-react';
+import { ChevronLeft, Printer, Clock, RotateCcw } from 'lucide-react';
 import type { PosDexie } from '@/lib/pos/db';
 import type { PosTab } from '@/lib/pos/types';
 import { formatPrice } from '@/lib/utils';
 import { printReceipt } from '@/lib/pos/print';
+import { reopenTab } from '@/lib/pos/tabs';
 
 export function HistoryScreen({
   db,
@@ -25,6 +26,11 @@ export function HistoryScreen({
 }) {
   const t = useTranslations('pos');
   const paid = useLiveQuery(() => db.tabs.where('status').equals('paid').toArray(), [db], [] as PosTab[]);
+
+  async function reopen(tab: PosTab) {
+    await reopenTab(db, tab);
+    onBack();
+  }
   const list = (paid ?? [])
     .filter((x) => !shiftId || x.shift_id === shiftId)
     .sort((a, b) => (b.closed_at ?? '').localeCompare(a.closed_at ?? ''));
@@ -68,10 +74,13 @@ export function HistoryScreen({
                     <Clock className="h-3 w-3" /> {time(tab.closed_at)}
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <span className="font-bold">{formatPrice(tab.total, currency, locale)}</span>
-                  <button onClick={() => reprint(tab)} className="rounded-lg border border-neutral-300 p-2 text-neutral-500">
+                  <button onClick={() => reprint(tab)} title={t('reprint')} className="rounded-lg border border-neutral-300 p-2 text-neutral-500">
                     <Printer className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => reopen(tab)} title={t('reopen')} className="rounded-lg border border-neutral-300 p-2 text-neutral-500">
+                    <RotateCcw className="h-4 w-4" />
                   </button>
                 </div>
               </li>

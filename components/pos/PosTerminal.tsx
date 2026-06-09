@@ -14,6 +14,7 @@ import { TabScreen } from './TabScreen';
 import { PosModal } from './PosModal';
 import { ZReport } from './ZReport';
 import { HistoryScreen } from './HistoryScreen';
+import { DenomCount } from './DenomCount';
 import { History } from 'lucide-react';
 
 export function PosTerminal({
@@ -229,26 +230,30 @@ export function PosTerminal({
         </PosModal>
       )}
 
-      {(modal === 'openReg' || modal === 'closeReg') && (
-        <PosModal title={modal === 'openReg' ? t('openRegister') : t('closeRegister')} onClose={() => setModal(null)}>
-          <label className="mb-1 block text-xs text-neutral-500">
-            {modal === 'openReg' ? t('openingCash') : t('countedCash')}
-          </label>
+      {modal === 'openReg' && (
+        <PosModal title={t('openRegister')} onClose={() => setModal(null)}>
+          <label className="mb-1 block text-xs text-neutral-500">{t('openingCash')}</label>
           <input
             autoFocus
             type="number"
             inputMode="decimal"
             value={field}
             onChange={(e) => setField(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && (modal === 'openReg' ? confirmOpenReg() : confirmCloseReg())}
+            onKeyDown={(e) => e.key === 'Enter' && confirmOpenReg()}
             placeholder="0"
             className="mb-4 w-full rounded-xl border border-neutral-200 px-3 py-3 text-base focus:border-neutral-400 focus:outline-none"
           />
-          <button
-            onClick={modal === 'openReg' ? confirmOpenReg : confirmCloseReg}
-            className="w-full rounded-full bg-neutral-900 py-3 font-semibold text-white"
-          >
-            {modal === 'openReg' ? t('openRegister') : t('closeRegister')}
+          <button onClick={confirmOpenReg} className="w-full rounded-full bg-neutral-900 py-3 font-semibold text-white">
+            {t('openRegister')}
+          </button>
+        </PosModal>
+      )}
+
+      {modal === 'closeReg' && (
+        <PosModal title={t('denomTitle')} onClose={() => setModal(null)}>
+          <DenomCount onTotal={(tot) => setField(String(tot))} currency={currency} locale={locale} />
+          <button onClick={confirmCloseReg} className="mt-4 w-full rounded-full bg-neutral-900 py-3 font-semibold text-white">
+            {t('closeRegister')}
           </button>
         </PosModal>
       )}

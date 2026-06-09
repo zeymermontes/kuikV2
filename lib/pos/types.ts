@@ -26,8 +26,11 @@ export interface PosTab {
   opened_at: string;
   closed_at: string | null;
   subtotal: number;
+  discount: number;
   tip: number;
   total: number;
+  guests: number;
+  void_reason: string | null;
   shift_id: string | null;
   created_at: string;
   updated_at: string;

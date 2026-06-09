@@ -27,13 +27,33 @@ export async function openTab(
     opened_at: t,
     closed_at: null,
     subtotal: 0,
+    discount: 0,
     tip: 0,
     total: 0,
+    guests: 1,
+    void_reason: null,
     shift_id: shiftId,
     created_at: t,
     updated_at: t,
   };
   return enqueueUpsert(db, 'tabs', tab);
+}
+
+export async function setDiscount(db: PosDexie, tab: PosTab, discount: number): Promise<void> {
+  const d = Math.max(0, Math.min(discount, tab.subtotal));
+  await enqueueUpsert(db, 'tabs', { ...tab, discount: d, total: Math.max(0, tab.subtotal - d + tab.tip) });
+}
+
+export async function setGuests(db: PosDexie, tab: PosTab, guests: number): Promise<void> {
+  await enqueueUpsert(db, 'tabs', { ...tab, guests: Math.max(1, guests) });
+}
+
+export async function voidTab(db: PosDexie, tab: PosTab, reason: string | null): Promise<void> {
+  await enqueueUpsert(db, 'tabs', { ...tab, status: 'void', void_reason: reason, closed_at: nowISO() });
+}
+
+export async function reopenTab(db: PosDexie, tab: PosTab): Promise<void> {
+  await enqueueUpsert(db, 'tabs', { ...tab, status: 'open', closed_at: null });
 }
 
 /** Add a product (with its chosen options) to a tab as a new line. */
@@ -80,5 +100,6 @@ export async function recomputeTab(db: PosDexie, tabId: string): Promise<void> {
   const subtotal = items.filter((i) => !i.voided_at).reduce((s, i) => s + i.line_total, 0);
   const tab = await db.tabs.get(tabId);
   if (!tab) return;
-  await enqueueUpsert(db, 'tabs', { ...tab, subtotal, total: subtotal + tab.tip });
+  const discount = Math.min(tab.discount ?? 0, subtotal);
+  await enqueueUpsert(db, 'tabs', { ...tab, subtotal, discount, total: Math.max(0, subtotal - discount + tab.tip) });
 }

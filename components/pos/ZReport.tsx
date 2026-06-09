@@ -4,7 +4,9 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslations } from 'next-intl';
 import type { PosDexie } from '@/lib/pos/db';
 import type { RegisterShift, Payment, PaymentMethod } from '@/lib/pos/types';
+import { Printer } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
+import { printHtml } from '@/lib/pos/print';
 import { PosModal } from './PosModal';
 
 const METHODS: PaymentMethod[] = ['cash', 'card', 'transfer', 'other'];
@@ -47,6 +49,22 @@ export function ZReport({
   }
   const count = (payments ?? []).length;
 
+  function printZ() {
+    const row = (l: string, v: string) => `<div class="row"><span>${l}</span><span>${v}</span></div>`;
+    const methods = METHODS.map((m) => row(`${t(`method_${m}`)} ·${by[m].count}`, money(by[m].amount))).join('');
+    printHtml(
+      t('zTitle'),
+      `<h1>${t('zTitle')}</h1>
+       ${row(t('opening'), money(shift.opening_cash))}<hr/>
+       ${methods}
+       ${tips > 0 ? row(t('tips'), money(tips)) : ''}<hr/>
+       <div class="row lg">${row(`${t('totalCharged')} ·${count}`, money(total))}</div><hr/>
+       ${row(t('zExpected'), money(shift.expected_cash ?? 0))}
+       ${row(t('zCounted'), money(shift.closing_cash ?? 0))}
+       <div class="row lg">${row(t('zDiff'), money(shift.over_short ?? 0))}</div>`,
+    );
+  }
+
   return (
     <PosModal title={t('zTitle')} onClose={onClose}>
       <dl className="space-y-1.5 text-sm">
@@ -75,9 +93,14 @@ export function ZReport({
         </div>
       </dl>
 
-      <button onClick={onClose} className="mt-5 w-full rounded-full bg-neutral-900 py-3 font-semibold text-white">
-        {t('done')}
-      </button>
+      <div className="mt-5 flex gap-2">
+        <button onClick={printZ} className="flex flex-1 items-center justify-center gap-2 rounded-full border border-neutral-300 py-3 font-semibold text-neutral-700">
+          <Printer className="h-5 w-5" /> {t('printZ')}
+        </button>
+        <button onClick={onClose} className="flex-1 rounded-full bg-neutral-900 py-3 font-semibold text-white">
+          {t('done')}
+        </button>
+      </div>
     </PosModal>
   );
 }

@@ -48,7 +48,7 @@ export async function closeTab(db: PosDexie, tab: PosTab, tip = 0): Promise<void
     status: 'paid',
     closed_at: nowISO(),
     tip,
-    total: tab.subtotal + tip,
+    total: Math.max(0, tab.subtotal - (tab.discount ?? 0) + tip),
   });
 }
 

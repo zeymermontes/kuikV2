@@ -9,6 +9,7 @@ import type { PosTab, Payment, PaymentMethod, TabItem } from '@/lib/pos/types';
 import { addPayment, closeTab } from '@/lib/pos/payments';
 import { printReceipt } from '@/lib/pos/print';
 import { formatPrice } from '@/lib/utils';
+import { NumPad } from './NumPad';
 
 const METHODS: PaymentMethod[] = ['cash', 'card', 'transfer', 'other'];
 const BILLS = [50, 100, 200, 500, 1000];
@@ -47,7 +48,15 @@ export function PaymentSheet({
   const items = useLiveQuery(() => db.tab_items.where('tab_id').equals(tab.id).toArray(), [db, tab.id], [] as TabItem[]);
 
   const [tipPct, setTipPct] = useState(0);
-  const tip = Math.round(tab.total * tipPct) / 100;
+  const [tipMode, setTipMode] = useState<'pct' | 'custom'>('pct');
+  const [tipCustom, setTipCustom] = useState('');
+  const [tipCustomPct, setTipCustomPct] = useState(false);
+  const tip =
+    tipMode === 'custom'
+      ? tipCustomPct
+        ? Math.round(tab.total * (Number(tipCustom) || 0)) / 100
+        : Number(tipCustom) || 0
+      : Math.round(tab.total * tipPct) / 100;
   const grandTotal = tab.total + tip;
   const paid = (payments ?? []).reduce((s, p) => s + p.amount, 0);
   const due = Math.max(0, grandTotal - paid);
@@ -167,19 +176,50 @@ export function PaymentSheet({
         {/* Tip */}
         <div className="mb-3">
           <label className="mb-1 block text-xs text-neutral-500">{t('tip')}</label>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-5 gap-2">
             {TIP_PCTS.map((p) => (
               <button
                 key={p}
-                onClick={() => setTipPct(p)}
+                onClick={() => {
+                  setTipMode('pct');
+                  setTipPct(p);
+                }}
                 className={`rounded-xl py-2 text-sm font-semibold ${
-                  tipPct === p ? 'bg-neutral-900 text-white' : 'border border-neutral-300 text-neutral-600'
+                  tipMode === 'pct' && tipPct === p ? 'bg-neutral-900 text-white' : 'border border-neutral-300 text-neutral-600'
                 }`}
               >
                 {p === 0 ? t('noTip') : `${p}%`}
               </button>
             ))}
+            <button
+              onClick={() => setTipMode('custom')}
+              className={`rounded-xl py-2 text-sm font-semibold ${
+                tipMode === 'custom' ? 'bg-neutral-900 text-white' : 'border border-neutral-300 text-neutral-600'
+              }`}
+            >
+              {t('other')}
+            </button>
           </div>
+          {tipMode === 'custom' && (
+            <div className="mt-2 flex gap-2">
+              <div className="flex overflow-hidden rounded-lg border border-neutral-300 text-sm">
+                <button onClick={() => setTipCustomPct(false)} className={`px-3 ${!tipCustomPct ? 'bg-neutral-900 text-white' : 'text-neutral-600'}`}>
+                  {currency}
+                </button>
+                <button onClick={() => setTipCustomPct(true)} className={`px-3 ${tipCustomPct ? 'bg-neutral-900 text-white' : 'text-neutral-600'}`}>
+                  %
+                </button>
+              </div>
+              <input
+                type="number"
+                inputMode="decimal"
+                value={tipCustom}
+                onChange={(e) => setTipCustom(e.target.value)}
+                placeholder="0"
+                className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none"
+              />
+            </div>
+          )}
         </div>
 
         {(payments ?? []).length > 0 && (
@@ -209,14 +249,27 @@ export function PaymentSheet({
               ))}
             </div>
 
-            <label className="mb-1 block text-xs text-neutral-500">{t('amount')}</label>
+            <div className="mb-1 flex items-center justify-between">
+              <label className="text-xs text-neutral-500">{t('amount')}</label>
+              {tab.guests > 1 && (
+                <button
+                  onClick={() => setAmount(Math.round((grandTotal / tab.guests) * 100) / 100)}
+                  className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-medium"
+                >
+                  {t('splitGuests')} ({tab.guests})
+                </button>
+              )}
+            </div>
             <input
               type="number"
               inputMode="decimal"
               value={amount}
               onChange={(e) => setAmount(Number(e.target.value) || 0)}
-              className={`${field} mb-3`}
+              className={`${field} mb-2`}
             />
+            <div className="mb-3">
+              <NumPad value={amount ? String(amount) : ''} onChange={(v) => setAmount(Number(v) || 0)} />
+            </div>
 
             {method === 'cash' && (
               <>

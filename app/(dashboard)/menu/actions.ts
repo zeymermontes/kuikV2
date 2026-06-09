@@ -83,6 +83,7 @@ export async function updateProduct(
     price: number | null;
     compare_at_price: number | null;
     cost: number | null;
+    sku: string | null;
     prep_time: string | null;
     calories: number | null;
     show_price: boolean;
