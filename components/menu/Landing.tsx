@@ -14,6 +14,7 @@ import {
   Share2,
   Globe,
   ChevronRight,
+  CalendarCheck,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type {
@@ -26,6 +27,7 @@ import type {
 } from '@/lib/database.types';
 import { resolveMenuSettings } from '@/lib/menu-settings';
 import { formatPrice } from '@/lib/utils';
+import { ReservationSheet } from './ReservationSheet';
 
 export function Landing({
   tenant,
@@ -48,6 +50,7 @@ export function Landing({
   const locale = tenant.locale === 'en' ? 'en-US' : 'es-MX';
   const showPrice = theme.show_prices;
   const [wifiCopied, setWifiCopied] = useState(false);
+  const [showReserve, setShowReserve] = useState(false);
   const waDigits = contact.whatsapp_phone?.replace(/\D/g, '');
 
   function copyWifi() {
@@ -161,6 +164,18 @@ export function Landing({
         )}
       </div>
 
+      {contact.reservations_enabled && (
+        <div className="mt-3 px-5">
+          <button
+            onClick={() => setShowReserve(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-full border py-3 text-sm font-semibold"
+            style={{ borderColor: 'var(--brand-border)', color: 'var(--brand-text)' }}
+          >
+            <CalendarCheck className="h-4 w-4" /> {t('reserve')}
+          </button>
+        </div>
+      )}
+
       {/* Featured / most ordered */}
       {featured.length > 0 && (
         <section className="mt-8">
@@ -245,6 +260,10 @@ export function Landing({
           <ChevronRight className="h-5 w-5" />
         </Link>
       </div>
+
+      {showReserve && (
+        <ReservationSheet tenantId={tenant.id} required={contact.reservation_required} onClose={() => setShowReserve(false)} />
+      )}
     </div>
   );
 }

@@ -5,7 +5,23 @@ import { Calendar, Clock, Users, Phone, Check, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Reservation, ReservationStatus } from '@/lib/database.types';
 import { Card } from '@/components/ui';
-import { setReservationStatus, toggleReservations } from '@/app/(dashboard)/reservations/actions';
+import { setReservationStatus, toggleReservations, setReservationRequired } from '@/app/(dashboard)/reservations/actions';
+
+type ReqConfig = { phone?: boolean; party?: boolean; note?: boolean };
+const REQ_FIELDS: (keyof ReqConfig)[] = ['phone', 'party', 'note'];
+
+function Switch({ on, onClick }: { on: boolean; onClick: () => void }) {
+  return (
+    <button
+      role="switch"
+      aria-checked={on}
+      onClick={onClick}
+      className={`relative h-6 w-11 shrink-0 rounded-full transition ${on ? 'bg-neutral-900' : 'bg-neutral-300'}`}
+    >
+      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition ${on ? 'left-[1.375rem]' : 'left-0.5'}`} />
+    </button>
+  );
+}
 
 const STATUS_TONE: Record<ReservationStatus, string> = {
   pending: 'bg-amber-100 text-amber-700',
@@ -17,17 +33,25 @@ const STATUS_TONE: Record<ReservationStatus, string> = {
 export function ReservationsList({
   reservations,
   enabled,
+  required,
 }: {
   reservations: Reservation[];
   enabled: boolean;
+  required: ReqConfig | null;
 }) {
   const t = useTranslations('reservations');
   const [on, setOn] = useState(enabled);
+  const [req, setReq] = useState<ReqConfig>(required ?? {});
   const [, start] = useTransition();
 
   function flip(v: boolean) {
     setOn(v);
     start(async () => toggleReservations(v));
+  }
+  function toggleReq(key: keyof ReqConfig) {
+    const next = { ...req, [key]: !req[key] };
+    setReq(next);
+    start(async () => setReservationRequired(next));
   }
   function setStatus(id: string, status: ReservationStatus) {
     start(async () => setReservationStatus(id, status));
@@ -40,15 +64,23 @@ export function ReservationsList({
           <h2 className="font-semibold">{t('accept')}</h2>
           <p className="text-sm text-neutral-500">{t('acceptHint')}</p>
         </div>
-        <button
-          role="switch"
-          aria-checked={on}
-          onClick={() => flip(!on)}
-          className={`relative h-6 w-11 shrink-0 rounded-full transition ${on ? 'bg-neutral-900' : 'bg-neutral-300'}`}
-        >
-          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition ${on ? 'left-[1.375rem]' : 'left-0.5'}`} />
-        </button>
+        <Switch on={on} onClick={() => flip(!on)} />
       </Card>
+
+      {on && (
+        <Card className="space-y-3">
+          <div>
+            <h2 className="font-semibold">{t('requiredTitle')}</h2>
+            <p className="text-sm text-neutral-500">{t('requiredHint')}</p>
+          </div>
+          {REQ_FIELDS.map((f) => (
+            <div key={f} className="flex items-center justify-between">
+              <span className="text-sm">{t(`field_${f}`)}</span>
+              <Switch on={!!req[f]} onClick={() => toggleReq(f)} />
+            </div>
+          ))}
+        </Card>
+      )}
 
       {reservations.length === 0 ? (
         <Card>

@@ -113,6 +113,7 @@ export interface TenantContact {
   maps_url: string | null;
   hours: unknown | null;
   reservations_enabled: boolean;
+  reservation_required: { phone?: boolean; party?: boolean; note?: boolean } | null;
   instagram: string | null;
   facebook: string | null;
   website: string | null;

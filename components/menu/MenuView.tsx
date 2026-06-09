@@ -2,7 +2,8 @@
 
 import { useMemo, useReducer, useState, useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { Search, Globe, MapPin, ChevronDown, X, CalendarCheck } from 'lucide-react';
+import Link from 'next/link';
+import { Search, Globe, MapPin, ChevronDown, ChevronLeft, X, CalendarCheck } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type {
   Tenant,
@@ -91,6 +92,7 @@ export function MenuView({
   plan,
   branches = [],
   currentBranch = null,
+  landingEnabled = false,
   menu,
 }: {
   tenant: Tenant;
@@ -101,6 +103,7 @@ export function MenuView({
   plan: 'basic' | 'pro';
   branches?: BranchLite[];
   currentBranch?: string | null;
+  landingEnabled?: boolean;
   menu: MenuCategory[];
 }) {
   const t = useTranslations('menu');
@@ -325,6 +328,18 @@ export function MenuView({
 
   return (
     <div className="mx-auto min-h-screen w-full max-w-2xl pb-28">
+      {/* Back to the landing (only when a landing home exists) */}
+      {landingEnabled && (
+        <Link
+          href="/"
+          aria-label={t('back')}
+          className="absolute left-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full shadow-md"
+          style={{ backgroundColor: 'var(--brand-surface)', color: 'var(--brand-text)' }}
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </Link>
+      )}
+
       {/* Cover */}
       {theme.cover_image_url && (
         <div className="relative h-40 w-full overflow-hidden sm:h-52">
@@ -351,7 +366,7 @@ export function MenuView({
         {theme.slogan && <p className="text-sm opacity-70">{theme.slogan}</p>}
         <OpenStatus hours={contact.hours} />
         <ContactLinks contact={contact} showSocial={settings.showSocial} />
-        {contact.reservations_enabled && (
+        {contact.reservations_enabled && !landingEnabled && (
           <button
             onClick={() => setShowReserve(true)}
             className="mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium"
@@ -569,7 +584,9 @@ export function MenuView({
         <CartBar count={itemCount} onOpen={() => setSheetOpen(true)} label={t('yourOrder')} />
       )}
 
-      {showReserve && <ReservationSheet tenantId={tenant.id} onClose={() => setShowReserve(false)} />}
+      {showReserve && (
+        <ReservationSheet tenantId={tenant.id} required={contact.reservation_required} onClose={() => setShowReserve(false)} />
+      )}
 
       {activeProduct && (
         <ProductSheet

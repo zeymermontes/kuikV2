@@ -154,6 +154,7 @@ export async function updateContact(
     maps_url: string | null;
     hours: unknown;
     reservations_enabled: boolean;
+    reservation_required: { phone?: boolean; party?: boolean; note?: boolean } | null;
     instagram: string | null;
     facebook: string | null;
     website: string | null;
