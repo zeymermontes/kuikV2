@@ -11,26 +11,34 @@ import { formatPrice } from '@/lib/utils';
 import type { Product } from '@/lib/database.types';
 import type { CartLine } from '@/lib/whatsapp';
 import { ProductSheet } from '@/components/menu/ProductSheet';
+import { PaymentSheet } from './PaymentSheet';
 
 export function TabScreen({
   db,
   tab,
   menu,
   tenantId,
+  userId,
+  shiftId,
   currency,
   locale,
   onBack,
+  onPaid,
 }: {
   db: PosDexie;
   tab: PosTab;
   menu: PosMenu;
   tenantId: string;
+  userId: string;
+  shiftId: string | null;
   currency: string;
   locale: string;
   onBack: () => void;
+  onPaid: () => void;
 }) {
   const [activeCat, setActiveCat] = useState<string>(menu.categories[0]?.id ?? '');
   const [sheetProduct, setSheetProduct] = useState<Product | null>(null);
+  const [showPay, setShowPay] = useState(false);
 
   const items = useLiveQuery(
     () => db.tab_items.where('tab_id').equals(tab.id).toArray(),
@@ -105,11 +113,18 @@ export function TabScreen({
           )}
         </div>
 
-        <footer className="border-t border-neutral-100 px-4 py-3">
+        <footer className="space-y-2 border-t border-neutral-100 px-4 py-3">
           <div className="flex items-center justify-between text-lg font-bold">
             <span>Total</span>
             <span>{formatPrice(subtotal, currency, locale)}</span>
           </div>
+          <button
+            onClick={() => setShowPay(true)}
+            disabled={live.length === 0}
+            className="w-full rounded-full bg-green-600 py-3 font-semibold text-white disabled:opacity-40"
+          >
+            Cobrar
+          </button>
         </footer>
       </section>
 
@@ -152,6 +167,23 @@ export function TabScreen({
           locale={locale}
           onClose={() => setSheetProduct(null)}
           onConfirm={(line) => addLineToTab(db, tenantId, tab.id, line)}
+        />
+      )}
+
+      {showPay && (
+        <PaymentSheet
+          db={db}
+          tab={tab}
+          tenantId={tenantId}
+          userId={userId}
+          shiftId={shiftId}
+          currency={currency}
+          locale={locale}
+          onClose={() => setShowPay(false)}
+          onPaid={() => {
+            setShowPay(false);
+            onPaid();
+          }}
         />
       )}
     </div>

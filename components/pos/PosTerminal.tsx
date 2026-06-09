@@ -6,7 +6,8 @@ import { Plus, Wifi, WifiOff, CloudUpload, Check } from 'lucide-react';
 import { posDb } from '@/lib/pos/db';
 import { startSync, nowISO, type SyncState } from '@/lib/pos/sync';
 import { openTab } from '@/lib/pos/tabs';
-import type { PosTab, PosMenu } from '@/lib/pos/types';
+import { openShift, closeShift } from '@/lib/pos/payments';
+import type { PosTab, PosMenu, RegisterShift } from '@/lib/pos/types';
 import { formatPrice } from '@/lib/utils';
 import { TabScreen } from './TabScreen';
 
@@ -50,8 +51,27 @@ export function PosTerminal({
     [db],
     [] as PosTab[],
   );
+  const shift = useLiveQuery(() => db.register_shifts.where('status').equals('open').first(), [db]);
+  const shiftId = shift?.id ?? null;
 
   const selected = (tabs ?? []).find((t) => t.id === selectedId) ?? null;
+
+  async function toggleRegister() {
+    if (!shift) {
+      const v = window.prompt('Efectivo de apertura');
+      if (v === null) return;
+      await openShift(db, tenantId, userId, Number(v) || 0);
+    } else {
+      const v = window.prompt('Efectivo contado al cierre');
+      if (v === null) return;
+      const closed = await closeShift(db, shift as RegisterShift, userId, Number(v) || 0);
+      window.alert(
+        `Corte Z\nEsperado en efectivo: ${formatPrice(closed.expected_cash ?? 0, currency, locale)}\n` +
+          `Contado: ${formatPrice(closed.closing_cash ?? 0, currency, locale)}\n` +
+          `Diferencia: ${formatPrice(closed.over_short ?? 0, currency, locale)}`,
+      );
+    }
+  }
 
   async function newTab() {
     const label = window.prompt('Mesa / nombre de la cuenta')?.trim();
@@ -67,9 +87,12 @@ export function PosTerminal({
         tab={selected}
         menu={menu}
         tenantId={tenantId}
+        userId={userId}
+        shiftId={shiftId}
         currency={currency}
         locale={locale}
         onBack={() => setSelectedId(null)}
+        onPaid={() => setSelectedId(null)}
       />
     );
   }
@@ -98,12 +121,27 @@ export function PosTerminal({
       </header>
 
       <main className="flex-1 p-4">
-        <button
-          onClick={newTab}
-          className="mb-4 flex items-center gap-2 rounded-xl bg-neutral-900 px-4 py-3 font-semibold text-white"
-        >
-          <Plus className="h-5 w-5" /> Nueva cuenta
-        </button>
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <button
+            onClick={newTab}
+            className="flex items-center gap-2 rounded-xl bg-neutral-900 px-4 py-3 font-semibold text-white"
+          >
+            <Plus className="h-5 w-5" /> Nueva cuenta
+          </button>
+          <button
+            onClick={toggleRegister}
+            className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+              shift ? 'border-amber-300 text-amber-700' : 'border-neutral-300 text-neutral-600'
+            }`}
+          >
+            {shift ? 'Cerrar caja' : 'Abrir caja'}
+          </button>
+          {shift && (
+            <span className="text-sm text-neutral-400">
+              Caja abierta · apertura {formatPrice((shift as RegisterShift).opening_cash, currency, locale)}
+            </span>
+          )}
+        </div>
 
         {(tabs ?? []).length === 0 ? (
           <p className="py-12 text-center text-neutral-400">Sin cuentas abiertas. Crea una para empezar.</p>
