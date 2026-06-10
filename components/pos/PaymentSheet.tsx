@@ -14,6 +14,7 @@ import { NumPad } from './NumPad';
 const METHODS: PaymentMethod[] = ['cash', 'card', 'transfer', 'other'];
 const BILLS = [50, 100, 200, 500, 1000];
 const TIP_PCTS = [0, 10, 15, 20];
+const SUGGESTED_TIP = 15;
 
 export function PaymentSheet({
   db,
@@ -184,10 +185,13 @@ export function PaymentSheet({
                   setTipMode('pct');
                   setTipPct(p);
                 }}
-                className={`rounded-xl py-2 text-sm font-semibold ${
+                className={`relative rounded-xl py-2 text-sm font-semibold ${
                   tipMode === 'pct' && tipPct === p ? 'bg-neutral-900 text-white' : 'border border-neutral-300 text-neutral-600'
                 }`}
               >
+                {p === SUGGESTED_TIP && (
+                  <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-green-500" title={t('suggested')} />
+                )}
                 {p === 0 ? t('noTip') : `${p}%`}
               </button>
             ))}

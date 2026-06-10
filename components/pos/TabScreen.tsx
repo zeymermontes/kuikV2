@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslations } from 'next-intl';
-import { ChevronLeft, Plus, Minus, Trash2, UtensilsCrossed, Percent, Users, Ban } from 'lucide-react';
+import { ChevronLeft, Plus, Minus, Trash2, UtensilsCrossed, Percent, Users, Ban, Pencil, Star } from 'lucide-react';
 import type { PosDexie } from '@/lib/pos/db';
 import type { PosTab, PosMenu, TabItem } from '@/lib/pos/types';
 import { addLineToTab, setItemQty, voidItem, setDiscount, setGuests, voidTab } from '@/lib/pos/tabs';
@@ -15,6 +15,11 @@ import { formatPrice } from '@/lib/utils';
 import type { Product } from '@/lib/database.types';
 import { ProductSheet } from '@/components/menu/ProductSheet';
 import { PaymentSheet } from './PaymentSheet';
+
+// Toast-style color coding: a stable color per menu category.
+const CAT_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f59e0b'];
+const PADID = '__popular__';
+const DISCOUNT_PRESETS = [10, 15, 20, 50];
 
 export function TabScreen({
   db,
@@ -44,6 +49,7 @@ export function TabScreen({
   const t = useTranslations('pos');
   const [activeCat, setActiveCat] = useState<string>(menu.categories[0]?.id ?? '');
   const [sheetProduct, setSheetProduct] = useState<Product | null>(null);
+  const [editItem, setEditItem] = useState<TabItem | null>(null);
   const [showPay, setShowPay] = useState(false);
   const [query, setQuery] = useState('');
   const [modal, setModal] = useState<'discount' | 'guests' | 'void' | null>(null);
@@ -74,14 +80,33 @@ export function TabScreen({
   const subtotal = live.reduce((s, i) => s + i.line_total, 0);
   const unfired = live.filter((i) => !i.fired_at);
 
+  // Most-ordered products (across all tabs) power the "Popular" quick tab.
+  const allItems = useLiveQuery(() => db.tab_items.toArray(), [db], [] as TabItem[]);
+  const popular = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const it of allItems ?? []) if (it.product_id && !it.voided_at) counts.set(it.product_id, (counts.get(it.product_id) ?? 0) + it.qty);
+    const byId = new Map(menu.products.map((p) => [p.id, p] as const));
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([id]) => byId.get(id))
+      .filter((p): p is Product => !!p && p.is_available)
+      .slice(0, 12);
+  }, [allItems, menu.products]);
+
+  const catColor = useMemo(() => {
+    const idx = new Map(menu.categories.map((c, i) => [c.id, i] as const));
+    return (catId: string) => CAT_COLORS[(idx.get(catId) ?? 0) % CAT_COLORS.length];
+  }, [menu.categories]);
+
   const products = useMemo(() => {
     const q = query.trim().toLowerCase();
+    if (!q && activeCat === PADID) return popular;
     return menu.products.filter(
       (p) =>
         p.is_available &&
         (q ? p.name.toLowerCase().includes(q) || (p.sku ?? '').toLowerCase().includes(q) : p.category_id === activeCat),
     );
-  }, [menu.products, activeCat, query]);
+  }, [menu.products, activeCat, query, popular]);
 
   // Map a product to its kitchen station (category.station, else category name).
   const stationOf = useMemo(() => {
@@ -178,7 +203,10 @@ export function TabScreen({
                     <button onClick={() => setItemQty(db, it, it.qty + 1)} className="rounded bg-neutral-100 p-1">
                       <Plus className="h-3.5 w-3.5" />
                     </button>
-                    <button onClick={() => voidItem(db, it)} className="ml-1 p-1 text-neutral-300 hover:text-red-500">
+                    <button onClick={() => setEditItem(it)} className="ml-1 p-1 text-neutral-300 hover:text-neutral-700" title={t('editItem')}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button onClick={() => voidItem(db, it)} className="p-1 text-neutral-300 hover:text-red-500">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -232,17 +260,34 @@ export function TabScreen({
           />
         </div>
         <div className={`no-scrollbar flex gap-2 overflow-x-auto border-b border-neutral-200 bg-white px-3 py-2 ${query ? 'hidden' : ''}`}>
-          {menu.categories.map((c) => (
+          {popular.length > 0 && (
             <button
-              key={c.id}
-              onClick={() => setActiveCat(c.id)}
-              className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium ${
-                activeCat === c.id ? 'bg-neutral-900 text-white' : 'border border-neutral-300 text-neutral-600'
+              onClick={() => setActiveCat(PADID)}
+              className={`flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium ${
+                activeCat === PADID ? 'bg-neutral-900 text-white' : 'border border-neutral-300 text-neutral-600'
               }`}
             >
-              {c.name}
+              <Star className="h-3.5 w-3.5" /> {t('popular')}
             </button>
-          ))}
+          )}
+          {menu.categories.map((c) => {
+            const active = activeCat === c.id;
+            return (
+              <button
+                key={c.id}
+                onClick={() => setActiveCat(c.id)}
+                className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium"
+                style={
+                  active
+                    ? { backgroundColor: catColor(c.id), color: '#fff' }
+                    : { border: `1px solid ${catColor(c.id)}55`, color: '#525252' }
+                }
+              >
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: active ? '#ffffffaa' : catColor(c.id) }} />
+                {c.name}
+              </button>
+            );
+          })}
         </div>
         <div className="grid flex-1 grid-cols-3 content-start gap-2.5 overflow-y-auto p-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {products.map((p) => (
@@ -251,6 +296,7 @@ export function TabScreen({
               onClick={() => tapProduct(p)}
               className="group flex flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white text-left shadow-sm transition active:scale-[0.97]"
             >
+              <span className="h-1 w-full shrink-0" style={{ backgroundColor: catColor(p.category_id) }} />
               <div className="relative aspect-square w-full bg-neutral-100">
                 {p.image_url ? (
                   <Image
@@ -296,6 +342,25 @@ export function TabScreen({
         />
       )}
 
+      {editItem && (() => {
+        const prod = menu.products.find((p) => p.id === editItem.product_id);
+        if (!prod) return null;
+        return (
+          <ProductSheet
+            product={prod}
+            showPrice
+            currency={currency}
+            locale={locale}
+            initial={{ qty: editItem.qty, note: editItem.note, selections: editItem.selections }}
+            onClose={() => setEditItem(null)}
+            onConfirm={async (line) => {
+              await voidItem(db, editItem);
+              await addLineToTab(db, tenantId, tab.id, line);
+            }}
+          />
+        );
+      })()}
+
       {showPay && (
         <PaymentSheet
           db={db}
@@ -333,8 +398,31 @@ export function TabScreen({
             onChange={(e) => setField(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && applyDiscount()}
             placeholder="0"
-            className="mb-4 w-full rounded-xl border border-neutral-200 px-3 py-3 text-base focus:border-neutral-400 focus:outline-none"
+            className="mb-3 w-full rounded-xl border border-neutral-200 px-3 py-3 text-base focus:border-neutral-400 focus:outline-none"
           />
+          <div className="mb-4 flex flex-wrap gap-2">
+            {DISCOUNT_PRESETS.map((p) => (
+              <button
+                key={p}
+                onClick={() => {
+                  setPctMode(true);
+                  setField(String(p));
+                }}
+                className="rounded-full bg-neutral-100 px-3 py-1.5 text-sm font-medium"
+              >
+                {p}%
+              </button>
+            ))}
+            <button
+              onClick={() => {
+                setPctMode(true);
+                setField('100');
+              }}
+              className="rounded-full bg-neutral-100 px-3 py-1.5 text-sm font-medium"
+            >
+              {t('comp')}
+            </button>
+          </div>
           <button onClick={applyDiscount} className="w-full rounded-full bg-neutral-900 py-3 font-semibold text-white">
             {t('apply')}
           </button>

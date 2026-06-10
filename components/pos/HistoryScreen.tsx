@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslations } from 'next-intl';
-import { ChevronLeft, ChevronDown, ChevronRight, Printer, Clock, RotateCcw } from 'lucide-react';
+import { ChevronLeft, ChevronDown, ChevronRight, Printer, Clock, RotateCcw, Search } from 'lucide-react';
 import type { PosDexie } from '@/lib/pos/db';
-import type { PosTab, TabItem } from '@/lib/pos/types';
+import type { PosTab, TabItem, Payment } from '@/lib/pos/types';
 import { formatPrice } from '@/lib/utils';
 import { printReceipt } from '@/lib/pos/print';
 import { reopenTab } from '@/lib/pos/tabs';
@@ -26,14 +26,17 @@ export function HistoryScreen({
   onBack: () => void;
 }) {
   const t = useTranslations('pos');
+  const [query, setQuery] = useState('');
   const paid = useLiveQuery(() => db.tabs.where('status').equals('paid').toArray(), [db], [] as PosTab[]);
 
   async function reopen(tab: PosTab) {
     await reopenTab(db, tab);
     onBack();
   }
+  const q = query.trim().toLowerCase();
   const list = (paid ?? [])
     .filter((x) => !shiftId || x.shift_id === shiftId)
+    .filter((x) => !q || (x.table_label ?? '').toLowerCase().includes(q))
     .sort((a, b) => (b.closed_at ?? '').localeCompare(a.closed_at ?? ''));
   const total = list.reduce((s, x) => s + x.total, 0);
 
@@ -58,6 +61,18 @@ export function HistoryScreen({
           </p>
         </div>
       </header>
+
+      <div className="border-b border-neutral-200 bg-white px-3 py-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t('searchOrders')}
+            className="w-full rounded-xl border border-neutral-200 py-2 pl-9 pr-3 text-sm focus:border-neutral-400 focus:outline-none"
+          />
+        </div>
+      </div>
 
       <div className="p-3">
         {list.length === 0 ? (
@@ -103,6 +118,11 @@ function HistoryRow({
     () => (open ? db.tab_items.where('tab_id').equals(tab.id).toArray() : Promise.resolve([] as TabItem[])),
     [db, tab.id, open],
     [] as TabItem[],
+  );
+  const payments = useLiveQuery(
+    () => (open ? db.payments.where('tab_id').equals(tab.id).toArray() : Promise.resolve([] as Payment[])),
+    [db, tab.id, open],
+    [] as Payment[],
   );
   const live = (items ?? []).filter((i) => !i.voided_at);
   const time = (iso: string | null) =>
@@ -150,6 +170,16 @@ function HistoryRow({
             <p className="mt-1 text-xs text-green-600">
               {t('discount')} − {formatPrice(tab.discount, currency, locale)}
             </p>
+          )}
+          {(payments ?? []).length > 0 && (
+            <ul className="mt-2 space-y-0.5 border-t border-neutral-100 pt-2 text-xs text-neutral-500">
+              {(payments ?? []).map((p) => (
+                <li key={p.id} className="flex justify-between">
+                  <span>{t(`method_${p.method}`)}</span>
+                  <span>{formatPrice(p.amount + p.tip, currency, locale)}</span>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       )}

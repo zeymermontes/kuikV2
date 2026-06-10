@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslations } from 'next-intl';
 import type { PosDexie } from '@/lib/pos/db';
 import type { RegisterShift, Payment, PaymentMethod } from '@/lib/pos/types';
-import { Printer } from 'lucide-react';
+import { Printer, Download } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 import { printHtml } from '@/lib/pos/print';
 import { PosModal } from './PosModal';
@@ -65,6 +65,29 @@ export function ZReport({
     );
   }
 
+  function downloadZ() {
+    const line = (l: string, v: string) => `${l}\t${v}`;
+    const lines = [
+      t('zTitle'),
+      line(t('opening'), money(shift.opening_cash)),
+      '',
+      ...METHODS.map((m) => line(`${t(`method_${m}`)} (${by[m].count})`, money(by[m].amount))),
+      tips > 0 ? line(t('tips'), money(tips)) : '',
+      line(`${t('totalCharged')} (${count})`, money(total)),
+      '',
+      line(t('zExpected'), money(shift.expected_cash ?? 0)),
+      line(t('zCounted'), money(shift.closing_cash ?? 0)),
+      line(t('zDiff'), money(shift.over_short ?? 0)),
+    ].filter(Boolean);
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `z-report-${(shift.closed_at ?? shift.opened_at).slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <PosModal title={t('zTitle')} onClose={onClose}>
       <dl className="space-y-1.5 text-sm">
@@ -96,6 +119,9 @@ export function ZReport({
       <div className="mt-5 flex gap-2">
         <button onClick={printZ} className="flex flex-1 items-center justify-center gap-2 rounded-full border border-neutral-300 py-3 font-semibold text-neutral-700">
           <Printer className="h-5 w-5" /> {t('printZ')}
+        </button>
+        <button onClick={downloadZ} title={t('exportTxt')} className="flex items-center justify-center rounded-full border border-neutral-300 px-4 py-3 text-neutral-700">
+          <Download className="h-5 w-5" />
         </button>
         <button onClick={onClose} className="flex-1 rounded-full bg-neutral-900 py-3 font-semibold text-white">
           {t('done')}
