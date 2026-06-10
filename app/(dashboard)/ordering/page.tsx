@@ -31,6 +31,7 @@ export default async function OrderingPage() {
     collect_table: false,
     cash_count_mode: 'total',
     cash_denominations: null,
+    pos_tables: 0,
     updated_at: new Date(0).toISOString(),
   };
 

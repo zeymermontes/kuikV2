@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslations } from 'next-intl';
-import { Plus, Wifi, WifiOff, CloudUpload, Check, AlertTriangle } from 'lucide-react';
+import { Plus, Wifi, WifiOff, CloudUpload, Check, AlertTriangle, Zap, Grid3x3, ReceiptText, UserRound } from 'lucide-react';
 import { posDb } from '@/lib/pos/db';
 import { startSync, nowISO, retryDead, type SyncState } from '@/lib/pos/sync';
 import { openTab } from '@/lib/pos/tabs';
@@ -25,6 +25,7 @@ export function PosTerminal({
   locale,
   cashCountMode,
   cashDenominations,
+  posTables,
   menu: initialMenu,
 }: {
   tenantId: string;
@@ -34,16 +35,31 @@ export function PosTerminal({
   locale: string;
   cashCountMode: 'total' | 'denominations';
   cashDenominations: number[] | null;
+  posTables: number;
   menu: PosMenu;
 }) {
   const t = useTranslations('pos');
   const db = useMemo(() => posDb(tenantId), [tenantId]);
   const [sync, setSync] = useState<SyncState>({ online: true, live: false, pending: 0 });
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [modal, setModal] = useState<'newTab' | 'openReg' | 'closeReg' | null>(null);
+  const [modal, setModal] = useState<'newTab' | 'openReg' | 'closeReg' | 'server' | null>(null);
   const [field, setField] = useState('');
   const [zShift, setZShift] = useState<RegisterShift | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [view, setView] = useState<'cuentas' | 'mesas'>(posTables > 0 ? 'mesas' : 'cuentas');
+  const [serverName, setServerName] = useState('');
+
+  // Active server is remembered per device (Fudo-style attribution).
+  useEffect(() => {
+    const id = setTimeout(() => setServerName(localStorage.getItem('pos_server') ?? ''), 0);
+    return () => clearTimeout(id);
+  }, []);
+  function saveServer() {
+    const v = field.trim();
+    localStorage.setItem('pos_server', v);
+    setServerName(v);
+    setModal(null);
+  }
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
@@ -87,8 +103,25 @@ export function PosTerminal({
   }
 
   async function confirmNewTab() {
-    const tab = await openTab(db, tenantId, userId, field.trim() || null, shiftId);
+    const tab = await openTab(db, tenantId, userId, field.trim() || null, shiftId, serverName || null);
     setModal(null);
+    setSelectedId(tab.id);
+  }
+
+  // Counter / quick sale: open a label-less tab and jump straight to the order pad.
+  async function quickSale() {
+    const tab = await openTab(db, tenantId, userId, null, shiftId, serverName || null);
+    setSelectedId(tab.id);
+  }
+
+  // Tap a floor table: open its running tab, or start one tied to that table.
+  async function tapTable(label: string) {
+    const existing = (tabs ?? []).find((x) => x.table_label === label);
+    if (existing) {
+      setSelectedId(existing.id);
+      return;
+    }
+    const tab = await openTab(db, tenantId, userId, label, shiftId, serverName || null);
     setSelectedId(tab.id);
   }
 
@@ -140,6 +173,15 @@ export function PosTerminal({
       <header className="flex items-center justify-between border-b border-neutral-200 bg-white px-4 py-3">
         <h1 className="text-lg font-bold">{t('title')}</h1>
         <div className="flex items-center gap-3 text-sm">
+          <button
+            onClick={() => {
+              setField(serverName);
+              setModal('server');
+            }}
+            className="flex items-center gap-1.5 rounded-full border border-neutral-300 px-2.5 py-1 text-neutral-600"
+          >
+            <UserRound className="h-4 w-4" /> {serverName || t('noServer')}
+          </button>
           <span className="flex items-center gap-1.5">
             {sync.online ? <Wifi className="h-4 w-4 text-green-600" /> : <WifiOff className="h-4 w-4 text-red-500" />}
             {sync.online ? t('online') : t('offline')}
@@ -178,6 +220,12 @@ export function PosTerminal({
             <Plus className="h-5 w-5" /> {t('newTab')}
           </button>
           <button
+            onClick={quickSale}
+            className="flex items-center gap-2 rounded-xl bg-green-600 px-4 py-3 font-semibold text-white"
+          >
+            <Zap className="h-5 w-5" /> {t('quickSale')}
+          </button>
+          <button
             onClick={() => openModal(shift ? 'closeReg' : 'openReg')}
             className={`rounded-xl border px-4 py-3 text-sm font-medium ${
               shift ? 'border-amber-300 text-amber-700' : 'border-neutral-300 text-neutral-600'
@@ -198,7 +246,49 @@ export function PosTerminal({
           )}
         </div>
 
-        {(tabs ?? []).length === 0 ? (
+        {posTables > 0 && (
+          <div className="mb-4 inline-flex overflow-hidden rounded-xl border border-neutral-300 text-sm">
+            <button
+              onClick={() => setView('mesas')}
+              className={`flex items-center gap-1.5 px-4 py-2 font-medium ${view === 'mesas' ? 'bg-neutral-900 text-white' : 'text-neutral-600'}`}
+            >
+              <Grid3x3 className="h-4 w-4" /> {t('tables')}
+            </button>
+            <button
+              onClick={() => setView('cuentas')}
+              className={`flex items-center gap-1.5 px-4 py-2 font-medium ${view === 'cuentas' ? 'bg-neutral-900 text-white' : 'text-neutral-600'}`}
+            >
+              <ReceiptText className="h-4 w-4" /> {t('accounts')}
+            </button>
+          </div>
+        )}
+
+        {posTables > 0 && view === 'mesas' ? (
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+            {Array.from({ length: posTables }, (_, i) => String(i + 1)).map((label) => {
+              const tab = (tabs ?? []).find((x) => x.table_label === label);
+              return (
+                <button
+                  key={label}
+                  onClick={() => tapTable(label)}
+                  className={`flex aspect-square flex-col items-center justify-center rounded-2xl border p-2 text-center active:scale-[0.97] ${
+                    tab ? 'border-green-300 bg-green-50' : 'border-neutral-200 bg-white'
+                  }`}
+                >
+                  <span className="text-lg font-bold">{label}</span>
+                  {tab ? (
+                    <>
+                      <span className="text-xs font-medium text-green-700">{formatPrice(tab.total, currency, locale)}</span>
+                      {tab.server_name && <span className="text-[10px] text-neutral-400">{tab.server_name}</span>}
+                    </>
+                  ) : (
+                    <span className="text-xs text-neutral-400">{t('free')}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        ) : (tabs ?? []).length === 0 ? (
           <p className="py-12 text-center text-neutral-400">{t('noTabs')}</p>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -215,6 +305,7 @@ export function PosTerminal({
                   </span>
                 </div>
                 <p className="mt-2 text-sm text-neutral-500">{formatPrice(tab.total, currency, locale)}</p>
+                {tab.server_name && <p className="text-xs text-neutral-400">{tab.server_name}</p>}
               </button>
             ))}
           </div>
@@ -233,6 +324,22 @@ export function PosTerminal({
           />
           <button onClick={confirmNewTab} className="w-full rounded-full bg-neutral-900 py-3 font-semibold text-white">
             {t('create')}
+          </button>
+        </PosModal>
+      )}
+
+      {modal === 'server' && (
+        <PosModal title={t('selectServer')} onClose={() => setModal(null)}>
+          <input
+            autoFocus
+            value={field}
+            onChange={(e) => setField(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && saveServer()}
+            placeholder={t('server')}
+            className="mb-4 w-full rounded-xl border border-neutral-200 px-3 py-3 text-base focus:border-neutral-400 focus:outline-none"
+          />
+          <button onClick={saveServer} className="w-full rounded-full bg-neutral-900 py-3 font-semibold text-white">
+            {t('apply')}
           </button>
         </PosModal>
       )}

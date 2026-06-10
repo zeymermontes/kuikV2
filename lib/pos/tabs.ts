@@ -14,6 +14,7 @@ export async function openTab(
   userId: string,
   label: string | null,
   shiftId: string | null = null,
+  serverName: string | null = null,
 ): Promise<PosTab> {
   const t = nowISO();
   const tab: PosTab = {
@@ -22,6 +23,7 @@ export async function openTab(
     branch_id: null,
     table_label: label,
     customer_name: null,
+    server_name: serverName,
     status: 'open',
     opened_by: userId,
     opened_at: t,

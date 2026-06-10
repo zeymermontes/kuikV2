@@ -103,6 +103,7 @@ export interface TenantOrdering {
   collect_table: boolean;
   cash_count_mode: 'total' | 'denominations';
   cash_denominations: number[] | null;
+  pos_tables: number;
   updated_at: string;
 }
 

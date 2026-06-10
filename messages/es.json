@@ -363,6 +363,8 @@
     "cashDenoms": "Por denominación",
     "cashDenomList": "Denominaciones",
     "cashDenomListHint": "Separadas por coma. Vacío = predeterminadas.",
+    "posTables": "Número de mesas (POS)",
+    "posTablesHint": "Muestra un mapa de mesas en el POS. 0 = solo cuentas.",
     "collectAddress": "Pedir dirección (a domicilio)",
     "collectPickupTime": "Pedir hora (para recoger)",
     "collectTable": "Pedir número de mesa (comer aquí)"
@@ -462,6 +464,7 @@
     "popular": "Populares",
     "comp": "Cortesía",
     "tables": "Mesas",
+    "accounts": "Cuentas",
     "quickSale": "Venta rápida",
     "free": "Libre",
     "server": "Mesero",

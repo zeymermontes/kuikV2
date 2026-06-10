@@ -201,6 +201,21 @@ export function OrderingForm({ ordering }: { ordering: TenantOrdering }) {
           </div>
         )}
       </Card>
+
+      {/* POS floor map */}
+      <Card className="space-y-2">
+        <div>
+          <h2 className="font-semibold">{t('posTables')}</h2>
+          <p className="text-sm text-neutral-500">{t('posTablesHint')}</p>
+        </div>
+        <Input
+          type="number"
+          min={0}
+          max={200}
+          defaultValue={o.pos_tables}
+          onBlur={(e) => set('pos_tables', Math.max(0, Math.min(200, parseInt(e.target.value, 10) || 0)))}
+        />
+      </Card>
       </>
       )}
     </div>

@@ -21,6 +21,7 @@ export interface PosTab {
   branch_id: string | null;
   table_label: string | null;
   customer_name: string | null;
+  server_name: string | null;
   status: TabStatus;
   opened_by: string | null;
   opened_at: string;

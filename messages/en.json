@@ -363,6 +363,8 @@
     "cashDenoms": "By denomination",
     "cashDenomList": "Denominations",
     "cashDenomListHint": "Comma-separated. Empty = defaults.",
+    "posTables": "Number of tables (POS)",
+    "posTablesHint": "Shows a floor map in the POS. 0 = accounts only.",
     "collectAddress": "Ask for address (delivery)",
     "collectPickupTime": "Ask for time (pickup)",
     "collectTable": "Ask for table number (dine-in)"
@@ -462,6 +464,7 @@
     "popular": "Popular",
     "comp": "Comp",
     "tables": "Tables",
+    "accounts": "Accounts",
     "quickSale": "Quick sale",
     "free": "Free",
     "server": "Server",

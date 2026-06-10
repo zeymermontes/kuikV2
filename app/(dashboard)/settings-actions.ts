@@ -133,6 +133,7 @@ export async function updateOrdering(
     collect_table: boolean;
     cash_count_mode: 'total' | 'denominations';
     cash_denominations: number[] | null;
+    pos_tables: number;
   }>,
 ) {
   const { tenant } = await requireTenant();
