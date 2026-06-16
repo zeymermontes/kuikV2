@@ -32,6 +32,8 @@ export default async function LandingPage() {
     rating: null,
     reviews_url: null,
     wifi_password: null,
+    landing_mode: 'builder',
+    custom_entry: null,
     updated_at: new Date(0).toISOString(),
   };
 

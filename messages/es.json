@@ -561,7 +561,22 @@
     "trialEnds": "Fin de prueba",
     "awardMonth": "Otorgar mes gratis",
     "awardMonths": "Otorgar meses",
-    "lastActivity": "Última actividad"
+    "lastActivity": "Última actividad",
+    "landing": "Portada",
+    "landingModeBuilder": "Plantilla",
+    "landingModeCustom": "Sitio propio",
+    "landingModeNone": "Sin portada (menú)",
+    "landingUpload": "Subir sitio",
+    "landingReplace": "Reemplazar sitio",
+    "landingPreview": "Vista previa",
+    "landingPreviewHint": "Abre el sitio subido en una pestaña nueva (funciona aunque no sea el modo seleccionado).",
+    "landingUploadHint": "Sube un .zip con index.html + recursos. Se guarda y se muestra en un iframe aislado; elige \"Sitio propio\" para mostrarlo.",
+    "landingClear": "Quitar sitio propio",
+    "landingClearConfirm": "¿Quitar el sitio personalizado subido para este restaurante?",
+    "landingErr_noFile": "No se seleccionó archivo.",
+    "landingErr_badZip": "No se pudo leer el .zip.",
+    "landingErr_noIndex": "No se encontró index.html en el zip.",
+    "landingErr_uploadFailed": "Falló la subida. Inténtalo de nuevo."
   },
   "menu": {
     "orderWhatsapp": "Ordenar por WhatsApp",
