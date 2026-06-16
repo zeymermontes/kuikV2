@@ -35,12 +35,13 @@ import { setActiveTenant } from '@/app/(dashboard)/tenant-actions';
 import { LocaleSwitch } from './LocaleSwitch';
 
 // `roles` lists which member roles see each item.
+// `dev: true` items are in development — only shown to dev accounts (see lib/features.ts).
 const NAV = [
   { href: '/dashboard', icon: LayoutDashboard, key: 'dashboard', roles: ['owner', 'manager'] },
   { href: '/menu', icon: UtensilsCrossed, key: 'menu', roles: ['owner', 'manager', 'cashier', 'waiter'] },
-  { href: '/orders', icon: ClipboardList, key: 'orders', roles: ['owner', 'manager', 'cashier', 'waiter'] },
-  { href: '/pos', icon: Calculator, key: 'pos', roles: ['owner', 'manager', 'cashier', 'waiter'] },
-  { href: '/kds', icon: Monitor, key: 'kds', roles: ['owner', 'manager', 'cashier', 'waiter'] },
+  { href: '/orders', icon: ClipboardList, key: 'orders', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true },
+  { href: '/pos', icon: Calculator, key: 'pos', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true },
+  { href: '/kds', icon: Monitor, key: 'kds', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true },
   { href: '/reservations', icon: CalendarCheck, key: 'reservations', roles: ['owner', 'manager', 'cashier', 'waiter'] },
   { href: '/loyalty', icon: Gift, key: 'loyalty', roles: ['owner', 'manager', 'waiter'] },
   { href: '/reports', icon: BarChart3, key: 'reports', roles: ['owner', 'manager'] },
@@ -56,6 +57,7 @@ const NAV = [
 
 export function Sidebar({
   isSuperAdmin,
+  showDevFeatures,
   role,
   menuUrl,
   locale,
@@ -63,6 +65,7 @@ export function Sidebar({
   activeTenantId,
 }: {
   isSuperAdmin: boolean;
+  showDevFeatures: boolean;
   role: MemberRole;
   menuUrl: string;
   locale: string;
@@ -81,7 +84,11 @@ export function Sidebar({
 
   const nav = (
     <nav className="flex flex-1 flex-col gap-1">
-      {NAV.filter((item) => (item.roles as readonly string[]).includes(role)).map(
+      {NAV.filter(
+        (item) =>
+          (item.roles as readonly string[]).includes(role) &&
+          (!('dev' in item && item.dev) || showDevFeatures),
+      ).map(
         ({ href, icon: Icon, key }) => (
           <NavLink key={href} href={href} active={pathname === href} icon={Icon} onClick={() => setOpen(false)}>
             {t(key)}

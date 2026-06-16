@@ -1,5 +1,6 @@
 import { requireTenant, getMemberships } from '@/lib/auth';
 import { tenantUrl } from '@/lib/config';
+import { canUseDevFeatures } from '@/lib/features';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { TrialBanner } from '@/components/dashboard/TrialBanner';
 
@@ -15,6 +16,7 @@ export default async function DashboardLayout({
     <div className="flex min-h-screen bg-neutral-50">
       <Sidebar
         isSuperAdmin={ctx.user.profile.role === 'super_admin'}
+        showDevFeatures={canUseDevFeatures(ctx.user.email)}
         role={ctx.role}
         menuUrl={tenantUrl(ctx.tenant.subdomain)}
         locale={ctx.user.profile.locale}
