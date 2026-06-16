@@ -690,7 +690,22 @@
     "trialEnds": "Trial ends",
     "awardMonth": "Award free month",
     "awardMonths": "Award months",
-    "lastActivity": "Last activity"
+    "lastActivity": "Last activity",
+    "landing": "Landing",
+    "landingModeBuilder": "Template",
+    "landingModeCustom": "Custom site",
+    "landingModeNone": "No landing (menu)",
+    "landingUpload": "Upload site",
+    "landingReplace": "Replace site",
+    "landingPreview": "Preview",
+    "landingPreviewHint": "Open the uploaded site in a new tab (works even when it isn't the selected mode).",
+    "landingUploadHint": "Upload a .zip with index.html + assets. Stored and rendered in a sandboxed iframe; pick \"Custom site\" to show it.",
+    "landingClear": "Remove custom site",
+    "landingClearConfirm": "Remove this restaurant's uploaded custom site?",
+    "landingErr_noFile": "No file selected.",
+    "landingErr_badZip": "Could not read the .zip.",
+    "landingErr_noIndex": "No index.html found in the zip.",
+    "landingErr_uploadFailed": "Upload failed. Try again."
   },
   "menu": {
     "orderWhatsapp": "Order on WhatsApp",

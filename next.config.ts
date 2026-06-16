@@ -14,6 +14,8 @@ const supabaseHost = (() => {
 const nextConfig: NextConfig = {
   // Pin the workspace root (a stray lockfile in $HOME otherwise confuses inference).
   turbopack: { root: import.meta.dirname },
+  // Custom-landing zips are posted to a Server Action; the default body cap is 1MB.
+  experimental: { serverActions: { bodySizeLimit: '15mb' } },
   images: {
     remotePatterns: [
       ...(supabaseHost

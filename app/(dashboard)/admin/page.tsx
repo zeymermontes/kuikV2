@@ -2,10 +2,11 @@ import { getTranslations } from 'next-intl/server';
 import { requireSuperAdmin } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { getPlatformSettings } from '@/lib/platform';
-import { tenantUrl } from '@/lib/config';
+import { tenantUrl, tenantBaseUrl } from '@/lib/config';
 import { formatPrice } from '@/lib/utils';
 import { Card } from '@/components/ui';
 import { AwardMonthsButton } from '@/components/dashboard/AwardMonthsButton';
+import { LandingControls } from '@/components/dashboard/LandingControls';
 import { PricingSettings } from '@/components/dashboard/PricingSettings';
 import { PlanSelect } from '@/components/dashboard/PlanSelect';
 import type { SubscriptionStatus } from '@/lib/database.types';
@@ -39,6 +40,28 @@ export default async function AdminPage() {
   const { data } = await supabase.rpc('admin_tenant_overview');
   const rows = (data ?? []) as Overview[];
   const plan = await getPlatformSettings();
+
+  // Per-tenant landing state: the super-admin's home-mode selection and whether
+  // a custom site has been uploaded.
+  const { data: landingRows } = await supabase
+    .from('tenant_landing')
+    .select('tenant_id, landing_mode, custom_entry');
+  const landingByTenant = new Map(
+    (landingRows ?? []).map((r) => {
+      const row = r as {
+        tenant_id: string;
+        landing_mode: 'builder' | 'custom' | 'none' | null;
+        custom_entry: string | null;
+      };
+      return [
+        row.tenant_id,
+        {
+          mode: row.landing_mode ?? 'builder',
+          entry: row.custom_entry,
+        },
+      ] as const;
+    }),
+  );
 
   const activeCount = rows.filter((r) => r.status === 'active').length;
   const mrr = activeCount * plan.plan_amount;
@@ -75,6 +98,7 @@ export default async function AdminPage() {
               <th className="px-4 py-3">{t('status')}</th>
               <th className="px-4 py-3">{t('plan')}</th>
               <th className="px-4 py-3">{t('trialEnds')}</th>
+              <th className="px-4 py-3">{t('landing')}</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -116,6 +140,25 @@ export default async function AdminPage() {
                   </td>
                   <td className="px-4 py-3 text-neutral-500">
                     {end ? new Date(end).toLocaleDateString() : '—'}
+                  </td>
+                  <td className="px-4 py-3">
+                    {(() => {
+                      const l = landingByTenant.get(r.tenant_id);
+                      return (
+                        <LandingControls
+                          tenantId={r.tenant_id}
+                          mode={l?.mode ?? 'builder'}
+                          hasCustom={Boolean(l?.entry)}
+                          // Clean public URL for the uploaded site, e.g.
+                          // laseisdos.kuik.mx/landing — shown regardless of mode.
+                          previewUrl={
+                            l?.entry
+                              ? `${tenantBaseUrl(r.subdomain, r.custom_domain)}/landing`
+                              : null
+                          }
+                        />
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <AwardMonthsButton tenantId={r.tenant_id} />

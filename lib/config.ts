@@ -22,6 +22,19 @@ export function tenantUrl(subdomain: string): string {
   return `${PROTOCOL}://${subdomain}.${ROOT_DOMAIN}`;
 }
 
+/**
+ * The tenant's canonical public base URL: its custom domain if set, else its
+ * subdomain on the root domain. Used to give a sandboxed custom landing a
+ * working link back to the menu (the iframe can't read its parent's origin).
+ */
+export function tenantBaseUrl(
+  subdomain: string,
+  customDomain: string | null,
+): string {
+  const host = customDomain || `${subdomain}.${ROOT_DOMAIN}`;
+  return `${PROTOCOL}://${host}`;
+}
+
 export const SUPPORTED_LOCALES = ['es', 'en'] as const;
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = 'es';

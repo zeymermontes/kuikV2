@@ -298,6 +298,13 @@ export interface TenantLanding {
   rating: number | null;
   reviews_url: string | null;
   wifi_password: string | null;
+  // Super-admin home-screen selector. 'builder' = defer to the owner's template
+  // landing (shown if `enabled`); 'custom' = a super-admin-uploaded static site
+  // rendered in a sandboxed iframe; 'none' = force straight to the menu.
+  landing_mode: 'builder' | 'custom' | 'none';
+  // Storage path (within the public `media` bucket) of the uploaded entry
+  // HTML, e.g. "<tenantId>/landing-site/index.html". Null until uploaded.
+  custom_entry: string | null;
   updated_at: string;
 }
 

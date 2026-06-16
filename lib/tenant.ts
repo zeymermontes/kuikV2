@@ -93,6 +93,8 @@ export const getTenantByHostKey = cache(
       rating: null,
       reviews_url: null,
       wifi_password: null,
+      landing_mode: 'builder',
+      custom_entry: null,
       updated_at: tenant.created_at,
     };
 
