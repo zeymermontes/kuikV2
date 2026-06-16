@@ -49,13 +49,18 @@ export default async function MarketingPage() {
     },
   ] as const;
 
-  const planFeatures = [
-    'Menú ilimitado con fotos',
+  const basicFeatures = [
+    'Menú con fotos',
     'Pedidos por WhatsApp',
     'Personalización completa',
-    'Dashboard de visitas',
+    'Dashboard',
     'Subdominio incluido',
+  ];
+  const proFeatures = [
     'Dominio propio',
+    'Programa de lealtad',
+    'Sucursales',
+    'Reportes avanzados',
   ];
 
   return (
@@ -137,35 +142,79 @@ export default async function MarketingPage() {
       </section>
 
       {/* Pricing */}
-      <section id="precio" className="mx-auto max-w-md px-5 py-16">
-        <div className="rounded-3xl border border-neutral-200 p-8 text-center shadow-sm">
-          <p className="text-sm font-semibold uppercase tracking-wide text-amber-600">
-            {plan.plan_name}
-          </p>
-          <div className="mt-3 flex items-end justify-center gap-1">
-            <span className="text-5xl font-extrabold">
-              {formatPrice(plan.plan_amount, plan.plan_currency)}
-            </span>
-            <span className="mb-1 text-neutral-500">/mes</span>
+      <section id="precio" className="mx-auto max-w-3xl px-5 py-16">
+        <h2 className="text-center text-3xl font-bold">Precios claros</h2>
+        <p className="mt-2 text-center text-neutral-600">
+          {t('freeTrial')} · Cancela cuando quieras
+        </p>
+
+        <div className="mt-10 grid gap-5 sm:grid-cols-2">
+          {/* Básico */}
+          <div className="flex flex-col rounded-3xl border border-neutral-200 p-8">
+            <p className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+              {plan.plan_name}
+            </p>
+            <div className="mt-3 flex items-end gap-1">
+              <span className="text-4xl font-extrabold">
+                {formatPrice(plan.plan_amount, plan.plan_currency)}
+              </span>
+              <span className="mb-1 text-neutral-500">/mes</span>
+            </div>
+            <ul className="mt-6 flex-1 space-y-2 text-sm">
+              {basicFeatures.map((f) => (
+                <li key={f} className="flex items-center gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-green-600" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/signup"
+              className="mt-7 block rounded-full border border-neutral-300 px-7 py-3 text-center font-semibold hover:bg-neutral-50"
+            >
+              {t('cta')}
+            </Link>
           </div>
-          <p className="mt-2 text-sm text-neutral-500">{t('freeTrial')} · Cancela cuando quieras</p>
 
-          <ul className="mt-6 space-y-2 text-left">
-            {planFeatures.map((f) => (
-              <li key={f} className="flex items-center gap-2 text-sm">
-                <Check className="h-4 w-4 shrink-0 text-green-600" />
-                {f}
-              </li>
-            ))}
-          </ul>
-
-          <Link
-            href="/signup"
-            className="mt-7 block rounded-full bg-amber-500 px-7 py-3 font-semibold text-white hover:bg-amber-600"
-          >
-            {t('cta')}
-          </Link>
+          {/* Pro */}
+          <div className="relative flex flex-col rounded-3xl border-2 border-amber-500 p-8 shadow-sm">
+            <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-amber-500 px-3 py-1 text-xs font-semibold text-white">
+              Más popular
+            </span>
+            <p className="text-sm font-semibold uppercase tracking-wide text-amber-600">
+              {plan.pro_name}
+            </p>
+            <div className="mt-3 flex items-end gap-1">
+              <span className="text-4xl font-extrabold">
+                {formatPrice(plan.pro_amount, plan.plan_currency)}
+              </span>
+              <span className="mb-1 text-neutral-500">/mes</span>
+            </div>
+            <p className="mt-2 text-sm text-neutral-500">Todo lo de {plan.plan_name}, y además:</p>
+            <ul className="mt-4 flex-1 space-y-2 text-sm">
+              {proFeatures.map((f) => (
+                <li key={f} className="flex items-center gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-green-600" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/signup"
+              className="mt-7 block rounded-full bg-amber-500 px-7 py-3 text-center font-semibold text-white hover:bg-amber-600"
+            >
+              {t('cta')}
+            </Link>
+          </div>
         </div>
+
+        <p className="mt-6 text-center text-sm text-neutral-500">
+          Restaurante adicional: {formatPrice(plan.extra_amount, plan.plan_currency)}/mes
+        </p>
+        <p className="mt-2 text-center text-sm text-neutral-500">
+          ¿Quieres una <span className="font-medium text-neutral-700">landing page personalizada</span> a la
+          medida de tu marca? Se cotiza por separado.
+        </p>
       </section>
 
       {/* Footer */}
