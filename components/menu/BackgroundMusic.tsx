@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { Volume2, VolumeX } from 'lucide-react';
 import { perceptualVolume } from '@/lib/utils';
 
@@ -15,6 +16,9 @@ export function BackgroundMusic({ url, volume }: { url: string; volume: number }
   const wantOn = useRef(true); // visitor intent: play unless they mute
   const [on, setOn] = useState(true);
   const vol = perceptualVolume(volume ?? 50);
+  const pathname = usePathname();
+  // The custom landing (/landing) is a self-contained site — no menu music there.
+  const hidden = pathname?.endsWith('/landing') ?? false;
 
   useEffect(() => {
     const a = audioRef.current;
@@ -60,6 +64,8 @@ export function BackgroundMusic({ url, volume }: { url: string; volume: number }
       a.play().then(() => setOn(true)).catch(() => {});
     }
   }
+
+  if (hidden) return null;
 
   return (
     <>
