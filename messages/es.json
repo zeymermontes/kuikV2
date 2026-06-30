@@ -330,6 +330,7 @@
     "error": "No se pudo registrar. Intenta de nuevo.",
     "join": "Unirme",
     "showCode": "Muestra este código al pagar para sumar",
+    "save": "Guardar imagen",
     "stampsProgress": "{have} de {need} sellos",
     "points": "puntos",
     "pointsReward": "{points} pts = {reward}"

@@ -377,7 +377,7 @@ export function MenuView({
         )}
         {loyalty.enabled && plan === 'pro' && (
           <div className="mt-2">
-            <LoyaltyButton tenantId={tenant.id} program={loyalty} />
+            <LoyaltyButton tenantId={tenant.id} program={loyalty} logoUrl={theme.logo_url} />
           </div>
         )}
         {branches.length > 0 && (

@@ -330,6 +330,7 @@
     "error": "Could not register. Try again.",
     "join": "Join",
     "showCode": "Show this code when you pay to earn",
+    "save": "Save image",
     "stampsProgress": "{have} of {need} stamps",
     "points": "points",
     "pointsReward": "{points} pts = {reward}"
