@@ -3,6 +3,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { requireUser, getMemberships } from '@/lib/auth';
 import { effectivePlan } from '@/lib/plan';
 import { RESERVED_SUBDOMAINS } from '@/lib/config';
@@ -47,7 +48,14 @@ export async function createTenant(
     return { error: 'subdomainInvalid' };
   }
 
-  const { data: tenant, error } = await supabase
+  // Provisioning a brand-new tenant runs with the service-role client: the row
+  // doesn't exist yet, so the anon client's `owner_id = auth.uid()` RLS check is
+  // fragile at signup time. `requireUser()` already authenticated the caller and
+  // we pin `owner_id` to their verified id, so ownership can't be forged. The
+  // `handle_new_tenant` trigger (security definer) seeds the child rows below.
+  const admin = createAdminClient();
+
+  const { data: tenant, error } = await admin
     .from('tenants')
     .insert({ owner_id: user.id, name, subdomain, locale: user.profile.locale })
     .select('id')
@@ -59,18 +67,18 @@ export async function createTenant(
   }
 
   if (whatsapp) {
-    await supabase.from('tenant_contact').update({ whatsapp_phone: whatsapp }).eq('tenant_id', tenant.id);
+    await admin.from('tenant_contact').update({ whatsapp_phone: whatsapp }).eq('tenant_id', tenant.id);
   }
 
   // Subscription: super-admins never pay; additional restaurants charge from the
   // start (no trial); the first restaurant keeps its 30-day trial (trigger default).
   if (isSuper) {
-    await supabase
+    await admin
       .from('subscriptions')
       .update({ status: 'active', plan: 'pro', trial_ends_at: null })
       .eq('tenant_id', tenant.id);
   } else if (additional) {
-    await supabase
+    await admin
       .from('subscriptions')
       .update({ status: 'past_due', plan: 'pro', is_additional: true, trial_ends_at: null })
       .eq('tenant_id', tenant.id);
