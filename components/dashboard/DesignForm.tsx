@@ -101,7 +101,7 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
     { key: 'text_secondary_color', label: t('textSecondary') },
     { key: 'button_color', label: t('button'), fallback: local.primary_color },
     { key: 'button_text_color', label: t('buttonText'), fallback: '#ffffff' },
-    { key: 'tab_bar_color', label: t('tabBar'), fallback: local.background_color },
+    { key: 'tab_bar_color', label: t('tabBar'), fallback: '#ffffff' },
     { key: 'tab_selected_color', label: t('tabSelected'), fallback: local.primary_color },
     { key: 'tab_unselected_color', label: t('tabUnselected'), fallback: '#eeeeee' },
     { key: 'tab_font_color', label: t('tabFont'), fallback: local.text_color },
@@ -487,7 +487,7 @@ function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettin
         className="-mx-5 flex gap-2 px-5 py-2"
         style={{
           fontFamily: ef(local.font_category),
-          backgroundColor: local.tab_bar_color ?? `color-mix(in srgb, ${bg} 90%, transparent)`,
+          backgroundColor: local.tab_bar_color ?? `color-mix(in srgb, ${dark ? '#111114' : '#ffffff'} 90%, transparent)`,
         }}
       >
         <span className="rounded-full px-3 py-1 text-xs font-medium" style={{ backgroundColor: tabSelBg, color: tabSelText }}>Entradas</span>
