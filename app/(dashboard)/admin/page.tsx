@@ -6,6 +6,7 @@ import { tenantUrl, tenantBaseUrl } from '@/lib/config';
 import { formatPrice } from '@/lib/utils';
 import { Card } from '@/components/ui';
 import { AwardMonthsButton } from '@/components/dashboard/AwardMonthsButton';
+import { TenantAdminActions } from '@/components/dashboard/TenantAdminActions';
 import { LandingControls } from '@/components/dashboard/LandingControls';
 import { PricingSettings } from '@/components/dashboard/PricingSettings';
 import { PlanSelect } from '@/components/dashboard/PlanSelect';
@@ -160,8 +161,11 @@ export default async function AdminPage() {
                       );
                     })()}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <AwardMonthsButton tenantId={r.tenant_id} />
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-2">
+                      <TenantAdminActions tenantId={r.tenant_id} name={r.name} />
+                      <AwardMonthsButton tenantId={r.tenant_id} />
+                    </div>
                   </td>
                 </tr>
               );

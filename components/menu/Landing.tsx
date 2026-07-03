@@ -105,7 +105,7 @@ export function Landing({
           </div>
         )}
         <div
-          className={`flex flex-col items-center px-5 text-center ${
+          className={`relative z-10 flex flex-col items-center px-5 text-center ${
             theme.cover_image_url ? '-mt-14' : 'pt-10'
           }`}
         >

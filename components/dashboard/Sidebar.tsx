@@ -83,7 +83,7 @@ export function Sidebar({
   );
 
   const nav = (
-    <nav className="flex flex-1 flex-col gap-1">
+    <nav className="-mx-1 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-1">
       {NAV.filter(
         (item) =>
           (item.roles as readonly string[]).includes(role) &&
@@ -125,7 +125,7 @@ export function Sidebar({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-neutral-200 bg-white p-4 md:flex">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-neutral-200 bg-white p-4 md:flex">
         <div className="mb-4 px-2 text-xl font-bold tracking-tight">Kuik</div>
         {switcher}
         {nav}
