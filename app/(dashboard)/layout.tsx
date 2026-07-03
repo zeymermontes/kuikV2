@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { requireTenant, getMemberships } from '@/lib/auth';
 import { tenantUrl } from '@/lib/config';
 import { canUseDevFeatures } from '@/lib/features';
+import { effectivePlan } from '@/lib/plan';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { TrialBanner } from '@/components/dashboard/TrialBanner';
 import { exitSupport } from './admin/actions';
@@ -19,12 +20,14 @@ export default async function DashboardLayout({
     <div className="flex min-h-screen bg-neutral-50">
       <Sidebar
         isSuperAdmin={ctx.user.profile.role === 'super_admin'}
-        showDevFeatures={canUseDevFeatures(ctx.user.email)}
+        showDevFeatures={canUseDevFeatures(ctx.user.email) && !ctx.support}
         role={ctx.role}
         menuUrl={tenantUrl(ctx.tenant.subdomain)}
         locale={ctx.user.profile.locale}
         tenants={memberships.map((m) => ({ id: m.tenant.id, name: m.tenant.name }))}
         activeTenantId={ctx.tenant.id}
+        plan={effectivePlan(ctx.subscription)}
+        enforcePlan={ctx.support}
       />
       <div className="flex min-w-0 flex-1 flex-col pt-14 md:pt-0">
         {ctx.support && tAdmin && (
