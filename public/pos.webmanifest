@@ -1,0 +1,13 @@
+{
+  "name": "Kuik POS",
+  "short_name": "Kuik POS",
+  "start_url": "/pos",
+  "scope": "/pos",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#111114",
+  "theme_color": "#111114",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

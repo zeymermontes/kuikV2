@@ -131,6 +131,9 @@ export async function updateOrdering(
     collect_address: boolean;
     collect_pickup_time: boolean;
     collect_table: boolean;
+    cash_count_mode: 'total' | 'denominations';
+    cash_denominations: number[] | null;
+    pos_tables: number;
   }>,
 ) {
   const { tenant } = await requireTenant();
@@ -152,6 +155,7 @@ export async function updateContact(
     maps_url: string | null;
     hours: unknown;
     reservations_enabled: boolean;
+    reservation_required: { phone?: boolean; party?: boolean; note?: boolean } | null;
     instagram: string | null;
     facebook: string | null;
     website: string | null;

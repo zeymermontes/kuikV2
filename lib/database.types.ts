@@ -3,7 +3,7 @@
 //   supabase gen types typescript --linked > lib/database.types.ts
 
 export type UserRole = 'owner' | 'super_admin';
-export type MemberRole = 'owner' | 'manager' | 'waiter';
+export type MemberRole = 'owner' | 'manager' | 'cashier' | 'waiter';
 
 export interface TenantMember {
   tenant_id: string;
@@ -101,6 +101,9 @@ export interface TenantOrdering {
   collect_address: boolean;
   collect_pickup_time: boolean;
   collect_table: boolean;
+  cash_count_mode: 'total' | 'denominations';
+  cash_denominations: number[] | null;
+  pos_tables: number;
   updated_at: string;
 }
 
@@ -111,6 +114,7 @@ export interface TenantContact {
   maps_url: string | null;
   hours: unknown | null;
   reservations_enabled: boolean;
+  reservation_required: { phone?: boolean; party?: boolean; note?: boolean } | null;
   instagram: string | null;
   facebook: string | null;
   website: string | null;
@@ -148,6 +152,7 @@ export interface Category {
   banner_image_url: string | null;
   banner_name: string | null;
   is_visible: boolean;
+  station: string | null;
   created_at: string;
 }
 
@@ -177,6 +182,7 @@ export interface Product {
   price: number | null;
   compare_at_price: number | null;
   cost: number | null;
+  sku: string | null;
   prep_time: string | null;
   calories: number | null;
   show_price: boolean;

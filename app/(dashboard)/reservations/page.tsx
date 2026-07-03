@@ -16,7 +16,7 @@ export default async function ReservationsPage() {
   const today = daysAgoISO(0).slice(0, 10);
 
   const [{ data: contact }, { data: rows }] = await Promise.all([
-    supabase.from('tenant_contact').select('reservations_enabled').eq('tenant_id', tenant.id).maybeSingle(),
+    supabase.from('tenant_contact').select('reservations_enabled, reservation_required').eq('tenant_id', tenant.id).maybeSingle(),
     supabase
       .from('reservations')
       .select('*')
@@ -33,6 +33,7 @@ export default async function ReservationsPage() {
       <ReservationsList
         reservations={(rows ?? []) as Reservation[]}
         enabled={(contact as Pick<TenantContact, 'reservations_enabled'> | null)?.reservations_enabled ?? false}
+        required={(contact as Pick<TenantContact, 'reservation_required'> | null)?.reservation_required ?? null}
       />
     </div>
   );

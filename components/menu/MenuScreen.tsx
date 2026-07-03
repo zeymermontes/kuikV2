@@ -46,6 +46,7 @@ export async function MenuScreen({ hostKey, branchSlug }: { hostKey: string; bra
       plan={data.plan}
       branches={data.branches}
       currentBranch={branch?.slug ?? null}
+      landingEnabled={data.landing.enabled}
       menu={menu}
     />
   );

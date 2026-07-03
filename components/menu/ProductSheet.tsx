@@ -16,6 +16,7 @@ export function ProductSheet({
   locale,
   onClose,
   onConfirm,
+  initial,
 }: {
   product: Product;
   showPrice: boolean;
@@ -23,17 +24,27 @@ export function ProductSheet({
   locale: string;
   onClose: () => void;
   onConfirm: (line: CartLine) => void;
+  // When set, the sheet opens pre-filled to edit an existing line.
+  initial?: { qty: number; note: string | null; selections: SelectedOption[] };
 }) {
   const t = useTranslations('menu');
   const groups = resolveOptionGroups(product);
   // group id -> selected option indices (single-choice groups hold 0 or 1)
   const [sel, setSel] = useState<Record<string, number[]>>(() => {
     const init: Record<string, number[]> = {};
-    for (const g of groups) init[g.id] = !g.multiple && g.required && g.options.length > 0 ? [0] : [];
+    for (const g of groups) {
+      if (initial) {
+        // Pre-select by matching the saved option names within each group.
+        const picked = initial.selections.filter((s) => s.group === g.name).map((s) => s.name);
+        init[g.id] = g.options.map((o, i) => (picked.includes(o.name) ? i : -1)).filter((i) => i >= 0);
+      } else {
+        init[g.id] = !g.multiple && g.required && g.options.length > 0 ? [0] : [];
+      }
+    }
     return init;
   });
-  const [qty, setQty] = useState(1);
-  const [note, setNote] = useState('');
+  const [qty, setQty] = useState(initial?.qty ?? 1);
+  const [note, setNote] = useState(initial?.note ?? '');
 
   // Lock background scroll so the mobile URL bar can't toggle and shift the
   // sheet while scrolling its content.

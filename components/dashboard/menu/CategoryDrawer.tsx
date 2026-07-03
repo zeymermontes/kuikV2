@@ -51,6 +51,15 @@ export function CategoryDrawer({
           />
         </div>
 
+        <div>
+          <Label>{t('station')}</Label>
+          <Input
+            defaultValue={category.station ?? ''}
+            placeholder={t('stationHint')}
+            onBlur={(e) => updateCategory(category.id, { station: e.target.value.trim() || null })}
+          />
+        </div>
+
         {/* Tab icon / image */}
         <div className="rounded-xl bg-neutral-50 p-3">
           <p className="mb-2 text-xs font-medium text-neutral-500">{t('tabIcon')}</p>

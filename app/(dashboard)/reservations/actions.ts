@@ -19,3 +19,13 @@ export async function toggleReservations(enabled: boolean): Promise<void> {
   revalidatePath('/reservations');
   revalidatePath(`/s/${tenant.subdomain}`);
 }
+
+export async function setReservationRequired(
+  required: { phone?: boolean; party?: boolean; note?: boolean },
+): Promise<void> {
+  const { tenant } = await requireTenant();
+  const supabase = await createClient();
+  await supabase.from('tenant_contact').update({ reservation_required: required }).eq('tenant_id', tenant.id);
+  revalidatePath('/reservations');
+  revalidatePath(`/s/${tenant.subdomain}`);
+}

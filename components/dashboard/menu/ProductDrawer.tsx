@@ -124,6 +124,15 @@ export function ProductDrawer({
           </div>
         </div>
 
+        <div>
+          <Label>{t('sku')}</Label>
+          <Input
+            defaultValue={product.sku ?? ''}
+            placeholder={t('skuHint')}
+            onBlur={(e) => updateProduct(product.id, { sku: e.target.value.trim() || null })}
+          />
+        </div>
+
         <div className="flex gap-3">
           <div className="flex-1">
             <Label>{t('prepTime')}</Label>

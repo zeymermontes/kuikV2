@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "NODE_OPTIONS=--max-http-header-size=65536 next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "NODE_OPTIONS=--max-http-header-size=65536 next start",
     "lint": "eslint"
   },
   "dependencies": {
@@ -18,6 +18,8 @@
     "@tanstack/react-query": "^5.101.0",
     "browser-image-compression": "^2.0.2",
     "clsx": "^2.1.1",
+    "dexie": "^4.4.3",
+    "dexie-react-hooks": "^4.4.0",
     "fflate": "^0.8.3",
     "lucide-react": "^1.17.0",
     "mercadopago": "^3.1.0",

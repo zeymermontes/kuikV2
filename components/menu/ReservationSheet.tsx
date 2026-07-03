@@ -7,13 +7,17 @@ import { useTranslations } from 'next-intl';
 export function ReservationSheet({
   tenantId,
   branchId,
+  required,
   onClose,
 }: {
   tenantId: string;
   branchId?: string | null;
+  required?: { phone?: boolean; party?: boolean; note?: boolean } | null;
   onClose: () => void;
 }) {
   const t = useTranslations('reserve');
+  const req = required ?? {};
+  const star = (on?: boolean) => (on ? ' *' : '');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [party, setParty] = useState(2);
@@ -31,7 +35,7 @@ export function ReservationSheet({
     };
   }, []);
 
-  const valid = name.trim() && date && time;
+  const valid = name.trim() && date && time && (!req.phone || phone.trim()) && (!req.note || note.trim());
 
   async function submit() {
     if (!valid) return;
@@ -85,8 +89,8 @@ export function ReservationSheet({
               <CalendarCheck className="h-5 w-5" /> {t('title')}
             </h2>
             <div className="space-y-3">
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('name')} className={field} />
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t('phone')} inputMode="tel" className={field} />
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={`${t('name')} *`} className={field} />
+              <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={`${t('phone')}${star(req.phone)}`} inputMode="tel" className={field} />
               <div className="flex gap-3">
                 <div className="flex-1">
                   <label className="mb-1 block text-xs text-neutral-500">{t('date')}</label>
@@ -101,7 +105,7 @@ export function ReservationSheet({
                   <input type="number" min={1} max={50} value={party} onChange={(e) => setParty(Number(e.target.value) || 1)} className={field} />
                 </div>
               </div>
-              <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('notePlaceholder')} rows={2} className={field} />
+              <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={`${t('notePlaceholder')}${star(req.note)}`} rows={2} className={field} />
             </div>
             <button
               onClick={submit}

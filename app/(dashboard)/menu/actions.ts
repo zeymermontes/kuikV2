@@ -40,6 +40,7 @@ export async function updateCategory(
     banner_name: string | null;
     banner_image_url: string | null;
     is_visible: boolean;
+    station: string | null;
   }>,
 ) {
   const { subdomain, supabase } = await ctx();
@@ -82,6 +83,7 @@ export async function updateProduct(
     price: number | null;
     compare_at_price: number | null;
     cost: number | null;
+    sku: string | null;
     prep_time: string | null;
     calories: number | null;
     show_price: boolean;
