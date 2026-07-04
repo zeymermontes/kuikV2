@@ -66,13 +66,19 @@ export async function reorderCategories(ids: string[]) {
 export async function addProduct(categoryId: string, name: string) {
   const { tenantId, subdomain, supabase } = await ctx();
   const nextPos = await nextPosition(supabase, categoryId);
-  await supabase.from('products').insert({
-    tenant_id: tenantId,
-    category_id: categoryId,
-    name,
-    position: nextPos,
-  });
+  const { data } = await supabase
+    .from('products')
+    .insert({
+      tenant_id: tenantId,
+      category_id: categoryId,
+      name,
+      position: nextPos,
+    })
+    .select('id')
+    .single<{ id: string }>();
   revalidate(subdomain);
+  // Return the new id so the editor can auto-open its config drawer.
+  return data?.id ?? null;
 }
 
 export async function updateProduct(
