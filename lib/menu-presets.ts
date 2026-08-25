@@ -168,6 +168,7 @@ const OCEAN: MenuPreset = {
     showFilters: false,
     showBadges: false,
     showSocial: true,
+    whatsappBubble: true,
     soldOutStyle: 'gray',
     darkMode: 'off',
     animations: true,

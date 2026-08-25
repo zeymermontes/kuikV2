@@ -40,6 +40,7 @@ import { CartBar } from './CartBar';
 import { CartSheet } from './CartSheet';
 import { OpenStatus } from './OpenStatus';
 import { ReservationSheet } from './ReservationSheet';
+import { WhatsAppBubble } from './WhatsAppBubble';
 
 type CartState = Record<string, CartLine>; // keyed by CartLine.key
 
@@ -826,6 +827,14 @@ export function MenuView({
 
       {orderingEnabled && itemCount > 0 && (
         <CartBar count={itemCount} onOpen={() => setSheetOpen(true)} label={t('yourOrder')} />
+      )}
+
+      {settings.whatsappBubble && contact.whatsapp_phone && (
+        <WhatsAppBubble
+          phone={contact.whatsapp_phone}
+          label={t('whatsappBubble')}
+          raised={orderingEnabled && itemCount > 0}
+        />
       )}
 
       {showReserve && (

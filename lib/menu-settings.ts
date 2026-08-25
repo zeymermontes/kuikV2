@@ -76,6 +76,9 @@ export interface MenuSettings {
   showBadges: boolean;
   soldOutStyle: SoldOutStyle;
   showSocial: boolean;
+  /** Floating WhatsApp button in the corner — a contact channel, so it shows
+   *  whether or not the menu takes orders. */
+  whatsappBubble: boolean;
   // Page frame.
   contentWidth: ContentWidth;
   itemSpacing: ItemSpacing;
@@ -153,6 +156,7 @@ export const DEFAULT_MENU_SETTINGS: MenuSettings = {
   showBadges: true,
   soldOutStyle: 'gray',
   showSocial: true,
+  whatsappBubble: false,
   contentWidth: 'normal',
   itemSpacing: 'auto',
   cardSurface: 'auto',

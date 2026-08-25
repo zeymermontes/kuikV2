@@ -706,6 +706,12 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
           <ToggleRow label={t('showBadges')} checked={settings.showBadges} onChange={(v) => setS('showBadges', v)} />
           <ToggleRow label={t('showFilters')} checked={settings.showFilters} onChange={(v) => setS('showFilters', v)} />
           <ToggleRow label={t('showSocial')} checked={settings.showSocial} onChange={(v) => setS('showSocial', v)} />
+          <ToggleRow
+            label={t('whatsappBubble')}
+            checked={settings.whatsappBubble}
+            onChange={(v) => setS('whatsappBubble', v)}
+          />
+          <p className="-mt-2 text-xs text-neutral-500">{t('whatsappBubbleHint')}</p>
           <SelectRow
             label={t('soldOut')}
             value={settings.soldOutStyle}

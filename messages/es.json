@@ -373,7 +373,9 @@
     "versionDark": "Oscura",
     "logoHint": "El logo redondo, arriba del nombre del restaurante.",
     "coverHint": "Imagen ancha en la parte superior del menú.",
-    "logoWideHeight": "Alto del logo en la barra"
+    "logoWideHeight": "Alto del logo en la barra",
+    "whatsappBubble": "Burbuja de WhatsApp",
+    "whatsappBubbleHint": "Botón flotante en la esquina. Usa el número de WhatsApp de Contacto y funciona aunque el menú sea solo para mostrar."
   },
   "landing": {
     "title": "Pantalla de inicio",
@@ -897,6 +899,7 @@
     "table": "Número de mesa",
     "minOrder": "Pedido mínimo de {amount}",
     "optionsDish": "del platillo",
-    "optionsTakeaway": "para llevar"
+    "optionsTakeaway": "para llevar",
+    "whatsappBubble": "Escríbenos por WhatsApp"
   }
 }

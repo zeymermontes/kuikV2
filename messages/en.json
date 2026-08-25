@@ -373,7 +373,9 @@
     "versionDark": "Dark",
     "logoHint": "The round logo, above the restaurant name.",
     "coverHint": "Wide image at the top of the menu.",
-    "logoWideHeight": "Logo height in the bar"
+    "logoWideHeight": "Logo height in the bar",
+    "whatsappBubble": "WhatsApp bubble",
+    "whatsappBubbleHint": "Floating button in the corner. Uses the WhatsApp number from Contact and works even when the menu is showcase-only."
   },
   "landing": {
     "title": "Home screen",
@@ -897,6 +899,7 @@
     "table": "Table number",
     "minOrder": "Minimum order of {amount}",
     "optionsDish": "for the dish",
-    "optionsTakeaway": "to take away"
+    "optionsTakeaway": "to take away",
+    "whatsappBubble": "Message us on WhatsApp"
   }
 }
