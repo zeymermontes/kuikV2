@@ -153,6 +153,7 @@ const OCEAN: MenuPreset = {
     navIconSize: 44,
     navTabShape: 'plain',
     navIconShape: 'circle',
+    logoWideVariant: 'dark', // the bar is navy even on a light menu
     headerStyle: 'bar',
     fullWidthHeader: true,
     productCase: 'upper',

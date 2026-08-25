@@ -25,6 +25,7 @@ import {
   JUSTIFY_CLASS,
   textTransform,
   showCategoryTitle,
+  pickImage,
 } from '@/lib/menu-settings';
 import { mapHref } from '@/lib/hours';
 import { BADGES, badgeLabel } from '@/lib/badges';
@@ -328,7 +329,19 @@ export function MenuView({
   const tabsMode = settings.navMode === 'tabs';
   const showNav = (settings.stickyTabs || tabsMode) && filteredMenu.length > 1;
   const barHeader = settings.headerStyle === 'bar';
-  const wideLogo = theme.logo_wide_url;
+  // Which brand files this page uses. 'auto' follows the menu's dark mode; a
+  // slot can pin the other one (a navy bar wants the light-on-dark wordmark).
+  const pageIsDark = settings.darkMode === 'on';
+  const logo = pickImage(theme.logo_url, theme.logo_dark_url, settings.logoVariant, pageIsDark);
+  const wideLogo =
+    pickImage(theme.logo_wide_url, theme.logo_wide_dark_url, settings.logoWideVariant, pageIsDark) ??
+    logo;
+  const cover = pickImage(
+    theme.cover_image_url,
+    theme.cover_image_dark_url,
+    settings.coverVariant,
+    pageIsDark,
+  );
   // The bar and the category strip either span the viewport or line up with the
   // content column; either way their contents stay centred on the same width.
   const headerWidthClass = settings.fullWidthHeader
@@ -423,13 +436,13 @@ export function MenuView({
               )}
             </div>
             <div className="flex shrink-0 items-center justify-center">
-              {wideLogo || theme.logo_url ? (
+              {wideLogo ? (
                 <Image
-                  src={(wideLogo ?? theme.logo_url)!}
+                  src={wideLogo}
                   alt={tenant.name}
                   width={320}
                   height={80}
-                  className={`w-auto object-contain ${wideLogo ? 'h-9 sm:h-12' : 'h-10 rounded-full sm:h-12'}`}
+                  className={`w-auto object-contain ${theme.logo_wide_url || theme.logo_wide_dark_url ? 'h-9 sm:h-12' : 'h-10 rounded-full sm:h-12'}`}
                   priority
                 />
               ) : (
@@ -470,22 +483,22 @@ export function MenuView({
       )}
 
       {/* Cover */}
-      {theme.cover_image_url && (
+      {cover && (
         <div className="relative h-40 w-full overflow-hidden sm:h-52">
-          <Image src={theme.cover_image_url} alt={tenant.name} fill className="object-cover" priority />
+          <Image src={cover} alt={tenant.name} fill className="object-cover" priority />
         </div>
       )}
 
       {/* Header */}
       {!barHeader && (
       <header className="flex flex-col items-center gap-2 px-5 pt-6 pb-3 text-center">
-        {theme.logo_url && (
+        {logo && (
           <Image
-            src={theme.logo_url}
+            src={logo}
             alt={tenant.name}
             width={88}
             height={88}
-            className={`h-20 w-20 rounded-full object-cover shadow-sm ${theme.cover_image_url ? '-mt-16 ring-4 ring-[var(--brand-bg)]' : ''}`}
+            className={`h-20 w-20 rounded-full object-cover shadow-sm ${cover ? '-mt-16 ring-4 ring-[var(--brand-bg)]' : ''}`}
           />
         )}
         {settings.showName && (
@@ -507,7 +520,7 @@ export function MenuView({
         )}
         {loyalty.enabled && plan === 'pro' && (
           <div className="mt-2">
-            <LoyaltyButton tenantId={tenant.id} program={loyalty} logoUrl={theme.logo_url} />
+            <LoyaltyButton tenantId={tenant.id} program={loyalty} logoUrl={logo} />
           </div>
         )}
         {branches.length > 0 && (
@@ -523,7 +536,7 @@ export function MenuView({
           <OpenStatus hours={contact.hours} />
           <ContactLinks contact={contact} showSocial={settings.showSocial} />
           {loyalty.enabled && plan === 'pro' && (
-            <LoyaltyButton tenantId={tenant.id} program={loyalty} logoUrl={theme.logo_url} />
+            <LoyaltyButton tenantId={tenant.id} program={loyalty} logoUrl={logo} />
           )}
           {branches.length > 0 && <BranchPicker branches={branches} current={currentBranch} />}
         </div>

@@ -161,40 +161,50 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
 
         {/* Brand identity */}
         <Card>
-          <h2 className="mb-4 font-semibold">{t('brand')}</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>{t('logo')}</Label>
-              <ImageUploader
-                value={local.logo_url}
-                tenantId={theme.tenant_id}
-                folder="logos"
-                shape="circle"
-                onChange={(url) => set('logo_url', url)}
-              />
-            </div>
-            <div>
-              <Label>{t('cover')}</Label>
-              <ImageUploader
-                value={local.cover_image_url}
-                tenantId={theme.tenant_id}
-                folder="covers"
-                shape="wide"
-                onChange={(url) => set('cover_image_url', url)}
-              />
-            </div>
-          </div>
-          <div className="mt-4">
-            <Label>{t('logoWide')}</Label>
-            <ImageUploader
-              value={local.logo_wide_url}
-              tenantId={theme.tenant_id}
-              folder="logos"
-              shape="wide"
-              onChange={(url) => set('logo_wide_url', url)}
-            />
-            <p className="mt-1 text-xs text-neutral-500">{t('logoWideHint')}</p>
-          </div>
+          <h2 className="mb-1 font-semibold">{t('brand')}</h2>
+          <p className="mb-4 text-xs text-neutral-500">{t('brandHint')}</p>
+
+          <BrandImage
+            label={t('logo')} hint={t('logoHint')} shape="circle" folder="logos"
+            tenantId={theme.tenant_id}
+            light={local.logo_url} dark={local.logo_dark_url}
+            variant={settings.logoVariant}
+            onLight={(url) => set('logo_url', url)}
+            onDark={(url) => set('logo_dark_url', url)}
+            onVariant={(v) => setS('logoVariant', v)}
+            t={t}
+          />
+          <BrandImage
+            label={t('logoWide')} hint={t('logoWideHint')} shape="wide" folder="logos"
+            tenantId={theme.tenant_id}
+            light={local.logo_wide_url} dark={local.logo_wide_dark_url}
+            variant={settings.logoWideVariant}
+            onLight={(url) => set('logo_wide_url', url)}
+            onDark={(url) => set('logo_wide_dark_url', url)}
+            onVariant={(v) => setS('logoWideVariant', v)}
+            t={t}
+          />
+          <BrandImage
+            label={t('favicon')} hint={t('faviconHint')} shape="square" folder="logos"
+            tenantId={theme.tenant_id}
+            light={local.favicon_url} dark={local.favicon_dark_url}
+            variant={settings.faviconVariant}
+            onLight={(url) => set('favicon_url', url)}
+            onDark={(url) => set('favicon_dark_url', url)}
+            onVariant={(v) => setS('faviconVariant', v)}
+            t={t}
+          />
+          <BrandImage
+            label={t('cover')} hint={t('coverHint')} shape="wide" folder="covers"
+            tenantId={theme.tenant_id}
+            light={local.cover_image_url} dark={local.cover_image_dark_url}
+            variant={settings.coverVariant}
+            onLight={(url) => set('cover_image_url', url)}
+            onDark={(url) => set('cover_image_dark_url', url)}
+            onVariant={(v) => setS('coverVariant', v)}
+            t={t}
+          />
+
           <div className="mt-4">
             <Label>{t('slogan')}</Label>
             <Input
@@ -203,7 +213,7 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
               onBlur={(e) => set('slogan', e.target.value || null)}
             />
           </div>
-          <div className="mt-4">
+          <div className="mt-4 space-y-3">
             <ToggleRow
               label={t('showName')}
               checked={settings.showName}
@@ -729,6 +739,67 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
         <Label>{t('preview')}</Label>
         <Preview local={local} settings={settings} />
       </div>
+    </div>
+  );
+}
+
+/**
+ * One brand image in both versions, plus which of them this slot uses.
+ * Leaving the dark slot empty is fine — the light file is used everywhere,
+ * which is exactly how menus behaved before dark versions existed.
+ */
+function BrandImage({
+  label,
+  hint,
+  shape,
+  folder,
+  tenantId,
+  light,
+  dark,
+  variant,
+  onLight,
+  onDark,
+  onVariant,
+  t,
+}: {
+  label: string;
+  hint: string;
+  shape: 'square' | 'wide' | 'circle';
+  folder: string;
+  tenantId: string;
+  light: string | null;
+  dark: string | null;
+  variant: MenuSettings['logoVariant'];
+  onLight: (url: string | null) => void;
+  onDark: (url: string | null) => void;
+  onVariant: (v: MenuSettings['logoVariant']) => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="mt-4 rounded-xl border border-neutral-200 p-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <Label>{label}</Label>
+        <select
+          value={variant}
+          onChange={(e) => onVariant(e.target.value as MenuSettings['logoVariant'])}
+          className="rounded-lg border border-neutral-300 px-2 py-1 text-xs"
+        >
+          <option value="auto">{t('variantAuto')}</option>
+          <option value="light">{t('variantLight')}</option>
+          <option value="dark">{t('variantDark')}</option>
+        </select>
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-3">
+        <div>
+          <p className="mb-1 text-[11px] font-medium text-neutral-500">{t('versionLight')}</p>
+          <ImageUploader value={light} tenantId={tenantId} folder={folder} shape={shape} onChange={onLight} />
+        </div>
+        <div className="rounded-lg bg-neutral-900 p-2">
+          <p className="mb-1 text-[11px] font-medium text-neutral-300">{t('versionDark')}</p>
+          <ImageUploader value={dark} tenantId={tenantId} folder={folder} shape={shape} onChange={onDark} />
+        </div>
+      </div>
+      <p className="mt-2 text-xs text-neutral-500">{hint}</p>
     </div>
   );
 }

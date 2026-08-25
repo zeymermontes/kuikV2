@@ -35,6 +35,12 @@ export type ContentWidth = 'narrow' | 'normal' | 'wide' | 'full';
  * carry the page, and the tab bar still names the parent (the Mar & Sea look).
  */
 export type CategoryTitleMode = 'always' | 'auto' | 'never';
+/**
+ * Which version of a brand image a given slot uses. 'auto' follows the menu's
+ * dark mode; 'light'/'dark' pin it — a bar header is dark even on a light menu,
+ * so its wordmark wants 'dark' regardless.
+ */
+export type ImageVariant = 'auto' | 'light' | 'dark';
 export type NavIconPosition = 'left' | 'top' | 'bottom' | 'none';
 export type NavTabShape = 'pill' | 'plain';
 /**
@@ -50,6 +56,10 @@ export interface MenuSettings {
   currency: string;
   showName: boolean;
   showSlogan: boolean;
+  logoVariant: ImageVariant;
+  logoWideVariant: ImageVariant;
+  faviconVariant: ImageVariant;
+  coverVariant: ImageVariant;
   darkMode: DarkMode;
   cardStyle: CardStyle;
   imageShape: ImageShape;
@@ -121,6 +131,10 @@ export const DEFAULT_MENU_SETTINGS: MenuSettings = {
   currency: 'MXN',
   showName: true,
   showSlogan: true,
+  logoVariant: 'auto',
+  logoWideVariant: 'auto',
+  faviconVariant: 'auto',
+  coverVariant: 'auto',
   darkMode: 'off',
   cardStyle: 'list',
   imageShape: 'rounded',
@@ -290,6 +304,20 @@ export const JUSTIFY_CLASS: Record<HeadingAlign, string> = {
 
 export function textTransform(c: TextCase): 'none' | 'uppercase' {
   return c === 'upper' ? 'uppercase' : 'none';
+}
+
+/**
+ * Pick the light or dark file for one slot. `dark` is what the page itself is
+ * doing; a slot can override it. Falls back to the light file, then to null.
+ */
+export function pickImage(
+  light: string | null,
+  darkImage: string | null,
+  variant: ImageVariant,
+  pageIsDark: boolean,
+): string | null {
+  const wantDark = variant === 'dark' || (variant === 'auto' && pageIsDark);
+  return (wantDark ? darkImage ?? light : light) ?? null;
 }
 
 /** Whether to print a section's own title, given how many subcategories it has. */

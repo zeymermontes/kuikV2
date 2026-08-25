@@ -343,7 +343,17 @@
     "showSlogan": "Show the slogan on the menu",
     "spacingRoomy": "Roomy",
     "logoWide": "Horizontal logo",
-    "logoWideHint": "Used by the bar header, centred between “Back” and “Reserve”. The round logo above is still what becomes the browser tab icon (favicon)."
+    "logoWideHint": "Used by the bar header, centred between “Back” and “Reserve”. That bar is usually dark, so “Always the dark one” tends to be right here.",
+    "favicon": "Tab icon (favicon)",
+    "faviconHint": "The little icon in the browser tab. Square and simple — it renders at 16px. Left empty, the logo is used.",
+    "brandHint": "Upload the light version and, if you have one, the dark. Leave the dark empty and the light one is used everywhere — nothing changes from today.",
+    "variantAuto": "Automatic",
+    "variantLight": "Always the light one",
+    "variantDark": "Always the dark one",
+    "versionLight": "Light",
+    "versionDark": "Dark",
+    "logoHint": "The round logo, above the restaurant name.",
+    "coverHint": "Wide image at the top of the menu."
   },
   "landing": {
     "title": "Home screen",

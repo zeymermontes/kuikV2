@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getTenantByHostKey } from '@/lib/tenant';
-import { resolveMenuSettings } from '@/lib/menu-settings';
+import { resolveMenuSettings, pickImage } from '@/lib/menu-settings';
 import { CUSTOM_FONT } from '@/lib/config';
 import { BackgroundMusic } from '@/components/menu/BackgroundMusic';
 
@@ -41,15 +41,20 @@ export async function generateMetadata({
   if (!data) return { title: 'Menú' };
 
   const { tenant, theme } = data;
-  // Use the restaurant's logo as the favicon / app icon across browsers.
-  const icon = theme.logo_url;
+  const settings = resolveMenuSettings(theme.settings);
+  const dark = settings.darkMode === 'on';
+  // A dedicated favicon when the restaurant uploaded one, else the round logo.
+  const icon =
+    pickImage(theme.favicon_url, theme.favicon_dark_url, settings.faviconVariant, dark) ??
+    pickImage(theme.logo_url, theme.logo_dark_url, settings.logoVariant, dark);
+  const ogImage = pickImage(theme.logo_url, theme.logo_dark_url, settings.logoVariant, dark);
   return {
     title: tenant.name,
     description: `Menú de ${tenant.name}`,
     openGraph: {
       title: tenant.name,
       description: `Menú de ${tenant.name}`,
-      images: theme.logo_url ? [theme.logo_url] : undefined,
+      images: ogImage ? [ogImage] : undefined,
     },
     icons: icon
       ? { icon, shortcut: icon, apple: icon }

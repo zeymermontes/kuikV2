@@ -76,6 +76,13 @@ export interface TenantTheme {
   font_description: string | null;
   /** Horizontal logo / wordmark, used by the bar header. */
   logo_wide_url: string | null;
+  /** Browser tab icon. Falls back to `logo_url`. */
+  favicon_url: string | null;
+  // Dark counterparts. Each falls back to its light version when unset.
+  logo_dark_url: string | null;
+  logo_wide_dark_url: string | null;
+  favicon_dark_url: string | null;
+  cover_image_dark_url: string | null;
   background_image_url: string | null;
   background_music_url: string | null;
   background_music_volume: number;

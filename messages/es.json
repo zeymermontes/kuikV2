@@ -343,7 +343,17 @@
     "showSlogan": "Mostrar eslogan en el menú",
     "spacingRoomy": "Muy amplia",
     "logoWide": "Logo horizontal",
-    "logoWideHint": "Se usa en el encabezado de barra, centrado entre «Regresar» y «Reservar». El logo redondo de arriba se sigue usando para el ícono de la pestaña (favicon)."
+    "logoWideHint": "Se usa en el encabezado de barra, centrado entre «Regresar» y «Reservar». Como esa barra suele ser oscura, ahí conviene «Siempre la oscura».",
+    "favicon": "Ícono de pestaña (favicon)",
+    "faviconHint": "El iconito de la pestaña del navegador. Cuadrado y simple: se ve a 16px. Si lo dejas vacío se usa el logo.",
+    "brandHint": "Sube la versión clara y, si la tienes, la oscura. Si dejas la oscura vacía se usa la clara en todos lados — nada cambia respecto a como está hoy.",
+    "variantAuto": "Automático",
+    "variantLight": "Siempre la clara",
+    "variantDark": "Siempre la oscura",
+    "versionLight": "Clara",
+    "versionDark": "Oscura",
+    "logoHint": "El logo redondo, arriba del nombre del restaurante.",
+    "coverHint": "Imagen ancha en la parte superior del menú."
   },
   "landing": {
     "title": "Pantalla de inicio",

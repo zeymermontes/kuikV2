@@ -35,6 +35,11 @@ export async function updateTheme(
     font_description: string | null;
     logo_url: string | null;
     logo_wide_url: string | null;
+    favicon_url: string | null;
+    logo_dark_url: string | null;
+    logo_wide_dark_url: string | null;
+    favicon_dark_url: string | null;
+    cover_image_dark_url: string | null;
     background_image_url: string | null;
     background_music_url: string | null;
     background_music_volume: number;
