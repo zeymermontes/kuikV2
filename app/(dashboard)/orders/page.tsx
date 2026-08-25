@@ -10,8 +10,8 @@ export const dynamic = 'force-dynamic';
 
 export default async function OrdersPage() {
   const { tenant, theme, user } = await requireTenant();
-  // Orders is in development — hide from everyone but dev accounts.
-  if (!canUseDevFeatures(user.email)) redirect('/menu');
+  // Orders is in development — super admin only.
+  if (!canUseDevFeatures(user.profile)) redirect('/menu');
   const t = await getTranslations('orders');
   const currency = resolveMenuSettings(theme.settings).currency;
   const initial = await listOrders();

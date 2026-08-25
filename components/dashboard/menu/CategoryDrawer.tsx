@@ -12,10 +12,13 @@ export function CategoryDrawer({
   tenantId,
   category,
   onClose,
+  showPosSettings = false,
 }: {
   tenantId: string;
   category: Category;
   onClose: () => void;
+  /** KDS station routing is still in development — see lib/features.ts. */
+  showPosSettings?: boolean;
 }) {
   const t = useTranslations('menuEditor');
   const tc = useTranslations('common');
@@ -51,14 +54,17 @@ export function CategoryDrawer({
           />
         </div>
 
-        <div>
-          <Label>{t('station')}</Label>
-          <Input
-            defaultValue={category.station ?? ''}
-            placeholder={t('stationHint')}
-            onBlur={(e) => updateCategory(category.id, { station: e.target.value.trim() || null })}
-          />
-        </div>
+        {/* KDS routing — in development, see lib/features.ts */}
+        {showPosSettings && (
+          <div>
+            <Label>{t('station')}</Label>
+            <Input
+              defaultValue={category.station ?? ''}
+              placeholder={t('stationHint')}
+              onBlur={(e) => updateCategory(category.id, { station: e.target.value.trim() || null })}
+            />
+          </div>
+        )}
 
         {/* Tab icon / image */}
         <div className="rounded-xl bg-neutral-50 p-3">

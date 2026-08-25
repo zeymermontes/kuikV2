@@ -16,7 +16,7 @@ export default async function DashboardLayout({
     <div className="flex min-h-screen bg-neutral-50">
       <Sidebar
         isSuperAdmin={ctx.user.profile.role === 'super_admin'}
-        showDevFeatures={canUseDevFeatures(ctx.user.email)}
+        showDevFeatures={canUseDevFeatures(ctx.user.profile)}
         role={ctx.role}
         menuUrl={tenantUrl(ctx.tenant.subdomain)}
         locale={ctx.user.profile.locale}

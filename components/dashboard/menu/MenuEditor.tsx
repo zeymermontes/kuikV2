@@ -59,12 +59,15 @@ export function MenuEditor({
   products,
   separators,
   branchId = null,
+  showPosSettings = false,
 }: {
   tenantId: string;
   categories: Category[];
   products: Product[];
   separators: Separator[];
   branchId?: string | null;
+  /** KDS station routing is still in development — see lib/features.ts. */
+  showPosSettings?: boolean;
 }) {
   const t = useTranslations('menuEditor');
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -217,7 +220,14 @@ export function MenuEditor({
       </div>
 
       {drawerProduct && <ProductDrawer tenantId={tenantId} product={drawerProduct} onClose={() => setDrawer(null)} />}
-      {drawerCategory && <CategoryDrawer tenantId={tenantId} category={drawerCategory} onClose={() => setDrawer(null)} />}
+      {drawerCategory && (
+        <CategoryDrawer
+          tenantId={tenantId}
+          category={drawerCategory}
+          onClose={() => setDrawer(null)}
+          showPosSettings={showPosSettings}
+        />
+      )}
     </div>
   );
 }

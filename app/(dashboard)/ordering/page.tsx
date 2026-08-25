@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { requireOwner } from '@/lib/auth';
+import { canUseDevFeatures } from '@/lib/features';
 import { createClient } from '@/lib/supabase/server';
 import { tenantUrl } from '@/lib/config';
 import type { TenantOrdering } from '@/lib/database.types';
@@ -7,7 +8,7 @@ import { OrderingForm } from '@/components/dashboard/OrderingForm';
 import { TableQRs } from '@/components/dashboard/TableQRs';
 
 export default async function OrderingPage() {
-  const { tenant } = await requireOwner();
+  const { tenant, user } = await requireOwner();
   const t = await getTranslations('ordering');
   const supabase = await createClient();
 
@@ -41,7 +42,7 @@ export default async function OrderingPage() {
     <div>
       <h1 className="mb-1 text-2xl font-bold">{t('title')}</h1>
       <p className="mb-6 text-sm text-neutral-500">{t('subtitle')}</p>
-      <OrderingForm ordering={ordering} />
+      <OrderingForm ordering={ordering} showPosSettings={canUseDevFeatures(user.profile)} />
 
       {ordering.service_types.includes('dinein') && (
         <div className="mt-6">

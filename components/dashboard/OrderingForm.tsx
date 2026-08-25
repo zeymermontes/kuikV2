@@ -8,7 +8,14 @@ import { updateOrdering } from '@/app/(dashboard)/settings-actions';
 
 const SERVICE_TYPES: ServiceType[] = ['pickup', 'delivery', 'dinein'];
 
-export function OrderingForm({ ordering }: { ordering: TenantOrdering }) {
+export function OrderingForm({
+  ordering,
+  showPosSettings = false,
+}: {
+  ordering: TenantOrdering;
+  /** POS/KDS are still in development — see lib/features.ts. */
+  showPosSettings?: boolean;
+}) {
   const t = useTranslations('ordering');
   const [o, setO] = useState(ordering);
 
@@ -192,6 +199,7 @@ export function OrderingForm({ ordering }: { ordering: TenantOrdering }) {
       </Card>
 
       {/* POS cash count */}
+      {showPosSettings && (
       <Card className="space-y-3">
         <div>
           <h2 className="font-semibold">{t('cashCount')}</h2>
@@ -233,8 +241,10 @@ export function OrderingForm({ ordering }: { ordering: TenantOrdering }) {
           </div>
         )}
       </Card>
+      )}
 
       {/* POS floor map */}
+      {showPosSettings && (
       <Card className="space-y-2">
         <div>
           <h2 className="font-semibold">{t('posTables')}</h2>
@@ -248,6 +258,7 @@ export function OrderingForm({ ordering }: { ordering: TenantOrdering }) {
           onBlur={(e) => set('pos_tables', Math.max(0, Math.min(200, parseInt(e.target.value, 10) || 0)))}
         />
       </Card>
+      )}
       </>
       )}
     </div>
