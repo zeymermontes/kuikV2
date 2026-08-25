@@ -28,6 +28,7 @@ import {
   pickImage,
 } from '@/lib/menu-settings';
 import { mapHref } from '@/lib/hours';
+import { digitsOnly, slugify } from '@/lib/utils';
 import { BADGES, badgeLabel } from '@/lib/badges';
 import { hasDetail } from '@/lib/menu-options';
 import { LoyaltyButton } from './LoyaltyCard';
@@ -159,6 +160,30 @@ export function MenuView({
     ordering.ordering_enabled && channelOrdering && Boolean(contact.whatsapp_phone);
   const radiusClass = RADIUS_CLASS[settings.cornerRadius];
   const layout = useMemo(() => resolveItemLayout(settings), [settings]);
+
+  // Readable anchors: #desayunos rather than #cat-<uuid>. A subcategory is
+  // prefixed with its parent so two "Extras" under different sections stay
+  // distinct; anything still colliding gets a numeric suffix.
+  const anchorById = useMemo(() => {
+    const used = new Set<string>();
+    const map: Record<string, string> = {};
+    const take = (base: string, id: string) => {
+      let slug = base || 'seccion';
+      for (let n = 2; used.has(slug); n++) slug = `${base}-${n}`;
+      used.add(slug);
+      map[id] = slug;
+    };
+    for (const cat of menu) {
+      const parent = slugify(cat.name);
+      take(parent, cat.id);
+      for (const sub of cat.subcategories) {
+        const child = slugify(sub.name);
+        take(parent && child ? `${parent}-${child}` : child || parent, sub.id);
+      }
+    }
+    return map;
+  }, [menu]);
+  const anchor = (id: string) => anchorById[id] ?? id;
 
   const lines = useMemo(() => Object.values(cart), [cart]);
   const itemCount = lines.reduce((n, l) => n + l.qty, 0);
@@ -455,7 +480,9 @@ export function MenuView({
               )}
             </div>
             <div className="flex flex-1 justify-end">
-              {contact.reservations_enabled && (
+              {/* Reservations when they're on; otherwise a direct WhatsApp line,
+                  which is what most restaurants put in that corner. */}
+              {contact.reservations_enabled ? (
                 <button
                   onClick={() => setShowReserve(true)}
                   className="inline-flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-medium"
@@ -463,6 +490,18 @@ export function MenuView({
                 >
                   <CalendarCheck className="h-4 w-4" /> {t('reserve')}
                 </button>
+              ) : (
+                contact.whatsapp_phone && (
+                  <a
+                    href={`https://wa.me/${digitsOnly(contact.whatsapp_phone)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-medium"
+                    style={{ borderColor: 'var(--tab-selected-text)', color: 'var(--tab-selected-text)' }}
+                  >
+                    <WhatsAppIcon className="h-4 w-4" /> WhatsApp
+                  </a>
+                )
               )}
             </div>
           </div>
@@ -636,7 +675,7 @@ export function MenuView({
                 ref={(el) => {
                   tabRefs.current[cat.id] = el;
                 }}
-                href={`#cat-${cat.id}`}
+                href={`#${anchor(cat.id)}`}
                 onClick={(e) => {
                   setActiveCat(cat.id);
                   if (tabsMode) {
@@ -688,13 +727,20 @@ export function MenuView({
           return (
             <section
               key={cat.id}
-              id={`cat-${cat.id}`}
+              id={anchor(cat.id)}
               data-catid={cat.id}
               ref={(el) => {
                 sectionRefs.current[cat.id] = el;
               }}
               style={{ scrollMarginTop: showNav ? barH + 12 : 24 }}
             >
+              {/* Anchors handed out before sections had readable ids. */}
+              <span
+                id={`cat-${cat.id}`}
+                aria-hidden
+                className="block"
+                style={{ scrollMarginTop: showNav ? barH + 12 : 24 }}
+              />
               <button
                 onClick={toggle}
                 disabled={!collapsible}
@@ -737,7 +783,7 @@ export function MenuView({
                   <EntryList entries={cat.entries} />
                   {/* Subcategories: a smaller heading, then their own items. */}
                   {cat.subcategories.map((sub) => (
-                    <section key={sub.id} id={`cat-${sub.id}`} className="mt-6">
+                    <section key={sub.id} id={anchor(sub.id)} className="mt-6">
                       <div className={`mb-2 ${ALIGN_CLASS[settings.categoryAlign]}`}>
                         {subRule === 'both' && <CategoryRule />}
                         <h3
@@ -896,6 +942,15 @@ function CatIcon({ cat, size }: { cat: MenuCategory; size: number }) {
     );
   }
   return null;
+}
+
+function WhatsAppIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M17.47 14.38c-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.25-.46-2.38-1.47-.88-.79-1.47-1.75-1.65-2.05-.17-.3-.02-.46.13-.6.14-.14.3-.35.45-.53.15-.18.2-.3.3-.5.1-.2.05-.38-.02-.53-.08-.15-.67-1.6-.92-2.2-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.22 3.08c.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.7.63.71.23 1.36.2 1.87.12.57-.09 1.75-.72 2-1.4.25-.7.25-1.28.17-1.4-.07-.13-.27-.2-.57-.35z" />
+      <path d="M12.04 2C6.6 2 2.17 6.43 2.16 11.88c0 1.74.46 3.44 1.32 4.94L2 22l5.32-1.4a9.9 9.9 0 0 0 4.72 1.2h.01c5.44 0 9.87-4.43 9.88-9.88A9.82 9.82 0 0 0 19.03 5a9.8 9.8 0 0 0-6.99-3zm0 18.1h-.01a8.2 8.2 0 0 1-4.18-1.15l-.3-.18-3.1.82.83-3.04-.2-.31a8.18 8.18 0 0 1-1.26-4.36c0-4.53 3.69-8.21 8.22-8.21a8.16 8.16 0 0 1 8.2 8.22c0 4.53-3.68 8.21-8.2 8.21z" />
+    </svg>
+  );
 }
 
 function InstagramIcon({ className }: { className?: string }) {

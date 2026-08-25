@@ -3,20 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import { requireManager } from '@/lib/auth';
 import { isPro } from '@/lib/plan';
+import { slugify } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/server';
 import type { Category, Product, Separator, BranchMenuMode } from '@/lib/database.types';
-
-function slugify(name: string): string {
-  return (
-    name
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 40) || 'sucursal'
-  );
-}
 
 /** Copy a source menu (main = null, or another branch) into a target branch. */
 async function copyMenu(
@@ -102,7 +91,7 @@ export async function createBranch(input: {
   const supabase = await createClient();
 
   // Ensure a unique slug within the tenant.
-  let slug = slugify(input.name);
+  let slug = slugify(input.name, 'sucursal');
   const { data: existing } = await supabase
     .from('branches')
     .select('slug')

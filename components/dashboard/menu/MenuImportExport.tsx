@@ -81,6 +81,8 @@ export function MenuImportExport({
   const jsonRef = useRef<HTMLInputElement>(null);
   const [payload, setPayload] = useState<FullImportPayload | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState('');
   const [copied, setCopied] = useState('');
   const [pending, start] = useTransition();
@@ -92,18 +94,69 @@ export function MenuImportExport({
     });
   }
 
+  /**
+   * Why a file could not be read, in the user's words. The raw error is also
+   * logged, so "no se pudo leer el archivo" is never the whole story.
+   */
+  function fail(stage: string, e: unknown) {
+    console.error(`[import:${stage}]`, e);
+    const detail =
+      e instanceof SyntaxError
+        ? `${t('errSyntax')} ${e.message}`
+        : e instanceof Error
+          ? e.message
+          : String(e);
+    setError(`${stage} — ${detail}`);
+  }
+
+  /** Shape problems we can name precisely instead of throwing a generic error. */
+  function whatsWrong(data: unknown): string | null {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return t('errNotObject');
+    const d = data as Partial<FullImportPayload>;
+    if (d.categories == null && d.design == null) return t('errNoKeys');
+    if (d.categories != null && !Array.isArray(d.categories)) return t('errCategoriesNotArray');
+    for (const [i, c] of (d.categories ?? []).entries()) {
+      const where = `${t('errCategoryAt')} ${i + 1}`;
+      if (!c || typeof c !== 'object') return `${where}: ${t('errNotObject')}`;
+      if (typeof c.name !== 'string' || !c.name.trim()) return `${where}: ${t('errNoName')}`;
+      if (c.products != null && !Array.isArray(c.products)) {
+        return `${where} (${c.name}): ${t('errProductsNotArray')}`;
+      }
+      if (c.subcategories != null && !Array.isArray(c.subcategories)) {
+        return `${where} (${c.name}): ${t('errSubcatsNotArray')}`;
+      }
+      for (const [j, prod] of (c.products ?? []).entries()) {
+        if (!prod || typeof prod !== 'object' || typeof prod.name !== 'string' || !prod.name.trim()) {
+          return `${where} (${c.name}), ${t('errProductAt')} ${j + 1}: ${t('errNoName')}`;
+        }
+      }
+    }
+    return null;
+  }
+
   async function runPreview(p: FullImportPayload) {
-    if (p.categories.length === 0 && !p.design) {
-      alert(t('emptyFile'));
+    const problem = whatsWrong(p);
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    if ((p.categories?.length ?? 0) === 0 && !p.design) {
+      setError(t('emptyFile'));
       return;
     }
     setPayload(p);
-    setPreview(await previewFullImport(p, branchId));
+    try {
+      setPreview(await previewFullImport(p, branchId));
+    } catch (e) {
+      fail(t('stageServer'), e);
+    }
   }
 
   // ── Excel ───────────────────────────────────────────────────────────────
   async function handleExcel(file: File) {
     setBusy('excel');
+    setError(null);
+    setNotice(null);
     try {
       const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
       const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[wb.SheetNames[0]], { defval: '' });
@@ -135,14 +188,18 @@ export function MenuImportExport({
             child = { name: sub, products: [] };
             parent.subcategories!.push(child);
           }
-          child.products.push(product);
+          child.products!.push(product);
         } else {
-          parent.products.push(product);
+          parent.products!.push(product);
         }
       }
+      if (cats.size === 0) {
+        setError(t('errExcelNoRows'));
+        return;
+      }
       await runPreview({ categories: [...cats.values()] });
-    } catch {
-      alert(t('parseError'));
+    } catch (e) {
+      fail(t('stageExcel'), e);
     } finally {
       setBusy('');
     }
@@ -151,14 +208,32 @@ export function MenuImportExport({
   // ── ZIP (menu.json + images/) ─────────────────────────────────────────────
   async function handleZip(file: File) {
     setBusy('zip');
+    setError(null);
+    setNotice(null);
     try {
-      const files = unzipSync(new Uint8Array(await file.arrayBuffer()));
-      const jsonName = Object.keys(files).find((n) => n.toLowerCase().endsWith('.json'));
-      if (!jsonName) {
-        alert(t('zipNoJson'));
+      let files: Record<string, Uint8Array>;
+      try {
+        files = unzipSync(new Uint8Array(await file.arrayBuffer()));
+      } catch (e) {
+        fail(t('stageUnzip'), e);
         return;
       }
-      const data = JSON.parse(new TextDecoder().decode(files[jsonName])) as FullImportPayload;
+
+      const jsonName = Object.keys(files).find((n) => n.toLowerCase().endsWith('.json'));
+      if (!jsonName) {
+        // Name what the zip does hold, so the fix is obvious.
+        const listed = Object.keys(files).filter((n) => !n.endsWith('/')).slice(0, 8);
+        setError(`${t('zipNoJson')} ${t('errZipHas')}: ${listed.join(', ') || '—'}`);
+        return;
+      }
+
+      let data: FullImportPayload;
+      try {
+        data = JSON.parse(new TextDecoder().decode(files[jsonName])) as FullImportPayload;
+      } catch (e) {
+        fail(`${t('stageJson')} (${jsonName})`, e);
+        return;
+      }
 
       // Map basename → bytes for the bundled images.
       const byName = new Map<string, Uint8Array>();
@@ -167,12 +242,16 @@ export function MenuImportExport({
         byName.set(path.split('/').pop()!.toLowerCase(), bytes);
       }
       const cache = new Map<string, string>();
+      const missingImages: string[] = [];
       async function upload(ref: string | null | undefined): Promise<string | null> {
         if (!ref || /^https?:\/\//i.test(ref)) return ref ?? null;
         const base = ref.split('/').pop()!.toLowerCase();
         if (cache.has(base)) return cache.get(base)!;
         const bytes = byName.get(base);
-        if (!bytes) return null;
+        if (!bytes) {
+          if (!missingImages.includes(base)) missingImages.push(base);
+          return null;
+        }
         const url = await uploadFile(new File([bytes as unknown as BlobPart], base, { type: mime(base) }), tenantId, 'imported').catch(() => null);
         if (url) cache.set(base, url);
         return url;
@@ -191,9 +270,16 @@ export function MenuImportExport({
           }
         }
       }
+      // Images that the json names but the zip doesn't carry: worth saying,
+      // but not worth failing the whole import over.
+      if (missingImages.length) {
+        setNotice(
+          `${t('errMissingImages')}: ${missingImages.slice(0, 6).join(', ')}${missingImages.length > 6 ? '…' : ''}`,
+        );
+      }
       await runPreview(data);
-    } catch {
-      alert(t('parseError'));
+    } catch (e) {
+      fail(t('stageZip'), e);
     } finally {
       setBusy('');
     }
@@ -202,11 +288,19 @@ export function MenuImportExport({
   // ── AI JSON (image URLs re-hosted server-side on apply) ───────────────────
   async function handleJson(file: File) {
     setBusy('json');
+    setError(null);
+    setNotice(null);
     try {
-      const data = JSON.parse(await file.text()) as FullImportPayload;
+      let data: FullImportPayload;
+      try {
+        data = JSON.parse(await file.text()) as FullImportPayload;
+      } catch (e) {
+        fail(t('stageJson'), e);
+        return;
+      }
       await runPreview(data);
-    } catch {
-      alert(t('parseError'));
+    } catch (e) {
+      fail(t('stageJson'), e);
     } finally {
       setBusy('');
     }
@@ -369,10 +463,10 @@ export function MenuImportExport({
       // round-trips through import without losing them.
       for (const c of payload.categories) {
         if (c.image) c.image = await localize(c.image, `cat-${c.name}`);
-        for (const p of c.products) if (p.image) p.image = await localize(p.image, p.name);
+        for (const p of c.products ?? []) if (p.image) p.image = await localize(p.image, p.name);
         for (const sub of c.subcategories ?? []) {
           if (sub.image) sub.image = await localize(sub.image, `cat-${sub.name}`);
-          for (const p of sub.products) if (p.image) p.image = await localize(p.image, p.name);
+          for (const p of sub.products ?? []) if (p.image) p.image = await localize(p.image, p.name);
         }
       }
       files['menu.json'] = new TextEncoder().encode(JSON.stringify(payload, null, 2));
@@ -445,6 +539,18 @@ export function MenuImportExport({
       <input ref={zipRef} type="file" accept=".zip" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) handleZip(f); e.target.value = ''; }} />
       <input ref={jsonRef} type="file" accept=".json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) handleJson(f); e.target.value = ''; }} />
 
+      {error && (
+        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3">
+          <p className="text-sm font-semibold text-red-800">{t('errTitle')}</p>
+          <p className="mt-1 break-words text-sm text-red-700">{error}</p>
+          <p className="mt-2 text-xs text-red-600">{t('errHint')}</p>
+        </div>
+      )}
+      {notice && (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
+          <p className="break-words text-sm text-amber-800">{notice}</p>
+        </div>
+      )}
       {preview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => !pending && setPreview(null)} />

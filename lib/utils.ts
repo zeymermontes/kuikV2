@@ -44,3 +44,19 @@ export function perceptualVolume(v: number): number {
   const x = Math.min(100, Math.max(0, v)) / 100;
   return x * x;
 }
+
+/**
+ * A URL-safe, accent-free slug. Used for branch slugs and for the category
+ * anchors in a menu's address bar (#desayunos rather than #cat-<uuid>).
+ */
+export function slugify(name: string, fallback = ''): string {
+  return (
+    name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 40) || fallback
+  );
+}

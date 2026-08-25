@@ -100,7 +100,8 @@ export async function previewFullImport(
   let newProducts = 0;
   let updatedProducts = 0;
   const countProducts = (catId: string | undefined, cat: (typeof payload.categories)[number]) => {
-    for (const p of cat.products) {
+    // A parent that only holds subcategories has no products of its own.
+    for (const p of cat.products ?? []) {
       if (!norm(p.name)) continue;
       const ex = catId ? prodByKey.get(`${catId}|${norm(p.name)}`) : undefined;
       if (ex) {
@@ -213,7 +214,7 @@ export async function applyFullImport(
 
   /** Create/update every product of one category. */
   async function upsertProducts(catId: string, cat: ImportCategory) {
-    for (const p of cat.products) {
+    for (const p of cat.products ?? []) {
       if (!norm(p.name)) continue;
       const fields = await buildProductFields(supabase, tenantId, p);
       const ex = prodByKey.get(`${catId}|${norm(p.name)}`);

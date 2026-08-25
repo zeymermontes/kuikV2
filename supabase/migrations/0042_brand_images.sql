@@ -13,10 +13,12 @@
 -- Everything is nullable and falls back to `logo_url` / `cover_image_url`, so
 -- existing menus render exactly as before.
 
+-- `if not exists` because an earlier cut of this migration shipped only
+-- logo_wide_url; re-running the full version must not trip over it.
 alter table tenant_theme
-  add column logo_wide_url        text,
-  add column logo_dark_url        text,
-  add column logo_wide_dark_url   text,
-  add column favicon_url          text,
-  add column favicon_dark_url     text,
-  add column cover_image_dark_url text;
+  add column if not exists logo_wide_url        text,
+  add column if not exists logo_dark_url        text,
+  add column if not exists logo_wide_dark_url   text,
+  add column if not exists favicon_url          text,
+  add column if not exists favicon_dark_url     text,
+  add column if not exists cover_image_dark_url text;

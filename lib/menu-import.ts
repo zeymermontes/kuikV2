@@ -41,7 +41,8 @@ export interface ImportCategory {
   icon?: string | null;
   /** Image used as the category's icon in the tab bar (URL or bundled filename). */
   image?: string | null;
-  products: ImportProduct[];
+  /** Optional: a parent that only holds subcategories has no products of its own. */
+  products?: ImportProduct[];
   /** Sections nested inside this one. One level deep; ignored on a subcategory. */
   subcategories?: ImportCategory[];
 }

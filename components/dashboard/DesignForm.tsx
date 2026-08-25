@@ -869,8 +869,12 @@ function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettin
       }}
     >
       <div className="space-y-3">
-        <p className="text-xl font-extrabold" style={{ color: text }}>{local.slogan || 'Tu Restaurante'}</p>
-        <p className="text-xs" style={{ color: textSec }}>La mejor comida de la ciudad</p>
+        {settings.showName && (
+          <p className="text-xl font-extrabold" style={{ color: text }}>Tu Restaurante</p>
+        )}
+        {settings.showSlogan && local.slogan && (
+          <p className="text-xs" style={{ color: textSec }}>{local.slogan}</p>
+        )}
 
         {/* Search bar */}
         {settings.showSearch && (
