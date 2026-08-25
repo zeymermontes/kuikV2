@@ -354,6 +354,14 @@ export function MenuView({
   const tabsMode = settings.navMode === 'tabs';
   const showNav = (settings.stickyTabs || tabsMode) && filteredMenu.length > 1;
   const barHeader = settings.headerStyle === 'bar';
+  const hasHeaderExtras =
+    Boolean(settings.showSlogan && theme.slogan) ||
+    Boolean(contact.hours) ||
+    Boolean(mapHref(contact.maps_url, contact.address)) ||
+    (settings.showSocial &&
+      Boolean(contact.instagram || contact.facebook || contact.website)) ||
+    (loyalty.enabled && plan === 'pro') ||
+    branches.length > 0;
   // Which brand files this page uses. 'auto' follows the menu's dark mode; a
   // slot can pin the other one (a navy bar wants the light-on-dark wordmark).
   const pageIsDark = settings.darkMode === 'on';
@@ -361,6 +369,7 @@ export function MenuView({
   const wideLogo =
     pickImage(theme.logo_wide_url, theme.logo_wide_dark_url, settings.logoWideVariant, pageIsDark) ??
     logo;
+  const wordmark = Boolean(theme.logo_wide_url || theme.logo_wide_dark_url);
   const cover = pickImage(
     theme.cover_image_url,
     theme.cover_image_dark_url,
@@ -467,7 +476,8 @@ export function MenuView({
                   alt={tenant.name}
                   width={320}
                   height={80}
-                  className={`w-auto object-contain ${theme.logo_wide_url || theme.logo_wide_dark_url ? 'h-9 sm:h-12' : 'h-10 rounded-full sm:h-12'}`}
+                  className={`w-auto object-contain ${wordmark ? '' : 'rounded-full'}`}
+                  style={{ height: settings.logoWideHeight, width: 'auto' }}
                   priority
                 />
               ) : (
@@ -568,8 +578,10 @@ export function MenuView({
       </header>
       )}
 
-      {/* In bar mode the identity lives in the bar; keep the useful extras. */}
-      {barHeader && (
+      {/* In bar mode the identity lives in the bar; keep the useful extras.
+          Rendered only when there is something to show, so a menu with none of
+          them doesn't get an empty band under the bar. */}
+      {barHeader && hasHeaderExtras && (
         <div className="flex flex-col items-center gap-2 px-5 pt-4 text-center">
           {settings.showSlogan && theme.slogan && <p className="text-sm opacity-70">{theme.slogan}</p>}
           <OpenStatus hours={contact.hours} />
@@ -657,14 +669,14 @@ export function MenuView({
         <div ref={stickyRef} aria-hidden className="h-px" />
         <nav
           ref={navRef}
-          className="no-scrollbar sticky top-0 z-20 overflow-x-auto"
+          className={`no-scrollbar sticky top-0 z-20 overflow-x-auto ${
+            settings.fullWidthHeader ? '' : `mx-auto w-full ${headerWidthClass}`
+          }`}
           style={navStyle}
         >
           <div
-            className={`mx-auto flex items-center gap-2 px-4 py-3 ${
-              settings.fullWidthHeader
-                ? 'w-max min-w-full justify-center'
-                : `w-full ${headerWidthClass}`
+            className={`flex items-center gap-2 px-4 py-3 ${
+              settings.fullWidthHeader ? 'mx-auto w-max min-w-full justify-center' : ''
             }`}
           >
           {filteredMenu.map((cat) => {

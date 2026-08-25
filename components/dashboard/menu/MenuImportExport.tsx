@@ -56,9 +56,21 @@ const avail = (v: unknown) => !['no', 'false', '0', 'agotado'].includes(strip(St
 const tags = (v: unknown) =>
   String(v ?? '').split(/[,;]/).map((t) => strip(t)).filter(Boolean).map((t) => TAG_LOOKUP.get(t) ?? t);
 
+const MIME_BY_EXT: Record<string, string> = {
+  png: 'image/png',
+  webp: 'image/webp',
+  gif: 'image/gif',
+  avif: 'image/avif',
+  // Category icons are usually line-art SVGs. Uploading these as image/jpeg
+  // makes the browser refuse to draw them, which is what happened before.
+  svg: 'image/svg+xml',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+};
+
 function mime(name: string): string {
-  const e = name.split('.').pop()?.toLowerCase();
-  return e === 'png' ? 'image/png' : e === 'webp' ? 'image/webp' : e === 'gif' ? 'image/gif' : 'image/jpeg';
+  const e = name.split('.').pop()?.toLowerCase() ?? '';
+  return MIME_BY_EXT[e] ?? 'image/jpeg';
 }
 
 export function MenuImportExport({

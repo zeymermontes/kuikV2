@@ -372,7 +372,8 @@
     "versionLight": "Clara",
     "versionDark": "Oscura",
     "logoHint": "El logo redondo, arriba del nombre del restaurante.",
-    "coverHint": "Imagen ancha en la parte superior del menú."
+    "coverHint": "Imagen ancha en la parte superior del menú.",
+    "logoWideHeight": "Alto del logo en la barra"
   },
   "landing": {
     "title": "Pantalla de inicio",

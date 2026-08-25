@@ -103,6 +103,8 @@ export interface MenuSettings {
   navTabShape: NavTabShape;
   navIconShape: NavIconShape;
   headerStyle: HeaderStyle;
+  /** Height of the wordmark in the bar header, in px. */
+  logoWideHeight: number;
   /** The bar and the category strip span the viewport, not the content column. */
   fullWidthHeader: boolean;
   // Product typography casing.
@@ -172,6 +174,7 @@ export const DEFAULT_MENU_SETTINGS: MenuSettings = {
   navTabShape: 'pill',
   navIconShape: 'plain',
   headerStyle: 'stacked',
+  logoWideHeight: 44,
   fullWidthHeader: false,
   productCase: 'none',
   descriptionCase: 'none',

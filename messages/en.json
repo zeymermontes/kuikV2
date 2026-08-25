@@ -372,7 +372,8 @@
     "versionLight": "Light",
     "versionDark": "Dark",
     "logoHint": "The round logo, above the restaurant name.",
-    "coverHint": "Wide image at the top of the menu."
+    "coverHint": "Wide image at the top of the menu.",
+    "logoWideHeight": "Logo height in the bar"
   },
   "landing": {
     "title": "Home screen",

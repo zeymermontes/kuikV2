@@ -17,6 +17,12 @@ const nextConfig: NextConfig = {
   // Custom-landing zips are posted to a Server Action; the default body cap is 1MB.
   experimental: { serverActions: { bodySizeLimit: '15mb' } },
   images: {
+    // Category icons are often SVG. Serving them through the optimiser needs
+    // this flag; the CSP below strips scripting, and `attachment` stops the
+    // optimiser URL from being used to render an SVG as a page.
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     remotePatterns: [
       ...(supabaseHost
         ? [{ protocol: 'https' as const, hostname: supabaseHost }]

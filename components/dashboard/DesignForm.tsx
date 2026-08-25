@@ -624,6 +624,23 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
               ['bar', t('headerBar')],
             ]}
           />
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-medium">{t('logoWideHeight')}</span>
+            <div className="flex flex-1 items-center gap-2">
+              <input
+                type="range"
+                min={24}
+                max={96}
+                step={2}
+                value={settings.logoWideHeight}
+                onChange={(e) => setS('logoWideHeight', Number(e.target.value))}
+                className="h-1 flex-1 cursor-pointer accent-neutral-900"
+              />
+              <span className="w-10 text-right text-[10px] text-neutral-400">
+                {settings.logoWideHeight}px
+              </span>
+            </div>
+          </div>
           <ToggleRow
             label={t('fullWidthHeader')}
             checked={settings.fullWidthHeader}
