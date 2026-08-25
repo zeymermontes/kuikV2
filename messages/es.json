@@ -160,7 +160,14 @@
     "confirmDeleteAll": "¿Borrar todos los grupos de opciones?",
     "empty": "Esta categoría está vacía",
     "kindDish": "Del platillo",
-    "kindTakeaway": "Para llevar"
+    "kindTakeaway": "Para llevar",
+    "newSubcategory": "Nueva subcategoría",
+    "addSubcategory": "Agregar subcategoría",
+    "parentCategory": "Pertenece a",
+    "parentNone": "Categoría principal",
+    "parentHint": "Si eliges una categoría, esta se vuelve subcategoría y aparece dentro de ella (no en la barra de categorías).",
+    "parentHasChildren": "Esta categoría ya tiene subcategorías, así que no puede volverse subcategoría.",
+    "subcategoryCol": "Subcategoría"
   },
   "design": {
     "title": "Diseño",
@@ -319,7 +326,24 @@
     "navIconSize": "Tamaño del icono",
     "navTabShape": "Forma de la pestaña",
     "navShapePill": "Píldora con fondo",
-    "navShapePlain": "Sin fondo"
+    "navShapePlain": "Sin fondo",
+    "categoryTitle": "Título de sección en la página",
+    "titleAlways": "Siempre",
+    "titleAuto": "Solo si no tiene subcategorías",
+    "titleNever": "Nunca",
+    "subcategoryRule": "Líneas en subcategorías",
+    "subcategorySize": "Tamaño de subcategorías",
+    "headerStyle": "Estilo del encabezado",
+    "headerStacked": "Centrado (logo y nombre)",
+    "headerBar": "Barra (regresar · logo · reservar)",
+    "fullWidthHeader": "Barra y categorías a todo el ancho",
+    "navIconShape": "Forma del icono",
+    "navShapeIconPlain": "Sin círculo",
+    "navShapeIconCircle": "Dentro de un círculo",
+    "showSlogan": "Mostrar eslogan en el menú",
+    "spacingRoomy": "Muy amplia",
+    "logoWide": "Logo horizontal",
+    "logoWideHint": "Se usa en el encabezado de barra, centrado entre «Regresar» y «Reservar». El logo redondo de arriba se sigue usando para el ícono de la pestaña (favicon)."
   },
   "landing": {
     "title": "Pantalla de inicio",

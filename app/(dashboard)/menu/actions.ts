@@ -19,15 +19,86 @@ function revalidate(subdomain: string) {
 }
 
 // ── Categories ─────────────────────────────────────────────────────────────
-export async function addCategory(name: string, branchId: string | null = null) {
+export async function addCategory(
+  name: string,
+  branchId: string | null = null,
+  parentId: string | null = null,
+) {
   const { tenantId, subdomain, supabase } = await ctx();
-  const { count } = await supabase
+
+  // A subcategory lives on its parent's branch and may only hang off a
+  // top-level category (the database enforces this too).
+  let branch = branchId;
+  if (parentId) {
+    const { data: parent } = await supabase
+      .from('categories')
+      .select('branch_id, parent_id, tenant_id')
+      .eq('id', parentId)
+      .single<{ branch_id: string | null; parent_id: string | null; tenant_id: string }>();
+    if (!parent || parent.tenant_id !== tenantId || parent.parent_id) return;
+    branch = parent.branch_id;
+  }
+
+  // Position is scoped to the sibling list: top level, or within one parent.
+  let posQuery = supabase
     .from('categories')
     .select('id', { count: 'exact', head: true })
     .eq('tenant_id', tenantId);
-  await supabase
-    .from('categories')
-    .insert({ tenant_id: tenantId, name, position: count ?? 0, branch_id: branchId });
+  posQuery = parentId ? posQuery.eq('parent_id', parentId) : posQuery.is('parent_id', null);
+  const { count } = await posQuery;
+
+  await supabase.from('categories').insert({
+    tenant_id: tenantId,
+    name,
+    position: count ?? 0,
+    branch_id: branch,
+    parent_id: parentId,
+  });
+  revalidate(subdomain);
+}
+
+/**
+ * Move a category under a parent, or back to the top level (`parentId: null`).
+ * Refuses moves the one-level rule forbids; the database trigger is the
+ * backstop.
+ */
+export async function setCategoryParent(id: string, parentId: string | null) {
+  const { tenantId, subdomain, supabase } = await ctx();
+
+  if (parentId) {
+    if (parentId === id) return;
+    const [{ data: parent }, { count: childCount }] = await Promise.all([
+      supabase
+        .from('categories')
+        .select('branch_id, parent_id, tenant_id')
+        .eq('id', parentId)
+        .single<{ branch_id: string | null; parent_id: string | null; tenant_id: string }>(),
+      supabase
+        .from('categories')
+        .select('id', { count: 'exact', head: true })
+        .eq('parent_id', id),
+    ]);
+    // Can't nest under a subcategory, and can't demote a category that has its own.
+    if (!parent || parent.tenant_id !== tenantId || parent.parent_id) return;
+    if ((childCount ?? 0) > 0) return;
+
+    const { count } = await supabase
+      .from('categories')
+      .select('id', { count: 'exact', head: true })
+      .eq('parent_id', parentId);
+    await supabase
+      .from('categories')
+      .update({ parent_id: parentId, branch_id: parent.branch_id, position: count ?? 0 })
+      .eq('id', id);
+  } else {
+    const { count } = await supabase
+      .from('categories')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
+      .is('parent_id', null);
+    await supabase.from('categories').update({ parent_id: null, position: count ?? 0 }).eq('id', id);
+  }
+
   revalidate(subdomain);
 }
 

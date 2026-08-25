@@ -160,7 +160,14 @@
     "confirmDeleteAll": "Delete all option groups?",
     "empty": "This category is empty",
     "kindDish": "For the dish",
-    "kindTakeaway": "To take away"
+    "kindTakeaway": "To take away",
+    "newSubcategory": "New subcategory",
+    "addSubcategory": "Add subcategory",
+    "parentCategory": "Belongs to",
+    "parentNone": "Top-level category",
+    "parentHint": "Pick a category to make this a subcategory: it renders inside that section instead of in the category bar.",
+    "parentHasChildren": "This category already has subcategories, so it cannot become one.",
+    "subcategoryCol": "Subcategory"
   },
   "design": {
     "title": "Design",
@@ -319,7 +326,24 @@
     "navIconSize": "Icon size",
     "navTabShape": "Tab shape",
     "navShapePill": "Pill with background",
-    "navShapePlain": "No background"
+    "navShapePlain": "No background",
+    "categoryTitle": "Section title in the page",
+    "titleAlways": "Always",
+    "titleAuto": "Only when it has no subcategories",
+    "titleNever": "Never",
+    "subcategoryRule": "Rules on subcategories",
+    "subcategorySize": "Subcategory size",
+    "headerStyle": "Header style",
+    "headerStacked": "Centred (logo and name)",
+    "headerBar": "Bar (back · logo · reserve)",
+    "fullWidthHeader": "Bar and categories span the full width",
+    "navIconShape": "Icon shape",
+    "navShapeIconPlain": "No circle",
+    "navShapeIconCircle": "Inside a circle",
+    "showSlogan": "Show the slogan on the menu",
+    "spacingRoomy": "Roomy",
+    "logoWide": "Horizontal logo",
+    "logoWideHint": "Used by the bar header, centred between “Back” and “Reserve”. The round logo above is still what becomes the browser tab icon (favicon)."
   },
   "landing": {
     "title": "Home screen",

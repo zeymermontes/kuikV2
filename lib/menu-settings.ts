@@ -22,19 +22,34 @@ export type ImageRatio = 'auto' | 'natural' | 'square' | 'video' | 'wide';
 export type TextAlign = 'auto' | 'left' | 'center' | 'right';
 export type PriceStyle = 'auto' | 'right' | 'inline' | 'dots' | 'below';
 export type Surface = 'auto' | 'on' | 'off';
-export type ItemSpacing = 'auto' | 'none' | 'tight' | 'normal' | 'loose';
+export type ItemSpacing = 'auto' | 'none' | 'tight' | 'normal' | 'loose' | 'roomy';
 
 // ── Page / heading knobs ────────────────────────────────────────────────────
 export type HeadingAlign = 'left' | 'center' | 'right';
 export type CategoryRule = 'none' | 'under' | 'both';
 export type TextCase = 'none' | 'upper';
 export type ContentWidth = 'narrow' | 'normal' | 'wide' | 'full';
+/**
+ * When to print the section's own title in the page body.
+ * 'auto' drops it for sections that have subcategories — their headings already
+ * carry the page, and the tab bar still names the parent (the Mar & Sea look).
+ */
+export type CategoryTitleMode = 'always' | 'auto' | 'never';
 export type NavIconPosition = 'left' | 'top' | 'bottom' | 'none';
 export type NavTabShape = 'pill' | 'plain';
+/**
+ * 'stacked' — logo, name and slogan centred in the content column (default).
+ * 'bar' — a full-width bar across the viewport: back on the left, logo centred,
+ * reservations on the right, with the category strip below it in the same bar.
+ */
+export type HeaderStyle = 'stacked' | 'bar';
+/** Whether a nav icon sits in a filled circle (like a printed menu's badges). */
+export type NavIconShape = 'plain' | 'circle';
 
 export interface MenuSettings {
   currency: string;
   showName: boolean;
+  showSlogan: boolean;
   darkMode: DarkMode;
   cardStyle: CardStyle;
   imageShape: ImageShape;
@@ -67,10 +82,19 @@ export interface MenuSettings {
   categoryRule: CategoryRule;
   categoryCase: TextCase;
   categoryIcons: boolean;
+  /** The section title inside the page (the tab bar may already name it). */
+  categoryTitle: CategoryTitleMode;
+  subcategoryRule: CategoryRule;
+  /** Subcategory heading size, as a fraction of the category heading. */
+  subcategorySize: number;
   // Category tab bar.
   navIconPosition: NavIconPosition;
   navIconSize: number;
   navTabShape: NavTabShape;
+  navIconShape: NavIconShape;
+  headerStyle: HeaderStyle;
+  /** The bar and the category strip span the viewport, not the content column. */
+  fullWidthHeader: boolean;
   // Product typography casing.
   productCase: TextCase;
   descriptionCase: TextCase;
@@ -96,6 +120,7 @@ export interface MenuSettings {
 export const DEFAULT_MENU_SETTINGS: MenuSettings = {
   currency: 'MXN',
   showName: true,
+  showSlogan: true,
   darkMode: 'off',
   cardStyle: 'list',
   imageShape: 'rounded',
@@ -125,9 +150,15 @@ export const DEFAULT_MENU_SETTINGS: MenuSettings = {
   categoryRule: 'none',
   categoryCase: 'none',
   categoryIcons: true,
+  categoryTitle: 'always',
+  subcategoryRule: 'none',
+  subcategorySize: 0.72,
   navIconPosition: 'left',
   navIconSize: 18,
   navTabShape: 'pill',
+  navIconShape: 'plain',
+  headerStyle: 'stacked',
+  fullWidthHeader: false,
   productCase: 'none',
   descriptionCase: 'none',
   showInlineOptions: false,
@@ -201,6 +232,7 @@ export const ITEM_GAP: Record<Exclude<ItemSpacing, 'auto'>, string> = {
   tight: '0.375rem',
   normal: '0.75rem',
   loose: '1rem',
+  roomy: '1.5rem', // what a printed menu leaves between dishes
 };
 
 /** Settle every 'auto' knob against the chosen `cardStyle`. */
@@ -258,4 +290,11 @@ export const JUSTIFY_CLASS: Record<HeadingAlign, string> = {
 
 export function textTransform(c: TextCase): 'none' | 'uppercase' {
   return c === 'upper' ? 'uppercase' : 'none';
+}
+
+/** Whether to print a section's own title, given how many subcategories it has. */
+export function showCategoryTitle(mode: CategoryTitleMode, subCount: number): boolean {
+  if (mode === 'never') return false;
+  if (mode === 'auto') return subCount === 0;
+  return true;
 }

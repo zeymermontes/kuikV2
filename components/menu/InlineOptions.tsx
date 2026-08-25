@@ -38,14 +38,14 @@ export function InlineOptions({
 
   // Centered layouts keep the chip grid narrower than the text, like the
   // printed original; left/right layouts use the full width.
-  const widthClass = align === 'center' ? 'mx-auto w-[92%] sm:w-[62%]' : 'w-full';
+  const widthClass = align === 'center' ? 'mx-auto w-full sm:w-1/2' : 'w-full';
 
   return (
-    <div className="mt-1.5 space-y-1.5">
+    <div className="mt-3 w-full self-stretch space-y-2.5">
       {groups.map((g) => (
         <div key={g.id}>
           <span
-            className={`block text-sm font-semibold ${ALIGN_CLASS[align]}`}
+            className={`block text-[15px] font-bold ${ALIGN_CLASS[align]}`}
             style={{ color: 'var(--brand-primary)', textTransform: textTransform(textCase) }}
           >
             {g.name}
@@ -54,13 +54,13 @@ export function InlineOptions({
             </span>
           </span>
           <div
-            className={`mt-1 grid gap-1 ${widthClass}`}
+            className={`mt-1.5 grid gap-1.5 ${widthClass}`}
             style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
           >
             {g.options.map((o, i) => (
               <span
                 key={`${g.id}-${i}`}
-                className={`px-1.5 py-1 text-left text-[13px] leading-tight ${radiusClass}`}
+                className={`px-2.5 py-1.5 text-left text-[15px] leading-snug ${radiusClass}`}
                 style={{
                   backgroundColor: 'var(--brand-surface)',
                   color: 'var(--brand-text)',

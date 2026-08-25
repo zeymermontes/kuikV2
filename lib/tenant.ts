@@ -192,17 +192,26 @@ export const getMenu = cache(
     const prods = ((products ?? []) as Product[]).filter((p) => !p.is_hidden);
     const seps = (separators ?? []) as Separator[];
 
-    return cats.map((cat) => {
-      const entries: MenuEntry[] = [
+    const entriesOf = (catId: string): MenuEntry[] =>
+      [
         ...prods
-          .filter((p) => p.category_id === cat.id)
+          .filter((p) => p.category_id === catId)
           .map((p) => ({ kind: 'product' as const, ...p })),
         ...seps
-          .filter((s) => s.category_id === cat.id)
+          .filter((s) => s.category_id === catId)
           .map((s) => ({ kind: 'separator' as const, ...s })),
       ].sort((a, b) => a.position - b.position);
 
-      return { ...cat, entries };
-    });
+    // Only top-level categories become sections; subcategories are nested into
+    // their parent, keeping their own order. A child whose parent is hidden (or
+    // missing) is dropped along with it.
+    const parents = cats.filter((c) => !c.parent_id);
+    return parents.map((cat) => ({
+      ...cat,
+      entries: entriesOf(cat.id),
+      subcategories: cats
+        .filter((c) => c.parent_id === cat.id)
+        .map((sub) => ({ ...sub, entries: entriesOf(sub.id), subcategories: [] })),
+    }));
   },
 );

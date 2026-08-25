@@ -74,6 +74,8 @@ export interface TenantTheme {
   font_product: string | null;
   font_price: string | null;
   font_description: string | null;
+  /** Horizontal logo / wordmark, used by the bar header. */
+  logo_wide_url: string | null;
   background_image_url: string | null;
   background_music_url: string | null;
   background_music_volume: number;
@@ -151,6 +153,8 @@ export interface Category {
   tenant_id: string;
   branch_id: string | null;
   name: string;
+  /** Non-null when this category is a subcategory of another. One level only. */
+  parent_id: string | null;
   position: number;
   icon: string | null;
   icon_image_url: string | null;
@@ -328,6 +332,8 @@ export type MenuEntry =
 
 export interface MenuCategory extends Category {
   entries: MenuEntry[];
+  /** Child sections rendered inside this one. Empty for a subcategory. */
+  subcategories: MenuCategory[];
 }
 
 export interface FullTenant {

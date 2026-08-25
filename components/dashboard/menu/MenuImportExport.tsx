@@ -23,13 +23,14 @@ import {
   type ImportProduct,
 } from '@/lib/menu-import';
 
-const HEADERS = ['Categoría', 'Producto', 'Descripción', 'Precio', 'Precio anterior', 'Disponible', 'Etiquetas'];
+const HEADERS = ['Categoría', 'Subcategoría', 'Producto', 'Descripción', 'Precio', 'Precio anterior', 'Disponible', 'Etiquetas'];
 
 const strip = (s: string) => s.toString().trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 function headerField(h: string): string | null {
   const k = strip(h);
   if (['categoria', 'category', 'seccion', 'section'].includes(k)) return 'category';
+  if (['subcategoria', 'subcategory', 'subseccion', 'subsection'].includes(k)) return 'subcategory';
   if (['producto', 'product', 'nombre', 'name', 'platillo'].includes(k)) return 'name';
   if (['descripcion', 'description', 'desc'].includes(k)) return 'description';
   if (['precio', 'price'].includes(k)) return 'price';
@@ -114,17 +115,30 @@ export function MenuImportExport({
           if (f) row[f] = v;
         }
         const cat = String(row.category ?? '').trim();
+        const sub = String(row.subcategory ?? '').trim();
         const name = String(row.name ?? '').trim();
         if (!cat || !name) continue;
-        if (!cats.has(strip(cat))) cats.set(strip(cat), { name: cat, products: [] });
-        cats.get(strip(cat))!.products.push({
+        if (!cats.has(strip(cat))) cats.set(strip(cat), { name: cat, products: [], subcategories: [] });
+        const parent = cats.get(strip(cat))!;
+        const product = {
           name,
           description: String(row.description ?? '').trim() || null,
           price: num(row.price),
           compareAtPrice: num(row.compareAt),
           available: avail(row.available),
           tags: tags(row.tags),
-        });
+        };
+        // A row with a Subcategoría lands in that nested section instead.
+        if (sub) {
+          let child = parent.subcategories!.find((x) => strip(x.name) === strip(sub));
+          if (!child) {
+            child = { name: sub, products: [] };
+            parent.subcategories!.push(child);
+          }
+          child.products.push(product);
+        } else {
+          parent.products.push(product);
+        }
       }
       await runPreview({ categories: [...cats.values()] });
     } catch {
@@ -166,8 +180,15 @@ export function MenuImportExport({
 
       if (data.design?.background_image) data.design.background_image = await upload(data.design.background_image);
       for (const c of data.categories ?? []) {
+        if (c.image) c.image = await upload(c.image);
         for (const p of c.products ?? []) {
           if (p.image) p.image = await upload(p.image);
+        }
+        for (const sub of c.subcategories ?? []) {
+          if (sub.image) sub.image = await upload(sub.image);
+          for (const p of sub.products ?? []) {
+            if (p.image) p.image = await upload(p.image);
+          }
         }
       }
       await runPreview(data);
@@ -203,8 +224,10 @@ export function MenuImportExport({
   // ── Downloads / AI prompt ─────────────────────────────────────────────────
   function downloadTemplate() {
     const sample = [
-      { Categoría: 'Pizzas', Producto: 'Margarita', Descripción: 'Tomate, mozzarella, albahaca', Precio: 180, 'Precio anterior': '', Disponible: 'Sí', Etiquetas: 'Más vendido' },
-      { Categoría: 'Bebidas', Producto: 'Limonada', Descripción: '', Precio: 45, 'Precio anterior': '', Disponible: 'Sí', Etiquetas: '' },
+      { Categoría: 'Pizzas', Subcategoría: '', Producto: 'Margarita', Descripción: 'Tomate, mozzarella, albahaca', Precio: 180, 'Precio anterior': '', Disponible: 'Sí', Etiquetas: 'Más vendido' },
+      { Categoría: 'Desayunos', Subcategoría: 'Para comenzar', Producto: 'Hot cakes', Descripción: 'Tres piezas con frutos rojos', Precio: 183, 'Precio anterior': '', Disponible: 'Sí', Etiquetas: '' },
+      { Categoría: 'Desayunos', Subcategoría: 'Omelettes', Producto: 'Omelette veggie', Descripción: '', Precio: 197, 'Precio anterior': '', Disponible: 'Sí', Etiquetas: '' },
+      { Categoría: 'Bebidas', Subcategoría: '', Producto: 'Limonada', Descripción: '', Precio: 45, 'Precio anterior': '', Disponible: 'Sí', Etiquetas: '' },
     ];
     const ws = XLSX.utils.json_to_sheet(sample, { header: HEADERS });
     const wb = XLSX.utils.book_new();
@@ -216,14 +239,25 @@ export function MenuImportExport({
     const byCat = new Map<string, Product[]>();
     for (const p of products) (byCat.get(p.category_id) ?? byCat.set(p.category_id, []).get(p.category_id)!).push(p);
     const data: Record<string, unknown>[] = [];
-    for (const c of [...categories].sort((a, b) => a.position - b.position)) {
-      for (const p of (byCat.get(c.id) ?? []).sort((a, b) => a.position - b.position)) {
+    const byPos = (a: { position: number }, b: { position: number }) => a.position - b.position;
+    const nameById = new Map(categories.map((c) => [c.id, c.name]));
+    // Parents in order, each followed by its subcategories, so an export can be
+    // edited and re-imported without losing the nesting.
+    const rowsFor = (c: (typeof categories)[number]) => {
+      const parentName = c.parent_id ? (nameById.get(c.parent_id) ?? '') : c.name;
+      const subName = c.parent_id ? c.name : '';
+      for (const p of (byCat.get(c.id) ?? []).sort(byPos)) {
         data.push({
-          Categoría: c.name, Producto: p.name, Descripción: p.description ?? '',
+          Categoría: parentName, Subcategoría: subName,
+          Producto: p.name, Descripción: p.description ?? '',
           Precio: p.price ?? '', 'Precio anterior': p.compare_at_price ?? '',
           Disponible: p.is_available ? 'Sí' : 'No', Etiquetas: (p.tags ?? []).join(', '),
         });
       }
+    };
+    for (const c of categories.filter((x) => !x.parent_id).sort(byPos)) {
+      rowsFor(c);
+      for (const sub of categories.filter((x) => x.parent_id === c.id).sort(byPos)) rowsFor(sub);
     }
     if (data.length === 0) data.push(Object.fromEntries(HEADERS.map((h) => [h, ''])));
     const ws = XLSX.utils.json_to_sheet(data, { header: HEADERS });
@@ -244,37 +278,55 @@ export function MenuImportExport({
     const byCat = new Map<string, Product[]>();
     for (const p of products) (byCat.get(p.category_id) ?? byCat.set(p.category_id, []).get(p.category_id)!).push(p);
 
-    const cats: ImportCategory[] = [...categories]
-      .sort((a, b) => a.position - b.position)
-      .map((c) => ({
-        name: c.name,
-        icon: c.icon ?? undefined,
-        products: (byCat.get(c.id) ?? [])
-          .sort((a, b) => a.position - b.position)
-          .map((p): ImportProduct => {
-            const groups = resolveOptionGroups(p).map((g) => ({
-              name: g.name,
-              description: g.description,
-              required: g.required,
-              multiple: g.multiple,
-              options: g.options.map((o) => ({ name: o.name, price: o.price })),
-            }));
-            return {
-              name: p.name,
-              description: p.description ?? undefined,
-              price: p.price,
-              compareAtPrice: p.compare_at_price,
-              cost: p.cost,
-              available: p.is_available,
-              hidden: p.is_hidden,
-              tags: p.tags ?? [],
-              image: p.image_url ?? undefined,
-              prepTime: p.prep_time ?? undefined,
-              calories: p.calories ?? undefined,
-              ...(groups.length ? { optionGroups: groups } : {}),
-            };
-          }),
-      }));
+    const byPos = (a: { position: number }, b: { position: number }) => a.position - b.position;
+    const productsOf = (catId: string): ImportProduct[] =>
+      (byCat.get(catId) ?? []).sort(byPos).map((p): ImportProduct => {
+        const groups = resolveOptionGroups(p).map((g) => ({
+          name: g.name,
+          description: g.description,
+          kind: g.kind,
+          required: g.required,
+          multiple: g.multiple,
+          options: g.options.map((o) => ({ name: o.name, price: o.price })),
+        }));
+        return {
+          name: p.name,
+          description: p.description ?? undefined,
+          price: p.price,
+          compareAtPrice: p.compare_at_price,
+          cost: p.cost,
+          available: p.is_available,
+          hidden: p.is_hidden,
+          tags: p.tags ?? [],
+          image: p.image_url ?? undefined,
+          prepTime: p.prep_time ?? undefined,
+          calories: p.calories ?? undefined,
+          ...(groups.length ? { optionGroups: groups } : {}),
+        };
+      });
+
+    const cats: ImportCategory[] = categories
+      .filter((c) => !c.parent_id)
+      .sort(byPos)
+      .map((c) => {
+        const subs = categories.filter((x) => x.parent_id === c.id).sort(byPos);
+        return {
+          name: c.name,
+          icon: c.icon ?? undefined,
+          image: c.icon_image_url ?? undefined,
+          products: productsOf(c.id),
+          ...(subs.length
+            ? {
+                subcategories: subs.map((sub) => ({
+                  name: sub.name,
+                  icon: sub.icon ?? undefined,
+                  image: sub.icon_image_url ?? undefined,
+                  products: productsOf(sub.id),
+                })),
+              }
+            : {}),
+        };
+      });
 
     return { design, categories: cats };
   }
@@ -313,7 +365,16 @@ export function MenuImportExport({
         }
       };
       if (payload.design?.background_image) payload.design.background_image = await localize(payload.design.background_image, 'background');
-      for (const c of payload.categories) for (const p of c.products) if (p.image) p.image = await localize(p.image, p.name);
+      // Category icons and subcategories travel in the zip too, so an export
+      // round-trips through import without losing them.
+      for (const c of payload.categories) {
+        if (c.image) c.image = await localize(c.image, `cat-${c.name}`);
+        for (const p of c.products) if (p.image) p.image = await localize(p.image, p.name);
+        for (const sub of c.subcategories ?? []) {
+          if (sub.image) sub.image = await localize(sub.image, `cat-${sub.name}`);
+          for (const p of sub.products) if (p.image) p.image = await localize(p.image, p.name);
+        }
+      }
       files['menu.json'] = new TextEncoder().encode(JSON.stringify(payload, null, 2));
       download(new Blob([zipSync(files) as unknown as BlobPart]), 'menu.zip');
     } finally {
@@ -449,8 +510,19 @@ const SCHEMA_ES = `{
   },
   "categories": [
     {
-      "name": "Pizzas",  // Nombre de la sección/categoría.
+      "name": "Pizzas",  // Nombre de la sección/categoría. Aparece en la barra de categorías.
       "icon": "🍕",       // Un solo emoji que represente la categoría (opcional).
+      "image": "https://...", // Icono/ilustración de la categoría para la barra: URL absoluta
+                              // si el sitio usa iconos propios (SVG/PNG) por categoría. Si lo
+                              // pones, se usa en lugar del emoji. Omítelo si no hay.
+      // "subcategories" (opcional, UN solo nivel): si en la carta impresa una sección
+      // tiene varios títulos dentro (p.ej. "Desayunos" con "Para comenzar",
+      // "Omelettes y huevos", "Chilaquiles"), pon "Desayunos" como categoría y
+      // cada título como subcategoría. Solo las categorías aparecen en la barra;
+      // las subcategorías se muestran como títulos DENTRO de esa sección.
+      "subcategories": [
+        { "name": "Para comenzar", "icon": "🥞", "image": "https://...", "products": [ /* mismos campos que abajo */ ] }
+      ],
       "products": [
         {
           "name": "Margarita",
@@ -463,12 +535,21 @@ const SCHEMA_ES = `{
           "image": "https://...",    // URL absoluta de la foto del producto en el sitio (si existe).
           "prepTime": "15 min",      // Tiempo de preparación (opcional).
           "calories": 800,           // Calorías (opcional, número).
-          "optionGroups": [          // Grupos de opciones (multiselect) que el cliente elige al ordenar.
-            { "name":"Tamaño", "description":"", "required":true, "multiple":false,  // required=obligatorio. multiple:false = elige UNO (radio); true = elige VARIOS (checkbox).
+          "optionGroups": [          // Grupos de opciones que el cliente elige al ordenar.
+            // "kind": "dish" = opción del platillo (por defecto); "takeaway" = opción para llevar
+            // (empaque, cubiertos, salsas aparte). Se le muestra al cliente para distinguirlas.
+            { "name":"Tamaño", "description":"", "kind":"dish", "required":true, "multiple":false,  // required=obligatorio. multiple:false = elige UNO (radio); true = elige VARIOS (checkbox).
               "options":[ {"name":"Chico","price":0}, {"name":"Grande","price":30} ] },  // price = costo EXTRA que se SUMA al precio base (0 si no agrega).
-            { "name":"Extras", "required":false, "multiple":true,
+            // Cuando la carta dice "a su elección" (p.ej. "PROTEÍNA A SU ELECCIÓN" con
+            // una lista debajo), eso es un optionGroup: el nombre es ese título y cada
+            // ítem de la lista es una opción con price 0.
+            { "name":"Proteína a su elección", "kind":"dish", "required":true, "multiple":false,
+              "options":[ {"name":"Chilorio","price":0}, {"name":"Chorizo","price":0} ] },
+            { "name":"Extras", "kind":"dish", "required":false, "multiple":true,
               "options":[ {"name":"Queso","price":20}, {"name":"Tocino","price":25} ] },
-            { "name":"Quitar ingredientes", "required":false, "multiple":true,
+            { "name":"Para llevar", "kind":"takeaway", "required":false, "multiple":true,
+              "options":[ {"name":"Cubiertos","price":0}, {"name":"Salsa aparte","price":0} ] },
+            { "name":"Quitar ingredientes", "kind":"dish", "required":false, "multiple":true,
               "options":[ {"name":"Sin cebolla","price":0}, {"name":"Sin chile","price":0} ] }
           ]
         }
@@ -486,10 +567,14 @@ Reglas importantes:
 - Las "//" son explicaciones de cada campo; NO las incluyas en tu respuesta. Devuelve JSON puro y válido, sin comentarios ni texto extra.
 - TODOS los colores en formato hexadecimal #RRGGBB. Detecta los colores reales del sitio (fondo, tarjetas, botones, pestañas de categorías, textos, acentos). Si un color no aplica, omite ese campo.
 - "categories": agrupa los productos por su sección tal como aparece en el sitio, en el mismo orden.
+- "subcategories": si una sección tiene varios títulos internos, usa el nombre de la pestaña/menú como "name" de la categoría y cada título interno como subcategoría. NO concatenes nombres ("Desayunos · Para comenzar" está mal): son "Desayunos" con la subcategoría "Para comenzar". Máximo un nivel.
 - Precios solo números, sin símbolo de moneda. "available": true salvo que diga agotado.
 - "tags": usa SOLO de esta lista cuando aplique: new, bestseller, spicy, vegan, vegetarian, glutenfree, house, promo.
 - "optionGroups": modela tamaños, extras y "quitar" como grupos. "required"=obligatorio, "multiple":false=elige uno / true=elige varios. El "price" de cada opción es el costo EXTRA que se suma al "price" base del producto (0 si no agrega). Si el producto no tiene opciones, omite "optionGroups".
+- Toda lista del tipo "A SU ELECCIÓN" / "A ELEGIR" que aparezca bajo un platillo es un optionGroup de ese platillo (título = "name", cada renglón = una opción con price 0), NO productos sueltos ni una subcategoría.
+- "kind" en cada optionGroup: "dish" para opciones del platillo, "takeaway" para opciones de para llevar (empaque, cubiertos, salsa aparte). Si no estás seguro, usa "dish".
 - "image" y "background_image": URLs absolutas de las imágenes del sitio (si existen).
+- Iconos de categoría: si la barra de categorías del sitio usa ilustraciones o iconos propios (no emojis), pon esa URL en el "image" de cada categoría. Si son emojis o no hay iconos, usa solo "icon" con un emoji representativo.
 - No inventes datos: si un campo no está, omítelo (o null donde corresponda).
 
 Puedes entregar el resultado como un archivo .json, o dentro de un .zip junto a una carpeta "images/" con las fotos (en ese caso, en "image" y "background_image" pon el nombre del archivo, p.ej. "margarita.jpg").
@@ -500,23 +585,29 @@ const ZIP_PROMPT_ES = `Eres un asistente con navegación web y capacidad de ejec
 Genera un ARCHIVO .ZIP listo para importar, que contenga:
 1) "menu.json" en la raíz, con esta estructura exacta:
 ${SCHEMA_ES}
-2) Una carpeta "images/" con TODAS las imágenes (fotos de productos y la imagen de fondo).
+2) Una carpeta "images/" con TODAS las imágenes (fotos de productos, iconos de categoría y la imagen de fondo).
 
 Reglas:
 - Las "//" son explicaciones; NO las incluyas en menu.json. Debe ser JSON puro y válido.
-- En "image" y "background_image" NO uses URLs: usa el NOMBRE de archivo de la imagen ya descargada (p.ej. "margarita.jpg"), y guarda ese archivo dentro de "images/" con ese mismo nombre. Usa nombres únicos y sin espacios.
+- En "image" (de productos Y de categorías) y "background_image" NO uses URLs: usa el NOMBRE de archivo de la imagen ya descargada (p.ej. "margarita.jpg", "icono-pizzas.svg"), y guarda ese archivo dentro de "images/" con ese mismo nombre. Usa nombres únicos y sin espacios.
 - Descarga realmente cada imagen del sitio y agrégala a la carpeta "images/" del .zip.
 - TODOS los colores en #RRGGBB; detecta los colores reales del sitio (fondo, tarjetas, botones, pestañas de categorías, textos, acentos).
 - Precios solo números. "tags" solo de: new, bestseller, spicy, vegan, vegetarian, glutenfree, house, promo.
+- Usa "subcategories" cuando una sección tenga títulos internos; no concatenes nombres.
+- Las listas "A SU ELECCIÓN" bajo un platillo son "optionGroups" de ese platillo, con "kind":"dish" (o "takeaway" si es para llevar).
 - No inventes datos: omite el campo (o null) si no está.
 
 Entrégame el archivo .zip para descargar.`;
 
 const TABLE_PROMPT_ES = `Ayúdame a crear el menú de mi restaurante como una tabla que pueda pegar en Excel/Google Sheets. Usa EXACTAMENTE estas columnas en la primera fila:
-Categoría | Producto | Descripción | Precio | Precio anterior | Disponible | Etiquetas
+Categoría | Subcategoría | Producto | Descripción | Precio | Precio anterior | Disponible | Etiquetas
 
 Reglas:
 - Una fila por producto; repite la Categoría en cada producto de esa sección.
+- Subcategoría: déjala VACÍA salvo que la sección tenga títulos internos. Si en la carta
+  "Desayunos" agrupa "Para comenzar", "Omelettes y huevos", "Chilaquiles", entonces
+  Categoría = Desayunos y Subcategoría = el título que corresponda. Solo la Categoría
+  aparece en la barra de categorías; la Subcategoría es un título dentro de esa sección.
 - Precio: solo números. "Precio anterior" solo si hay descuento (si no, déjalo vacío).
 - Disponible: "Sí" o "No".
 - Etiquetas (opcional, separadas por coma): Nuevo, Más vendido, Picante, Vegano, Vegetariano, Sin gluten, De la casa, Promo.
@@ -525,10 +616,14 @@ Reglas:
 Aquí está mi menú (pégalo o descríbelo):`;
 
 const TABLE_PROMPT_EN = `Help me build my restaurant menu as a table I can paste into Excel/Google Sheets. Use EXACTLY these columns in the first row:
-Category | Product | Description | Price | Compare price | Available | Tags
+Category | Subcategory | Product | Description | Price | Compare price | Available | Tags
 
 Rules:
 - One row per product; repeat the Category for each product in that section.
+- Subcategory: leave it EMPTY unless the section has headings inside it. If the printed
+  menu groups "Breakfast" into "To start", "Omelettes and eggs", "Chilaquiles", then
+  Category = Breakfast and Subcategory = the matching heading. Only the Category shows
+  in the category bar; the Subcategory is a heading inside that section.
 - Price: numbers only. "Compare price" only if discounted (otherwise leave empty).
 - Available: "Yes" or "No".
 - Tags (optional, comma-separated): New, Bestseller, Spicy, Vegan, Vegetarian, Gluten-free, House, Promo.
@@ -558,8 +653,19 @@ const SCHEMA_EN = `{
   },
   "categories": [
     {
-      "name": "Pizzas",  // Section/category name.
+      "name": "Pizzas",  // Section/category name. Appears in the category bar.
       "icon": "🍕",       // A single emoji representing the category (optional).
+      "image": "https://...", // Category icon/illustration for the bar: absolute URL when the
+                              // site uses its own per-category icons (SVG/PNG). When present it
+                              // is used instead of the emoji. Omit if there is none.
+      // "subcategories" (optional, ONE level only): when a printed section holds
+      // several headings inside it (e.g. "Breakfast" with "To start", "Omelettes
+      // and eggs", "Chilaquiles"), make "Breakfast" the category and each heading
+      // a subcategory. Only categories appear in the bar; subcategories render as
+      // headings INSIDE that section.
+      "subcategories": [
+        { "name": "To start", "icon": "🥞", "image": "https://...", "products": [ /* same fields as below */ ] }
+      ],
       "products": [
         {
           "name": "Margherita",
@@ -572,12 +678,21 @@ const SCHEMA_EN = `{
           "image": "https://...",    // Absolute URL of the product photo on the site (if any).
           "prepTime": "15 min",      // Prep time (optional).
           "calories": 800,           // Calories (optional, number).
-          "optionGroups": [          // Option groups (multiselect) the customer picks when ordering.
-            { "name":"Size", "description":"", "required":true, "multiple":false,  // required=mandatory. multiple:false = choose ONE (radio); true = choose MANY (checkbox).
+          "optionGroups": [          // Option groups the customer picks when ordering.
+            // "kind": "dish" = part of the dish (default); "takeaway" = to-go option
+            // (packaging, cutlery, sauce on the side). Shown to the guest so they can tell them apart.
+            { "name":"Size", "description":"", "kind":"dish", "required":true, "multiple":false,  // required=mandatory. multiple:false = choose ONE (radio); true = choose MANY (checkbox).
               "options":[ {"name":"Small","price":0}, {"name":"Large","price":30} ] },  // price = EXTRA cost ADDED to the base price (0 if none).
-            { "name":"Extras", "required":false, "multiple":true,
+            // When the menu says "your choice of" (e.g. "CHOICE OF PROTEIN" with a
+            // list underneath), that is an optionGroup: the heading is the name and
+            // each listed item is an option with price 0.
+            { "name":"Choice of protein", "kind":"dish", "required":true, "multiple":false,
+              "options":[ {"name":"Chicken","price":0}, {"name":"Beef","price":0} ] },
+            { "name":"Extras", "kind":"dish", "required":false, "multiple":true,
               "options":[ {"name":"Cheese","price":20}, {"name":"Bacon","price":25} ] },
-            { "name":"Remove", "required":false, "multiple":true,
+            { "name":"To go", "kind":"takeaway", "required":false, "multiple":true,
+              "options":[ {"name":"Cutlery","price":0}, {"name":"Sauce on the side","price":0} ] },
+            { "name":"Remove", "kind":"dish", "required":false, "multiple":true,
               "options":[ {"name":"No onion","price":0}, {"name":"No chili","price":0} ] }
           ]
         }
@@ -595,10 +710,14 @@ Important rules:
 - The "//" are explanations of each field; do NOT include them in your answer. Return pure, valid JSON with no comments or extra text.
 - ALL colors in #RRGGBB hex. Detect the site's real colors (background, cards, buttons, category tabs, text, accent). Omit a field if it doesn't apply.
 - "categories": group products by their on-page section, in the same order.
+- "subcategories": when a section has several headings inside it, use the tab/menu name as the category "name" and each inner heading as a subcategory. Do NOT concatenate names ("Breakfast · To start" is wrong): that is "Breakfast" with the subcategory "To start". One level maximum.
 - Prices numbers only, no currency symbol. "available": true unless sold out.
 - "tags": ONLY from this list when relevant: new, bestseller, spicy, vegan, vegetarian, glutenfree, house, promo.
 - "optionGroups": model sizes, extras and "remove" as groups. "required"=mandatory, "multiple":false=choose one / true=choose many. Each option's "price" is the EXTRA cost added to the product's base "price" (0 if none). Omit "optionGroups" if the product has no options.
+- Any "YOUR CHOICE OF" / "CHOICE OF" list printed under a dish is an optionGroup of that dish (heading = "name", each line = an option with price 0), NOT separate products and NOT a subcategory.
+- "kind" on each optionGroup: "dish" for options of the dish itself, "takeaway" for to-go options (packaging, cutlery, sauce on the side). Use "dish" when unsure.
 - "image" and "background_image": absolute URLs of the site's images (if any).
+- Category icons: if the site's category bar uses its own illustrations or icons (not emoji), put that URL in each category's "image". If they are emoji or there are none, just use "icon" with a representative emoji.
 - Don't invent data: omit a field (or null where appropriate) if it's missing.
 
 You may deliver the result as a .json file, or inside a .zip with an "images/" folder of the photos (in that case put the file name in "image" and "background_image", e.g. "margherita.jpg").
@@ -609,7 +728,7 @@ const ZIP_PROMPT_EN = `You are an assistant with web browsing and code execution
 Produce a ready-to-import .ZIP FILE containing:
 1) "menu.json" at the root, with this exact structure:
 ${SCHEMA_EN}
-2) An "images/" folder with ALL images (product photos and the background image).
+2) An "images/" folder with ALL images (product photos, category icons and the background image).
 
 Rules:
 - The "//" are explanations; do NOT include them in menu.json. It must be pure, valid JSON.
@@ -617,6 +736,8 @@ Rules:
 - Actually download each image from the site and add it to the .zip's "images/" folder.
 - ALL colors in #RRGGBB; detect the site's real colors (background, cards, buttons, category tabs, text, accent).
 - Prices numbers only. "tags" only from: new, bestseller, spicy, vegan, vegetarian, glutenfree, house, promo.
+- Use "subcategories" when a section has inner headings; never concatenate names.
+- "YOUR CHOICE OF" lists under a dish are "optionGroups" of that dish, with "kind":"dish" (or "takeaway" for to-go).
 - Don't invent data: omit the field (or null) if missing.
 
 Give me the .zip file to download.`;

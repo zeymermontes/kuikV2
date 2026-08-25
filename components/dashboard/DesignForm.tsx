@@ -185,6 +185,17 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
             </div>
           </div>
           <div className="mt-4">
+            <Label>{t('logoWide')}</Label>
+            <ImageUploader
+              value={local.logo_wide_url}
+              tenantId={theme.tenant_id}
+              folder="logos"
+              shape="wide"
+              onChange={(url) => set('logo_wide_url', url)}
+            />
+            <p className="mt-1 text-xs text-neutral-500">{t('logoWideHint')}</p>
+          </div>
+          <div className="mt-4">
             <Label>{t('slogan')}</Label>
             <Input
               defaultValue={local.slogan ?? ''}
@@ -197,6 +208,11 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
               label={t('showName')}
               checked={settings.showName}
               onChange={(v) => setS('showName', v)}
+            />
+            <ToggleRow
+              label={t('showSlogan')}
+              checked={settings.showSlogan}
+              onChange={(v) => setS('showSlogan', v)}
             />
           </div>
         </Card>
@@ -437,6 +453,7 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
               ['tight', t('spacingTight')],
               ['normal', t('spacingNormal')],
               ['loose', t('spacingLoose')],
+              ['roomy', t('spacingRoomy')],
             ]}
           />
           <SelectRow
@@ -519,6 +536,43 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
             options={[['none', t('caseNone')], ['upper', t('caseUpper')]]}
           />
           <ToggleRow label={t('categoryIcons')} checked={settings.categoryIcons} onChange={(v) => setS('categoryIcons', v)} />
+          <SelectRow
+            label={t('categoryTitle')}
+            value={settings.categoryTitle}
+            onChange={(v) => setS('categoryTitle', v as MenuSettings['categoryTitle'])}
+            options={[
+              ['always', t('titleAlways')],
+              ['auto', t('titleAuto')],
+              ['never', t('titleNever')],
+            ]}
+          />
+          <SelectRow
+            label={t('subcategoryRule')}
+            value={settings.subcategoryRule}
+            onChange={(v) => setS('subcategoryRule', v as MenuSettings['subcategoryRule'])}
+            options={[
+              ['none', t('ruleNone')],
+              ['under', t('ruleUnder')],
+              ['both', t('ruleBoth')],
+            ]}
+          />
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-medium">{t('subcategorySize')}</span>
+            <div className="flex flex-1 items-center gap-2">
+              <input
+                type="range"
+                min={0.4}
+                max={1}
+                step={0.02}
+                value={settings.subcategorySize}
+                onChange={(e) => setS('subcategorySize', Number(e.target.value))}
+                className="h-1 flex-1 cursor-pointer accent-neutral-900"
+              />
+              <span className="w-10 text-right text-[10px] text-neutral-400">
+                {Math.round(settings.subcategorySize * 100)}%
+              </span>
+            </div>
+          </div>
         </Card>
 
         {/* Category tab bar */}
@@ -551,6 +605,29 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
               <span className="w-10 text-right text-[10px] text-neutral-400">{settings.navIconSize}px</span>
             </div>
           </div>
+          <SelectRow
+            label={t('headerStyle')}
+            value={settings.headerStyle}
+            onChange={(v) => setS('headerStyle', v as MenuSettings['headerStyle'])}
+            options={[
+              ['stacked', t('headerStacked')],
+              ['bar', t('headerBar')],
+            ]}
+          />
+          <ToggleRow
+            label={t('fullWidthHeader')}
+            checked={settings.fullWidthHeader}
+            onChange={(v) => setS('fullWidthHeader', v)}
+          />
+          <SelectRow
+            label={t('navIconShape')}
+            value={settings.navIconShape}
+            onChange={(v) => setS('navIconShape', v as MenuSettings['navIconShape'])}
+            options={[
+              ['plain', t('navShapeIconPlain')],
+              ['circle', t('navShapeIconCircle')],
+            ]}
+          />
           <SelectRow
             label={t('navTabShape')}
             value={settings.navTabShape}
@@ -816,9 +893,18 @@ function PreviewTab({
 }) {
   const stacked = settings.navIconPosition === 'top' || settings.navIconPosition === 'bottom';
   const plain = settings.navTabShape === 'plain';
-  const icon = settings.navIconPosition !== 'none' && (
-    <span style={{ fontSize: settings.navIconSize * 0.9, lineHeight: 1 }}>🍽️</span>
-  );
+  const glyph = <span style={{ fontSize: settings.navIconSize * 0.7, lineHeight: 1 }}>🍽️</span>;
+  const icon = settings.navIconPosition !== 'none' &&
+    (settings.navIconShape === 'circle' ? (
+      <span
+        className="flex shrink-0 items-center justify-center rounded-full"
+        style={{ width: settings.navIconSize * 1.15, height: settings.navIconSize * 1.15, backgroundColor: bg }}
+      >
+        {glyph}
+      </span>
+    ) : (
+      glyph
+    ));
   return (
     <span
       className={`flex items-center text-xs ${stacked ? 'w-16 flex-col gap-1 text-center leading-tight' : 'gap-1.5'} ${

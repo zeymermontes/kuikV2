@@ -6,19 +6,25 @@ import type { Category } from '@/lib/database.types';
 import { Input, Label, Button } from '@/components/ui';
 import { ImageUploader } from '@/components/dashboard/ImageUploader';
 import { Drawer } from './Drawer';
-import { updateCategory, deleteCategory } from '@/app/(dashboard)/menu/actions';
+import { updateCategory, deleteCategory, setCategoryParent } from '@/app/(dashboard)/menu/actions';
 
 export function CategoryDrawer({
   tenantId,
   category,
   onClose,
   showPosSettings = false,
+  parentOptions = [],
+  hasSubcategories = false,
 }: {
   tenantId: string;
   category: Category;
   onClose: () => void;
   /** KDS station routing is still in development — see lib/features.ts. */
   showPosSettings?: boolean;
+  /** Top-level categories this one may be nested under. */
+  parentOptions?: { id: string; name: string }[];
+  /** A category that already has subcategories cannot itself become one. */
+  hasSubcategories?: boolean;
 }) {
   const t = useTranslations('menuEditor');
   const tc = useTranslations('common');
@@ -65,6 +71,29 @@ export function CategoryDrawer({
             />
           </div>
         )}
+
+        {/* Nesting: top level, or a subcategory of another section */}
+        <div>
+          <Label>{t('parentCategory')}</Label>
+          <select
+            value={category.parent_id ?? ''}
+            disabled={hasSubcategories}
+            onChange={(e) => setCategoryParent(category.id, e.target.value || null)}
+            className="w-full rounded-lg border border-neutral-300 px-2 py-2 text-sm disabled:bg-neutral-100 disabled:text-neutral-400"
+          >
+            <option value="">{t('parentNone')}</option>
+            {parentOptions
+              .filter((p) => p.id !== category.id)
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+          </select>
+          <p className="mt-1 text-xs text-neutral-400">
+            {hasSubcategories ? t('parentHasChildren') : t('parentHint')}
+          </p>
+        </div>
 
         {/* Tab icon / image */}
         <div className="rounded-xl bg-neutral-50 p-3">

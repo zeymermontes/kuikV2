@@ -10,6 +10,8 @@ export interface ImportOption {
 export interface ImportOptionGroup {
   name: string;
   description?: string;
+  /** 'dish' (part of the dish) or 'takeaway' (packing/to-go). Defaults to 'dish'. */
+  kind?: 'dish' | 'takeaway';
   required?: boolean;
   multiple?: boolean; // true = choose many, false = choose one
   options: ImportOption[]; // each option's price is an extra cost (0 if free)
@@ -35,8 +37,13 @@ export interface ImportProduct {
 
 export interface ImportCategory {
   name: string;
+  /** A single emoji shown next to the category. */
   icon?: string | null;
+  /** Image used as the category's icon in the tab bar (URL or bundled filename). */
+  image?: string | null;
   products: ImportProduct[];
+  /** Sections nested inside this one. One level deep; ignored on a subcategory. */
+  subcategories?: ImportCategory[];
 }
 
 // Theme fields an import may set (colors / fonts / branding).

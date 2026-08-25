@@ -24,6 +24,7 @@ import {
   ALIGN_CLASS,
   JUSTIFY_CLASS,
   textTransform,
+  showCategoryTitle,
 } from '@/lib/menu-settings';
 import { mapHref } from '@/lib/hours';
 import { BADGES, badgeLabel } from '@/lib/badges';
@@ -269,18 +270,24 @@ export function MenuView({
   // Apply search + tag filters + sold-out hiding per category.
   const filteredMenu = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const keep = (e: MenuCategory['entries'][number]) => {
+      if (e.kind === 'separator') return !q && activeTags.length === 0;
+      if (settings.soldOutStyle === 'hide' && !e.is_available) return false;
+      if (q && !`${e.name} ${e.description ?? ''}`.toLowerCase().includes(q)) return false;
+      if (activeTags.length > 0 && !e.tags.some((tg) => activeTags.includes(tg))) return false;
+      return true;
+    };
     return menu
-      .map((cat) => {
-        const entries = cat.entries.filter((e) => {
-          if (e.kind === 'separator') return !q && activeTags.length === 0;
-          if (settings.soldOutStyle === 'hide' && !e.is_available) return false;
-          if (q && !`${e.name} ${e.description ?? ''}`.toLowerCase().includes(q)) return false;
-          if (activeTags.length > 0 && !e.tags.some((tg) => activeTags.includes(tg))) return false;
-          return true;
-        });
-        return { ...cat, entries };
-      })
-      .filter((cat) => cat.entries.length > 0);
+      .map((cat) => ({
+        ...cat,
+        entries: cat.entries.filter(keep),
+        // A subcategory drops out once nothing in it survives the filter.
+        subcategories: cat.subcategories
+          .map((sub) => ({ ...sub, entries: sub.entries.filter(keep) }))
+          .filter((sub) => sub.entries.length > 0),
+      }))
+      // A section stays if it has entries of its own or any surviving subcategory.
+      .filter((cat) => cat.entries.length > 0 || cat.subcategories.length > 0);
   }, [menu, query, activeTags, settings.soldOutStyle]);
 
   // Scroll-spy: highlight the category whose section sits under the sticky nav.
@@ -320,6 +327,13 @@ export function MenuView({
   const gridContainer = layout.columns === 2;
   const tabsMode = settings.navMode === 'tabs';
   const showNav = (settings.stickyTabs || tabsMode) && filteredMenu.length > 1;
+  const barHeader = settings.headerStyle === 'bar';
+  const wideLogo = theme.logo_wide_url;
+  // The bar and the category strip either span the viewport or line up with the
+  // content column; either way their contents stay centred on the same width.
+  const headerWidthClass = settings.fullWidthHeader
+    ? 'max-w-5xl'
+    : CONTENT_WIDTH_CLASS[settings.contentWidth];
   const navIcon = settings.navIconPosition;
   const stackedNav = navIcon === 'top' || navIcon === 'bottom';
   const plainNav = settings.navTabShape === 'plain';
@@ -358,10 +372,93 @@ export function MenuView({
     ? filteredMenu.filter((c) => c.id === effectiveActive)
     : filteredMenu;
 
+  // One run of products/separators, shared by a section and its subcategories.
+  const EntryList = ({ entries }: { entries: MenuCategory['entries'] }) =>
+    entries.length === 0 ? null : (
+      <div
+        className={gridContainer ? 'grid grid-cols-2' : 'flex flex-col'}
+        style={{ gap: layout.gap }}
+      >
+        {entries.map((entry) =>
+          entry.kind === 'separator' ? (
+            <div key={`s-${entry.id}`} className={gridContainer ? 'col-span-2' : ''}>
+              <SeparatorRow separator={entry} />
+            </div>
+          ) : (
+            <ProductCard
+              key={`p-${entry.id}`}
+              product={entry}
+              showPrice={theme.show_prices && entry.show_price}
+              currency={currency}
+              locale={locale}
+              qty={qtyByProduct[entry.id] ?? 0}
+              orderingEnabled={orderingEnabled}
+              openable={orderingEnabled || hasDetail(entry)}
+              layout={layout}
+              settings={settings}
+              radiusClass={radiusClass}
+              onOpen={() => openProduct(entry)}
+              id={`prod-${entry.id}`}
+            />
+          ),
+        )}
+      </div>
+    );
+
   return (
-    <div className={`mx-auto min-h-screen w-full ${CONTENT_WIDTH_CLASS[settings.contentWidth]} pb-28`}>
+    <div className="min-h-screen w-full pb-28">
+      {/* Top bar: back · logo · reserve, spanning the viewport. */}
+      {barHeader && (
+        <div style={{ backgroundColor: 'var(--tab-bar-bg)' }}>
+          <div className={`mx-auto flex w-full items-center gap-3 px-4 py-3 ${headerWidthClass}`}>
+            <div className="flex flex-1 justify-start">
+              {landingEnabled && (
+                <Link
+                  href="/"
+                  className="rounded-full border px-4 py-1.5 text-sm font-medium"
+                  style={{ borderColor: 'var(--tab-selected-text)', color: 'var(--tab-selected-text)' }}
+                >
+                  {t('back')}
+                </Link>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center justify-center">
+              {wideLogo || theme.logo_url ? (
+                <Image
+                  src={(wideLogo ?? theme.logo_url)!}
+                  alt={tenant.name}
+                  width={320}
+                  height={80}
+                  className={`w-auto object-contain ${wideLogo ? 'h-9 sm:h-12' : 'h-10 rounded-full sm:h-12'}`}
+                  priority
+                />
+              ) : (
+                <span
+                  className="text-lg font-bold sm:text-xl"
+                  style={{ color: 'var(--tab-selected-text)' }}
+                >
+                  {tenant.name}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-1 justify-end">
+              {contact.reservations_enabled && (
+                <button
+                  onClick={() => setShowReserve(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-medium"
+                  style={{ borderColor: 'var(--tab-selected-text)', color: 'var(--tab-selected-text)' }}
+                >
+                  <CalendarCheck className="h-4 w-4" /> {t('reserve')}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className={`mx-auto w-full ${CONTENT_WIDTH_CLASS[settings.contentWidth]}`}>
       {/* Back to the landing (only when a landing home exists) */}
-      {landingEnabled && (
+      {landingEnabled && !barHeader && (
         <Link
           href="/"
           aria-label={t('back')}
@@ -380,6 +477,7 @@ export function MenuView({
       )}
 
       {/* Header */}
+      {!barHeader && (
       <header className="flex flex-col items-center gap-2 px-5 pt-6 pb-3 text-center">
         {theme.logo_url && (
           <Image
@@ -395,7 +493,7 @@ export function MenuView({
             {tenant.name}
           </h1>
         )}
-        {theme.slogan && <p className="text-sm opacity-70">{theme.slogan}</p>}
+        {settings.showSlogan && theme.slogan && <p className="text-sm opacity-70">{theme.slogan}</p>}
         <OpenStatus hours={contact.hours} />
         <ContactLinks contact={contact} showSocial={settings.showSocial} />
         {contact.reservations_enabled && !landingEnabled && (
@@ -416,6 +514,20 @@ export function MenuView({
           <BranchPicker branches={branches} current={currentBranch} />
         )}
       </header>
+      )}
+
+      {/* In bar mode the identity lives in the bar; keep the useful extras. */}
+      {barHeader && (
+        <div className="flex flex-col items-center gap-2 px-5 pt-4 text-center">
+          {settings.showSlogan && theme.slogan && <p className="text-sm opacity-70">{theme.slogan}</p>}
+          <OpenStatus hours={contact.hours} />
+          <ContactLinks contact={contact} showSocial={settings.showSocial} />
+          {loyalty.enabled && plan === 'pro' && (
+            <LoyaltyButton tenantId={tenant.id} program={loyalty} logoUrl={theme.logo_url} />
+          )}
+          {branches.length > 0 && <BranchPicker branches={branches} current={currentBranch} />}
+        </div>
+      )}
 
       {/* Search */}
       {settings.showSearch && (
@@ -467,6 +579,8 @@ export function MenuView({
         </div>
       )}
 
+      </div>
+
       {/* Occluding strip: a clipped copy of the FIXED page background, shown only
           while the bar is stuck — pixel-perfect with the page bg, no jitter. */}
       {showNav && navStuck && navBgImage && (
@@ -491,9 +605,16 @@ export function MenuView({
         <div ref={stickyRef} aria-hidden className="h-px" />
         <nav
           ref={navRef}
-          className="no-scrollbar sticky top-0 z-20 flex items-center gap-2 overflow-x-auto px-4 py-3"
+          className="no-scrollbar sticky top-0 z-20 overflow-x-auto"
           style={navStyle}
         >
+          <div
+            className={`mx-auto flex items-center gap-2 px-4 py-3 ${
+              settings.fullWidthHeader
+                ? 'w-max min-w-full justify-center'
+                : `w-full ${headerWidthClass}`
+            }`}
+          >
           {filteredMenu.map((cat) => {
             const active = effectiveActive === cat.id;
             return (
@@ -527,25 +648,28 @@ export function MenuView({
                 }}
               >
                 {navIcon !== 'none' && navIcon !== 'bottom' && (
-                  <CatIcon cat={cat} size={settings.navIconSize} />
+                  <NavIcon cat={cat} settings={settings} active={active} />
                 )}
                 <span className={stackedNav ? 'block' : undefined}>{cat.name}</span>
-                {navIcon === 'bottom' && <CatIcon cat={cat} size={settings.navIconSize} />}
+                {navIcon === 'bottom' && <NavIcon cat={cat} settings={settings} active={active} />}
               </a>
             );
           })}
+          </div>
         </nav>
         </>
       )}
 
       {/* Sections */}
-      <div className="space-y-8 px-4 pt-6">
+      <div className={`mx-auto w-full space-y-8 px-4 pt-6 ${CONTENT_WIDTH_CLASS[settings.contentWidth]}`}>
         {visibleCats.map((cat) => {
           // Collapsing only applies in scroll mode (tabs mode shows one category).
           const collapsible = settings.collapsibleCategories && !tabsMode;
           const isCollapsed = collapsible && collapsed[cat.id];
           const hasBanner = Boolean(cat.banner_image_url || cat.banner_name);
           const rule = settings.categoryRule;
+          const subRule = settings.subcategoryRule;
+          const showTitle = showCategoryTitle(settings.categoryTitle, cat.subcategories.length);
           const toggle = () =>
             collapsible && setCollapsed((c) => ({ ...c, [cat.id]: !c[cat.id] }));
           return (
@@ -566,7 +690,7 @@ export function MenuView({
                 <div className={collapsible ? 'min-w-0 flex-1' : 'min-w-0'}>
                   {hasBanner ? (
                     <CategoryBanner name={cat.banner_name ?? cat.name} imageUrl={cat.banner_image_url} />
-                  ) : (
+                  ) : !showTitle ? null : (
                     <>
                       {rule === 'both' && <CategoryRule />}
                       <h2
@@ -596,34 +720,33 @@ export function MenuView({
               </button>
 
               {!isCollapsed && (
-                <div
-                  className={gridContainer ? 'grid grid-cols-2' : 'flex flex-col'}
-                  style={{ gap: layout.gap }}
-                >
-                  {cat.entries.map((entry) =>
-                    entry.kind === 'separator' ? (
-                      <div key={`s-${entry.id}`} className={gridContainer ? 'col-span-2' : ''}>
-                        <SeparatorRow separator={entry} />
+                <>
+                  <EntryList entries={cat.entries} />
+                  {/* Subcategories: a smaller heading, then their own items. */}
+                  {cat.subcategories.map((sub) => (
+                    <section key={sub.id} id={`cat-${sub.id}`} className="mt-6">
+                      <div className={`mb-2 ${ALIGN_CLASS[settings.categoryAlign]}`}>
+                        {subRule === 'both' && <CategoryRule />}
+                        <h3
+                          className={`flex items-center gap-2 ${JUSTIFY_CLASS[settings.categoryAlign]}`}
+                          style={{
+                            color: 'var(--brand-secondary)',
+                            fontFamily: 'var(--font-category)',
+                            fontSize: 'var(--fs-subcategory)',
+                            fontWeight: 'var(--fw-category)',
+                            fontStyle: 'var(--fst-category)',
+                            textTransform: textTransform(settings.categoryCase),
+                          }}
+                        >
+                          {settings.categoryIcons && <CatIcon cat={sub} size={20} />}
+                          {sub.name}
+                        </h3>
+                        {subRule !== 'none' && <CategoryRule />}
                       </div>
-                    ) : (
-                      <ProductCard
-                        key={`p-${entry.id}`}
-                        product={entry}
-                        showPrice={theme.show_prices && entry.show_price}
-                        currency={currency}
-                        locale={locale}
-                        qty={qtyByProduct[entry.id] ?? 0}
-                        orderingEnabled={orderingEnabled}
-                        openable={orderingEnabled || hasDetail(entry)}
-                        layout={layout}
-                        settings={settings}
-                        radiusClass={radiusClass}
-                        onOpen={() => openProduct(entry)}
-                        id={`prod-${entry.id}`}
-                      />
-                    ),
-                  )}
-                </div>
+                      <EntryList entries={sub.entries} />
+                    </section>
+                  ))}
+                </>
               )}
             </section>
           );
@@ -699,6 +822,32 @@ function BranchPicker({ branches, current }: { branches: BranchLite[]; current: 
         ))}
       </select>
     </label>
+  );
+}
+
+/** A category's icon in the nav, optionally inside a filled circle. */
+function NavIcon({
+  cat,
+  settings,
+  active,
+}: {
+  cat: MenuCategory;
+  settings: ReturnType<typeof resolveMenuSettings>;
+  active: boolean;
+}) {
+  const size = settings.navIconSize;
+  if (settings.navIconShape !== 'circle') return <CatIcon cat={cat} size={size} />;
+  return (
+    <span
+      className="flex shrink-0 items-center justify-center rounded-full"
+      style={{
+        width: size * 1.5,
+        height: size * 1.5,
+        backgroundColor: active ? 'var(--tab-selected-bg)' : 'var(--tab-unselected-bg)',
+      }}
+    >
+      <CatIcon cat={cat} size={size} />
+    </span>
   );
 }
 

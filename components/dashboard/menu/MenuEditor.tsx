@@ -26,6 +26,8 @@ import {
   SeparatorHorizontal,
   ChevronRight,
   ImageIcon,
+  CornerDownRight,
+  ListPlus,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
@@ -88,7 +90,12 @@ export function MenuEditor({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<DrawerState>(null);
 
-  const selectedCat = cats.find((c) => c.id === selectedId) ?? cats[0];
+  // The sidebar shows parents in order, each followed by its subcategories.
+  const parents = cats.filter((c) => !c.parent_id);
+  const childrenOf = (id: string) => cats.filter((c) => c.parent_id === id);
+  const orderedCats = parents.flatMap((p) => [p, ...childrenOf(p.id)]);
+
+  const selectedCat = cats.find((c) => c.id === selectedId) ?? orderedCats[0];
 
   function countFor(catId: string) {
     return prods.filter((p) => p.category_id === catId).length;
@@ -109,10 +116,21 @@ export function MenuEditor({
   function handleCatDragEnd(e: DragEndEvent) {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
-    const oldI = cats.findIndex((c) => c.id === active.id);
-    const newI = cats.findIndex((c) => c.id === over.id);
-    const next = arrayMove(cats, oldI, newI);
-    setCats(next);
+    const from = cats.find((c) => c.id === active.id);
+    const to = cats.find((c) => c.id === over.id);
+    if (!from || !to) return;
+    // Dragging only reorders within one sibling group; re-parenting is an
+    // explicit choice in the category's settings drawer.
+    if ((from.parent_id ?? null) !== (to.parent_id ?? null)) return;
+
+    const group = cats.filter((c) => (c.parent_id ?? null) === (from.parent_id ?? null));
+    const next = arrayMove(
+      group,
+      group.findIndex((c) => c.id === active.id),
+      group.findIndex((c) => c.id === over.id),
+    );
+    const posById = new Map(next.map((c, i) => [c.id, i]));
+    setCats((cs) => cs.map((c) => (posById.has(c.id) ? { ...c, position: posById.get(c.id)! } : c)));
     startTransition(() => reorderCategories(next.map((c) => c.id)));
   }
 
@@ -149,18 +167,24 @@ export function MenuEditor({
           <p className="px-3 py-6 text-center text-sm text-neutral-400">{t('noCategories')}</p>
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleCatDragEnd}>
-            <SortableContext items={cats.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+            <SortableContext items={orderedCats.map((c) => c.id)} strategy={verticalListSortingStrategy}>
               <div className="max-h-[60vh] overflow-y-auto p-1.5 md:max-h-none">
-                {cats.map((c) => (
+                {orderedCats.map((c) => (
                   <CategoryRow
                     key={c.id}
                     category={c}
                     count={countFor(c.id)}
                     selected={selectedCat?.id === c.id}
+                    isChild={Boolean(c.parent_id)}
                     onSelect={() => setSelectedId(c.id)}
                     onEdit={() => setDrawer({ kind: 'category', id: c.id })}
                     onToggleVisible={() => updateCategory(c.id, { is_visible: !c.is_visible })}
                     onDelete={() => confirm(t('confirmDeleteCategory')) && deleteCategory(c.id)}
+                    onAddSub={
+                      c.parent_id
+                        ? undefined
+                        : () => startTransition(() => addCategory(t('newSubcategory'), branchId, c.id))
+                    }
                   />
                 ))}
               </div>
@@ -232,6 +256,8 @@ export function MenuEditor({
           category={drawerCategory}
           onClose={() => setDrawer(null)}
           showPosSettings={showPosSettings}
+          parentOptions={parents.map((p) => ({ id: p.id, name: p.name }))}
+          hasSubcategories={childrenOf(drawerCategory.id).length > 0}
         />
       )}
     </div>
@@ -243,18 +269,23 @@ function CategoryRow({
   category,
   count,
   selected,
+  isChild,
   onSelect,
   onEdit,
   onToggleVisible,
   onDelete,
+  onAddSub,
 }: {
   category: Category;
   count: number;
   selected: boolean;
+  isChild: boolean;
   onSelect: () => void;
   onEdit: () => void;
   onToggleVisible: () => void;
   onDelete: () => void;
+  /** Only top-level categories can gain a subcategory (one level deep). */
+  onAddSub?: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: category.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
@@ -263,8 +294,13 @@ function CategoryRow({
     <div
       ref={setNodeRef}
       style={style}
-      className={`group flex items-center gap-1 rounded-xl px-1.5 py-1.5 ${selected ? 'bg-neutral-900 text-white' : 'hover:bg-neutral-100'}`}
+      className={`group flex items-center gap-1 rounded-xl py-1.5 pr-1.5 ${isChild ? 'ml-4 pl-1.5' : 'pl-1.5'} ${selected ? 'bg-neutral-900 text-white' : 'hover:bg-neutral-100'}`}
     >
+      {isChild && (
+        <span className={`shrink-0 ${selected ? 'text-white/40' : 'text-neutral-300'}`} aria-hidden>
+          <CornerDownRight className="h-3.5 w-3.5" />
+        </span>
+      )}
       <button {...attributes} {...listeners} className={`cursor-grab touch-none ${selected ? 'text-white/50' : 'text-neutral-300'}`}>
         <GripVertical className="h-4 w-4" />
       </button>
@@ -277,6 +313,11 @@ function CategoryRow({
         <IconBtn onClick={onToggleVisible} selected={selected}>
           {category.is_visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
         </IconBtn>
+        {onAddSub && (
+          <IconBtn onClick={onAddSub} selected={selected}>
+            <ListPlus className="h-3.5 w-3.5" />
+          </IconBtn>
+        )}
         <IconBtn onClick={onEdit} selected={selected}>
           <Settings2 className="h-3.5 w-3.5" />
         </IconBtn>

@@ -92,6 +92,7 @@ export default async function TenantLayout({
     '--fw-category': settings.categoryBold ? '700' : '400',
     '--fst-category': settings.categoryItalic ? 'italic' : 'normal',
     '--fs-category': `${1.25 * settings.categorySize}rem`,
+    '--fs-subcategory': `${1.25 * settings.categorySize * settings.subcategorySize}rem`,
     '--fw-product': settings.productBold ? '700' : '400',
     '--fst-product': settings.productItalic ? 'italic' : 'normal',
     '--fs-product': `${1 * settings.productSize}rem`,

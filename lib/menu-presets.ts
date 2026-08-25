@@ -50,7 +50,7 @@ export interface MenuPreset {
 }
 
 /** Look knobs that no preset should carry (they are the tenant's own data). */
-const OWNED_BY_TENANT = ['currency', 'showName'] as const;
+const OWNED_BY_TENANT = ['currency', 'showName', 'showSlogan'] as const;
 
 const KUIK: MenuPreset = {
   id: 'kuik',
@@ -113,7 +113,7 @@ const OCEAN: MenuPreset = {
     separator_color: '#a86619', // the hairlines around section titles
     tab_bar_color: '#11426d',
     tab_selected_color: '#0b2d4b',
-    tab_unselected_color: '#11426d',
+    tab_unselected_color: '#a1725c', // the tan icon badges on the navy bar
     tab_font_color: '#ffffff',
     button_color: '#11426d',
     button_text_color: '#ffffff',
@@ -129,7 +129,7 @@ const OCEAN: MenuPreset = {
   settings: {
     cardStyle: 'classic',
     contentWidth: 'wide',
-    itemSpacing: 'tight',
+    itemSpacing: 'roomy', // measured off the original: 24px between dishes
     cardSurface: 'auto',
     imagePosition: 'auto',
     imageSize: 'auto',
@@ -146,9 +146,15 @@ const OCEAN: MenuPreset = {
     categoryRule: 'both',
     categoryCase: 'upper',
     categoryIcons: false,
+    categoryTitle: 'auto',
+    subcategoryRule: 'both',
+    subcategorySize: 0.72,
     navIconPosition: 'top',
     navIconSize: 44,
     navTabShape: 'plain',
+    navIconShape: 'circle',
+    headerStyle: 'bar',
+    fullWidthHeader: true,
     productCase: 'upper',
     descriptionCase: 'upper',
     showInlineOptions: true,
