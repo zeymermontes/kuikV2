@@ -186,6 +186,43 @@ export function MenuView({
   }, [menu]);
   const anchor = (id: string) => anchorById[id] ?? id;
 
+  // Reverse lookup for deep links: an anchor resolves to the top-level section
+  // that has to be showing, plus the element to scroll to (which may be one of
+  // its subcategories).
+  const targetByAnchor = useMemo(() => {
+    const map: Record<string, { catId: string; elementId: string }> = {};
+    for (const cat of menu) {
+      map[anchorById[cat.id] ?? cat.id] = { catId: cat.id, elementId: anchorById[cat.id] ?? cat.id };
+      map[`cat-${cat.id}`] = { catId: cat.id, elementId: `cat-${cat.id}` };
+      for (const sub of cat.subcategories) {
+        map[anchorById[sub.id] ?? sub.id] = { catId: cat.id, elementId: anchorById[sub.id] ?? sub.id };
+        map[`cat-${sub.id}`] = { catId: cat.id, elementId: `cat-${sub.id}` };
+      }
+    }
+    return map;
+  }, [menu, anchorById]);
+
+  // /menu#camarones opens on that section. Without this the hash was ignored on
+  // load, so a shared link always landed on the first category.
+  useEffect(() => {
+    const apply = () => {
+      const slug = decodeURIComponent(window.location.hash.slice(1));
+      const hit = slug ? targetByAnchor[slug] : undefined;
+      if (!hit) return;
+      setActiveCat(hit.catId);
+      // In tabs mode the section mounts only after the tab switches.
+      setTimeout(() => {
+        document.getElementById(hit.elementId)?.scrollIntoView({ block: 'start' });
+      }, 80);
+    };
+    const id = setTimeout(apply, 0);
+    window.addEventListener('hashchange', apply);
+    return () => {
+      clearTimeout(id);
+      window.removeEventListener('hashchange', apply);
+    };
+  }, [targetByAnchor]);
+
   const lines = useMemo(() => Object.values(cart), [cart]);
   const itemCount = lines.reduce((n, l) => n + l.qty, 0);
 
@@ -695,7 +732,11 @@ export function MenuView({
                 onClick={(e) => {
                   setActiveCat(cat.id);
                   if (tabsMode) {
+                    // The section is swapped in place rather than scrolled to,
+                    // so write the hash ourselves — otherwise the address bar
+                    // never reflects the section you're looking at.
                     e.preventDefault();
+                    window.history.replaceState(null, '', `#${anchor(cat.id)}`);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }
                 }}
