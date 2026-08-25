@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { ChevronsUpDown, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { canUse, type PlanTier, type Feature } from '@/lib/plan';
 import type { MemberRole } from '@/lib/database.types';
 import { signOut } from '@/app/(auth)/actions';
 import { setActiveTenant } from '@/app/(dashboard)/tenant-actions';
@@ -36,22 +37,24 @@ import { LocaleSwitch } from './LocaleSwitch';
 
 // `roles` lists which member roles see each item.
 // `dev: true` items are in development — only shown to dev accounts (see lib/features.ts).
+// `feature` ties an item to a Pro-only feature; hidden for Basic plans when plan
+// enforcement is on (support mode) — see lib/plan.ts.
 const NAV = [
   { href: '/dashboard', icon: LayoutDashboard, key: 'dashboard', roles: ['owner', 'manager'] },
   { href: '/menu', icon: UtensilsCrossed, key: 'menu', roles: ['owner', 'manager', 'cashier', 'waiter'] },
   { href: '/orders', icon: ClipboardList, key: 'orders', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true },
-  { href: '/pos', icon: Calculator, key: 'pos', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true },
+  { href: '/pos', icon: Calculator, key: 'pos', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true, feature: 'pos' },
   { href: '/kds', icon: Monitor, key: 'kds', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true },
   { href: '/reservations', icon: CalendarCheck, key: 'reservations', roles: ['owner', 'manager', 'cashier', 'waiter'] },
-  { href: '/loyalty', icon: Gift, key: 'loyalty', roles: ['owner', 'manager', 'waiter'] },
-  { href: '/reports', icon: BarChart3, key: 'reports', roles: ['owner', 'manager'] },
-  { href: '/branches', icon: Store, key: 'branches', roles: ['owner', 'manager'] },
+  { href: '/loyalty', icon: Gift, key: 'loyalty', roles: ['owner', 'manager', 'waiter'], feature: 'loyalty' },
+  { href: '/reports', icon: BarChart3, key: 'reports', roles: ['owner', 'manager'], feature: 'pro_reports' },
+  { href: '/branches', icon: Store, key: 'branches', roles: ['owner', 'manager'], feature: 'branches' },
   { href: '/landing', icon: Home, key: 'landing', roles: ['owner'] },
   { href: '/design', icon: Palette, key: 'design', roles: ['owner'] },
   { href: '/ordering', icon: ShoppingBag, key: 'ordering', roles: ['owner'] },
   { href: '/contact', icon: Phone, key: 'contact', roles: ['owner'] },
   { href: '/staff', icon: Users, key: 'staff', roles: ['owner'] },
-  { href: '/domain', icon: Globe, key: 'domain', roles: ['owner'] },
+  { href: '/domain', icon: Globe, key: 'domain', roles: ['owner'], feature: 'custom_domain' },
   { href: '/billing', icon: CreditCard, key: 'billing', roles: ['owner'] },
 ] as const;
 
@@ -63,6 +66,8 @@ export function Sidebar({
   locale,
   tenants,
   activeTenantId,
+  plan,
+  enforcePlan,
 }: {
   isSuperAdmin: boolean;
   showDevFeatures: boolean;
@@ -71,6 +76,9 @@ export function Sidebar({
   locale: string;
   tenants: { id: string; name: string }[];
   activeTenantId: string;
+  plan: PlanTier;
+  // When true (support mode), hide Pro-only items the tenant's plan can't use.
+  enforcePlan: boolean;
 }) {
   const pathname = usePathname();
   const t = useTranslations('nav');
@@ -83,11 +91,14 @@ export function Sidebar({
   );
 
   const nav = (
-    <nav className="flex flex-1 flex-col gap-1">
+    <nav className="-mx-1 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-1">
       {NAV.filter(
         (item) =>
           (item.roles as readonly string[]).includes(role) &&
-          (!('dev' in item && item.dev) || showDevFeatures),
+          (!('dev' in item && item.dev) || showDevFeatures) &&
+          (!('feature' in item && item.feature) ||
+            !enforcePlan ||
+            canUse(plan, item.feature as Feature)),
       ).map(
         ({ href, icon: Icon, key }) => (
           <NavLink key={href} href={href} active={pathname === href} icon={Icon} onClick={() => setOpen(false)}>
@@ -125,7 +136,7 @@ export function Sidebar({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-neutral-200 bg-white p-4 md:flex">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-neutral-200 bg-white p-4 md:flex">
         <div className="mb-4 px-2 text-xl font-bold tracking-tight">Kuik</div>
         {switcher}
         {nav}

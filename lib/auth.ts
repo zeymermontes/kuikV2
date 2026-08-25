@@ -102,6 +102,8 @@ export interface TenantContext {
   theme: TenantTheme;
   contact: TenantContact;
   subscription: Subscription;
+  /** True when a super-admin is editing this tenant via support mode. */
+  support: boolean;
 }
 
 /**
@@ -110,11 +112,34 @@ export interface TenantContext {
  */
 export const requireTenant = cache(async (): Promise<TenantContext> => {
   const user = await requireUser();
-  const membership = await getMembership(user.id);
-  if (!membership) redirect('/onboarding');
-  const { tenant, role } = membership;
-
   const supabase = await createClient();
+
+  // Support mode: a super-admin opens any restaurant to help its owner. RLS
+  // already grants super-admins full read/write on every tenant, so we just
+  // resolve the tenant the support cookie points at (role acts as owner).
+  const cookieStore = await cookies();
+  const supportId =
+    user.profile.role === 'super_admin' ? cookieStore.get('kuik_support')?.value : undefined;
+
+  let tenant: Tenant | null = null;
+  let role: MemberRole = 'owner';
+  let support = false;
+
+  if (supportId) {
+    const { data } = await supabase.from('tenants').select('*').eq('id', supportId).single<Tenant>();
+    if (data) {
+      tenant = data;
+      support = true;
+    }
+  }
+
+  if (!tenant) {
+    const membership = await getMembership(user.id);
+    if (!membership) redirect('/onboarding');
+    tenant = membership.tenant;
+    role = membership.role;
+  }
+
   const [{ data: theme }, { data: contact }, { data: subscription }] =
     await Promise.all([
       supabase.from('tenant_theme').select('*').eq('tenant_id', tenant.id).single<TenantTheme>(),
@@ -129,6 +154,7 @@ export const requireTenant = cache(async (): Promise<TenantContext> => {
     theme: theme!,
     contact: contact!,
     subscription: subscription!,
+    support,
   };
 });
 

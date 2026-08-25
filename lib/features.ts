@@ -16,3 +16,15 @@ import type { Profile } from '@/lib/database.types';
 export function canUseDevFeatures(profile: Profile | null | undefined): boolean {
   return profile?.role === 'super_admin';
 }
+
+/**
+ * The same check for a dashboard request. Support mode is excluded: while the
+ * super admin is acting as a tenant they should see exactly what that tenant
+ * sees, which does not include features still in development.
+ */
+export function showDevFeatures(ctx: {
+  user: { profile: Profile };
+  support: boolean;
+}): boolean {
+  return canUseDevFeatures(ctx.user.profile) && !ctx.support;
+}

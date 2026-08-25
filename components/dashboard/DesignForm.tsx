@@ -120,7 +120,7 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
     { key: 'text_secondary_color', label: t('textSecondary') },
     { key: 'button_color', label: t('button'), fallback: local.primary_color },
     { key: 'button_text_color', label: t('buttonText'), fallback: '#ffffff' },
-    { key: 'tab_bar_color', label: t('tabBar'), fallback: local.background_color },
+    { key: 'tab_bar_color', label: t('tabBar'), fallback: '#ffffff' },
     { key: 'tab_selected_color', label: t('tabSelected'), fallback: local.primary_color },
     { key: 'tab_unselected_color', label: t('tabUnselected'), fallback: '#eeeeee' },
     { key: 'tab_font_color', label: t('tabFont'), fallback: local.text_color },
@@ -740,7 +740,8 @@ function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettin
           className="-mx-5 flex gap-2 px-5 py-2"
           style={{
             fontFamily: ef(local.font_category),
-            backgroundColor: local.tab_bar_color ?? `color-mix(in srgb, ${bg} 90%, transparent)`,
+            backgroundColor:
+              local.tab_bar_color ?? `color-mix(in srgb, ${dark ? '#111114' : '#ffffff'} 90%, transparent)`,
           }}
         >
           {[
@@ -782,6 +783,13 @@ function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettin
           layout={layout} settings={settings} cardStyle={cardStyle} colors={colors} styles={styles} radius={radius}
           name="Tacos al pastor" price="$120" strike="$150" desc="Con piña, cebolla y cilantro." photo badge={BESTSELLER}
         />
+        {/* Separator */}
+        <div className={`flex items-center gap-3 py-1 ${layout.columns === 2 ? 'col-span-2' : ''}`}>
+          <span className="h-px flex-1" style={{ backgroundColor: sep }} />
+          <span className="text-xs font-medium uppercase tracking-wide" style={{ color: textSec }}>Especiales</span>
+          <span className="h-px flex-1" style={{ backgroundColor: sep }} />
+        </div>
+
         <PreviewItem
           layout={layout} settings={settings} cardStyle={cardStyle} colors={colors} styles={styles} radius={radius}
           name="Quesadilla" price="$80" desc="Queso fundido y guacamole."

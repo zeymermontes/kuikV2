@@ -102,7 +102,10 @@ export default async function TenantLayout({
     '--fst-description': settings.descriptionItalic ? 'italic' : 'normal',
     '--fs-description': `${0.875 * settings.descriptionSize}rem`,
     // Category tab bar + colors (fall back to the primary color).
-    '--tab-bar-bg': theme.tab_bar_color ?? 'color-mix(in srgb, var(--brand-bg) 90%, transparent)',
+    // Section bar has its own color ("Barra de secciones"); when unset it uses a
+    // neutral frosted default — independent of the page/card background colors.
+    '--tab-bar-bg':
+      theme.tab_bar_color ?? `color-mix(in srgb, ${dark ? DARK.bg : '#ffffff'} 90%, transparent)`,
     '--tab-selected-bg': theme.tab_selected_color ?? theme.primary_color,
     '--tab-unselected-bg':
       theme.tab_unselected_color ?? `color-mix(in srgb, ${theme.primary_color} 12%, transparent)`,
@@ -141,7 +144,7 @@ export default async function TenantLayout({
       {googleFonts.length > 0 && <link rel="stylesheet" href={googleFontsHref(googleFonts)} />}
       {settings.darkMode === 'auto' && (
         <style>{`@media (prefers-color-scheme: dark){
-          .kuik-root{--brand-bg:${DARK.bg};--brand-text:${DARK.text};--brand-text-secondary:${DARK.textSecondary};--brand-surface:${DARK.surface};--brand-border:${DARK.border}}
+          .kuik-root{--brand-bg:${DARK.bg};--brand-text:${DARK.text};--brand-text-secondary:${DARK.textSecondary};--brand-surface:${DARK.surface};--brand-border:${DARK.border}${theme.tab_bar_color ? '' : `;--tab-bar-bg:color-mix(in srgb, ${DARK.bg} 90%, transparent)`}}
           .kuik-root .kuik-bg{background-image:none!important}
         }`}</style>
       )}

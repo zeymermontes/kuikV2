@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 import { requireTenant } from '@/lib/auth';
-import { canUseDevFeatures } from '@/lib/features';
+import { showDevFeatures } from '@/lib/features';
 import { isPro } from '@/lib/plan';
 import { createClient } from '@/lib/supabase/server';
 import type { Category, Product, Separator, BranchLite } from '@/lib/database.types';
@@ -15,8 +15,9 @@ export default async function MenuPage({
 }: {
   searchParams: Promise<{ branch?: string }>;
 }) {
-  const { tenant, theme, role, subscription, user } = await requireTenant();
-  const showPosSettings = canUseDevFeatures(user.profile);
+  const ctx = await requireTenant();
+  const { tenant, theme, role, subscription } = ctx;
+  const posSettings = showDevFeatures(ctx);
   const t = await getTranslations('menuEditor');
   const supabase = await createClient();
 
@@ -101,7 +102,7 @@ export default async function MenuPage({
         categories={(categories ?? []) as Category[]}
         products={(products ?? []) as Product[]}
         separators={(separators ?? []) as Separator[]}
-        showPosSettings={showPosSettings}
+        showPosSettings={posSettings}
       />
     </div>
   );

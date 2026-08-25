@@ -105,7 +105,7 @@ export function Landing({
           </div>
         )}
         <div
-          className={`flex flex-col items-center px-5 text-center ${
+          className={`relative z-10 flex flex-col items-center px-5 text-center ${
             theme.cover_image_url ? '-mt-14' : 'pt-10'
           }`}
         >
@@ -188,7 +188,10 @@ export function Landing({
                 key={p.id}
                 href={`/menu?product=${p.id}`}
                 className="flex w-40 shrink-0 flex-col overflow-hidden rounded-2xl"
-                style={{ backgroundColor: 'var(--brand-surface)' }}
+                style={{
+                  backgroundColor: 'var(--brand-surface)',
+                  border: settings.cardBorder ? '1px solid var(--brand-border)' : undefined,
+                }}
               >
                 {p.image_url ? (
                   <div className="relative aspect-square w-full">

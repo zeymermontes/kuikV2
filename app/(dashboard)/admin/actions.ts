@@ -1,11 +1,116 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { unzipSync } from 'fflate';
 import { requireSuperAdmin } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { contentTypeFor, LANDING_DIR } from '@/lib/landing';
 import type { Subscription } from '@/lib/database.types';
+
+/** Cookie that puts a super-admin into "support mode" for a specific tenant. */
+const SUPPORT_COOKIE = 'kuik_support';
+
+/**
+ * Transfer a restaurant to another (existing) account. Super-admin only.
+ * The destination account must already exist; the previous owner loses all
+ * access (removed from tenant_members). Ownership is re-pointed and the new
+ * owner becomes an owner-member.
+ */
+export async function transferTenant(
+  tenantId: string,
+  email: string,
+): Promise<{ ok: true } | { error: 'noAccount' | 'sameOwner' | 'notFound' }> {
+  const actor = await requireSuperAdmin();
+  const target = email.trim().toLowerCase();
+  if (!target) return { error: 'noAccount' };
+
+  const supabase = createAdminClient();
+
+  // auth.users isn't exposed through PostgREST, so resolve the email via the
+  // GoTrue admin API. Paginated defensively; fine for the current user base.
+  let userId: string | null = null;
+  let userEmail: string | null = null;
+  for (let page = 1; page <= 10 && !userId; page++) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 200 });
+    if (error || data.users.length === 0) break;
+    const match = data.users.find((u) => u.email?.toLowerCase() === target);
+    if (match) {
+      userId = match.id;
+      userEmail = match.email ?? null;
+    }
+    if (data.users.length < 200) break; // reached the last page
+  }
+  if (!userId) return { error: 'noAccount' };
+
+  const { data: tenant } = await supabase
+    .from('tenants')
+    .select('owner_id')
+    .eq('id', tenantId)
+    .single<{ owner_id: string }>();
+  if (!tenant) return { error: 'notFound' };
+  if (tenant.owner_id === userId) return { error: 'sameOwner' };
+  const oldOwner = tenant.owner_id;
+
+  await supabase
+    .from('tenants')
+    .update({ owner_id: userId, updated_at: new Date().toISOString() })
+    .eq('id', tenantId);
+  // Previous owner loses access; new owner becomes an owner-member.
+  await supabase.from('tenant_members').delete().eq('tenant_id', tenantId).eq('user_id', oldOwner);
+  await supabase
+    .from('tenant_members')
+    .upsert(
+      { tenant_id: tenantId, user_id: userId, role: 'owner', email: userEmail },
+      { onConflict: 'tenant_id,user_id' },
+    );
+
+  await supabase.from('audit_log').insert({
+    actor_id: actor.id,
+    tenant_id: tenantId,
+    action: 'transfer_tenant',
+    detail: { from: oldOwner, to: userId, email: target },
+  });
+
+  revalidatePath('/admin');
+  return { ok: true };
+}
+
+/**
+ * Enter "support mode": a super-admin opens a tenant's dashboard to edit it on
+ * the owner's behalf. RLS already grants super-admins full access to every
+ * tenant; this just points the dashboard's active tenant at it via a cookie.
+ */
+export async function enterSupport(tenantId: string) {
+  const actor = await requireSuperAdmin();
+  const supabase = createAdminClient();
+  const { data: tenant } = await supabase.from('tenants').select('id').eq('id', tenantId).single();
+  if (tenant) {
+    await supabase.from('audit_log').insert({
+      actor_id: actor.id,
+      tenant_id: tenantId,
+      action: 'enter_support',
+      detail: {},
+    });
+    const cookieStore = await cookies();
+    cookieStore.set(SUPPORT_COOKIE, tenantId, {
+      path: '/',
+      maxAge: 60 * 60 * 4, // 4h
+      sameSite: 'lax',
+      httpOnly: true,
+    });
+  }
+  redirect('/dashboard');
+}
+
+/** Leave support mode and return to the admin panel. */
+export async function exitSupport() {
+  await requireSuperAdmin();
+  const cookieStore = await cookies();
+  cookieStore.delete(SUPPORT_COOKIE);
+  redirect('/admin');
+}
 
 /**
  * Grant N free months to a tenant. Extends the paid window from the later of

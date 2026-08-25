@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { requireTenant } from '@/lib/auth';
-import { canUseDevFeatures } from '@/lib/features';
+import { showDevFeatures } from '@/lib/features';
 import { resolveMenuSettings } from '@/lib/menu-settings';
 import { OrdersBoard } from '@/components/dashboard/OrdersBoard';
 import { listOrders } from './actions';
@@ -9,9 +9,10 @@ import { listOrders } from './actions';
 export const dynamic = 'force-dynamic';
 
 export default async function OrdersPage() {
-  const { tenant, theme, user } = await requireTenant();
+  const ctx = await requireTenant();
+  const { tenant, theme } = ctx;
   // Orders is in development — super admin only.
-  if (!canUseDevFeatures(user.profile)) redirect('/menu');
+  if (!showDevFeatures(ctx)) redirect('/menu');
   const t = await getTranslations('orders');
   const currency = resolveMenuSettings(theme.settings).currency;
   const initial = await listOrders();

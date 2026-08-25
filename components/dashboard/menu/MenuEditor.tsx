@@ -179,7 +179,13 @@ export function MenuEditor({
               <span className="font-semibold">{selectedCat.name}</span>
               <div className="flex gap-2">
                 <button
-                  onClick={() => startTransition(() => addProduct(selectedCat.id, t('newProduct')))}
+                  onClick={() =>
+                    startTransition(async () => {
+                      // Add the product, then auto-open its config drawer.
+                      const id = await addProduct(selectedCat.id, t('newProduct'));
+                      if (id) setDrawer({ kind: 'product', id });
+                    })
+                  }
                   className="flex items-center gap-1 rounded-lg bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-neutral-700"
                 >
                   <Plus className="h-3.5 w-3.5" /> {t('addProduct')}
