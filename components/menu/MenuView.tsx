@@ -42,6 +42,13 @@ import { OpenStatus } from './OpenStatus';
 import { ReservationSheet } from './ReservationSheet';
 import { WhatsAppBubble } from './WhatsAppBubble';
 
+// The bar header's side actions. On a narrow phone the wordmark needs the
+// room, so they collapse to round icon buttons and the label returns at `sm`.
+const BAR_ACTION =
+  'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border ' +
+  'h-9 w-9 sm:h-auto sm:w-auto sm:px-4 sm:py-1.5 text-sm font-medium';
+const BAR_ACTION_LABEL = 'hidden sm:inline';
+
 type CartState = Record<string, CartLine>; // keyed by CartLine.key
 
 type CartAction =
@@ -495,27 +502,34 @@ export function MenuView({
       {/* Top bar: back · logo · reserve, spanning the viewport. */}
       {barHeader && (
         <div style={{ backgroundColor: 'var(--tab-bar-bg)' }}>
-          <div className={`mx-auto flex w-full items-center gap-3 px-4 py-3 ${headerWidthClass}`}>
+          <div className={`mx-auto flex w-full items-center gap-2 px-3 py-3 sm:gap-3 sm:px-4 ${headerWidthClass}`}>
             <div className="flex flex-1 justify-start">
               {landingEnabled && (
                 <Link
                   href="/"
-                  className="rounded-full border px-4 py-1.5 text-sm font-medium"
+                  aria-label={t('back')}
+                  className={BAR_ACTION}
                   style={{ borderColor: 'var(--tab-selected-text)', color: 'var(--tab-selected-text)' }}
                 >
-                  {t('back')}
+                  <ChevronLeft className="h-4 w-4 shrink-0" />
+                  <span className={BAR_ACTION_LABEL}>{t('back')}</span>
                 </Link>
               )}
             </div>
-            <div className="flex shrink-0 items-center justify-center">
+            <div className="flex min-w-0 shrink items-center justify-center">
               {wideLogo ? (
                 <Image
                   src={wideLogo}
                   alt={tenant.name}
                   width={320}
                   height={80}
-                  className={`w-auto object-contain ${wordmark ? '' : 'rounded-full'}`}
-                  style={{ height: settings.logoWideHeight, width: 'auto' }}
+                  className={`object-contain ${wordmark ? '' : 'rounded-full'}`}
+                  style={{
+                    maxHeight: settings.logoWideHeight,
+                    maxWidth: '100%',
+                    width: 'auto',
+                    height: 'auto',
+                  }}
                   priority
                 />
               ) : (
@@ -533,10 +547,12 @@ export function MenuView({
               {contact.reservations_enabled ? (
                 <button
                   onClick={() => setShowReserve(true)}
-                  className="inline-flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-medium"
+                  aria-label={t('reserve')}
+                  className={BAR_ACTION}
                   style={{ borderColor: 'var(--tab-selected-text)', color: 'var(--tab-selected-text)' }}
                 >
-                  <CalendarCheck className="h-4 w-4" /> {t('reserve')}
+                  <CalendarCheck className="h-4 w-4 shrink-0" />
+                  <span className={BAR_ACTION_LABEL}>{t('reserve')}</span>
                 </button>
               ) : (
                 contact.whatsapp_phone && (
@@ -544,10 +560,12 @@ export function MenuView({
                     href={`https://wa.me/${digitsOnly(contact.whatsapp_phone)}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-medium"
+                    aria-label="WhatsApp"
+                    className={BAR_ACTION}
                     style={{ borderColor: 'var(--tab-selected-text)', color: 'var(--tab-selected-text)' }}
                   >
-                    <WhatsAppIcon className="h-4 w-4" /> WhatsApp
+                    <WhatsAppIcon className="h-4 w-4 shrink-0" />
+                    <span className={BAR_ACTION_LABEL}>WhatsApp</span>
                   </a>
                 )
               )}
@@ -708,13 +726,16 @@ export function MenuView({
             a 1px box here shows as a hairline of page background between the
             header bar and the category strip when both are coloured. */}
         <div ref={stickyRef} aria-hidden className="h-0" />
-        <nav
-          ref={navRef}
-          className={`no-scrollbar sticky top-0 z-20 overflow-x-auto ${
-            settings.fullWidthHeader ? '' : `mx-auto w-full ${headerWidthClass}`
-          }`}
-          style={navStyle}
-        >
+        <nav ref={navRef} className="sticky top-0 z-20" style={navStyle}>
+          {/* The sticky element is deliberately NOT the scroll container:
+              Chrome on Android tears a sticky box that also scrolls while the
+              URL bar collapses. The clipping still happens on the constrained
+              child, so chips stay inside the column. */}
+          <div
+            className={`no-scrollbar overflow-x-auto ${
+              settings.fullWidthHeader ? '' : `mx-auto w-full ${headerWidthClass}`
+            }`}
+          >
           <div
             className={`flex items-center gap-2 px-4 py-3 ${
               settings.fullWidthHeader ? 'mx-auto w-max min-w-full justify-center' : ''
@@ -764,6 +785,7 @@ export function MenuView({
               </a>
             );
           })}
+          </div>
           </div>
         </nav>
         </>
