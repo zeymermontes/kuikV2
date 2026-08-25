@@ -12,6 +12,7 @@ import {
   JUSTIFY_CLASS,
   ITEMS_CLASS,
   textTransform,
+  pickImage,
   type MenuSettings,
   type ItemLayout,
 } from '@/lib/menu-settings';
@@ -585,6 +586,49 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
           </div>
         </Card>
 
+        {/* Header */}
+        <Card className="space-y-4">
+          <h2 className="font-semibold">{t('header')}</h2>
+          <p className="-mt-2 text-xs text-neutral-500">{t('headerHint')}</p>
+          <SelectRow
+            label={t('headerStyle')}
+            value={settings.headerStyle}
+            onChange={(v) => setS('headerStyle', v as MenuSettings['headerStyle'])}
+            options={[
+              ['stacked', t('headerStacked')],
+              ['bar', t('headerBar')],
+            ]}
+          />
+          {/* Only the bar header has a wordmark to size or a width to span. */}
+          {settings.headerStyle === 'bar' && (
+            <>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-medium">{t('logoWideHeight')}</span>
+                <div className="flex flex-1 items-center gap-2">
+                  <input
+                    type="range"
+                    min={24}
+                    max={96}
+                    step={2}
+                    value={settings.logoWideHeight}
+                    onChange={(e) => setS('logoWideHeight', Number(e.target.value))}
+                    className="h-1 flex-1 cursor-pointer accent-neutral-900"
+                  />
+                  <span className="w-10 text-right text-[10px] text-neutral-400">
+                    {settings.logoWideHeight}px
+                  </span>
+                </div>
+              </div>
+              <p className="-mt-2 text-xs text-neutral-500">{t('logoWideHeightHint')}</p>
+              <ToggleRow
+                label={t('fullWidthHeader')}
+                checked={settings.fullWidthHeader}
+                onChange={(v) => setS('fullWidthHeader', v)}
+              />
+            </>
+          )}
+        </Card>
+
         {/* Category tab bar */}
         <Card className="space-y-4">
           <h2 className="font-semibold">{t('navBar')}</h2>
@@ -615,37 +659,6 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
               <span className="w-10 text-right text-[10px] text-neutral-400">{settings.navIconSize}px</span>
             </div>
           </div>
-          <SelectRow
-            label={t('headerStyle')}
-            value={settings.headerStyle}
-            onChange={(v) => setS('headerStyle', v as MenuSettings['headerStyle'])}
-            options={[
-              ['stacked', t('headerStacked')],
-              ['bar', t('headerBar')],
-            ]}
-          />
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-sm font-medium">{t('logoWideHeight')}</span>
-            <div className="flex flex-1 items-center gap-2">
-              <input
-                type="range"
-                min={24}
-                max={96}
-                step={2}
-                value={settings.logoWideHeight}
-                onChange={(e) => setS('logoWideHeight', Number(e.target.value))}
-                className="h-1 flex-1 cursor-pointer accent-neutral-900"
-              />
-              <span className="w-10 text-right text-[10px] text-neutral-400">
-                {settings.logoWideHeight}px
-              </span>
-            </div>
-          </div>
-          <ToggleRow
-            label={t('fullWidthHeader')}
-            checked={settings.fullWidthHeader}
-            onChange={(v) => setS('fullWidthHeader', v)}
-          />
           <SelectRow
             label={t('navIconShape')}
             value={settings.navIconShape}
@@ -760,7 +773,7 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
       {/* Live preview */}
       <div className="lg:sticky lg:top-6 lg:self-start">
         <Label>{t('preview')}</Label>
-        <Preview local={local} settings={settings} />
+        <Preview local={local} settings={settings} t={t} />
       </div>
     </div>
   );
@@ -830,7 +843,15 @@ function BrandImage({
 const BB = BADGES.find((b) => b.key === 'bestseller');
 const BESTSELLER = BB ? { emoji: BB.emoji, label: BB.es, color: BB.color, text: BB.text } : undefined;
 
-function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettings }) {
+function Preview({
+  local,
+  settings,
+  t,
+}: {
+  local: TenantTheme;
+  settings: MenuSettings;
+  t: (key: string) => string;
+}) {
   const layout = resolveItemLayout(settings);
   const dark = settings.darkMode === 'on';
   const bg = dark ? '#111114' : local.background_color;
@@ -878,6 +899,10 @@ function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettin
     description: elStyle(local.font_description, settings.descriptionBold, settings.descriptionItalic, settings.descriptionSize, 0.875),
   };
 
+  const wideLogoPreview =
+    pickImage(local.logo_wide_url, local.logo_wide_dark_url, settings.logoWideVariant, dark) ??
+    pickImage(local.logo_url, local.logo_dark_url, settings.logoVariant, dark);
+
   const rule = <span className="my-1.5 block h-px w-full" style={{ backgroundColor: sep }} />;
 
   return (
@@ -891,8 +916,48 @@ function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettin
         backgroundSize: 'cover',
       }}
     >
+      {/* Bar header: back · wordmark · WhatsApp, spanning the preview. */}
+      {settings.headerStyle === 'bar' && (
+        <div
+          className="-mx-5 -mt-5 mb-3 flex items-center gap-2 px-3 py-2"
+          style={{ backgroundColor: local.tab_bar_color ?? '#111114' }}
+        >
+          <span className="flex flex-1 justify-start">
+            <span
+              className="rounded-full border px-2 py-0.5 text-[10px] font-medium"
+              style={{ borderColor: tabSelText, color: tabSelText }}
+            >
+              {t('previewBack')}
+            </span>
+          </span>
+          <span className="flex shrink-0 items-center justify-center">
+            {wideLogoPreview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={wideLogoPreview}
+                alt=""
+                style={{ height: Math.min(settings.logoWideHeight, 40), width: 'auto' }}
+                className="object-contain"
+              />
+            ) : (
+              <span className="text-sm font-bold" style={{ color: tabSelText }}>
+                Tu Restaurante
+              </span>
+            )}
+          </span>
+          <span className="flex flex-1 justify-end">
+            <span
+              className="rounded-full border px-2 py-0.5 text-[10px] font-medium"
+              style={{ borderColor: tabSelText, color: tabSelText }}
+            >
+              WhatsApp
+            </span>
+          </span>
+        </div>
+      )}
+
       <div className="space-y-3">
-        {settings.showName && (
+        {settings.headerStyle !== 'bar' && settings.showName && (
           <p className="text-xl font-extrabold" style={{ color: text }}>Tu Restaurante</p>
         )}
         {settings.showSlogan && local.slogan && (

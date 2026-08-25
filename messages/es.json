@@ -375,7 +375,11 @@
     "coverHint": "Imagen ancha en la parte superior del menú.",
     "logoWideHeight": "Alto del logo en la barra",
     "whatsappBubble": "Burbuja de WhatsApp",
-    "whatsappBubbleHint": "Botón flotante en la esquina. Usa el número de WhatsApp de Contacto y funciona aunque el menú sea solo para mostrar."
+    "whatsappBubbleHint": "Botón flotante en la esquina. Usa el número de WhatsApp de Contacto y funciona aunque el menú sea solo para mostrar.",
+    "header": "Encabezado",
+    "headerHint": "La parte de arriba del menú: logo, nombre y accesos.",
+    "previewBack": "Regresar",
+    "logoWideHeightHint": "Sube el logo horizontal en Marca. Si no hay, la barra usa el logo redondo."
   },
   "landing": {
     "title": "Pantalla de inicio",

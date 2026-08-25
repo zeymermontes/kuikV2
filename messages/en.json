@@ -375,7 +375,11 @@
     "coverHint": "Wide image at the top of the menu.",
     "logoWideHeight": "Logo height in the bar",
     "whatsappBubble": "WhatsApp bubble",
-    "whatsappBubbleHint": "Floating button in the corner. Uses the WhatsApp number from Contact and works even when the menu is showcase-only."
+    "whatsappBubbleHint": "Floating button in the corner. Uses the WhatsApp number from Contact and works even when the menu is showcase-only.",
+    "header": "Header",
+    "headerHint": "The top of the menu: logo, name and shortcuts.",
+    "previewBack": "Back",
+    "logoWideHeightHint": "Upload the horizontal logo under Brand. Without one, the bar falls back to the round logo."
   },
   "landing": {
     "title": "Home screen",

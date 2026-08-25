@@ -667,7 +667,10 @@ export function MenuView({
       {/* Category tab nav (chips). Always shown in tabs mode. */}
       {showNav && (
         <>
-        <div ref={stickyRef} aria-hidden className="h-px" />
+        {/* Scroll sentinel for "is the bar stuck?". Zero-height on purpose:
+            a 1px box here shows as a hairline of page background between the
+            header bar and the category strip when both are coloured. */}
+        <div ref={stickyRef} aria-hidden className="h-0" />
         <nav
           ref={navRef}
           className={`no-scrollbar sticky top-0 z-20 overflow-x-auto ${
