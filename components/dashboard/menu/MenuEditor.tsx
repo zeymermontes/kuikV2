@@ -91,8 +91,11 @@ export function MenuEditor({
   const [drawer, setDrawer] = useState<DrawerState>(null);
 
   // The sidebar shows parents in order, each followed by its subcategories.
-  const parents = cats.filter((c) => !c.parent_id);
-  const childrenOf = (id: string) => cats.filter((c) => c.parent_id === id);
+  // Order comes from `position`, not from the array: a drag updates positions
+  // optimistically and the list has to follow before the server answers.
+  const byPos = (a: Category, b: Category) => a.position - b.position;
+  const parents = cats.filter((c) => !c.parent_id).sort(byPos);
+  const childrenOf = (id: string) => cats.filter((c) => c.parent_id === id).sort(byPos);
   const orderedCats = parents.flatMap((p) => [p, ...childrenOf(p.id)]);
 
   const selectedCat = cats.find((c) => c.id === selectedId) ?? orderedCats[0];
@@ -123,7 +126,8 @@ export function MenuEditor({
     // explicit choice in the category's settings drawer.
     if ((from.parent_id ?? null) !== (to.parent_id ?? null)) return;
 
-    const group = cats.filter((c) => (c.parent_id ?? null) === (from.parent_id ?? null));
+    // Sorted, so the indices arrayMove works on match what the user sees.
+    const group = cats.filter((c) => (c.parent_id ?? null) === (from.parent_id ?? null)).sort(byPos);
     const next = arrayMove(
       group,
       group.findIndex((c) => c.id === active.id),
