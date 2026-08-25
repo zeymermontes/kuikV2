@@ -1,4 +1,4 @@
-import type { Product, OptionGroup } from './database.types';
+import type { Product, OptionGroup, OptionKind } from './database.types';
 
 // A single chosen option on a cart line (flattened across groups).
 export interface SelectedOption {
@@ -36,4 +36,13 @@ export function resolveOptionGroups(p: Product): OptionGroup[] {
 
 export function hasOptions(p: Product): boolean {
   return resolveOptionGroups(p).length > 0;
+}
+
+export function optionKind(g: OptionGroup): OptionKind {
+  return g.kind === 'takeaway' ? 'takeaway' : 'dish';
+}
+
+/** True when the product has anything worth opening a detail sheet for. */
+export function hasDetail(p: Product): boolean {
+  return Boolean(p.image_url || p.description) || hasOptions(p);
 }

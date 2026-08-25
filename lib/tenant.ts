@@ -68,6 +68,8 @@ export const getTenantByHostKey = cache(
     const orderingRow: TenantOrdering = ordering ?? {
       tenant_id: tenant.id,
       ordering_enabled: true,
+      ordering_qr_enabled: true,
+      ordering_online_enabled: true,
       service_types: ['pickup'],
       order_header: null,
       min_order: null,

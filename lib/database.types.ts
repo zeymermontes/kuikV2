@@ -91,7 +91,12 @@ export type ServiceType = 'pickup' | 'delivery' | 'dinein';
 
 export interface TenantOrdering {
   tenant_id: string;
+  /** Master switch. When off the menu is a showcase on every channel. */
   ordering_enabled: boolean;
+  /** Cart when the guest arrives from a table QR inside the restaurant. */
+  ordering_qr_enabled: boolean;
+  /** Cart when the guest arrives from a link shared online. */
+  ordering_online_enabled: boolean;
   service_types: ServiceType[];
   order_header: string | null;
   min_order: number | null;
@@ -164,10 +169,18 @@ export interface PricedOption {
 
 // Dynamic, per-product option group (multiselect). Replaces the fixed
 // variants/modifiers/removables; those remain for backward compatibility.
+/**
+ * What a group of options is about: part of the dish itself ("choose your
+ * protein") or how it is packed to go ("extra tortillas", "cutlery"). Shown to
+ * the guest so they can tell the two apart. Defaults to 'dish'.
+ */
+export type OptionKind = 'dish' | 'takeaway';
+
 export interface OptionGroup {
   id: string;
   name: string;
   description?: string;
+  kind?: OptionKind;
   required: boolean;
   multiple: boolean; // true = choose many (checkbox); false = choose one (radio)
   options: PricedOption[];

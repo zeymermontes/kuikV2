@@ -4,12 +4,33 @@ import type { TenantTheme } from '@/lib/database.types';
 // Adding a new one here requires NO database migration.
 
 export type DarkMode = 'off' | 'on' | 'auto';
-export type CardStyle = 'list' | 'grid' | 'large' | 'text';
+export type CardStyle = 'list' | 'grid' | 'large' | 'text' | 'classic';
 export type ImageShape = 'square' | 'rounded' | 'circle' | 'full';
 export type CornerRadius = 'none' | 'sm' | 'md' | 'lg' | 'xl';
 export type Density = 'comfortable' | 'compact';
 export type SoldOutStyle = 'gray' | 'hide';
 export type NavMode = 'scroll' | 'tabs';
+
+// ── Atomic item-layout knobs ────────────────────────────────────────────────
+// Every one of these accepts 'auto', which means "use whatever `cardStyle`
+// implies". That keeps `cardStyle` a one-click starting point while still
+// letting a tenant override any single aspect of it (photo above vs. below the
+// name, card surface on/off, price inline vs. right-aligned…).
+export type ImagePosition = 'auto' | 'top' | 'bottom' | 'left' | 'right' | 'none';
+export type ImageSize = 'auto' | 'thumb' | 'medium' | 'full';
+export type ImageRatio = 'auto' | 'natural' | 'square' | 'video' | 'wide';
+export type TextAlign = 'auto' | 'left' | 'center' | 'right';
+export type PriceStyle = 'auto' | 'right' | 'inline' | 'dots' | 'below';
+export type Surface = 'auto' | 'on' | 'off';
+export type ItemSpacing = 'auto' | 'none' | 'tight' | 'normal' | 'loose';
+
+// ── Page / heading knobs ────────────────────────────────────────────────────
+export type HeadingAlign = 'left' | 'center' | 'right';
+export type CategoryRule = 'none' | 'under' | 'both';
+export type TextCase = 'none' | 'upper';
+export type ContentWidth = 'narrow' | 'normal' | 'wide' | 'full';
+export type NavIconPosition = 'left' | 'top' | 'bottom' | 'none';
+export type NavTabShape = 'pill' | 'plain';
 
 export interface MenuSettings {
   currency: string;
@@ -30,6 +51,33 @@ export interface MenuSettings {
   showBadges: boolean;
   soldOutStyle: SoldOutStyle;
   showSocial: boolean;
+  // Page frame.
+  contentWidth: ContentWidth;
+  itemSpacing: ItemSpacing;
+  // Item layout overrides (all default to 'auto' = follow `cardStyle`).
+  cardSurface: Surface;
+  imagePosition: ImagePosition;
+  imageSize: ImageSize;
+  imageRatio: ImageRatio;
+  itemAlign: TextAlign;
+  priceStyle: PriceStyle;
+  showAddButton: boolean;
+  // Category headings.
+  categoryAlign: HeadingAlign;
+  categoryRule: CategoryRule;
+  categoryCase: TextCase;
+  categoryIcons: boolean;
+  // Category tab bar.
+  navIconPosition: NavIconPosition;
+  navIconSize: number;
+  navTabShape: NavTabShape;
+  // Product typography casing.
+  productCase: TextCase;
+  descriptionCase: TextCase;
+  // Options printed under the product (printed-menu style "choose one of…").
+  showInlineOptions: boolean;
+  inlineOptionColumns: number;
+  inlineOptionBullet: string;
   // Per-element typography (bold / italic / size multiplier).
   categoryBold: boolean;
   categoryItalic: boolean;
@@ -64,6 +112,27 @@ export const DEFAULT_MENU_SETTINGS: MenuSettings = {
   showBadges: true,
   soldOutStyle: 'gray',
   showSocial: true,
+  contentWidth: 'normal',
+  itemSpacing: 'auto',
+  cardSurface: 'auto',
+  imagePosition: 'auto',
+  imageSize: 'auto',
+  imageRatio: 'auto',
+  itemAlign: 'auto',
+  priceStyle: 'auto',
+  showAddButton: true,
+  categoryAlign: 'left',
+  categoryRule: 'none',
+  categoryCase: 'none',
+  categoryIcons: true,
+  navIconPosition: 'left',
+  navIconSize: 18,
+  navTabShape: 'pill',
+  productCase: 'none',
+  descriptionCase: 'none',
+  showInlineOptions: false,
+  inlineOptionColumns: 2,
+  inlineOptionBullet: '•',
   categoryBold: true,
   categoryItalic: false,
   categorySize: 1,
@@ -100,3 +169,93 @@ export const IMAGE_SHAPE_CLASS: Record<ImageShape, string> = {
   circle: 'rounded-full',
   full: 'rounded-xl', // "full" = full-width image, handled by layout not this class
 };
+
+// ── Resolved item layout ────────────────────────────────────────────────────
+
+/** The fully-resolved shape of one product row, with every 'auto' settled. */
+export interface ItemLayout {
+  surface: boolean; // draw the card background / border / shadow
+  image: Exclude<ImagePosition, 'auto'>;
+  imageSize: Exclude<ImageSize, 'auto'>;
+  imageRatio: Exclude<ImageRatio, 'auto'>;
+  align: Exclude<TextAlign, 'auto'>;
+  price: Exclude<PriceStyle, 'auto'>;
+  columns: 1 | 2;
+  gap: string; // CSS length between items
+}
+
+type LayoutBase = Omit<ItemLayout, 'gap'> & { gap: Exclude<ItemSpacing, 'auto'> };
+
+/** What each `cardStyle` means, before any per-knob override. */
+const CARD_STYLE_BASE: Record<CardStyle, LayoutBase> = {
+  list: { surface: true, image: 'left', imageSize: 'thumb', imageRatio: 'square', align: 'left', price: 'right', columns: 1, gap: 'normal' },
+  grid: { surface: true, image: 'top', imageSize: 'full', imageRatio: 'square', align: 'left', price: 'right', columns: 2, gap: 'normal' },
+  large: { surface: true, image: 'top', imageSize: 'full', imageRatio: 'video', align: 'left', price: 'right', columns: 1, gap: 'loose' },
+  text: { surface: true, image: 'none', imageSize: 'thumb', imageRatio: 'square', align: 'left', price: 'right', columns: 1, gap: 'normal' },
+  // "classic" — a printed menu: no cards, centered, photo above the name.
+  classic: { surface: false, image: 'top', imageSize: 'full', imageRatio: 'natural', align: 'center', price: 'inline', columns: 1, gap: 'tight' },
+};
+
+export const ITEM_GAP: Record<Exclude<ItemSpacing, 'auto'>, string> = {
+  none: '0rem',
+  tight: '0.375rem',
+  normal: '0.75rem',
+  loose: '1rem',
+};
+
+/** Settle every 'auto' knob against the chosen `cardStyle`. */
+export function resolveItemLayout(s: MenuSettings): ItemLayout {
+  const base = CARD_STYLE_BASE[s.cardStyle] ?? CARD_STYLE_BASE.list;
+  return {
+    surface: s.cardSurface === 'auto' ? base.surface : s.cardSurface === 'on',
+    image: s.imagePosition === 'auto' ? base.image : s.imagePosition,
+    imageSize: s.imageSize === 'auto' ? base.imageSize : s.imageSize,
+    imageRatio: s.imageRatio === 'auto' ? base.imageRatio : s.imageRatio,
+    align: s.itemAlign === 'auto' ? base.align : s.itemAlign,
+    price: s.priceStyle === 'auto' ? base.price : s.priceStyle,
+    columns: base.columns,
+    gap: ITEM_GAP[s.itemSpacing === 'auto' ? base.gap : s.itemSpacing],
+  };
+}
+
+/** Max width of the menu column. */
+export const CONTENT_WIDTH_CLASS: Record<ContentWidth, string> = {
+  narrow: 'max-w-lg',
+  normal: 'max-w-2xl',
+  wide: 'max-w-3xl',
+  full: 'max-w-5xl',
+};
+
+/** Fixed pixel size of a thumbnail image (used for left/right placement). */
+export const THUMB_PX: Record<Exclude<ImageSize, 'auto' | 'full'>, number> = {
+  thumb: 96,
+  medium: 128,
+};
+
+export const RATIO_CLASS: Record<Exclude<ImageRatio, 'auto' | 'natural'>, string> = {
+  square: 'aspect-square',
+  video: 'aspect-video',
+  wide: 'aspect-[21/9]',
+};
+
+export const ALIGN_CLASS: Record<HeadingAlign, string> = {
+  left: 'text-left',
+  center: 'text-center',
+  right: 'text-right',
+};
+
+export const ITEMS_CLASS: Record<HeadingAlign, string> = {
+  left: 'items-start',
+  center: 'items-center',
+  right: 'items-end',
+};
+
+export const JUSTIFY_CLASS: Record<HeadingAlign, string> = {
+  left: 'justify-start',
+  center: 'justify-center',
+  right: 'justify-end',
+};
+
+export function textTransform(c: TextCase): 'none' | 'uppercase' {
+  return c === 'upper' ? 'uppercase' : 'none';
+}

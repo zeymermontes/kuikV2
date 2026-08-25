@@ -16,9 +16,18 @@ import type {
   Product,
 } from '@/lib/database.types';
 import type { CartLine } from '@/lib/whatsapp';
-import { resolveMenuSettings, RADIUS_CLASS } from '@/lib/menu-settings';
+import {
+  resolveMenuSettings,
+  resolveItemLayout,
+  RADIUS_CLASS,
+  CONTENT_WIDTH_CLASS,
+  ALIGN_CLASS,
+  JUSTIFY_CLASS,
+  textTransform,
+} from '@/lib/menu-settings';
 import { mapHref } from '@/lib/hours';
 import { BADGES, badgeLabel } from '@/lib/badges';
+import { hasDetail } from '@/lib/menu-options';
 import { LoyaltyButton } from './LoyaltyCard';
 import { ProductCard } from './ProductCard';
 import { ProductSheet } from './ProductSheet';
@@ -93,6 +102,7 @@ export function MenuView({
   branches = [],
   currentBranch = null,
   landingEnabled = false,
+  channel = 'online',
   menu,
 }: {
   tenant: Tenant;
@@ -104,6 +114,8 @@ export function MenuView({
   branches?: BranchLite[];
   currentBranch?: string | null;
   landingEnabled?: boolean;
+  /** 'qr' = reached from a QR inside the restaurant; 'online' = a shared link. */
+  channel?: 'online' | 'qr';
   menu: MenuCategory[];
 }) {
   const t = useTranslations('menu');
@@ -126,8 +138,25 @@ export function MenuView({
 
   const currency = settings.currency;
   const locale = tenant.locale === 'en' ? 'en-US' : 'es-MX';
-  const orderingEnabled = ordering.ordering_enabled && Boolean(contact.whatsapp_phone);
+  // Which channel this visit came through. The in-place route (/qr) says so
+  // up front; a legacy table QR (/menu?mesa=N) is detected after mount.
+  const [qrChannel, setQrChannel] = useState(channel === 'qr');
+  useEffect(() => {
+    if (channel === 'qr') return;
+    if (!new URLSearchParams(window.location.search).has('mesa')) return;
+    const id = setTimeout(() => setQrChannel(true), 0);
+    return () => clearTimeout(id);
+  }, [channel]);
+
+  // A restaurant can run the cart on one channel and a look-only menu on the
+  // other — e.g. QR guests order with the waiter, online guests via WhatsApp.
+  const channelOrdering = qrChannel
+    ? ordering.ordering_qr_enabled !== false
+    : ordering.ordering_online_enabled !== false;
+  const orderingEnabled =
+    ordering.ordering_enabled && channelOrdering && Boolean(contact.whatsapp_phone);
   const radiusClass = RADIUS_CLASS[settings.cornerRadius];
+  const layout = useMemo(() => resolveItemLayout(settings), [settings]);
 
   const lines = useMemo(() => Object.values(cart), [cart]);
   const itemCount = lines.reduce((n, l) => n + l.qty, 0);
@@ -269,14 +298,14 @@ export function MenuView({
         );
         setActiveCat((top.target as HTMLElement).dataset.catid ?? null);
       },
-      { rootMargin: '-88px 0px -70% 0px', threshold: 0 },
+      { rootMargin: `-${barH + 36}px 0px -70% 0px`, threshold: 0 },
     );
     ids.forEach((id) => {
       const el = sectionRefs.current[id];
       if (el) observer.observe(el);
     });
     return () => observer.disconnect();
-  }, [catKey, settings.navMode]);
+  }, [catKey, settings.navMode, barH]);
 
   // Keep the active tab visible within the horizontally-scrolling nav.
   useEffect(() => {
@@ -288,9 +317,12 @@ export function MenuView({
     }
   }, [activeCat]);
 
-  const gridContainer = settings.cardStyle === 'grid';
+  const gridContainer = layout.columns === 2;
   const tabsMode = settings.navMode === 'tabs';
   const showNav = (settings.stickyTabs || tabsMode) && filteredMenu.length > 1;
+  const navIcon = settings.navIconPosition;
+  const stackedNav = navIcon === 'top' || navIcon === 'bottom';
+  const plainNav = settings.navTabShape === 'plain';
 
   // The category bar's background = the page background (image or color). When
   // an image is used, the bar is left transparent and a clipped copy of the
@@ -327,7 +359,7 @@ export function MenuView({
     : filteredMenu;
 
   return (
-    <div className="mx-auto min-h-screen w-full max-w-2xl pb-28">
+    <div className={`mx-auto min-h-screen w-full ${CONTENT_WIDTH_CLASS[settings.contentWidth]} pb-28`}>
       {/* Back to the landing (only when a landing home exists) */}
       {landingEnabled && (
         <Link
@@ -478,15 +510,27 @@ export function MenuView({
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }
                 }}
-                className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition"
+                className={`flex shrink-0 items-center transition ${
+                  stackedNav ? 'w-20 flex-col gap-1 text-center text-xs leading-tight' : 'gap-1.5 text-sm'
+                } ${
+                  plainNav ? 'px-1 py-0.5' : 'rounded-full px-3 py-1.5'
+                } ${active ? 'font-bold' : 'font-medium'}`}
                 style={{
-                  backgroundColor: active ? 'var(--tab-selected-bg)' : 'var(--tab-unselected-bg)',
+                  backgroundColor: plainNav
+                    ? 'transparent'
+                    : active
+                      ? 'var(--tab-selected-bg)'
+                      : 'var(--tab-unselected-bg)',
                   color: active ? 'var(--tab-selected-text)' : 'var(--tab-unselected-text)',
+                  opacity: plainNav && !active ? 0.7 : 1,
                   fontFamily: 'var(--font-category)',
                 }}
               >
-                <CatIcon cat={cat} size={18} />
-                {cat.name}
+                {navIcon !== 'none' && navIcon !== 'bottom' && (
+                  <CatIcon cat={cat} size={settings.navIconSize} />
+                )}
+                <span className={stackedNav ? 'block' : undefined}>{cat.name}</span>
+                {navIcon === 'bottom' && <CatIcon cat={cat} size={settings.navIconSize} />}
               </a>
             );
           })}
@@ -501,6 +545,7 @@ export function MenuView({
           const collapsible = settings.collapsibleCategories && !tabsMode;
           const isCollapsed = collapsible && collapsed[cat.id];
           const hasBanner = Boolean(cat.banner_image_url || cat.banner_name);
+          const rule = settings.categoryRule;
           const toggle = () =>
             collapsible && setCollapsed((c) => ({ ...c, [cat.id]: !c[cat.id] }));
           return (
@@ -511,30 +556,35 @@ export function MenuView({
               ref={(el) => {
                 sectionRefs.current[cat.id] = el;
               }}
-              className="scroll-mt-20"
+              style={{ scrollMarginTop: showNav ? barH + 12 : 24 }}
             >
               <button
                 onClick={toggle}
                 disabled={!collapsible}
-                className="mb-3 flex w-full items-center justify-between gap-3 text-left disabled:cursor-default"
+                className={`mb-3 flex w-full items-center gap-3 disabled:cursor-default ${ALIGN_CLASS[settings.categoryAlign]} ${collapsible ? 'justify-between' : JUSTIFY_CLASS[settings.categoryAlign]}`}
               >
-                <div className="min-w-0 flex-1">
+                <div className={collapsible ? 'min-w-0 flex-1' : 'min-w-0'}>
                   {hasBanner ? (
                     <CategoryBanner name={cat.banner_name ?? cat.name} imageUrl={cat.banner_image_url} />
                   ) : (
-                    <h2
-                      className="flex items-center gap-2"
-                      style={{
-                        color: 'var(--brand-secondary)',
-                        fontFamily: 'var(--font-category)',
-                        fontSize: 'var(--fs-category)',
-                        fontWeight: 'var(--fw-category)',
-                        fontStyle: 'var(--fst-category)',
-                      }}
-                    >
-                      <CatIcon cat={cat} size={24} />
-                      {cat.name}
-                    </h2>
+                    <>
+                      {rule === 'both' && <CategoryRule />}
+                      <h2
+                        className={`flex items-center gap-2 ${JUSTIFY_CLASS[settings.categoryAlign]}`}
+                        style={{
+                          color: 'var(--brand-secondary)',
+                          fontFamily: 'var(--font-category)',
+                          fontSize: 'var(--fs-category)',
+                          fontWeight: 'var(--fw-category)',
+                          fontStyle: 'var(--fst-category)',
+                          textTransform: textTransform(settings.categoryCase),
+                        }}
+                      >
+                        {settings.categoryIcons && <CatIcon cat={cat} size={24} />}
+                        {cat.name}
+                      </h2>
+                      {rule !== 'none' && <CategoryRule />}
+                    </>
                   )}
                 </div>
                 {collapsible && (
@@ -546,7 +596,10 @@ export function MenuView({
               </button>
 
               {!isCollapsed && (
-                <div className={gridContainer ? 'grid grid-cols-2 gap-3' : settings.cardStyle === 'large' ? 'space-y-4' : 'space-y-3'}>
+                <div
+                  className={gridContainer ? 'grid grid-cols-2' : 'flex flex-col'}
+                  style={{ gap: layout.gap }}
+                >
                   {cat.entries.map((entry) =>
                     entry.kind === 'separator' ? (
                       <div key={`s-${entry.id}`} className={gridContainer ? 'col-span-2' : ''}>
@@ -561,13 +614,10 @@ export function MenuView({
                         locale={locale}
                         qty={qtyByProduct[entry.id] ?? 0}
                         orderingEnabled={orderingEnabled}
-                        cardStyle={settings.cardStyle}
-                        imageShape={settings.imageShape}
-                        density={settings.density}
+                        openable={orderingEnabled || hasDetail(entry)}
+                        layout={layout}
+                        settings={settings}
                         radiusClass={radiusClass}
-                        border={settings.cardBorder}
-                        shadow={settings.cardShadow}
-                        showBadges={settings.showBadges}
                         onOpen={() => openProduct(entry)}
                         id={`prod-${entry.id}`}
                       />
@@ -594,6 +644,7 @@ export function MenuView({
           showPrice={theme.show_prices && activeProduct.show_price}
           currency={currency}
           locale={locale}
+          readOnly={!orderingEnabled}
           onClose={() => setActiveProduct(null)}
           onConfirm={(line) =>
             dispatch({
@@ -648,6 +699,17 @@ function BranchPicker({ branches, current }: { branches: BranchLite[]; current: 
         ))}
       </select>
     </label>
+  );
+}
+
+/** Thin horizontal rule framing a category title (printed-menu look). */
+function CategoryRule() {
+  return (
+    <span
+      aria-hidden
+      className="my-1.5 block h-px w-full"
+      style={{ backgroundColor: 'var(--brand-separator)' }}
+    />
   );
 }
 

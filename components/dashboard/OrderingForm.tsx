@@ -51,6 +51,38 @@ export function OrderingForm({ ordering }: { ordering: TenantOrdering }) {
             <span className="block text-xs opacity-70">{t('modeShowcaseHint')}</span>
           </button>
         </div>
+
+        {/* Per-channel cart: the same menu, two ways in. */}
+        {o.ordering_enabled && (
+          <div className="mt-4 space-y-3 border-t border-neutral-100 pt-4">
+            <p className="text-sm font-medium">{t('channels')}</p>
+            <p className="-mt-2 text-xs text-neutral-500">{t('channelsHint')}</p>
+            <label className="flex cursor-pointer items-start justify-between gap-3">
+              <span className="min-w-0">
+                <span className="block text-sm font-medium">{t('channelQr')}</span>
+                <span className="block text-xs text-neutral-500">{t('channelQrHint')}</span>
+              </span>
+              <input
+                type="checkbox"
+                checked={o.ordering_qr_enabled !== false}
+                onChange={(e) => set('ordering_qr_enabled', e.target.checked)}
+                className="mt-0.5 h-5 w-5 shrink-0 rounded border-neutral-300"
+              />
+            </label>
+            <label className="flex cursor-pointer items-start justify-between gap-3">
+              <span className="min-w-0">
+                <span className="block text-sm font-medium">{t('channelOnline')}</span>
+                <span className="block text-xs text-neutral-500">{t('channelOnlineHint')}</span>
+              </span>
+              <input
+                type="checkbox"
+                checked={o.ordering_online_enabled !== false}
+                onChange={(e) => set('ordering_online_enabled', e.target.checked)}
+                className="mt-0.5 h-5 w-5 shrink-0 rounded border-neutral-300"
+              />
+            </label>
+          </div>
+        )}
       </Card>
 
       {/* The rest only applies when online ordering is on. */}

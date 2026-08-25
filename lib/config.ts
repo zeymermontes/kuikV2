@@ -42,6 +42,7 @@ export const DEFAULT_LOCALE: Locale = 'es';
 /** Curated fonts offered in the theme customizer (must match next/font setup). */
 export const MENU_FONTS = [
   'Inter',
+  'Asap',
   'Poppins',
   'Playfair Display',
   'Lora',

@@ -8,7 +8,16 @@ import { PdfMenu } from './PdfMenu';
  * A branch overrides the WhatsApp number/address and, if its menu_mode is
  * 'independent', shows its own menu instead of the main one.
  */
-export async function MenuScreen({ hostKey, branchSlug }: { hostKey: string; branchSlug?: string }) {
+export async function MenuScreen({
+  hostKey,
+  branchSlug,
+  channel = 'online',
+}: {
+  hostKey: string;
+  branchSlug?: string;
+  /** 'qr' = a code inside the restaurant; 'online' = a link shared anywhere. */
+  channel?: 'online' | 'qr';
+}) {
   const data = await getTenantByHostKey(hostKey);
   if (!data) notFound();
 
@@ -47,6 +56,7 @@ export async function MenuScreen({ hostKey, branchSlug }: { hostKey: string; bra
       branches={data.branches}
       currentBranch={branch?.slug ?? null}
       landingEnabled={data.landing.enabled}
+      channel={channel}
       menu={menu}
     />
   );

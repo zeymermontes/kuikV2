@@ -6,7 +6,7 @@ import { X, Plus, Minus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Product } from '@/lib/database.types';
 import type { CartLine } from '@/lib/whatsapp';
-import { resolveOptionGroups, type SelectedOption } from '@/lib/menu-options';
+import { resolveOptionGroups, optionKind, type SelectedOption } from '@/lib/menu-options';
 import { formatPrice } from '@/lib/utils';
 
 export function ProductSheet({
@@ -17,6 +17,7 @@ export function ProductSheet({
   onClose,
   onConfirm,
   initial,
+  readOnly = false,
 }: {
   product: Product;
   showPrice: boolean;
@@ -26,6 +27,12 @@ export function ProductSheet({
   onConfirm: (line: CartLine) => void;
   // When set, the sheet opens pre-filled to edit an existing line.
   initial?: { qty: number; note: string | null; selections: SelectedOption[] };
+  /**
+   * Showcase mode: the guest cannot order, so the sheet is a read-only detail
+   * card. The options still show — otherwise "choose your protein" would be
+   * invisible on a look-only menu.
+   */
+  readOnly?: boolean;
 }) {
   const t = useTranslations('menu');
   const groups = resolveOptionGroups(product);
@@ -109,35 +116,57 @@ export function ProductSheet({
 
           <div className="px-5 py-4">
             <h2 className="text-xl font-bold">{product.name}</h2>
-            {product.description && <p className="mt-1 text-sm text-neutral-500">{product.description}</p>}
+            {readOnly && showPrice && product.price != null && (
+              <p className="mt-1 text-lg font-semibold" style={{ color: 'var(--brand-primary)' }}>
+                {formatPrice(product.price, currency, locale)}
+              </p>
+            )}
+            {product.description && (
+              <p className="mt-1 whitespace-pre-line text-sm text-neutral-500">{product.description}</p>
+            )}
 
             {groups.map((g) => {
               const chosen = sel[g.id] ?? [];
               return (
                 <div key={g.id} className="mt-5">
-                  <div className="mb-2 flex items-center gap-2">
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
                     <h3 className="text-sm font-semibold">{g.name}</h3>
-                    {g.required && (
+                    <span
+                      className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                        optionKind(g) === 'takeaway'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-neutral-100 text-neutral-600'
+                      }`}
+                    >
+                      {t(optionKind(g) === 'takeaway' ? 'optionsTakeaway' : 'optionsDish')}
+                    </span>
+                    {!readOnly && g.required && (
                       <span className="rounded-full bg-neutral-900 px-1.5 py-0.5 text-[10px] font-semibold text-white">
                         {t('required')}
                       </span>
                     )}
-                    {!g.required && <span className="text-xs text-neutral-400">{t('optional')}</span>}
+                    {!readOnly && !g.required && (
+                      <span className="text-xs text-neutral-400">{t('optional')}</span>
+                    )}
                   </div>
                   {g.description && <p className="-mt-1 mb-2 text-xs text-neutral-400">{g.description}</p>}
                   <div className="space-y-2">
                     {g.options.map((o, i) => (
                       <label
                         key={i}
-                        className="flex cursor-pointer items-center justify-between rounded-xl border border-neutral-200 px-3 py-2.5"
+                        className={`flex items-center justify-between rounded-xl border border-neutral-200 px-3 py-2.5 ${
+                          readOnly ? '' : 'cursor-pointer'
+                        }`}
                       >
                         <span className="flex items-center gap-2 text-sm">
-                          <input
-                            type={g.multiple ? 'checkbox' : 'radio'}
-                            name={g.id}
-                            checked={chosen.includes(i)}
-                            onChange={() => toggle(g.id, i, g.multiple)}
-                          />
+                          {!readOnly && (
+                            <input
+                              type={g.multiple ? 'checkbox' : 'radio'}
+                              name={g.id}
+                              checked={chosen.includes(i)}
+                              onChange={() => toggle(g.id, i, g.multiple)}
+                            />
+                          )}
                           {o.name}
                         </span>
                         {showPrice && o.price > 0 && (
@@ -150,16 +179,19 @@ export function ProductSheet({
               );
             })}
 
-            <input
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder={t('notePlaceholder')}
-              className="mt-5 w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm focus:border-neutral-400 focus:outline-none"
-            />
+            {!readOnly && (
+              <input
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder={t('notePlaceholder')}
+                className="mt-5 w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm focus:border-neutral-400 focus:outline-none"
+              />
+            )}
           </div>
         </div>
 
-        {/* Footer: qty + add */}
+        {/* Footer: qty + add (hidden in showcase mode) */}
+        {!readOnly && (
         <div className="flex items-center gap-3 border-t border-neutral-100 px-5 py-4">
           <div className="flex items-center gap-3 rounded-full bg-neutral-100 px-2 py-1">
             <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="−" className="p-1">
@@ -180,6 +212,7 @@ export function ProductSheet({
             {valid && showPrice && unit > 0 && <span>· {formatPrice(unit * qty, currency, locale)}</span>}
           </button>
         </div>
+        )}
       </div>
     </div>
   );

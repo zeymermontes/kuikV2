@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { requireTenant } from '@/lib/auth';
 import type { ServiceType, LoyaltyType } from '@/lib/database.types';
 import type { MenuSettings } from '@/lib/menu-settings';
+import { getPreset, presetSettings } from '@/lib/menu-presets';
 
 export async function updateTheme(
   fields: Partial<{
@@ -72,6 +73,37 @@ export async function updateMenuSettings(partial: Partial<MenuSettings>) {
   revalidatePath(`/s/${tenant.subdomain}`);
 }
 
+/**
+ * Apply a named look (see lib/menu-presets.ts): every colour, font and layout
+ * knob it declares is written in one round trip, so the menu can never end up
+ * half-way between two presets.
+ */
+export async function applyMenuPreset(presetId: string) {
+  const preset = getPreset(presetId);
+  if (!preset) return;
+  const { tenant } = await requireTenant();
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from('tenant_theme')
+    .select('settings')
+    .eq('tenant_id', tenant.id)
+    .single<{ settings: Record<string, unknown> }>();
+
+  await supabase
+    .from('tenant_theme')
+    .update({
+      ...preset.theme,
+      settings: { ...(data?.settings ?? {}), ...presetSettings(preset) },
+      updated_at: new Date().toISOString(),
+    })
+    .eq('tenant_id', tenant.id);
+
+  revalidatePath('/design');
+  revalidatePath('/menu');
+  revalidatePath(`/s/${tenant.subdomain}`);
+}
+
 export async function updateLanding(
   fields: Partial<{
     enabled: boolean;
@@ -122,6 +154,8 @@ export async function updateLoyalty(
 export async function updateOrdering(
   fields: Partial<{
     ordering_enabled: boolean;
+    ordering_qr_enabled: boolean;
+    ordering_online_enabled: boolean;
     service_types: ServiceType[];
     order_header: string | null;
     min_order: number | null;

@@ -1,14 +1,21 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import type { TenantTheme } from '@/lib/database.types';
 import { MENU_FONTS, CUSTOM_FONT } from '@/lib/config';
 import { BADGES } from '@/lib/badges';
 import {
   resolveMenuSettings,
+  resolveItemLayout,
+  ALIGN_CLASS,
+  JUSTIFY_CLASS,
+  ITEMS_CLASS,
+  textTransform,
   type MenuSettings,
+  type ItemLayout,
 } from '@/lib/menu-settings';
+import { MENU_PRESETS, getPreset, presetSettings } from '@/lib/menu-presets';
 import { Card, Label, Input } from '@/components/ui';
 import { ImageUploader } from '@/components/dashboard/ImageUploader';
 import { FontPicker } from '@/components/dashboard/FontPicker';
@@ -42,10 +49,12 @@ function toHex(rgb: string, alpha: number): string {
 import {
   updateTheme,
   updateMenuSettings,
+  applyMenuPreset,
 } from '@/app/(dashboard)/settings-actions';
 
 export function DesignForm({ theme }: { theme: TenantTheme }) {
   const t = useTranslations('design');
+  const locale = useLocale();
   const [local, setLocal] = useState(theme);
   const [settings, setSettings] = useState<MenuSettings>(
     resolveMenuSettings(theme.settings),
@@ -59,6 +68,16 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
   function setS<K extends keyof MenuSettings>(key: K, value: MenuSettings[K]) {
     setSettings((s) => ({ ...s, [key]: value }));
     updateMenuSettings({ [key]: value });
+  }
+
+  // Apply a named look: writes every colour/font/layout knob the preset
+  // declares, in one server round trip.
+  function applyPreset(id: string) {
+    const preset = getPreset(id);
+    if (!preset) return;
+    setLocal((s) => ({ ...s, ...preset.theme }));
+    setSettings((s) => ({ ...s, ...presetSettings(preset) }));
+    applyMenuPreset(id);
   }
 
   // Upload/remove the custom font. On upload it becomes the main font; on remove
@@ -113,6 +132,33 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
       <div className="space-y-5">
+        {/* Presets */}
+        <Card>
+          <h2 className="font-semibold">{t('presets')}</h2>
+          <p className="mt-1 text-xs text-neutral-500">{t('presetsHint')}</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {MENU_PRESETS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => applyPreset(p.id)}
+                className="flex items-center gap-3 rounded-xl border border-neutral-200 p-3 text-left transition hover:border-neutral-900"
+              >
+                <span className="flex h-9 w-9 shrink-0 overflow-hidden rounded-lg border border-neutral-200">
+                  <span className="flex-1" style={{ backgroundColor: p.swatch[0] }} />
+                  <span className="flex-1" style={{ backgroundColor: p.swatch[1] }} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold">{p.name}</span>
+                  <span className="block text-xs leading-snug text-neutral-500">
+                    {p.blurb[locale === 'en' ? 'en' : 'es']}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </Card>
+
         {/* Brand identity */}
         <Card>
           <h2 className="mb-4 font-semibold">{t('brand')}</h2>
@@ -298,6 +344,99 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
               ['grid', t('cardGrid')],
               ['large', t('cardLarge')],
               ['text', t('cardText')],
+              ['classic', t('cardClassic')],
+            ]}
+          />
+          <SelectRow
+            label={t('contentWidth')}
+            value={settings.contentWidth}
+            onChange={(v) => setS('contentWidth', v as MenuSettings['contentWidth'])}
+            options={[
+              ['narrow', t('widthNarrow')],
+              ['normal', t('widthNormal')],
+              ['wide', t('widthWide')],
+              ['full', t('widthFull')],
+            ]}
+          />
+          <SelectRow
+            label={t('cardSurface')}
+            value={settings.cardSurface}
+            onChange={(v) => setS('cardSurface', v as MenuSettings['cardSurface'])}
+            options={[
+              ['auto', t('optAuto')],
+              ['on', t('surfaceOn')],
+              ['off', t('surfaceOff')],
+            ]}
+          />
+          <SelectRow
+            label={t('itemAlign')}
+            value={settings.itemAlign}
+            onChange={(v) => setS('itemAlign', v as MenuSettings['itemAlign'])}
+            options={[
+              ['auto', t('optAuto')],
+              ['left', t('alignLeft')],
+              ['center', t('alignCenter')],
+              ['right', t('alignRight')],
+            ]}
+          />
+          <SelectRow
+            label={t('priceStyle')}
+            value={settings.priceStyle}
+            onChange={(v) => setS('priceStyle', v as MenuSettings['priceStyle'])}
+            options={[
+              ['auto', t('optAuto')],
+              ['right', t('priceRight')],
+              ['inline', t('priceInline')],
+              ['dots', t('priceDots')],
+              ['below', t('priceBelow')],
+            ]}
+          />
+          <SelectRow
+            label={t('imagePosition')}
+            value={settings.imagePosition}
+            onChange={(v) => setS('imagePosition', v as MenuSettings['imagePosition'])}
+            options={[
+              ['auto', t('optAuto')],
+              ['top', t('posTop')],
+              ['bottom', t('posBottom')],
+              ['left', t('posLeft')],
+              ['right', t('posRight')],
+              ['none', t('posNone')],
+            ]}
+          />
+          <SelectRow
+            label={t('imageSize')}
+            value={settings.imageSize}
+            onChange={(v) => setS('imageSize', v as MenuSettings['imageSize'])}
+            options={[
+              ['auto', t('optAuto')],
+              ['thumb', t('sizeThumb')],
+              ['medium', t('sizeMedium')],
+              ['full', t('sizeFull')],
+            ]}
+          />
+          <SelectRow
+            label={t('imageRatio')}
+            value={settings.imageRatio}
+            onChange={(v) => setS('imageRatio', v as MenuSettings['imageRatio'])}
+            options={[
+              ['auto', t('optAuto')],
+              ['natural', t('ratioNatural')],
+              ['square', t('ratioSquare')],
+              ['video', t('ratioVideo')],
+              ['wide', t('ratioWide')],
+            ]}
+          />
+          <SelectRow
+            label={t('itemSpacing')}
+            value={settings.itemSpacing}
+            onChange={(v) => setS('itemSpacing', v as MenuSettings['itemSpacing'])}
+            options={[
+              ['auto', t('optAuto')],
+              ['none', t('spacingNone')],
+              ['tight', t('spacingTight')],
+              ['normal', t('spacingNormal')],
+              ['loose', t('spacingLoose')],
             ]}
           />
           <SelectRow
@@ -335,6 +474,114 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
           <ToggleRow label={t('cardBorder')} checked={settings.cardBorder} onChange={(v) => setS('cardBorder', v)} />
           <ToggleRow label={t('cardShadow')} checked={settings.cardShadow} onChange={(v) => setS('cardShadow', v)} />
           <ToggleRow label={t('animations')} checked={settings.animations} onChange={(v) => setS('animations', v)} />
+          <ToggleRow label={t('showAddButton')} checked={settings.showAddButton} onChange={(v) => setS('showAddButton', v)} />
+          <SelectRow
+            label={t('productCase')}
+            value={settings.productCase}
+            onChange={(v) => setS('productCase', v as MenuSettings['productCase'])}
+            options={[['none', t('caseNone')], ['upper', t('caseUpper')]]}
+          />
+          <SelectRow
+            label={t('descriptionCase')}
+            value={settings.descriptionCase}
+            onChange={(v) => setS('descriptionCase', v as MenuSettings['descriptionCase'])}
+            options={[['none', t('caseNone')], ['upper', t('caseUpper')]]}
+          />
+        </Card>
+
+        {/* Section headings */}
+        <Card className="space-y-4">
+          <h2 className="font-semibold">{t('sections')}</h2>
+          <SelectRow
+            label={t('categoryAlign')}
+            value={settings.categoryAlign}
+            onChange={(v) => setS('categoryAlign', v as MenuSettings['categoryAlign'])}
+            options={[
+              ['left', t('alignLeft')],
+              ['center', t('alignCenter')],
+              ['right', t('alignRight')],
+            ]}
+          />
+          <SelectRow
+            label={t('categoryRule')}
+            value={settings.categoryRule}
+            onChange={(v) => setS('categoryRule', v as MenuSettings['categoryRule'])}
+            options={[
+              ['none', t('ruleNone')],
+              ['under', t('ruleUnder')],
+              ['both', t('ruleBoth')],
+            ]}
+          />
+          <SelectRow
+            label={t('categoryCase')}
+            value={settings.categoryCase}
+            onChange={(v) => setS('categoryCase', v as MenuSettings['categoryCase'])}
+            options={[['none', t('caseNone')], ['upper', t('caseUpper')]]}
+          />
+          <ToggleRow label={t('categoryIcons')} checked={settings.categoryIcons} onChange={(v) => setS('categoryIcons', v)} />
+        </Card>
+
+        {/* Category tab bar */}
+        <Card className="space-y-4">
+          <h2 className="font-semibold">{t('navBar')}</h2>
+          <p className="-mt-2 text-xs text-neutral-500">{t('navBarHint')}</p>
+          <SelectRow
+            label={t('navIconPosition')}
+            value={settings.navIconPosition}
+            onChange={(v) => setS('navIconPosition', v as MenuSettings['navIconPosition'])}
+            options={[
+              ['left', t('navIconLeft')],
+              ['top', t('navIconTop')],
+              ['bottom', t('navIconBottom')],
+              ['none', t('navIconNone')],
+            ]}
+          />
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-medium">{t('navIconSize')}</span>
+            <div className="flex flex-1 items-center gap-2">
+              <input
+                type="range"
+                min={14}
+                max={64}
+                step={2}
+                value={settings.navIconSize}
+                onChange={(e) => setS('navIconSize', Number(e.target.value))}
+                className="h-1 flex-1 cursor-pointer accent-neutral-900"
+              />
+              <span className="w-10 text-right text-[10px] text-neutral-400">{settings.navIconSize}px</span>
+            </div>
+          </div>
+          <SelectRow
+            label={t('navTabShape')}
+            value={settings.navTabShape}
+            onChange={(v) => setS('navTabShape', v as MenuSettings['navTabShape'])}
+            options={[
+              ['pill', t('navShapePill')],
+              ['plain', t('navShapePlain')],
+            ]}
+          />
+        </Card>
+
+        {/* Options printed in the menu */}
+        <Card className="space-y-4">
+          <h2 className="font-semibold">{t('inlineOptions')}</h2>
+          <p className="-mt-2 text-xs text-neutral-500">{t('inlineOptionsHint')}</p>
+          <ToggleRow label={t('showInlineOptions')} checked={settings.showInlineOptions} onChange={(v) => setS('showInlineOptions', v)} />
+          <SelectRow
+            label={t('inlineOptionColumns')}
+            value={String(settings.inlineOptionColumns)}
+            onChange={(v) => setS('inlineOptionColumns', Number(v))}
+            options={[['1', '1'], ['2', '2'], ['3', '3']]}
+          />
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-medium">{t('inlineOptionBullet')}</span>
+            <input
+              value={settings.inlineOptionBullet}
+              maxLength={4}
+              onChange={(e) => setS('inlineOptionBullet', e.target.value)}
+              className="w-20 rounded-lg border border-neutral-300 px-2 py-1.5 text-center text-sm"
+            />
+          </div>
         </Card>
 
         {/* Navigation & discovery */}
@@ -413,6 +660,7 @@ const BB = BADGES.find((b) => b.key === 'bestseller');
 const BESTSELLER = BB ? { emoji: BB.emoji, label: BB.es, color: BB.color, text: BB.text } : undefined;
 
 function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettings }) {
+  const layout = resolveItemLayout(settings);
   const dark = settings.darkMode === 'on';
   const bg = dark ? '#111114' : local.background_color;
   const text = dark ? '#f5f5f5' : local.text_color;
@@ -423,10 +671,10 @@ function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettin
   const radius = { none: 0, sm: 8, md: 12, lg: 16, xl: 24 }[settings.cornerRadius] ?? 16;
 
   const cardStyle: React.CSSProperties = {
-    backgroundColor: card,
+    backgroundColor: layout.surface ? card : undefined,
     borderRadius: radius,
-    border: settings.cardBorder ? `1px solid ${border}` : undefined,
-    boxShadow: settings.cardShadow ? '0 1px 6px rgba(0,0,0,.08)' : undefined,
+    border: layout.surface && settings.cardBorder ? `1px solid ${border}` : undefined,
+    boxShadow: layout.surface && settings.cardShadow ? '0 1px 6px rgba(0,0,0,.08)' : undefined,
   };
   // Same fallbacks the public menu uses, so the preview matches it exactly.
   const p = local.primary_color;
@@ -440,6 +688,7 @@ function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettin
     primary: p,
     btnBg: local.button_color ?? p,
     btnText: local.button_text_color ?? '#ffffff',
+    card,
   };
   const searchBg = local.search_bg_color ?? local.card_color ?? '#ffffff';
   const searchText = local.search_text_color ?? text;
@@ -458,9 +707,11 @@ function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettin
     description: elStyle(local.font_description, settings.descriptionBold, settings.descriptionItalic, settings.descriptionSize, 0.875),
   };
 
+  const rule = <span className="my-1.5 block h-px w-full" style={{ backgroundColor: sep }} />;
+
   return (
     <div
-      className="space-y-3 overflow-hidden rounded-2xl border border-neutral-200 p-5"
+      className="overflow-hidden rounded-2xl border border-neutral-200 p-5"
       style={{
         backgroundColor: bg,
         color: text,
@@ -469,68 +720,206 @@ function Preview({ local, settings }: { local: TenantTheme; settings: MenuSettin
         backgroundSize: 'cover',
       }}
     >
-      <p className="text-xl font-extrabold" style={{ color: text }}>{local.slogan || 'Tu Restaurante'}</p>
-      <p className="text-xs" style={{ color: textSec }}>La mejor comida de la ciudad</p>
+      <div className="space-y-3">
+        <p className="text-xl font-extrabold" style={{ color: text }}>{local.slogan || 'Tu Restaurante'}</p>
+        <p className="text-xs" style={{ color: textSec }}>La mejor comida de la ciudad</p>
 
-      {/* Search bar */}
+        {/* Search bar */}
+        {settings.showSearch && (
+          <div
+            className="flex items-center gap-2 rounded-full border px-3 py-2 text-xs"
+            style={{ backgroundColor: searchBg, color: searchText, borderColor: searchBorder }}
+          >
+            <span className="opacity-50">🔍</span>
+            <span className="flex-1 opacity-50">Buscar…</span>
+          </div>
+        )}
+
+        {/* Category tab bar */}
+        <div
+          className="-mx-5 flex gap-2 px-5 py-2"
+          style={{
+            fontFamily: ef(local.font_category),
+            backgroundColor: local.tab_bar_color ?? `color-mix(in srgb, ${bg} 90%, transparent)`,
+          }}
+        >
+          {[
+            { label: 'Entradas', on: true },
+            { label: 'Postres', on: false },
+          ].map((tab) => (
+            <PreviewTab
+              key={tab.label}
+              label={tab.label}
+              active={tab.on}
+              settings={settings}
+              bg={tab.on ? tabSelBg : tabUnselBg}
+              color={tab.on ? tabSelText : tabUnselText}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Section heading */}
+      <div className={`pt-2 ${ALIGN_CLASS[settings.categoryAlign]}`}>
+        {settings.categoryRule === 'both' && rule}
+        <h3
+          style={{
+            color: local.secondary_color,
+            textTransform: textTransform(settings.categoryCase),
+            ...styles.category,
+          }}
+        >
+          Entradas
+        </h3>
+        {settings.categoryRule !== 'none' && rule}
+      </div>
+
       <div
-        className="flex items-center gap-2 rounded-full border px-3 py-2 text-xs"
-        style={{ backgroundColor: searchBg, color: searchText, borderColor: searchBorder }}
+        className={layout.columns === 2 ? 'grid grid-cols-2' : 'flex flex-col'}
+        style={{ gap: layout.gap, marginTop: '0.5rem' }}
       >
-        <span className="opacity-50">🔍</span>
-        <span className="flex-1 opacity-50">Buscar…</span>
-        <span className="opacity-50">✕</span>
+        <PreviewItem
+          layout={layout} settings={settings} cardStyle={cardStyle} colors={colors} styles={styles} radius={radius}
+          name="Tacos al pastor" price="$120" strike="$150" desc="Con piña, cebolla y cilantro." photo badge={BESTSELLER}
+        />
+        <PreviewItem
+          layout={layout} settings={settings} cardStyle={cardStyle} colors={colors} styles={styles} radius={radius}
+          name="Quesadilla" price="$80" desc="Queso fundido y guacamole."
+          options={['Pollo', 'Res', 'Chorizo', 'Rajas']}
+        />
       </div>
-
-      {/* Category tab bar */}
-      <div
-        className="-mx-5 flex gap-2 px-5 py-2"
-        style={{
-          fontFamily: ef(local.font_category),
-          backgroundColor: local.tab_bar_color ?? `color-mix(in srgb, ${bg} 90%, transparent)`,
-        }}
-      >
-        <span className="rounded-full px-3 py-1 text-xs font-medium" style={{ backgroundColor: tabSelBg, color: tabSelText }}>Entradas</span>
-        <span className="rounded-full px-3 py-1 text-xs font-medium" style={{ backgroundColor: tabUnselBg, color: tabUnselText }}>Postres</span>
-      </div>
-
-      <h3 className="pt-1" style={{ color: local.secondary_color, ...styles.category }}>Entradas</h3>
-      <PreviewItem cardStyle={cardStyle} colors={colors} styles={styles} name="Tacos al pastor" price="$120" strike="$150" desc="Con piña, cebolla y cilantro." badge={BESTSELLER} />
-
-      {/* Separator */}
-      <div className="flex items-center gap-3 py-1">
-        <span className="h-px flex-1" style={{ backgroundColor: sep }} />
-        <span className="text-xs font-medium uppercase tracking-wide" style={{ color: textSec }}>Especiales</span>
-        <span className="h-px flex-1" style={{ backgroundColor: sep }} />
-      </div>
-
-      <PreviewItem cardStyle={cardStyle} colors={colors} styles={styles} name="Quesadilla" price="$80" desc="Queso fundido y guacamole." />
     </div>
   );
 }
 
+/** One chip in the previewed category bar, honouring the nav icon settings. */
+function PreviewTab({
+  label,
+  active,
+  settings,
+  bg,
+  color,
+}: {
+  label: string;
+  active: boolean;
+  settings: MenuSettings;
+  bg: string;
+  color: string;
+}) {
+  const stacked = settings.navIconPosition === 'top' || settings.navIconPosition === 'bottom';
+  const plain = settings.navTabShape === 'plain';
+  const icon = settings.navIconPosition !== 'none' && (
+    <span style={{ fontSize: settings.navIconSize * 0.9, lineHeight: 1 }}>🍽️</span>
+  );
+  return (
+    <span
+      className={`flex items-center text-xs ${stacked ? 'w-16 flex-col gap-1 text-center leading-tight' : 'gap-1.5'} ${
+        plain ? 'px-1' : 'rounded-full px-3 py-1'
+      } ${active ? 'font-bold' : 'font-medium'}`}
+      style={{
+        backgroundColor: plain ? 'transparent' : bg,
+        color,
+        opacity: plain && !active ? 0.7 : 1,
+      }}
+    >
+      {settings.navIconPosition !== 'bottom' && icon}
+      <span>{label}</span>
+      {settings.navIconPosition === 'bottom' && icon}
+    </span>
+  );
+}
+
 function PreviewItem({
+  layout,
+  settings,
   cardStyle,
   colors,
   styles,
+  radius,
   name,
   price,
   strike,
   desc,
   badge,
+  photo,
+  options,
 }: {
+  layout: ItemLayout;
+  settings: MenuSettings;
   cardStyle: React.CSSProperties;
-  colors: { text: string; textSec: string; primary: string; btnBg: string; btnText: string };
+  colors: { text: string; textSec: string; primary: string; btnBg: string; btnText: string; card: string };
   styles: { product: React.CSSProperties; price: React.CSSProperties; description: React.CSSProperties };
+  radius: number;
   name: string;
   price: string;
   strike?: string;
   desc?: string;
   badge?: { emoji: string; label: string; color: string; text: string };
+  photo?: boolean;
+  options?: string[];
 }) {
-  return (
-    <div className="p-3" style={cardStyle}>
-      {badge && (
+  const align = layout.align;
+  const showImage = layout.image !== 'none' && Boolean(photo);
+  const beside = showImage && (layout.image === 'left' || layout.image === 'right');
+  const pad = settings.density === 'compact' ? 8 : 12;
+  const flush = showImage && !beside && layout.imageSize === 'full' && layout.surface;
+
+  const ratio = layout.imageRatio === 'video' ? '16 / 9'
+    : layout.imageRatio === 'wide' ? '21 / 9'
+    : layout.imageRatio === 'natural' ? '4 / 3'
+    : '1 / 1';
+  const blockWidth = layout.imageSize === 'full' ? '100%' : layout.imageSize === 'medium' ? '66%' : '33%';
+
+  const img = showImage && (
+    <span
+      className="block shrink-0 bg-neutral-200 bg-gradient-to-br from-neutral-200 to-neutral-300"
+      style={
+        beside
+          ? { width: layout.imageSize === 'thumb' ? 48 : 60, height: layout.imageSize === 'thumb' ? 48 : 60, borderRadius: settings.imageShape === 'circle' ? 999 : settings.imageShape === 'square' ? 0 : 8 }
+          : {
+              width: blockWidth,
+              aspectRatio: ratio,
+              marginLeft: align === 'center' ? 'auto' : align === 'right' ? 'auto' : undefined,
+              marginRight: align === 'center' ? 'auto' : undefined,
+              borderRadius: flush ? 0 : settings.imageShape === 'square' ? 0 : 8,
+            }
+      }
+    />
+  );
+
+  const priceEl = (
+    <span className="inline-flex items-baseline gap-1.5" style={styles.price}>
+      {strike && <span className="text-xs line-through" style={{ color: colors.textSec }}>{strike}</span>}
+      <span style={{ color: colors.primary }}>{price}</span>
+    </span>
+  );
+  const nameEl = (
+    <span style={{ color: colors.text, textTransform: textTransform(settings.productCase), ...styles.product }}>
+      {name}
+      {layout.price === 'inline' && <span className="ml-2">{priceEl}</span>}
+    </span>
+  );
+
+  let titleRow: React.ReactNode = nameEl;
+  if (layout.price === 'below') {
+    titleRow = <>{nameEl}<span className="mt-0.5 block">{priceEl}</span></>;
+  } else if (layout.price === 'dots') {
+    titleRow = (
+      <span className="flex w-full items-baseline gap-2">
+        <span className="shrink-0">{nameEl}</span>
+        <span className="min-w-4 flex-1 border-b border-dotted opacity-40" style={{ borderColor: colors.textSec }} />
+        <span className="shrink-0">{priceEl}</span>
+      </span>
+    );
+  } else if (layout.price === 'right') {
+    titleRow = (
+      <span className="flex w-full items-start justify-between gap-2">{nameEl}{priceEl}</span>
+    );
+  }
+
+  const body = (
+    <div className={`flex min-w-0 flex-1 flex-col ${ALIGN_CLASS[align]} ${ITEMS_CLASS[align]}`}>
+      {badge && settings.showBadges && (
         <span
           className="mb-1 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
           style={{ backgroundColor: badge.color, color: badge.text }}
@@ -538,17 +927,47 @@ function PreviewItem({
           {badge.emoji} {badge.label}
         </span>
       )}
-      <div className="flex items-start justify-between gap-2">
-        <span style={{ color: colors.text, ...styles.product }}>{name}</span>
-        <span className="flex items-baseline gap-1.5" style={styles.price}>
-          {strike && <span className="text-xs line-through" style={{ color: colors.textSec }}>{strike}</span>}
-          <span style={{ color: colors.primary }}>{price}</span>
+      {titleRow}
+      {desc && (
+        <p className="mt-1" style={{ color: colors.textSec, textTransform: textTransform(settings.descriptionCase), ...styles.description }}>
+          {desc}
+        </p>
+      )}
+      {settings.showInlineOptions && options && (
+        <div className="mt-1.5 w-full">
+          <span className={`block text-[11px] font-semibold ${ALIGN_CLASS[align]}`} style={{ color: colors.primary }}>
+            Proteína a elegir
+          </span>
+          <div
+            className={`mt-1 grid gap-1 ${align === 'center' ? 'mx-auto w-[85%]' : 'w-full'}`}
+            style={{ gridTemplateColumns: `repeat(${settings.inlineOptionColumns}, minmax(0, 1fr))` }}
+          >
+            {options.map((o) => (
+              <span key={o} className="px-1.5 py-0.5 text-left text-[11px]" style={{ backgroundColor: colors.card, borderRadius: radius / 2 }}>
+                {settings.inlineOptionBullet} {o}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {settings.showAddButton && (
+        <span className={`mt-2 flex ${JUSTIFY_CLASS[align]}`}>
+          <span className="rounded-full px-4 py-1.5 text-xs font-semibold" style={{ backgroundColor: colors.btnBg, color: colors.btnText }}>
+            Agregar
+          </span>
         </span>
-      </div>
-      {desc && <p className="mt-1" style={{ color: colors.textSec, ...styles.description }}>{desc}</p>}
-      <button className="mt-3 rounded-full px-4 py-1.5 text-sm font-semibold" style={{ backgroundColor: colors.btnBg, color: colors.btnText }}>
-        Agregar
-      </button>
+      )}
+    </div>
+  );
+
+  return (
+    <div
+      className={`flex ${beside ? (layout.image === 'right' ? 'flex-row-reverse gap-3' : 'gap-3') : 'flex-col gap-2'} overflow-hidden`}
+      style={{ ...cardStyle, padding: layout.surface && !flush ? pad : undefined }}
+    >
+      {(layout.image === 'top' || beside) && img}
+      {flush ? <div className="flex flex-1 flex-col" style={{ padding: pad }}>{body}</div> : body}
+      {layout.image === 'bottom' && img}
     </div>
   );
 }

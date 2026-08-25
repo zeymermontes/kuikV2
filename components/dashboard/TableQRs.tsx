@@ -12,7 +12,9 @@ export function TableQRs({ baseUrl, name }: { baseUrl: string; name: string }) {
   const gridRef = useRef<HTMLDivElement>(null);
 
   const tables = Array.from({ length: count }, (_, i) => i + 1);
-  const urlFor = (n: number) => `${baseUrl}/menu?mesa=${n}`;
+  // The in-place route, so the QR cart can be configured separately from the
+  // online one (see tenant_ordering.ordering_qr_enabled).
+  const urlFor = (n: number) => `${baseUrl}/qr?mesa=${n}`;
 
   function printQRs() {
     const w = window.open('', '_blank', 'width=820,height=900');
