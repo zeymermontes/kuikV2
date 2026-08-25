@@ -87,6 +87,12 @@ export interface MenuSettings {
   imagePosition: ImagePosition;
   imageSize: ImageSize;
   imageRatio: ImageRatio;
+  /**
+   * Cap on how tall an item photo may get, in px. Stops a portrait shot from
+   * running down the whole page at its natural ratio. The default clears a 4:3
+   * landscape photo at full column width, so it only bites on tall images.
+   */
+  imageMaxHeight: number;
   itemAlign: TextAlign;
   priceStyle: PriceStyle;
   showAddButton: boolean;
@@ -163,6 +169,7 @@ export const DEFAULT_MENU_SETTINGS: MenuSettings = {
   imagePosition: 'auto',
   imageSize: 'auto',
   imageRatio: 'auto',
+  imageMaxHeight: 560,
   itemAlign: 'auto',
   priceStyle: 'auto',
   showAddButton: true,

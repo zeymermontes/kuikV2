@@ -379,7 +379,9 @@
     "header": "Header",
     "headerHint": "The top of the menu: logo, name and shortcuts.",
     "previewBack": "Back",
-    "logoWideHeightHint": "Upload the horizontal logo under Brand. Without one, the bar falls back to the round logo."
+    "logoWideHeightHint": "Upload the horizontal logo under Brand. Without one, the bar falls back to the round logo.",
+    "imageMaxHeight": "Maximum photo height",
+    "imageMaxHeightHint": "Stops a portrait shot — a bottle, say — from taking over whole screens."
   },
   "landing": {
     "title": "Home screen",

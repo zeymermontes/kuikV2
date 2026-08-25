@@ -93,24 +93,31 @@ export function ProductCard({
         />
       );
     } else {
+      const widthPct =
+        layout.imageSize === 'full' ? '100%' : layout.imageSize === 'medium' ? '66.666%' : '33.333%';
       const blockWidth =
         layout.imageSize === 'full' ? 'w-full' : layout.imageSize === 'medium' ? 'w-2/3' : 'w-1/3';
       const rounding = flush ? '' : IMAGE_SHAPE_CLASS[settings.imageShape];
       const centered = align === 'center' ? 'mx-auto' : align === 'right' ? 'ml-auto' : '';
+      const maxH = settings.imageMaxHeight;
       imageEl =
         layout.imageRatio === 'natural' ? (
-          // Natural aspect ratio: the browser derives the height from the file.
+          // Natural ratio: the browser derives the height from the file, so a
+          // portrait shot is bounded by height and its width follows. Capping
+          // width instead would stretch a tall photo down the whole page.
           <Image
             src={product.image_url!}
             alt={product.name}
             width={1200}
             height={800}
             sizes="(max-width: 768px) 100vw, 768px"
-            className={`h-auto ${blockWidth} ${centered} ${rounding} object-cover`}
+            className={`h-auto ${centered} ${rounding} object-contain`}
+            style={{ maxHeight: maxH, width: 'auto', maxWidth: widthPct }}
           />
         ) : (
           <div
             className={`relative ${blockWidth} ${centered} ${rounding} ${flush ? '' : 'overflow-hidden'} ${RATIO_CLASS[layout.imageRatio]}`}
+            style={{ maxHeight: maxH }}
           >
             <Image
               src={product.image_url!}

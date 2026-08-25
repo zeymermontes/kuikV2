@@ -454,6 +454,24 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
               ['wide', t('ratioWide')],
             ]}
           />
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-medium">{t('imageMaxHeight')}</span>
+            <div className="flex flex-1 items-center gap-2">
+              <input
+                type="range"
+                min={120}
+                max={900}
+                step={20}
+                value={settings.imageMaxHeight}
+                onChange={(e) => setS('imageMaxHeight', Number(e.target.value))}
+                className="h-1 flex-1 cursor-pointer accent-neutral-900"
+              />
+              <span className="w-12 text-right text-[10px] text-neutral-400">
+                {settings.imageMaxHeight}px
+              </span>
+            </div>
+          </div>
+          <p className="-mt-2 text-xs text-neutral-500">{t('imageMaxHeightHint')}</p>
           <SelectRow
             label={t('itemSpacing')}
             value={settings.itemSpacing}

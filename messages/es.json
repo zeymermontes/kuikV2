@@ -379,7 +379,9 @@
     "header": "Encabezado",
     "headerHint": "La parte de arriba del menú: logo, nombre y accesos.",
     "previewBack": "Regresar",
-    "logoWideHeightHint": "Sube el logo horizontal en Marca. Si no hay, la barra usa el logo redondo."
+    "logoWideHeightHint": "Sube el logo horizontal en Marca. Si no hay, la barra usa el logo redondo.",
+    "imageMaxHeight": "Alto máximo de la foto",
+    "imageMaxHeightHint": "Evita que una foto vertical (una botella, por ejemplo) ocupe pantallas enteras."
   },
   "landing": {
     "title": "Pantalla de inicio",
