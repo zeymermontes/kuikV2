@@ -1126,6 +1126,18 @@
     "conflictSupport": "Some businesses listed aren't managed by you. Contact Kuik support to release them.",
     "warnDisabled": "Your number is connected but WhatsApp is off, so nothing gets answered. Turn it on below.",
     "warnBotOff": "Auto-replies are off: messages are recorded, but the assistant stays quiet.",
-    "aiLastFailure": "The AI couldn't answer last time"
+    "aiLastFailure": "The AI couldn't answer last time",
+    "diagTitle": "Diagnostics",
+    "diagHint": "What is actually happening right now.",
+    "diagBridge": "Bridge service",
+    "diagSession": "Live WhatsApp session",
+    "diagLastInbound": "Last message received",
+    "diagLastOutbound": "Last message sent",
+    "diagOk": "OK",
+    "diagNever": "never",
+    "diagUnreachable": "not responding",
+    "diagNoSession": "no session",
+    "diagNoSessionHint": "The bridge is up but holds no session for this restaurant. Scan the QR again.",
+    "diagNoInboundHint": "Nothing has arrived. If you wrote from another number and it isn't here, WhatsApp isn't delivering to the session: unlink from your phone (Settings → Linked devices) and pair again."
   }
 }

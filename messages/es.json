@@ -1126,6 +1126,18 @@
     "conflictSupport": "Hay negocios en la lista que no administras. Contacta a soporte de Kuik para liberarlos.",
     "warnDisabled": "Tu número está conectado pero WhatsApp está apagado, así que no se contesta nada. Préndelo aquí abajo.",
     "warnBotOff": "Las respuestas automáticas están apagadas: los mensajes se guardan, pero el asistente no contesta.",
-    "aiLastFailure": "La IA no pudo responder la última vez"
+    "aiLastFailure": "La IA no pudo responder la última vez",
+    "diagTitle": "Diagnóstico",
+    "diagHint": "Lo que está pasando de verdad ahora mismo.",
+    "diagBridge": "Servicio puente",
+    "diagSession": "Sesión de WhatsApp activa",
+    "diagLastInbound": "Último mensaje recibido",
+    "diagLastOutbound": "Último mensaje enviado",
+    "diagOk": "Bien",
+    "diagNever": "nunca",
+    "diagUnreachable": "no responde",
+    "diagNoSession": "sin sesión",
+    "diagNoSessionHint": "El puente responde pero no tiene sesión de este restaurante. Vuelve a escanear el QR.",
+    "diagNoInboundHint": "No ha llegado ningún mensaje. Si le escribiste desde otro número y no aparece, WhatsApp no se lo está entregando a la sesión: desvincula desde tu celular (Ajustes → Dispositivos vinculados) y parea de nuevo."
   }
 }

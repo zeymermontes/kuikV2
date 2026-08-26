@@ -8,6 +8,8 @@ import { WhatsappConnect } from '@/components/dashboard/whatsapp/WhatsappConnect
 import { WhatsappPair } from '@/components/dashboard/whatsapp/WhatsappPair';
 import { BotSettings } from '@/components/dashboard/whatsapp/BotSettings';
 import { AiSettings } from '@/components/dashboard/whatsapp/AiSettings';
+import { WhatsappDiagnostics } from '@/components/dashboard/whatsapp/WhatsappDiagnostics';
+import { diagnose } from '@/lib/whatsapp/bridge';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +21,7 @@ export default async function WhatsappPage() {
   const period = new Date();
   period.setUTCDate(1);
 
-  const [{ data: numbers }, { data: settings }, { data: canned }, { data: goals }, { data: aiConfig }, { data: lastAiFailure }, { data: usage }] =
+  const [{ data: numbers }, { data: settings }, { data: canned }, { data: goals }, { data: aiConfig }, { data: lastAiFailure }, { data: recentMessages }, { data: usage }] =
     await Promise.all([
       supabase.from('whatsapp_numbers').select('*').eq('tenant_id', tenant.id).order('created_at'),
       supabase.from('whatsapp_settings').select('*').eq('tenant_id', tenant.id).maybeSingle(),
@@ -42,6 +44,14 @@ export default async function WhatsappPage() {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle(),
+      // Newest message either way, so "is anything arriving?" is answerable
+      // without reading a server log.
+      supabase
+        .from('whatsapp_messages')
+        .select('direction, created_at')
+        .eq('tenant_id', tenant.id)
+        .order('created_at', { ascending: false })
+        .limit(50),
       supabase
         .from('ai_usage_counters')
         .select('messages')
@@ -49,6 +59,11 @@ export default async function WhatsappPage() {
         .eq('period', period.toISOString().slice(0, 10))
         .maybeSingle(),
     ]);
+
+  // Asked of the bridge itself, not of our own tables: the two disagree in
+  // exactly the situation that needs explaining.
+  const bridge = await diagnose();
+  const msgs = (recentMessages ?? []) as { direction: string; created_at: string }[];
 
   const numberRows = (numbers ?? []) as (Parameters<typeof WhatsappConnect>[0]['numbers'][number] & { mode: string })[];
   const showCloudApi = process.env.NEXT_PUBLIC_WHATSAPP_CLOUD === '1';
@@ -65,6 +80,17 @@ export default async function WhatsappPage() {
       ) : (
         <WhatsappPair numbers={numberRows} />
       )}
+
+      <WhatsappDiagnostics
+        reachable={bridge.reachable}
+        hasLiveSession={bridge.sessions.some(
+          (x) => x.sessionId === tenant.id && x.status === 'connected',
+        )}
+        bridgeError={bridge.error}
+        lastInboundAt={msgs.find((m) => m.direction === 'inbound')?.created_at ?? null}
+        lastOutboundAt={msgs.find((m) => m.direction === 'outbound')?.created_at ?? null}
+        inboundCount={msgs.filter((m) => m.direction === 'inbound').length}
+      />
 
       <BotSettings
         settings={settings as Parameters<typeof BotSettings>[0]['settings']}

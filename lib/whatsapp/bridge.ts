@@ -97,3 +97,27 @@ export function verifyBridgeSignature(rawBody: string, header: string | null): b
   if (a.length !== b.length) return false;
   return timingSafeEqual(a, b);
 }
+
+export interface BridgeDiagnostics {
+  reachable: boolean;
+  /** Tenants the bridge currently holds a live session for. */
+  sessions: BridgeSession[];
+  error?: string;
+}
+
+/**
+ * What the bridge itself believes, as opposed to what our own tables say.
+ *
+ * These disagree more often than is comfortable: a row can read "connected"
+ * while the bridge holds no session at all, which is exactly the state that
+ * looks like "the bot is ignoring me".
+ */
+export async function diagnose(): Promise<BridgeDiagnostics> {
+  if (!bridgeConfigured()) return { reachable: false, sessions: [], error: 'bridge_not_configured' };
+  try {
+    const { sessions } = await call<{ sessions: BridgeSession[] }>('/sessions');
+    return { reachable: true, sessions: sessions ?? [] };
+  } catch (err) {
+    return { reachable: false, sessions: [], error: String(err).slice(0, 200) };
+  }
+}
