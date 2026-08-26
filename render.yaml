@@ -137,5 +137,10 @@ services:
         sync: false
       - key: KUIK_WEBHOOK_URL
         value: https://app.kuik.mx/api/webhooks/whatsapp/bridge
+      # Must pin a non-public schema: whatsmeow's tables hold session keys, and
+      # anything in `public` is published by Supabase's REST API. Run
+      # `create schema if not exists whatsmeow;` first, then append
+      # `?sslmode=require&search_path=whatsmeow` to the connection string.
+      # The service refuses to boot otherwise.
       - key: DATABASE_URL
         sync: false

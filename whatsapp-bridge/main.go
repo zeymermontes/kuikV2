@@ -38,6 +38,25 @@ func main() {
 
 	logger := waLog.Stdout("bridge", envOr("LOG_LEVEL", "INFO"), true)
 
+	// whatsmeow's tables hold the session's cryptographic material —
+	// noise_key, identity_key, adv_key. In Supabase, anything in the `public`
+	// schema is published by PostgREST, and the anon key that reaches it ships
+	// inside every browser bundle. Landing there would put the keys to a
+	// restaurant's WhatsApp account behind a public URL.
+	//
+	// PostgREST exposes only `public`, so a dedicated schema is the fix. Refuse
+	// to start without one rather than quietly doing the dangerous thing.
+	if !strings.Contains(databaseURL, "search_path=") {
+		log.Fatal(
+			"DATABASE_URL must pin a non-public schema, e.g. ...&search_path=whatsmeow — " +
+				"session keys in `public` would be served by Supabase's REST API. " +
+				"Create it first: CREATE SCHEMA IF NOT EXISTS whatsmeow;",
+		)
+	}
+	if strings.Contains(databaseURL, "search_path=public") {
+		log.Fatal("DATABASE_URL points search_path at `public`; see the note above.")
+	}
+
 	// Device credentials live in Postgres so a redeploy doesn't force every
 	// restaurant to re-pair. Losing this store means losing every session.
 	container, err := sqlstore.New(context.Background(), "postgres", databaseURL, logger.Sub("store"))

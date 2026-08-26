@@ -35,9 +35,27 @@ Switching a tenant across is a re-pair, not a rewrite.
 ```
 export BRIDGE_SECRET=...          # shared with Kuik (WHATSAPP_BRIDGE_SECRET)
 export KUIK_WEBHOOK_URL=https://app.kuik.mx/api/webhooks/whatsapp/bridge
-export DATABASE_URL=postgres://...  # session store; a separate schema is fine
+export DATABASE_URL='postgres://...?sslmode=require&search_path=whatsmeow'
 go run .
 ```
+
+### The schema is not optional
+
+whatsmeow stores the session's cryptographic material — `noise_key`,
+`identity_key`, `adv_key` — in its own tables. If those land in Supabase's
+`public` schema, PostgREST publishes them, and the anon key that reads it ships
+inside every browser bundle: the keys to a restaurant's WhatsApp account would
+sit behind a public URL.
+
+PostgREST exposes only `public`, so pinning `search_path` to a dedicated schema
+is the fix. Create it once:
+
+```sql
+create schema if not exists whatsmeow;
+```
+
+The service refuses to start without it rather than quietly doing the dangerous
+thing.
 
 Sessions survive restarts because whatsmeow persists device credentials in
 `DATABASE_URL`. Losing that store means every restaurant has to re-pair.
