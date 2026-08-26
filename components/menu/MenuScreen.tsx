@@ -11,10 +11,13 @@ import { PdfMenu } from './PdfMenu';
 export async function MenuScreen({
   hostKey,
   branchSlug,
+  openReservation = false,
   channel = 'online',
 }: {
   hostKey: string;
   branchSlug?: string;
+  /** Forwarded from `?reservar=1` on the menu route. */
+  openReservation?: boolean;
   /** 'qr' = a code inside the restaurant; 'online' = a link shared anywhere. */
   channel?: 'online' | 'qr';
 }) {
@@ -55,6 +58,10 @@ export async function MenuScreen({
       plan={data.plan}
       branches={data.branches}
       currentBranch={branch?.slug ?? null}
+      // The slug above drives /b/<slug> links; a reservation needs the real id,
+      // and without it every booking was stored with branch_id = null.
+      currentBranchId={branch?.id ?? null}
+      openReservation={openReservation}
       landingEnabled={data.landing.enabled}
       channel={channel}
       menu={menu}

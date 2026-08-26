@@ -12,11 +12,14 @@ export function ReservationSheet({
 }: {
   tenantId: string;
   branchId?: string | null;
-  required?: { phone?: boolean; party?: boolean; note?: boolean } | null;
+  required?: { name?: boolean; phone?: boolean; party?: boolean; note?: boolean } | null;
   onClose: () => void;
 }) {
   const t = useTranslations('reserve');
   const req = required ?? {};
+  // The name was mandatory before this became configurable, so an absent flag
+  // still means required — only an explicit false relaxes it.
+  const nameRequired = req.name !== false;
   const star = (on?: boolean) => (on ? ' *' : '');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -26,6 +29,9 @@ export function ReservationSheet({
   const [note, setNote] = useState('');
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Bots fill every field they find; a diner never sees this one.
+  const [website, setWebsite] = useState('');
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -35,11 +41,16 @@ export function ReservationSheet({
     };
   }, []);
 
-  const valid = name.trim() && date && time && (!req.phone || phone.trim()) && (!req.note || note.trim());
+  const valid =
+    (!nameRequired || name.trim()) &&
+    date && time &&
+    (!req.phone || phone.trim()) &&
+    (!req.note || note.trim());
 
   async function submit() {
     if (!valid) return;
     setSending(true);
+    setError(null);
     try {
       const res = await fetch(`/api/reservation/${tenantId}`, {
         method: 'POST',
@@ -52,11 +63,20 @@ export function ReservationSheet({
           time,
           note: note || null,
           branch_id: branchId ?? null,
+          website,
         }),
       });
-      if (res.ok) setDone(true);
+      if (res.ok) {
+        setDone(true);
+        return;
+      }
+      // The server enforces things the form cannot know about — whether
+      // bookings are open at all, how far ahead they must be, whether the room
+      // is already full. Saying so beats a button that just does nothing.
+      const body = (await res.json().catch(() => null)) as { error?: string } | null;
+      setError(body?.error ?? 'failed');
     } catch {
-      // surfaced by staying open
+      setError('failed');
     } finally {
       setSending(false);
     }
@@ -89,8 +109,8 @@ export function ReservationSheet({
               <CalendarCheck className="h-5 w-5" /> {t('title')}
             </h2>
             <div className="space-y-3">
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={`${t('name')} *`} className={field} />
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={`${t('phone')}${star(req.phone)}`} inputMode="tel" className={field} />
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={`${t('name')}${nameRequired ? ' *' : ` ${t('optional')}`}`} className={field} />
+              <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={`${t('phone')}${req.phone ? ' *' : ` ${t('optional')}`}`} inputMode="tel" className={field} />
               <div className="flex gap-3">
                 <div className="flex-1">
                   <label className="mb-1 block text-xs text-neutral-500">{t('date')}</label>
@@ -106,7 +126,21 @@ export function ReservationSheet({
                 </div>
               </div>
               <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={`${t('notePlaceholder')}${star(req.note)}`} rows={2} className={field} />
+              <input
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                name="website"
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden
+                className="pointer-events-none absolute -left-[9999px] h-0 w-0 opacity-0"
+              />
             </div>
+            {error && (
+              <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                {t.has(`err_${error}`) ? t(`err_${error}`) : t('err_failed')}
+              </p>
+            )}
             <button
               onClick={submit}
               disabled={!valid || sending}
