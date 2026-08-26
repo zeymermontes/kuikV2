@@ -150,17 +150,22 @@ func (m *Manager) Start(ctx context.Context, tenantID string) (*Session, error) 
 		case *events.Connected:
 			session.set("connected", "", "")
 			// Only now does a JID exist. Recording it here is what lets the
-			// session come back after a restart.
+			// session come back after a restart — but it is a database write,
+			// and every handler here runs on whatsmeow's socket goroutine, so
+			// it goes on its own. Same class of mistake as the forwarder.
 			if client.Store.ID != nil {
-				if err := m.registry.Link(context.Background(), tenantID, *client.Store.ID); err != nil {
-					m.logger.Warnf("could not record session for %s: %v", tenantID, err)
-				}
+				jid := *client.Store.ID
+				go func() {
+					if err := m.registry.Link(context.Background(), tenantID, jid); err != nil {
+						m.logger.Warnf("could not record session for %s: %v", tenantID, err)
+					}
+				}()
 			}
 		case *events.LoggedOut:
 			// The phone unlinked us, or WhatsApp did. Either way the stored
 			// credentials are worthless now, so forget the mapping too.
 			session.set("disconnected", "", "logged_out")
-			_ = m.registry.Unlink(context.Background(), tenantID)
+			go func() { _ = m.registry.Unlink(context.Background(), tenantID) }()
 		case *events.StreamReplaced:
 			// Another connection took over this device. whatsmeow calls
 			// expectDisconnect() first, which switches OFF its own
