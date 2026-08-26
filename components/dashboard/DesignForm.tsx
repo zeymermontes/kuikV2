@@ -736,6 +736,8 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
           <ToggleRow label={t('showSearch')} checked={settings.showSearch} onChange={(v) => setS('showSearch', v)} />
           <ToggleRow label={t('showBadges')} checked={settings.showBadges} onChange={(v) => setS('showBadges', v)} />
           <ToggleRow label={t('showFilters')} checked={settings.showFilters} onChange={(v) => setS('showFilters', v)} />
+          <ToggleRow label={t('showHours')} checked={settings.showHours} onChange={(v) => setS('showHours', v)} />
+          <ToggleRow label={t('showDirections')} checked={settings.showDirections} onChange={(v) => setS('showDirections', v)} />
           <ToggleRow label={t('showSocial')} checked={settings.showSocial} onChange={(v) => setS('showSocial', v)} />
           <ToggleRow
             label={t('whatsappBubble')}

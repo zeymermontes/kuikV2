@@ -36,6 +36,40 @@ services:
         sync: false
       - key: CRON_SECRET
         sync: false
+      - key: KUIK_SECRET_KEY
+        sync: false
+      - key: NEXT_PUBLIC_VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        value: mailto:soporte@kuik.mx
+      - key: NEXT_PUBLIC_META_APP_ID
+        sync: false
+      - key: META_APP_SECRET
+        sync: false
+      - key: NEXT_PUBLIC_META_CONFIG_ID
+        sync: false
+      - key: META_GRAPH_VERSION
+        value: v23.0
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false
+      - key: WHATSAPP_BRIDGE_URL
+        sync: false
+      - key: WHATSAPP_BRIDGE_SECRET
+        sync: false
+      - key: AI_DEFAULT_PROVIDER
+        value: deepseek
+      - key: AI_DEEPSEEK_KEY
+        sync: false
+      - key: AI_OPENAI_KEY
+        sync: false
+      - key: AI_GEMINI_KEY
+        sync: false
+      - key: AI_ANTHROPIC_KEY
+        sync: false
+      - key: AI_KIMI_KEY
+        sync: false
       - key: RENDER_API_KEY
         sync: false
       - key: RENDER_SERVICE_ID
@@ -53,4 +87,55 @@ services:
       https://app.kuik.mx/api/cron/expire-trials
     envVars:
       - key: CRON_SECRET
+        sync: false
+
+  # 24-hour reservation reminders.
+  # Hourly, not daily: a booking can be at any time, and the job claims the
+  # one-hour window that sits exactly 24h out. Claiming is idempotent, so an
+  # overlapping or retried run costs nothing.
+  - type: cron
+    name: kuik-reservation-reminders
+    runtime: node
+    schedule: "5 * * * *" # every hour at :05
+    plan: starter
+    buildCommand: "echo no build"
+    startCommand: >
+      curl -fsS -H "Authorization: Bearer $CRON_SECRET"
+      https://app.kuik.mx/api/cron/reservation-reminders
+    envVars:
+      - key: CRON_SECRET
+        sync: false
+
+  # WhatsApp housekeeping: re-runs webhook events that never finished, warns
+  # before Coexistence drops an idle number at 14 days, and prunes old payloads.
+  - type: cron
+    name: kuik-whatsapp-maintenance
+    runtime: node
+    schedule: "*/5 * * * *"
+    plan: starter
+    buildCommand: "echo no build"
+    startCommand: >
+      curl -fsS -H "Authorization: Bearer $CRON_SECRET"
+      https://app.kuik.mx/api/cron/whatsapp-maintenance
+    envVars:
+      - key: CRON_SECRET
+        sync: false
+
+  # whatsmeow bridge: one linked-device WhatsApp session per restaurant.
+  # Stateful and long-running by nature, so it cannot live inside the web
+  # service. Read whatsapp-bridge/README.md before enabling this in production.
+  - type: web
+    name: kuik-whatsapp-bridge
+    runtime: go
+    plan: starter
+    rootDir: whatsapp-bridge
+    buildCommand: go build -o bridge ./...
+    startCommand: ./bridge
+    healthCheckPath: /health
+    envVars:
+      - key: BRIDGE_SECRET
+        sync: false
+      - key: KUIK_WEBHOOK_URL
+        value: https://app.kuik.mx/api/webhooks/whatsapp/bridge
+      - key: DATABASE_URL
         sync: false

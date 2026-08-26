@@ -1,5 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { contentTypeFor, LANDING_DIR } from '@/lib/landing';
+import { getLandingVars, applyLandingVars, isSubstitutable } from '@/lib/landing-vars';
+import { LANDING_BRIDGE } from '@/lib/landing-bridge';
 
 /**
  * Serves a tenant's uploaded custom-landing files from the `media` bucket.
@@ -32,9 +34,38 @@ export async function GET(
     .download(`${tenantId}/${LANDING_DIR}/${rel}`);
   if (error || !data) return new Response('Not found', { status: 404 });
 
+  const contentType = contentTypeFor(rel);
+
+  // Text files get `{{variable}}` filled in from the restaurant's current
+  // settings. That is what lets a phone number change in Kuik without anyone
+  // rebuilding and re-uploading the ZIP.
+  if (isSubstitutable(rel)) {
+    const vars = await getLandingVars(tenantId);
+    let body = applyLandingVars(await data.text(), vars);
+
+    // HTML also gets the bridge script, so the page can ask the app to open the
+    // reservation sheet. The iframe is sandboxed without allow-same-origin, so
+    // postMessage is the only channel it has — a fetch or a direct call would
+    // be blocked by the opaque origin.
+    if (contentType.startsWith('text/html')) {
+      body = body.includes('</body>')
+        ? body.replace('</body>', `${LANDING_BRIDGE}</body>`)
+        : body + LANDING_BRIDGE;
+    }
+
+    return new Response(body, {
+      headers: {
+        'content-type': contentType,
+        // Shorter than the assets: these carry live settings now.
+        'cache-control': 'public, max-age=60',
+        'x-content-type-options': 'nosniff',
+      },
+    });
+  }
+
   return new Response(await data.arrayBuffer(), {
     headers: {
-      'content-type': contentTypeFor(rel),
+      'content-type': contentType,
       'cache-control': 'public, max-age=300',
       'x-content-type-options': 'nosniff',
     },

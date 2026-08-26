@@ -30,7 +30,11 @@ export default async function TenantHome({
   // tenant's JS runs in an opaque origin and can't touch our session, cookies,
   // or ordering APIs.
   if (landing.landing_mode === 'custom' && landing.custom_entry) {
-    return <CustomLandingFrame tenant={data.tenant} entryPath={landing.custom_entry} />;
+    return <CustomLandingFrame
+        tenant={data.tenant}
+        entryPath={landing.custom_entry}
+        contact={data.contact}
+      />;
   }
 
   // Template landing as the home screen (unless the super-admin forced 'none').

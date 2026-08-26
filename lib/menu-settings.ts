@@ -76,6 +76,10 @@ export interface MenuSettings {
   showBadges: boolean;
   soldOutStyle: SoldOutStyle;
   showSocial: boolean;
+  /** The "Open now · 12:00–23:00" badge under the header. */
+  showHours: boolean;
+  /** The "Get directions" pill under the header. */
+  showDirections: boolean;
   /** Floating WhatsApp button in the corner — a contact channel, so it shows
    *  whether or not the menu takes orders. */
   whatsappBubble: boolean;
@@ -162,6 +166,9 @@ export const DEFAULT_MENU_SETTINGS: MenuSettings = {
   showBadges: true,
   soldOutStyle: 'gray',
   showSocial: true,
+  // Both default to true so nothing changes for a menu that predates them.
+  showHours: true,
+  showDirections: true,
   whatsappBubble: false,
   contentWidth: 'normal',
   itemSpacing: 'auto',

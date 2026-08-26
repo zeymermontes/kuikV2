@@ -22,5 +22,9 @@ export default async function CustomLandingRoute({
   const data = await getTenantByHostKey(decodeURIComponent(hostKey));
   if (!data?.landing.custom_entry) notFound();
 
-  return <CustomLandingFrame tenant={data.tenant} entryPath={data.landing.custom_entry} />;
+  return <CustomLandingFrame
+      tenant={data.tenant}
+      entryPath={data.landing.custom_entry}
+      contact={data.contact}
+    />;
 }

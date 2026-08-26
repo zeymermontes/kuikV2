@@ -112,6 +112,8 @@ export function MenuView({
   plan,
   branches = [],
   currentBranch = null,
+  currentBranchId = null,
+  openReservation = false,
   landingEnabled = false,
   channel = 'online',
   menu,
@@ -124,6 +126,10 @@ export function MenuView({
   plan: 'basic' | 'pro';
   branches?: BranchLite[];
   currentBranch?: string | null;
+  /** The branch's id. `currentBranch` is its slug, which a booking can't use. */
+  currentBranchId?: string | null;
+  /** Open the reservation sheet on arrival (from `?reservar=1`). */
+  openReservation?: boolean;
   landingEnabled?: boolean;
   /** 'qr' = reached from a QR inside the restaurant; 'online' = a shared link. */
   channel?: 'online' | 'qr';
@@ -137,7 +143,11 @@ export function MenuView({
   const [query, setQuery] = useState('');
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [presetTable, setPresetTable] = useState<string | null>(null);
-  const [showReserve, setShowReserve] = useState(false);
+  // Decided on the server from `?reservar=1`, so the first render matches and
+  // hydration stays quiet.
+  const [showReserve, setShowReserve] = useState(
+    openReservation && contact.reservations_enabled,
+  );
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [navStuck, setNavStuck] = useState(false);
@@ -401,8 +411,8 @@ export function MenuView({
   const barHeader = settings.headerStyle === 'bar';
   const hasHeaderExtras =
     Boolean(settings.showSlogan && theme.slogan) ||
-    Boolean(contact.hours) ||
-    Boolean(mapHref(contact.maps_url, contact.address)) ||
+    Boolean(settings.showHours && contact.hours) ||
+    Boolean(settings.showDirections && mapHref(contact.maps_url, contact.address)) ||
     (settings.showSocial &&
       Boolean(contact.instagram || contact.facebook || contact.website)) ||
     (loyalty.enabled && plan === 'pro') ||
@@ -612,8 +622,12 @@ export function MenuView({
           </h1>
         )}
         {settings.showSlogan && theme.slogan && <p className="text-sm opacity-70">{theme.slogan}</p>}
-        <OpenStatus hours={contact.hours} />
-        <ContactLinks contact={contact} showSocial={settings.showSocial} />
+        {settings.showHours && <OpenStatus hours={contact.hours} timezone={tenant.timezone} />}
+        <ContactLinks
+          contact={contact}
+          showSocial={settings.showSocial}
+          showDirections={settings.showDirections}
+        />
         {contact.reservations_enabled && !landingEnabled && (
           <button
             onClick={() => setShowReserve(true)}
@@ -640,8 +654,12 @@ export function MenuView({
       {barHeader && hasHeaderExtras && (
         <div className="flex flex-col items-center gap-2 px-5 pt-4 text-center">
           {settings.showSlogan && theme.slogan && <p className="text-sm opacity-70">{theme.slogan}</p>}
-          <OpenStatus hours={contact.hours} />
-          <ContactLinks contact={contact} showSocial={settings.showSocial} />
+          {settings.showHours && <OpenStatus hours={contact.hours} timezone={tenant.timezone} />}
+          <ContactLinks
+            contact={contact}
+            showSocial={settings.showSocial}
+            showDirections={settings.showDirections}
+          />
           {loyalty.enabled && plan === 'pro' && (
             <LoyaltyButton tenantId={tenant.id} program={loyalty} logoUrl={logo} />
           )}
@@ -904,7 +922,12 @@ export function MenuView({
       )}
 
       {showReserve && (
-        <ReservationSheet tenantId={tenant.id} required={contact.reservation_required} onClose={() => setShowReserve(false)} />
+        <ReservationSheet
+          tenantId={tenant.id}
+          branchId={currentBranchId}
+          required={contact.reservation_required}
+          onClose={() => setShowReserve(false)}
+        />
       )}
 
       {activeProduct && (
@@ -1059,9 +1082,17 @@ function FacebookIcon({ className }: { className?: string }) {
 }
 
 // "Get directions" + social links as labeled pills in one row.
-function ContactLinks({ contact, showSocial }: { contact: TenantContact; showSocial: boolean }) {
+function ContactLinks({
+  contact,
+  showSocial,
+  showDirections,
+}: {
+  contact: TenantContact;
+  showSocial: boolean;
+  showDirections: boolean;
+}) {
   const t = useTranslations('menu');
-  const map = mapHref(contact.maps_url, contact.address);
+  const map = showDirections ? mapHref(contact.maps_url, contact.address) : null;
   const items: { href: string; label: string; icon: React.ReactNode }[] = [];
   if (map) items.push({ href: map, label: t('directions'), icon: <MapPin className="h-4 w-4" /> });
   if (showSocial) {
