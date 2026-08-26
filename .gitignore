@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...but the template is documentation, not a secret, and without it nobody
+# deploying this can tell which variables the app needs.
+!.env.example
 
 # vercel
 .vercel
