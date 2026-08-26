@@ -1,0 +1,3 @@
+# Compiled binary — Render builds it from source (`go build -o bridge ./...`).
+bridge
+whatsapp-bridge
