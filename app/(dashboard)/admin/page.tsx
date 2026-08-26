@@ -9,8 +9,16 @@ import { AwardMonthsButton } from '@/components/dashboard/AwardMonthsButton';
 import { TenantAdminActions } from '@/components/dashboard/TenantAdminActions';
 import { LandingControls } from '@/components/dashboard/LandingControls';
 import { PricingSettings } from '@/components/dashboard/PricingSettings';
+import { AiPlatformSettings } from '@/components/dashboard/AiPlatformSettings';
+import { LandingAiPrompt } from '@/components/dashboard/LandingAiPrompt';
+import { listAiUsage } from './actions';
 import { PlanSelect } from '@/components/dashboard/PlanSelect';
 import type { SubscriptionStatus } from '@/lib/database.types';
+
+// Already dynamic in practice, because requireSuperAdmin() reads cookies — but
+// this page also reads secrets from process.env to report which provider keys
+// exist, and that must never be evaluated at build time and cached.
+export const dynamic = 'force-dynamic';
 
 interface Overview {
   tenant_id: string;
@@ -37,6 +45,42 @@ export default async function AdminPage() {
   await requireSuperAdmin();
   const t = await getTranslations('superAdmin');
   const supabase = await createClient();
+
+  // Which provider keys are actually present. Read here rather than in the
+  // client component: these are server-only env vars, and only their PRESENCE
+  // ever crosses to the browser — never a value.
+  const configuredProviders = (
+    [
+      ['deepseek', process.env.AI_DEEPSEEK_KEY],
+      ['openai', process.env.AI_OPENAI_KEY],
+      ['gemini', process.env.AI_GEMINI_KEY],
+      ['anthropic', process.env.AI_ANTHROPIC_KEY],
+      ['kimi', process.env.AI_KIMI_KEY],
+    ] as const
+  )
+    .filter(([, key]) => Boolean(key))
+    .map(([id]) => id as string);
+
+  const [{ data: aiRow }, aiUsage] = await Promise.all([
+    supabase
+      .from('platform_settings')
+      .select('ai_enabled, whatsapp_enabled, ai_default_provider, ai_default_model, ai_monthly_message_cap')
+      .eq('id', 1)
+      .maybeSingle(),
+    listAiUsage(),
+  ]);
+
+  const aiSettings = {
+    ai_enabled: (aiRow as { ai_enabled?: boolean } | null)?.ai_enabled ?? true,
+    whatsapp_enabled: (aiRow as { whatsapp_enabled?: boolean } | null)?.whatsapp_enabled ?? true,
+    ai_default_provider:
+      (aiRow as { ai_default_provider?: string } | null)?.ai_default_provider ??
+      process.env.AI_DEFAULT_PROVIDER ??
+      'deepseek',
+    ai_default_model: (aiRow as { ai_default_model?: string | null } | null)?.ai_default_model ?? null,
+    ai_monthly_message_cap:
+      (aiRow as { ai_monthly_message_cap?: number } | null)?.ai_monthly_message_cap ?? 3000,
+  };
 
   const { data } = await supabase.rpc('admin_tenant_overview');
   const rows = (data ?? []) as Overview[];
@@ -88,6 +132,20 @@ export default async function AdminPage() {
 
       <div className="mb-6">
         <PricingSettings settings={plan} />
+      </div>
+
+      {/* Platform-level reference: the brief is identical for every tenant, so
+          it lives here once rather than repeating inside each row's controls. */}
+      <div className="mb-6">
+        <LandingAiPrompt />
+      </div>
+
+      <div className="mb-6">
+        <AiPlatformSettings
+          settings={aiSettings}
+          usage={aiUsage}
+          configuredProviders={configuredProviders}
+        />
       </div>
 
       <Card className="overflow-x-auto p-0">

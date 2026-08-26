@@ -191,6 +191,103 @@ export async function updatePricing(input: {
   revalidatePath('/');
 }
 
+/**
+ * Super-admin: the AI and WhatsApp switches that apply to every tenant.
+ *
+ * Note what is NOT here: Kuik's own provider API keys. Those live in env vars
+ * (AI_DEEPSEEK_KEY and friends) on purpose — keeping them out of Postgres means
+ * a database dump, a bad RLS policy or a stray `select *` can never leak them.
+ * This page controls which provider is used and how much a tenant may spend on
+ * Kuik's key; the key itself is set in Render.
+ */
+export async function updateAiPlatform(input: {
+  aiEnabled: boolean;
+  whatsappEnabled: boolean;
+  defaultProvider: string;
+  defaultModel?: string | null;
+  monthlyMessageCap: number;
+}) {
+  await requireSuperAdmin();
+
+  const supabase = createAdminClient();
+  await supabase.from('platform_settings').upsert(
+    {
+      id: 1,
+      ai_enabled: input.aiEnabled,
+      // A kill switch that needs no deploy: flipping this stops every tenant's
+      // bot mid-conversation and falls them back to the scripted flows.
+      whatsapp_enabled: input.whatsappEnabled,
+      ai_default_provider: input.defaultProvider,
+      // Empty means "use whatever the code defaults to for this provider",
+      // which is safer than pinning a name that the provider may retire.
+      ...(input.defaultModel !== undefined
+        ? { ai_default_model: input.defaultModel?.trim() || null }
+        : {}),
+      ai_monthly_message_cap: Math.max(0, input.monthlyMessageCap),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'id' },
+  );
+
+  revalidatePath('/admin');
+}
+
+export interface TenantAiUsage {
+  tenantId: string;
+  name: string;
+  messages: number;
+  inputTokens: number;
+  outputTokens: number;
+  ownKey: boolean;
+  provider: string | null;
+}
+
+/**
+ * Who used how much this month, and on whose key.
+ *
+ * `ownKey` is the column that matters for invoicing: a tenant paying with their
+ * own credentials costs Kuik nothing, so only the rest are billable.
+ */
+export async function listAiUsage(): Promise<TenantAiUsage[]> {
+  await requireSuperAdmin();
+  const supabase = createAdminClient();
+
+  const period = new Date();
+  period.setUTCDate(1);
+  const periodKey = period.toISOString().slice(0, 10);
+
+  const [{ data: usage }, { data: configs }, { data: tenants }] = await Promise.all([
+    supabase
+      .from('ai_usage_counters')
+      .select('tenant_id, messages, input_tokens, output_tokens')
+      .eq('period', periodKey),
+    supabase.from('ai_providers_config').select('tenant_id, use_own_key, provider'),
+    supabase.from('tenants').select('id, name'),
+  ]);
+
+  const names = new Map(
+    ((tenants ?? []) as { id: string; name: string }[]).map((t) => [t.id, t.name]),
+  );
+  const cfg = new Map(
+    ((configs ?? []) as { tenant_id: string; use_own_key: boolean; provider: string }[])
+      .map((c) => [c.tenant_id, c]),
+  );
+
+  return ((usage ?? []) as {
+    tenant_id: string; messages: number; input_tokens: number; output_tokens: number;
+  }[])
+    .map((u) => ({
+      tenantId: u.tenant_id,
+      name: names.get(u.tenant_id) ?? u.tenant_id,
+      messages: u.messages,
+      inputTokens: u.input_tokens,
+      outputTokens: u.output_tokens,
+      ownKey: cfg.get(u.tenant_id)?.use_own_key ?? false,
+      provider: cfg.get(u.tenant_id)?.provider ?? null,
+    }))
+    .sort((a, b) => b.messages - a.messages);
+}
+
 // ─── Custom landing (bring-your-own-HTML) ───────────────────────────────────
 // A super-admin uploads a self-contained static site as a .zip. We unpack it
 // into media/<tenant>/landing-site/ and point the tenant's landing at index.html.
