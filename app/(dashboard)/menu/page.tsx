@@ -45,7 +45,9 @@ export default async function MenuPage({
     supabase.from('separators').select('*').eq('tenant_id', tenant.id).order('position'),
   ]);
 
-  if (role === 'waiter') {
+  // A waiter toggles availability from the floor; a host only ever needs to
+  // read the menu to answer a question at the door.
+  if (role === 'waiter' || role === 'host') {
     return (
       <div>
         <h1 className="mb-1 text-2xl font-bold">{t('title')}</h1>
@@ -53,6 +55,7 @@ export default async function MenuPage({
         <WaiterMenu
           categories={(categories ?? []) as Category[]}
           products={(products ?? []) as Product[]}
+          readOnly={role === 'host'}
         />
       </div>
     );

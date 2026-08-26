@@ -20,6 +20,7 @@ import {
   Store,
   ClipboardList,
   CalendarCheck,
+  MessageCircle,
   Calculator,
   Monitor,
   ExternalLink,
@@ -34,18 +35,25 @@ import type { MemberRole } from '@/lib/database.types';
 import { signOut } from '@/app/(auth)/actions';
 import { setActiveTenant } from '@/app/(dashboard)/tenant-actions';
 import { LocaleSwitch } from './LocaleSwitch';
+import { InstallPrompt } from './InstallPrompt';
+import { PendingReservationsBadge } from './PendingReservationsBadge';
 
 // `roles` lists which member roles see each item.
 // `dev: true` items are in development — only shown to dev accounts (see lib/features.ts).
 // `feature` ties an item to a Pro-only feature; hidden for Basic plans when plan
 // enforcement is on (support mode) — see lib/plan.ts.
+//
+// These `roles` lists and the requireRole() guards in lib/auth.ts must agree.
+// The nav only hides a link; the guard is what actually stops someone typing
+// the URL. Change one, change the other.
 const NAV = [
   { href: '/dashboard', icon: LayoutDashboard, key: 'dashboard', roles: ['owner', 'manager'] },
-  { href: '/menu', icon: UtensilsCrossed, key: 'menu', roles: ['owner', 'manager', 'cashier', 'waiter'] },
+  { href: '/menu', icon: UtensilsCrossed, key: 'menu', roles: ['owner', 'manager', 'cashier', 'waiter', 'host'] },
   { href: '/orders', icon: ClipboardList, key: 'orders', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true },
   { href: '/pos', icon: Calculator, key: 'pos', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true, feature: 'pos' },
   { href: '/kds', icon: Monitor, key: 'kds', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true },
-  { href: '/reservations', icon: CalendarCheck, key: 'reservations', roles: ['owner', 'manager', 'cashier', 'waiter'] },
+  { href: '/reservations', icon: CalendarCheck, key: 'reservations', roles: ['owner', 'manager', 'cashier', 'waiter', 'host'] },
+  { href: '/whatsapp', icon: MessageCircle, key: 'whatsapp', roles: ['owner', 'manager'] },
   { href: '/loyalty', icon: Gift, key: 'loyalty', roles: ['owner', 'manager', 'waiter'], feature: 'loyalty' },
   { href: '/reports', icon: BarChart3, key: 'reports', roles: ['owner', 'manager'], feature: 'pro_reports' },
   { href: '/branches', icon: Store, key: 'branches', roles: ['owner', 'manager'], feature: 'branches' },
@@ -68,6 +76,7 @@ export function Sidebar({
   activeTenantId,
   plan,
   enforcePlan,
+  pendingReservations,
 }: {
   isSuperAdmin: boolean;
   showDevFeatures: boolean;
@@ -79,6 +88,8 @@ export function Sidebar({
   plan: PlanTier;
   // When true (support mode), hide Pro-only items the tenant's plan can't use.
   enforcePlan: boolean;
+  /** Reservation requests still waiting on a yes or no, across all future days. */
+  pendingReservations: number;
 }) {
   const pathname = usePathname();
   const t = useTranslations('nav');
@@ -103,6 +114,9 @@ export function Sidebar({
         ({ href, icon: Icon, key }) => (
           <NavLink key={href} href={href} active={pathname === href} icon={Icon} onClick={() => setOpen(false)}>
             {t(key)}
+            {key === 'reservations' && (
+              <PendingReservationsBadge tenantId={activeTenantId} initial={pendingReservations} />
+            )}
           </NavLink>
         ),
       )}
@@ -124,6 +138,7 @@ export function Sidebar({
       >
         <ExternalLink className="h-4 w-4" /> {tDash('viewMenu')}
       </a>
+      <InstallPrompt />
       <LocaleSwitch current={locale} />
       <form action={signOut}>
         <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100">
