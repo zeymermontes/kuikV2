@@ -3,6 +3,10 @@
 // (lib/pos/sync.ts), never the SW. Scope is limited to /pos.
 
 const CACHE = 'kuik-pos-v1';
+// Everything this worker is allowed to evict. Deleting by "not my current
+// cache" would wipe the dashboard worker's cache on every activation — and it
+// would return the favour. Two workers share this origin (see sw-app.js).
+const OWNED_PREFIX = 'kuik-pos-';
 
 self.addEventListener('install', () => self.skipWaiting());
 
@@ -10,7 +14,9 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
       const keys = await caches.keys();
-      await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
+      await Promise.all(
+        keys.filter((k) => k.startsWith(OWNED_PREFIX) && k !== CACHE).map((k) => caches.delete(k)),
+      );
       await self.clients.claim();
     })(),
   );
