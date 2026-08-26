@@ -137,9 +137,19 @@ const GOALS = [
 export async function seedDefaults(tenantId: string, wabaId: string): Promise<void> {
   const supabase = createAdminClient();
 
-  await supabase
-    .from('whatsapp_settings')
-    .upsert({ tenant_id: tenantId }, { onConflict: 'tenant_id', ignoreDuplicates: true });
+  // On, because connecting a number IS the act of asking for this. Seeding
+  // with the table's defaults left everything switched off: the dashboard said
+  // "Connected", a diner wrote, and nothing happened — with three toggles
+  // elsewhere as the only explanation.
+  //
+  // ignoreDuplicates means this only applies to a brand-new row, so someone who
+  // deliberately turned it off stays off when they re-pair.
+  //
+  // AI is NOT turned on here: it spends money and needs a key.
+  await supabase.from('whatsapp_settings').upsert(
+    { tenant_id: tenantId, enabled: true, bot_enabled: true },
+    { onConflict: 'tenant_id', ignoreDuplicates: true },
+  );
 
   await supabase.from('whatsapp_canned_replies').upsert(
     CANNED.map((c, i) => ({ tenant_id: tenantId, locale: 'es', position: i, ...c })),

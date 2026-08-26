@@ -72,6 +72,14 @@ export function BotSettings({
           <p className="rounded-lg bg-neutral-100 px-3 py-2 text-sm text-neutral-600">{t('needNumber')}</p>
         )}
 
+        {/* The silent-but-connected case. Without this the only symptom is a
+            bot that receives everything and answers nothing. */}
+        {hasNumber && (!s.enabled || !s.bot_enabled) && (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            {!s.enabled ? t('warnDisabled') : t('warnBotOff')}
+          </p>
+        )}
+
         {([
           ['enabled', 'field_enabled', 'hint_enabled'],
           ['bot_enabled', 'field_bot', 'hint_bot'],

@@ -1123,6 +1123,8 @@
     "conflictRelease": "Desvincularlo de los otros",
     "conflictKeep": "Dejarlo así por ahora",
     "conflictNotYours": "no es tuyo",
-    "conflictSupport": "Hay negocios en la lista que no administras. Contacta a soporte de Kuik para liberarlos."
+    "conflictSupport": "Hay negocios en la lista que no administras. Contacta a soporte de Kuik para liberarlos.",
+    "warnDisabled": "Tu número está conectado pero WhatsApp está apagado, así que no se contesta nada. Préndelo aquí abajo.",
+    "warnBotOff": "Las respuestas automáticas están apagadas: los mensajes se guardan, pero el asistente no contesta."
   }
 }

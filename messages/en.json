@@ -1123,6 +1123,8 @@
     "conflictRelease": "Unlink it from the others",
     "conflictKeep": "Leave it for now",
     "conflictNotYours": "not yours",
-    "conflictSupport": "Some businesses listed aren't managed by you. Contact Kuik support to release them."
+    "conflictSupport": "Some businesses listed aren't managed by you. Contact Kuik support to release them.",
+    "warnDisabled": "Your number is connected but WhatsApp is off, so nothing gets answered. Turn it on below.",
+    "warnBotOff": "Auto-replies are off: messages are recorded, but the assistant stays quiet."
   }
 }
