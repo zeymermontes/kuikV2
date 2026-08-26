@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -96,7 +97,24 @@ func main() {
 	forwarder := NewForwarder(webhookURL, bridgeSecret)
 	manager = NewManager(container, registry, logger, forwarder.Handle)
 
+	// Wait before reconnecting anything.
+	//
+	// Render brings the new instance up, waits for /health, and only then
+	// stops the old one. Connecting immediately means both instances hold the
+	// same WhatsApp credentials for a few seconds, and WhatsApp resolves that
+	// by evicting one — which is how a deploy ended up killing a live session.
+	//
+	// /health answers straight away, so this delay costs a short gap after a
+	// deploy and buys a session that survives it.
 	go func() {
+		delay := 30 * time.Second
+		if v := os.Getenv("STARTUP_DELAY_SECONDS"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				delay = time.Duration(n) * time.Second
+			}
+		}
+		log.Printf("waiting %s before reconnecting, so the previous instance can exit", delay)
+		time.Sleep(delay)
 		n := manager.RestoreAll(context.Background())
 		log.Printf("restored %d session(s)", n)
 	}()

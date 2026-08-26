@@ -86,8 +86,14 @@ services:
       curl -fsS -H "Authorization: Bearer $CRON_SECRET"
       https://app.kuik.mx/api/cron/expire-trials
     envVars:
+      # Inherited from the web service rather than declared again: a separate
+      # `sync: false` copy starts empty, and the job just 401s on every run
+      # (curl -f exits 22) with nothing to say why.
       - key: CRON_SECRET
-        sync: false
+        fromService:
+          name: kuik
+          type: web
+          envVarKey: CRON_SECRET
 
   # 24-hour reservation reminders.
   # Hourly, not daily: a booking can be at any time, and the job claims the
@@ -103,8 +109,14 @@ services:
       curl -fsS -H "Authorization: Bearer $CRON_SECRET"
       https://app.kuik.mx/api/cron/reservation-reminders
     envVars:
+      # Inherited from the web service rather than declared again: a separate
+      # `sync: false` copy starts empty, and the job just 401s on every run
+      # (curl -f exits 22) with nothing to say why.
       - key: CRON_SECRET
-        sync: false
+        fromService:
+          name: kuik
+          type: web
+          envVarKey: CRON_SECRET
 
   # WhatsApp housekeeping: re-runs webhook events that never finished, warns
   # before Coexistence drops an idle number at 14 days, and prunes old payloads.
@@ -118,8 +130,14 @@ services:
       curl -fsS -H "Authorization: Bearer $CRON_SECRET"
       https://app.kuik.mx/api/cron/whatsapp-maintenance
     envVars:
+      # Inherited from the web service rather than declared again: a separate
+      # `sync: false` copy starts empty, and the job just 401s on every run
+      # (curl -f exits 22) with nothing to say why.
       - key: CRON_SECRET
-        sync: false
+        fromService:
+          name: kuik
+          type: web
+          envVarKey: CRON_SECRET
 
   # whatsmeow bridge: one linked-device WhatsApp session per restaurant.
   # Stateful and long-running by nature, so it cannot live inside the web
@@ -137,6 +155,10 @@ services:
       # with an older toolchain and fail with "go.mod requires go >= 1.26.0".
       - key: GO_VERSION
         value: "1.26.0"
+      # Seconds to wait before reconnecting WhatsApp on boot, so a deploy's
+      # old instance is gone first. See the note in main.go.
+      - key: STARTUP_DELAY_SECONDS
+        value: "30"
       - key: BRIDGE_SECRET
         sync: false
       - key: KUIK_WEBHOOK_URL

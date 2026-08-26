@@ -162,10 +162,23 @@ func (m *Manager) Start(ctx context.Context, tenantID string) (*Session, error) 
 			session.set("disconnected", "", "logged_out")
 			_ = m.registry.Unlink(context.Background(), tenantID)
 		case *events.StreamReplaced:
+			// Another connection took over this device. whatsmeow calls
+			// expectDisconnect() first, which switches OFF its own
+			// auto-reconnect — so without the supervisor below the account
+			// stays dark until somebody re-pairs by hand.
+			//
+			// In practice this is a deploy: Render starts the new instance
+			// before stopping the old, both connect with the same credentials,
+			// and WhatsApp evicts one of them.
 			session.set("disconnected", "", "stream_replaced")
+			go m.superviseReconnect(tenantID)
 		case *events.Disconnected:
 			if status, _, _ := session.snapshot(); status == "connected" {
 				session.set("disconnected", "", "")
+				// Usually whatsmeow's own auto-reconnect wins the race and the
+				// supervisor sees "connected" and returns. This is the net for
+				// when it doesn't.
+				go m.superviseReconnect(tenantID)
 			}
 		}
 	})
@@ -253,6 +266,52 @@ func (m *Manager) abandon(tenantID, reason string) {
 	m.mu.Lock()
 	delete(m.sessions, tenantID)
 	m.mu.Unlock()
+}
+
+// superviseReconnect brings a paired session back after it drops.
+//
+// whatsmeow reconnects on its own for ordinary network failures, but not after
+// a StreamReplaced and not after a connect error it deems terminal. Those are
+// exactly the cases that follow a deploy, so something has to watch.
+//
+// Only ever for a device that is still paired: a LoggedOut clears Store.ID and
+// unlinks the tenant, and retrying that would be pointless noise.
+func (m *Manager) superviseReconnect(tenantID string) {
+	const (
+		firstDelay = 20 * time.Second // let the other instance finish dying
+		maxDelay   = 5 * time.Minute
+	)
+
+	delay := firstDelay
+	for {
+		time.Sleep(delay)
+
+		s, ok := m.Get(tenantID)
+		if !ok {
+			return // deliberately stopped
+		}
+		status, _, reason := s.snapshot()
+		if status == "connected" || status == "pairing" {
+			return // back on its own, or someone is re-pairing
+		}
+		if reason == "logged_out" || s.Client.Store.ID == nil {
+			return // no longer paired; a QR is the only way back
+		}
+
+		if err := s.Client.Connect(); err == nil {
+			m.logger.Infof("reconnected %s after %s", tenantID, reason)
+			return
+		} else {
+			m.logger.Warnf("reconnect for %s failed: %v", tenantID, err)
+		}
+
+		if delay < maxDelay {
+			delay *= 2
+			if delay > maxDelay {
+				delay = maxDelay
+			}
+		}
+	}
 }
 
 // Stop logs the device out and forgets it, so the next Start shows a fresh QR.
