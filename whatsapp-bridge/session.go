@@ -138,7 +138,27 @@ func (m *Manager) Start(ctx context.Context, tenantID string) (*Session, error) 
 
 	client.AddEventHandler(func(evt any) {
 		switch v := evt.(type) {
+		case *events.UndecryptableMessage:
+			// WhatsApp could not be decrypted for THIS device. Normal for the
+			// first message after pairing — the sender has no session with the
+			// new device yet and WhatsApp asks them to retry — but if it keeps
+			// happening the account is wedged and needs re-pairing.
+			m.logger.Warnf(
+				"undecryptable message from %s (retry=%v). If this repeats, re-pair the number.",
+				v.Info.Sender.String(), v.IsUnavailable,
+			)
+
 		case *events.Message:
+			// Log every inbound message BEFORE deciding to skip it. Silence
+			// otherwise has two indistinguishable causes — the message never
+			// arrived, or it arrived and was filtered — and only one of them
+			// is a problem with this service.
+			m.logger.Infof(
+				"message from=%s chat=%s fromMe=%v group=%v type=%s",
+				v.Info.Sender.String(), v.Info.Chat.String(),
+				v.Info.IsFromMe, v.Info.IsGroup, v.Info.Type,
+			)
+
 			// Never react to our own outgoing messages, or the bot ends up
 			// answering itself in a loop.
 			if v.Info.IsFromMe {
@@ -166,6 +186,12 @@ func (m *Manager) Start(ctx context.Context, tenantID string) (*Session, error) 
 			// credentials are worthless now, so forget the mapping too.
 			session.set("disconnected", "", "logged_out")
 			go func() { _ = m.registry.Unlink(context.Background(), tenantID) }()
+		case *events.ClientOutdated:
+			m.logger.Errorf("whatsmeow is outdated for %s; the library needs updating", tenantID)
+
+		case *events.TemporaryBan:
+			m.logger.Errorf("account temporarily banned for %s: %v", tenantID, v)
+
 		case *events.StreamReplaced:
 			// Another connection took over this device. whatsmeow calls
 			// expectDisconnect() first, which switches OFF its own
@@ -177,6 +203,11 @@ func (m *Manager) Start(ctx context.Context, tenantID string) (*Session, error) 
 			// and WhatsApp evicts one of them.
 			session.set("disconnected", "", "stream_replaced")
 			go m.superviseReconnect(tenantID)
+		case *events.Receipt, *events.Presence, *events.ChatPresence,
+			*events.HistorySync, *events.AppState, *events.AppStateSyncComplete,
+			*events.OfflineSyncPreview, *events.OfflineSyncCompleted:
+			// Routine chatter, deliberately ignored and deliberately not logged.
+
 		case *events.Disconnected:
 			if status, _, _ := session.snapshot(); status == "connected" {
 				session.set("disconnected", "", "")
@@ -185,6 +216,15 @@ func (m *Manager) Start(ctx context.Context, tenantID string) (*Session, error) 
 				// when it doesn't.
 				go m.superviseReconnect(tenantID)
 			}
+
+		default:
+			// Everything else was being dropped without trace, which is why
+			// "the bot is silent" kept coming down to guessing which events
+			// whatsmeow was actually dispatching.
+			// Infof, not Debugf: the default level is INFO and this only earns
+			// its place while something is unexplained. Volume is low once the
+			// initial sync settles.
+			m.logger.Infof("unhandled event %T", evt)
 		}
 	})
 

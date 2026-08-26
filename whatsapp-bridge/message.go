@@ -114,10 +114,14 @@ func (f *Forwarder) Handle(tenantID string, evt *events.Message) {
 	// Groups are noise for a reservation bot, and replying in one would be
 	// worse than staying quiet.
 	if evt.Info.IsGroup {
+		log.Printf("skipping group message from %s", evt.Info.Sender.String())
 		return
 	}
 	text := extractText(evt.Message)
 	if strings.TrimSpace(text) == "" {
+		// Media without a caption, a reaction, a poll — nothing the bot can
+		// read. Logged because "nothing happened" needs a reason.
+		log.Printf("skipping message with no text from %s (type %s)", evt.Info.Sender.String(), evt.Info.Type)
 		return
 	}
 
