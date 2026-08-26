@@ -13,6 +13,12 @@ import { Card, Button } from '@/components/ui';
  * each time, so this polls while pairing rather than showing one dead square.
  */
 
+interface Conflict {
+  tenantId: string;
+  name: string;
+  canRelease: boolean;
+}
+
 interface ConnectedNumber {
   phone_number_id: string;
   display_phone_number: string;
@@ -39,6 +45,9 @@ export function WhatsappPair({ numbers }: { numbers: ConnectedNumber[] }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(PAIRING_SECONDS);
+  // Other restaurants still holding this same number. Only one of them can
+  // actually receive messages, so this has to be resolved deliberately.
+  const [conflicts, setConflicts] = useState<Conflict[]>([]);
 
   const poll = useCallback(async () => {
     const res = await fetch('/api/whatsapp/pair');
@@ -51,6 +60,12 @@ export function WhatsappPair({ numbers }: { numbers: ConnectedNumber[] }) {
     if (json.status === 'connected') {
       setState('connected');
       setQr(null);
+      if (Array.isArray(json.conflicts) && json.conflicts.length > 0) {
+        // Hold the reload: the clash has to be decided first, or it silently
+        // persists with one restaurant receiving nothing.
+        setConflicts(json.conflicts);
+        return true;
+      }
       // A reload picks up the seeded goals and messages the server just wrote.
       setTimeout(() => window.location.reload(), 800);
       return true;
@@ -171,6 +186,20 @@ export function WhatsappPair({ numbers }: { numbers: ConnectedNumber[] }) {
     }
   }
 
+  async function release(ids: string[]) {
+    setBusy(true);
+    try {
+      await fetch('/api/whatsapp/release', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ tenantIds: ids }),
+      });
+      window.location.reload();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function unlink() {
     setBusy(true);
     try {
@@ -280,6 +309,52 @@ export function WhatsappPair({ numbers }: { numbers: ConnectedNumber[] }) {
         <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           {t.has(`err_${error}`) ? t(`err_${error}`) : error}
         </p>
+      )}
+
+      {conflicts.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="relative w-full max-w-md rounded-t-3xl bg-white p-5 sm:rounded-2xl">
+            <h3 className="flex items-center gap-2 text-lg font-bold">
+              <AlertTriangle className="h-5 w-5 text-amber-500" /> {t('conflictTitle')}
+            </h3>
+            <p className="mt-1 text-sm text-neutral-600">{t('conflictBody')}</p>
+
+            <ul className="mt-3 space-y-1.5">
+              {conflicts.map((c) => (
+                <li key={c.tenantId} className="flex items-center gap-2 rounded-lg bg-neutral-50 px-3 py-2 text-sm">
+                  <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
+                  {!c.canRelease && (
+                    <span className="shrink-0 text-xs text-neutral-500">{t('conflictNotYours')}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-4 flex flex-col gap-2">
+              {conflicts.some((c) => c.canRelease) && (
+                <Button
+                  onClick={() => release(conflicts.filter((c) => c.canRelease).map((c) => c.tenantId))}
+                  disabled={busy}
+                >
+                  {busy ? t('connecting') : t('conflictRelease')}
+                </Button>
+              )}
+              <button
+                onClick={() => window.location.reload()}
+                className="rounded-lg py-2 text-sm text-neutral-600 underline"
+              >
+                {t('conflictKeep')}
+              </button>
+            </div>
+
+            {conflicts.some((c) => !c.canRelease) && (
+              <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                {t('conflictSupport')}
+              </p>
+            )}
+          </div>
+        </div>
       )}
     </Card>
   );

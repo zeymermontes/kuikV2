@@ -1117,6 +1117,12 @@
     "pair_regenerate": "Generate a new code",
     "pair_expiredTitle": "The code expired",
     "pair_expiredBody": "Codes are short-lived for safety. Generate a new one and scan it right away.",
-    "err_qr_expired": "The code expired. Generate a new one."
+    "err_qr_expired": "The code expired. Generate a new one.",
+    "conflictTitle": "This number was already connected",
+    "conflictBody": "A number can only receive messages for one business at a time. Leaving it on both means one of them silently receives nothing.",
+    "conflictRelease": "Unlink it from the others",
+    "conflictKeep": "Leave it for now",
+    "conflictNotYours": "not yours",
+    "conflictSupport": "Some businesses listed aren't managed by you. Contact Kuik support to release them."
   }
 }

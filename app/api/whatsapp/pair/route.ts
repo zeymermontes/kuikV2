@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { startSession, getSession, stopSession, bridgeConfigured } from '@/lib/whatsapp/bridge';
 import { seedDefaults } from '@/lib/whatsapp/seed';
 import { toE164 } from '@/lib/phone';
+import { getMemberships } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,6 +20,57 @@ export const dynamic = 'force-dynamic';
 
 /** Synthetic id standing in for Meta's phone_number_id, which does not exist here. */
 const bridgeId = (tenantId: string) => `bridge:${tenantId}`;
+
+export interface NumberConflict {
+  tenantId: string;
+  name: string;
+  /** Whether this user may release it themselves. */
+  canRelease: boolean;
+}
+
+/**
+ * Other restaurants already holding this number.
+ *
+ * One phone can only have one live bridge session, so a second restaurant
+ * pairing it silently steals the first one's messages. Surfacing the clash lets
+ * someone decide, instead of finding out when a bot goes quiet.
+ *
+ * `canRelease` is false for a business this user has no say over — the row is
+ * shown so the situation is explicable, not so it can be taken over.
+ */
+async function findConflicts(
+  supabase: ReturnType<typeof createAdminClient>,
+  phoneE164: string,
+  currentTenantId: string,
+  userId: string,
+): Promise<NumberConflict[]> {
+  if (!phoneE164) return [];
+
+  const { data } = await supabase
+    .from('whatsapp_numbers')
+    .select('tenant_id, tenants(name)')
+    .eq('phone_e164', phoneE164)
+    .neq('tenant_id', currentTenantId)
+    .in('status', ['connected', 'pairing']);
+
+  const rows = (data ?? []) as unknown as { tenant_id: string; tenants: { name: string } | { name: string }[] | null }[];
+  if (rows.length === 0) return [];
+
+  const mine = new Set(
+    (await getMemberships(userId))
+      .filter((m) => m.role === 'owner')
+      .map((m) => m.tenant.id),
+  );
+
+  return rows.map((r) => {
+    const t = Array.isArray(r.tenants) ? r.tenants[0] : r.tenants;
+    return {
+      tenantId: r.tenant_id,
+      name: t?.name ?? r.tenant_id,
+      canRelease: mine.has(r.tenant_id),
+    };
+  });
+}
 
 export async function POST() {
   const { tenant } = await requireOwner();
@@ -55,7 +107,7 @@ export async function POST() {
 }
 
 export async function GET() {
-  const { tenant } = await requireOwner();
+  const { tenant, user } = await requireOwner();
   if (!bridgeConfigured()) {
     return NextResponse.json({ ok: false, error: 'bridge_not_configured' }, { status: 503 });
   }
@@ -107,6 +159,14 @@ export async function GET() {
       // restaurant never loses edits by reconnecting.
       await seedDefaults(tenant.id, 'bridge');
       revalidatePath('/whatsapp');
+
+      const conflicts = await findConflicts(
+        supabase,
+        session.phone ? (toE164(session.phone) ?? '') : '',
+        tenant.id,
+        user.id,
+      );
+      return NextResponse.json({ ok: true, ...session, conflicts });
     }
 
     return NextResponse.json({ ok: true, ...session });

@@ -1117,6 +1117,12 @@
     "pair_regenerate": "Generar otro código",
     "pair_expiredTitle": "El código expiró",
     "pair_expiredBody": "Por seguridad los códigos duran poco. Genera uno nuevo y escanéalo enseguida.",
-    "err_qr_expired": "El código expiró. Genera uno nuevo."
+    "err_qr_expired": "El código expiró. Genera uno nuevo.",
+    "conflictTitle": "Este número ya estaba conectado",
+    "conflictBody": "Un número solo puede recibir mensajes en un negocio a la vez. Si lo dejas en los dos, uno se queda sin recibir nada y no hay forma de notarlo.",
+    "conflictRelease": "Desvincularlo de los otros",
+    "conflictKeep": "Dejarlo así por ahora",
+    "conflictNotYours": "no es tuyo",
+    "conflictSupport": "Hay negocios en la lista que no administras. Contacta a soporte de Kuik para liberarlos."
   }
 }
