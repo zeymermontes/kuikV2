@@ -9,8 +9,10 @@ import { createAdminClient } from '@/lib/supabase/admin';
  *   https://app.kuik.mx/api/cron/expire-trials
  */
 export async function GET(req: NextRequest) {
+  // `if (secret && ...)` would leave this wide open whenever the env var is
+  // missing — an unset variable should fail closed, not disable the check.
   const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.get('authorization') !== `Bearer ${secret}`) {
+  if (!secret || req.headers.get('authorization') !== `Bearer ${secret}`) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 

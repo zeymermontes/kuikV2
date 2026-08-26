@@ -1,5 +1,11 @@
 -- Kuik — expose each tenant's plan tier in the super-admin overview.
 
+-- This widens the row type defined in 0002_analytics.sql, and `create or
+-- replace` cannot change a function's return type — it errors with "cannot
+-- change return type of existing function". Drop first so this file applies to
+-- a database that already has the old shape, and re-applies cleanly.
+drop function if exists public.admin_tenant_overview();
+
 create or replace function public.admin_tenant_overview()
 returns table (
   tenant_id     uuid,

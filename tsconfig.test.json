@@ -1,0 +1,17 @@
+// Test-only overrides: see tests/stubs/server-only.ts for why.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "server-only": [
+        "./tests/stubs/server-only.ts"
+      ],
+      "client-only": [
+        "./tests/stubs/server-only.ts"
+      ]
+    }
+  }
+}

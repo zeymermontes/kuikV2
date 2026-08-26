@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { parseWeekHours, isOpenNow, todayHours } from '@/lib/hours';
+import { parseWeekHours, isOpenNowIn, todayHoursIn } from '@/lib/hours';
 
-export function OpenStatus({ hours }: { hours: unknown }) {
+export function OpenStatus({ hours, timezone }: { hours: unknown; timezone: string | null | undefined }) {
   const t = useTranslations('hours');
   const week = parseWeekHours(hours);
-  // Computed on the client so it uses the visitor's local time (avoids SSR mismatch).
+  // Computed on the client to avoid an SSR/CSR mismatch, but resolved against
+  // the RESTAURANT's timezone, not the visitor's — otherwise someone browsing
+  // from another country is told the kitchen is closed when it is not.
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
     const id = setTimeout(() => setNow(new Date()), 0);
@@ -15,8 +17,8 @@ export function OpenStatus({ hours }: { hours: unknown }) {
   }, []);
 
   if (!week || !now) return null;
-  const open = isOpenNow(week, now);
-  const today = todayHours(week, now);
+  const open = isOpenNowIn(week, timezone, now);
+  const today = todayHoursIn(week, timezone, now);
 
   return (
     <div

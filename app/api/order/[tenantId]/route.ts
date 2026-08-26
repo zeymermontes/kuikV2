@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { rateLimit, clientIp, bucketKey } from '@/lib/rate-limit';
 
 /** Logs a WhatsApp order (analytics only — the actual order goes to WhatsApp). */
 export async function POST(
@@ -7,6 +8,21 @@ export async function POST(
   { params }: { params: Promise<{ tenantId: string }> },
 ) {
   const { tenantId } = await params;
+
+  // This route is public, unauthenticated and writes with the service role, so
+  // the limiter is the only thing standing between it and a script.
+  // Order logging is analytics; a diner sending several orders in a minute is
+  // plausible, a script sending hundreds is not.
+  // Two buckets: one per caller, one per tenant, because a botnet defeats the
+  // first but still has to land everything on the same restaurant.
+  const ip = clientIp(req);
+  const [byIp, byTenant] = await Promise.all([
+    rateLimit(bucketKey('order:ip', `${tenantId}:${ip}`, 60), 10, 60),
+    rateLimit(bucketKey('order:tenant', tenantId, 60), 200, 60),
+  ]);
+  if (!byIp.ok || !byTenant.ok) {
+    return NextResponse.json({ ok: false, error: 'rate_limited' }, { status: 429 });
+  }
 
   let body: {
     items?: unknown;

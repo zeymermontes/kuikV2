@@ -1,11 +1,11 @@
 import { Eye, MessageCircle, TrendingUp } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
-import { requireTenant } from '@/lib/auth';
+import { requireAnalytics } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { Card } from '@/components/ui';
 
 export default async function DashboardPage() {
-  const ctx = await requireTenant();
+  const ctx = await requireAnalytics();
   const t = await getTranslations('dashboard');
   const supabase = await createClient();
 

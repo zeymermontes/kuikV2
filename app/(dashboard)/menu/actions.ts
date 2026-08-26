@@ -2,20 +2,36 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { requireTenant } from '@/lib/auth';
+import { revalidateTenant } from '@/lib/revalidate';
+import { requireTenant, requireManager } from '@/lib/auth';
 import type { SeparatorStyle, PricedOption, OptionGroup } from '@/lib/database.types';
 
-// All actions resolve the caller's tenant and rely on RLS for authorization.
+/**
+ * Editing the menu is manager+. RLS already refuses everyone else, but silently
+ * — the request succeeds, zero rows change, and the editor looks like it saved.
+ * Guarding here turns that into a visible redirect.
+ */
 async function ctx() {
-  const { tenant } = await requireTenant();
+  const { tenant } = await requireManager();
   const supabase = await createClient();
   return { tenantId: tenant.id, subdomain: tenant.subdomain, supabase };
+}
+
+/**
+ * Availability is the exception: a waiter marks the kitchen out of something
+ * from the floor, through a security-definer RPC that carries its own role
+ * check (0045 narrowed it to owner/manager/cashier/waiter, so a host can't).
+ */
+async function serviceCtx() {
+  const { tenant } = await requireTenant();
+  const supabase = await createClient();
+  return { subdomain: tenant.subdomain, supabase };
 }
 
 // Re-render the editor and bust the public menu cache after every mutation.
 function revalidate(subdomain: string) {
   revalidatePath('/menu');
-  revalidatePath(`/s/${subdomain}`);
+  revalidateTenant(subdomain);
 }
 
 // ── Categories ─────────────────────────────────────────────────────────────
@@ -190,7 +206,7 @@ export async function deleteProduct(id: string) {
  * member (including waiters, who lack full menu-write permission).
  */
 export async function setProductAvailability(id: string, available: boolean) {
-  const { subdomain, supabase } = await ctx();
+  const { subdomain, supabase } = await serviceCtx();
   await supabase.rpc('set_product_availability', { p_id: id, p_available: available });
   revalidate(subdomain);
 }

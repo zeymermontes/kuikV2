@@ -3,7 +3,7 @@
 //   supabase gen types typescript --linked > lib/database.types.ts
 
 export type UserRole = 'owner' | 'super_admin';
-export type MemberRole = 'owner' | 'manager' | 'cashier' | 'waiter';
+export type MemberRole = 'owner' | 'manager' | 'cashier' | 'waiter' | 'host';
 
 export interface TenantMember {
   tenant_id: string;
@@ -41,6 +41,10 @@ export interface Tenant {
   custom_domain: string | null;
   custom_domain_status: DomainStatus;
   locale: string;
+  /** IANA name, e.g. "America/Mexico_City". Never a numeric offset. */
+  timezone: string;
+  /** Default country for phone normalisation (lib/phone.ts). */
+  country_iso: string;
   is_published: boolean;
   created_at: string;
   updated_at: string;
@@ -128,7 +132,17 @@ export interface TenantContact {
   maps_url: string | null;
   hours: unknown | null;
   reservations_enabled: boolean;
-  reservation_required: { phone?: boolean; party?: boolean; note?: boolean } | null;
+  /** Which optional fields the public form must fill in. `name` defaults to true. */
+  reservation_required: { name?: boolean; phone?: boolean; party?: boolean; note?: boolean } | null;
+  /** Length of a booking slot, used for capacity math. */
+  reservation_slot_minutes: number;
+  reservation_max_party: number;
+  /** How far ahead the public must book. */
+  reservation_lead_minutes: number;
+  /** How far into the future the public may book. */
+  reservation_max_days: number;
+  /** Skip the pending step and confirm public requests automatically. */
+  reservation_auto_confirm: boolean;
   instagram: string | null;
   facebook: string | null;
   website: string | null;
@@ -235,17 +249,73 @@ export interface Separator {
 
 export type ReservationStatus = 'pending' | 'confirmed' | 'seated' | 'cancelled';
 
+/** Where a booking came from. Mirrors orders.channel. */
+export type ReservationSource = 'form' | 'manual' | 'bot' | 'phone';
+
 export interface Reservation {
   id: string;
   tenant_id: string;
   branch_id: string | null;
+  area_id: string | null;
   customer_name: string;
   phone: string | null;
   party_size: number;
+  /** Local calendar date, "YYYY-MM-DD". */
   date: string;
+  /** Local wall-clock time, "HH:MM". */
   time: string;
+  /**
+   * The absolute instant `date` + `time` refers to, derived from the tenant's
+   * timezone by a trigger. Read this for any comparison; the two fields above
+   * are for display and are meaningless without a zone.
+   */
+  starts_at: string;
   note: string | null;
   status: ReservationStatus;
+  source: ReservationSource;
+  created_at: string;
+}
+
+export type NotificationKind = 'confirmed' | 'cancelled' | 'reminder_24h';
+
+export interface ReservationNotification {
+  id: string;
+  tenant_id: string;
+  reservation_id: string;
+  kind: NotificationKind;
+  channel: 'manual_wa' | 'whatsapp_api' | 'none';
+  status: 'queued' | 'sent' | 'failed' | 'skipped';
+  body: string | null;
+  provider_id: string | null;
+  error: string | null;
+  created_at: string;
+  sent_at: string | null;
+}
+
+export interface PushSubscriptionRow {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  locale: string;
+  user_agent: string | null;
+  created_at: string;
+  last_seen_at: string;
+  failed_at: string | null;
+}
+
+/** A bookable space: "Salón", "Terraza", "Salón privado". */
+export interface ReservationArea {
+  id: string;
+  tenant_id: string;
+  branch_id: string | null;
+  name: string;
+  /** Max diners in this area per slot. Null = unlimited. */
+  max_covers: number | null;
+  public_bookable: boolean;
+  position: number;
   created_at: string;
 }
 

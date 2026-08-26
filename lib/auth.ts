@@ -19,18 +19,18 @@ export interface AuthedUser {
 }
 
 /**
- * Returns the signed-in user + profile, or redirects to /login.
+ * The signed-in user + profile, or null. Never redirects.
  * Wrapped in cache() so the layout and the page in the same render share ONE
- * getUser() network call instead of each making their own.
+ * claims lookup instead of each making their own.
  */
-export const requireUser = cache(async (): Promise<AuthedUser> => {
+export const loadUser = cache(async (): Promise<AuthedUser | null> => {
   const supabase = await createClient();
   // getClaims() verifies the JWT signature locally (no /auth/v1/user round-trip
   // when the project uses asymmetric signing keys), so it's much faster than
   // getUser() while still being a real authorization check.
   const { data } = await supabase.auth.getClaims();
   const claims = data?.claims;
-  if (!claims?.sub) redirect('/login');
+  if (!claims?.sub) return null;
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -38,7 +38,7 @@ export const requireUser = cache(async (): Promise<AuthedUser> => {
     .eq('id', claims.sub)
     .single<Profile>();
 
-  if (!profile) redirect('/login');
+  if (!profile) return null;
 
   // Link any pending staff invites for this email (best-effort).
   await supabase.rpc('claim_pending_invites');
@@ -48,6 +48,13 @@ export const requireUser = cache(async (): Promise<AuthedUser> => {
     email: typeof claims.email === 'string' ? claims.email : null,
     profile,
   };
+});
+
+/** The signed-in user + profile, or a redirect to /login. */
+export const requireUser = cache(async (): Promise<AuthedUser> => {
+  const user = await loadUser();
+  if (!user) redirect('/login');
+  return user;
 });
 
 export interface Membership {
@@ -106,12 +113,21 @@ export interface TenantContext {
   support: boolean;
 }
 
+type TenantLoad =
+  | { ok: true; ctx: TenantContext }
+  | { ok: false; reason: 'unauthenticated' | 'no_tenant' };
+
 /**
- * Loads the full tenant context for dashboard pages. Redirects to /login if not
- * authed and /onboarding if the user has no tenant/membership yet.
+ * The whole of requireTenant's work, minus the redirects.
+ *
+ * Next's docs are explicit that `redirect()` throws NEXT_REDIRECT and must be
+ * called outside try/catch, so a "try to load, else null" helper cannot simply
+ * wrap the redirecting version — it would swallow genuine errors along with the
+ * redirect. Splitting the loader out is the honest way to serve both callers.
  */
-export const requireTenant = cache(async (): Promise<TenantContext> => {
-  const user = await requireUser();
+const loadTenantContext = cache(async (): Promise<TenantLoad> => {
+  const user = await loadUser();
+  if (!user) return { ok: false, reason: 'unauthenticated' };
   const supabase = await createClient();
 
   // Support mode: a super-admin opens any restaurant to help its owner. RLS
@@ -135,7 +151,7 @@ export const requireTenant = cache(async (): Promise<TenantContext> => {
 
   if (!tenant) {
     const membership = await getMembership(user.id);
-    if (!membership) redirect('/onboarding');
+    if (!membership) return { ok: false, reason: 'no_tenant' };
     tenant = membership.tenant;
     role = membership.role;
   }
@@ -148,29 +164,101 @@ export const requireTenant = cache(async (): Promise<TenantContext> => {
     ]);
 
   return {
-    user,
-    tenant,
-    role,
-    theme: theme!,
-    contact: contact!,
-    subscription: subscription!,
-    support,
+    ok: true,
+    ctx: {
+      user,
+      tenant,
+      role,
+      theme: theme!,
+      contact: contact!,
+      subscription: subscription!,
+      support,
+    },
   };
 });
+
+/**
+ * Loads the full tenant context for dashboard pages. Redirects to /login if not
+ * authed and /onboarding if the user has no tenant/membership yet.
+ */
+export const requireTenant = cache(async (): Promise<TenantContext> => {
+  const loaded = await loadTenantContext();
+  if (loaded.ok) return loaded.ctx;
+  redirect(loaded.reason === 'unauthenticated' ? '/login' : '/onboarding');
+});
+
+/**
+ * Same context, but returns null instead of redirecting.
+ *
+ * Route Handlers need this: `redirect('/login')` there produces a 307 to an
+ * HTML page, which is useless to a service worker or to a fetch() that expects
+ * a 401. Pages should keep using requireTenant().
+ */
+export const tryTenant = cache(async (): Promise<TenantContext | null> => {
+  const loaded = await loadTenantContext();
+  return loaded.ok ? loaded.ctx : null;
+});
+
+/** Where each role's dashboard begins, used when a guard turns someone away. */
+const ROLE_HOME: Record<MemberRole, string> = {
+  owner: '/dashboard',
+  manager: '/dashboard',
+  cashier: '/menu',
+  waiter: '/menu',
+  host: '/reservations',
+};
+
+export function homeForRole(role: MemberRole): string {
+  return ROLE_HOME[role] ?? '/menu';
+}
+
+/**
+ * Build a guard from an ALLOW-list of roles.
+ *
+ * Deliberately not a deny-list. `requireManager` used to be
+ * `if (ctx.role === 'waiter') redirect(...)`, which meant every role added
+ * after it was written silently gained manager access — `cashier` (added in
+ * 0033_pos.sql) could reach /reports and create or delete branches. An
+ * allow-list fails closed instead, so adding a role never widens anything.
+ *
+ * Keep these lists in step with `NAV` in components/dashboard/Sidebar.tsx;
+ * the two together decide what a role can reach.
+ */
+const requireRole = (...roles: MemberRole[]) =>
+  cache(async (): Promise<TenantContext> => {
+    const ctx = await requireTenant();
+    // Support mode resolves role as 'owner' for a super-admin; leave it alone.
+    if (!ctx.support && !roles.includes(ctx.role)) redirect(homeForRole(ctx.role));
+    return ctx;
+  });
 
 /** Guards owner-only pages (billing, domain, settings, staff). */
 export const requireOwner = cache(async (): Promise<TenantContext> => {
   const ctx = await requireTenant();
-  if (ctx.role !== 'owner') redirect('/menu');
+  if (!ctx.support && ctx.role !== 'owner') redirect(homeForRole(ctx.role));
   return ctx;
 });
 
-/** Guards manager+ pages (full menu editing). */
-export const requireManager = cache(async (): Promise<TenantContext> => {
-  const ctx = await requireTenant();
-  if (ctx.role === 'waiter') redirect('/menu');
-  return ctx;
-});
+/** Guards manager+ pages: full menu editing, branches, imports. */
+export const requireManager = requireRole('owner', 'manager');
+
+/** Revenue, orders and analytics. Mirrors can_view_sales() in 0043. */
+export const requireAnalytics = requireRole('owner', 'manager');
+
+/** The reservation book. Mirrors can_manage_reservations() in 0043. */
+export const requireReservations = requireRole(
+  'owner',
+  'manager',
+  'cashier',
+  'waiter',
+  'host',
+);
+
+/** The order board. Service staff need it; the door does not. */
+export const requireOrders = requireRole('owner', 'manager', 'cashier', 'waiter');
+
+/** Loyalty holds diner PII. Mirrors can_use_loyalty() in 0043. */
+export const requireLoyalty = requireRole('owner', 'manager', 'cashier', 'waiter');
 
 /** Guards super-admin-only pages. */
 export const requireSuperAdmin = cache(async (): Promise<AuthedUser> => {

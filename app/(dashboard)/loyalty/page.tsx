@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { requireTenant } from '@/lib/auth';
+import { requireLoyalty } from '@/lib/auth';
 import { isPro } from '@/lib/plan';
 import { createClient } from '@/lib/supabase/server';
 import type { LoyaltyProgram } from '@/lib/database.types';
@@ -8,7 +8,7 @@ import { LoyaltyAccredit } from '@/components/dashboard/LoyaltyAccredit';
 import { ProUpsell } from '@/components/dashboard/ProUpsell';
 
 export default async function LoyaltyPage() {
-  const { tenant, role, subscription } = await requireTenant();
+  const { tenant, role, subscription } = await requireLoyalty();
   const t = await getTranslations('loyalty');
   const supabase = await createClient();
 

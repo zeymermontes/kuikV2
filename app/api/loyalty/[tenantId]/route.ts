@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { rateLimit, clientIp, bucketKey } from '@/lib/rate-limit';
 import { effectivePlan } from '@/lib/plan';
 import type { LoyaltyProgram, LoyaltyCustomer, SubscriptionStatus } from '@/lib/database.types';
 
@@ -20,6 +21,21 @@ export async function POST(
   { params }: { params: Promise<{ tenantId: string }> },
 ) {
   const { tenantId } = await params;
+
+  // This route is public, unauthenticated and writes with the service role, so
+  // the limiter is the only thing standing between it and a script.
+  // Enrolment is keyed by phone number, so a loose limit here would let someone
+  // enumerate which numbers are already members.
+  // Two buckets: one per caller, one per tenant, because a botnet defeats the
+  // first but still has to land everything on the same restaurant.
+  const ip = clientIp(req);
+  const [byIp, byTenant] = await Promise.all([
+    rateLimit(bucketKey('loy:ip', `${tenantId}:${ip}`, 60), 10, 60),
+    rateLimit(bucketKey('loy:tenant', tenantId, 60), 200, 60),
+  ]);
+  if (!byIp.ok || !byTenant.ok) {
+    return NextResponse.json({ ok: false, error: 'rate_limited' }, { status: 429 });
+  }
   let body: { phone?: string; name?: string };
   try {
     body = await req.json();

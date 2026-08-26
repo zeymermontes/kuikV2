@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { getMembership, homeForRole } from '@/lib/auth';
 
 export interface AuthResult {
   error?: string;
@@ -16,10 +17,14 @@ export async function signIn(
   const password = String(formData.get('password') ?? '');
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { error: error.message };
 
-  redirect('/dashboard');
+  // Land each role somewhere it can actually use. Sending everyone to
+  // /dashboard used to drop waiters and cashiers on the analytics page, which
+  // now bounces them straight back out.
+  const membership = data.user ? await getMembership(data.user.id) : null;
+  redirect(membership ? homeForRole(membership.role) : '/onboarding');
 }
 
 export async function signUp(

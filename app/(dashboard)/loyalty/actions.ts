@@ -1,11 +1,11 @@
 'use server';
 
-import { requireTenant } from '@/lib/auth';
+import { requireLoyalty } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import type { LoyaltyCustomer, LoyaltyProgram } from '@/lib/database.types';
 
 async function ctx() {
-  const { tenant } = await requireTenant();
+  const { tenant } = await requireLoyalty();
   const supabase = await createClient();
   return { tenantId: tenant.id, supabase };
 }
