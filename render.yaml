@@ -133,6 +133,10 @@ services:
     startCommand: ./bridge
     healthCheckPath: /health
     envVars:
+      # go.mod requires 1.26 (whatsmeow does). Without this Render may build
+      # with an older toolchain and fail with "go.mod requires go >= 1.26.0".
+      - key: GO_VERSION
+        value: "1.26.0"
       - key: BRIDGE_SECRET
         sync: false
       - key: KUIK_WEBHOOK_URL

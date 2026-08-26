@@ -31,9 +31,28 @@ var manager *Manager
 var bridgeSecret string
 
 func main() {
-	bridgeSecret = mustEnv("BRIDGE_SECRET")
-	webhookURL := mustEnv("KUIK_WEBHOOK_URL")
-	databaseURL := mustEnv("DATABASE_URL")
+	// Report EVERY missing variable at once. Failing on the first one means a
+	// deploy per variable to discover three, and each one is a fresh build.
+	missing := []string{}
+	for _, k := range []string{"BRIDGE_SECRET", "KUIK_WEBHOOK_URL", "DATABASE_URL"} {
+		if os.Getenv(k) == "" {
+			missing = append(missing, k)
+		}
+	}
+	if len(missing) > 0 {
+		log.Fatalf(
+			"missing required environment variable(s): %s\n"+
+				"  BRIDGE_SECRET     shared with Kuik (its WHATSAPP_BRIDGE_SECRET)\n"+
+				"  KUIK_WEBHOOK_URL  https://app.kuik.mx/api/webhooks/whatsapp/bridge\n"+
+				"  DATABASE_URL      Postgres, with ?sslmode=require&search_path=whatsmeow\n"+
+				"See whatsapp-bridge/README.md",
+			strings.Join(missing, ", "),
+		)
+	}
+
+	bridgeSecret = os.Getenv("BRIDGE_SECRET")
+	webhookURL := os.Getenv("KUIK_WEBHOOK_URL")
+	databaseURL := os.Getenv("DATABASE_URL")
 	port := envOr("PORT", "8080")
 
 	logger := waLog.Stdout("bridge", envOr("LOG_LEVEL", "INFO"), true)
@@ -230,14 +249,6 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(body)
-}
-
-func mustEnv(key string) string {
-	v := os.Getenv(key)
-	if v == "" {
-		log.Fatalf("%s is required", key)
-	}
-	return v
 }
 
 func envOr(key, fallback string) string {
