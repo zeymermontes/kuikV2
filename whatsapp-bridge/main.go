@@ -103,6 +103,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", handleHealth)
+	mux.HandleFunc("/sessions", authed(handleList))
 	mux.HandleFunc("/sessions/", authed(handleSessions))
 
 	srv := &http.Server{
@@ -131,6 +132,25 @@ func main() {
 
 func handleHealth(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// handleList reports every live session. Diagnosing "the bot is silent" without
+// this means guessing at which tenant a paired number actually belongs to.
+func handleList(w http.ResponseWriter, _ *http.Request) {
+	manager.mu.RLock()
+	ids := make([]string, 0, len(manager.sessions))
+	for id := range manager.sessions {
+		ids = append(ids, id)
+	}
+	manager.mu.RUnlock()
+
+	out := make([]map[string]any, 0, len(ids))
+	for _, id := range ids {
+		if s, ok := manager.Get(id); ok {
+			out = append(out, describe(id, s))
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"sessions": out})
 }
 
 // authed guards everything except /health with the shared secret, compared in

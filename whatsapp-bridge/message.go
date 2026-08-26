@@ -71,17 +71,42 @@ func extractText(msg *waE2E.Message) string {
 }
 
 // Forwarder posts inbound messages to Kuik.
+//
+// Delivery happens on its own workers, NEVER on the caller's goroutine.
+// whatsmeow dispatches event handlers synchronously on the goroutine reading
+// the WhatsApp socket, so an HTTP call here stalls the entire message pipeline
+// for that account — observed in production as "Node handling took 4m24s",
+// with the bot silent the whole time because nothing else could be processed.
 type Forwarder struct {
 	url    string
 	secret string
 	client *http.Client
+	queue  chan InboundPayload
 }
 
+const (
+	// Deep enough to absorb a history-sync burst, shallow enough that a wedged
+	// Kuik shows up as dropped messages in the log instead of unbounded memory.
+	forwardQueueSize = 512
+	forwardWorkers   = 4
+)
+
 func NewForwarder(url, secret string) *Forwarder {
-	return &Forwarder{
+	f := &Forwarder{
 		url:    url,
 		secret: secret,
 		client: &http.Client{Timeout: 15 * time.Second},
+		queue:  make(chan InboundPayload, forwardQueueSize),
+	}
+	for i := 0; i < forwardWorkers; i++ {
+		go f.worker()
+	}
+	return f
+}
+
+func (f *Forwarder) worker() {
+	for payload := range f.queue {
+		f.post(payload)
 	}
 }
 
@@ -120,6 +145,16 @@ func (f *Forwarder) Handle(tenantID string, evt *events.Message) {
 		FromMe:    evt.Info.IsFromMe,
 	}
 
+	// Hand off and return immediately: this runs inside whatsmeow's socket
+	// goroutine and must not block it.
+	select {
+	case f.queue <- payload:
+	default:
+		log.Printf("forward queue full, dropping message %s from %s", payload.MessageID, payload.From)
+	}
+}
+
+func (f *Forwarder) post(payload InboundPayload) {
 	body, err := json.Marshal(payload)
 	if err != nil {
 		log.Printf("forward marshal: %v", err)
@@ -145,6 +180,15 @@ func (f *Forwarder) Handle(tenantID string, evt *events.Message) {
 	}
 	defer res.Body.Close()
 	if res.StatusCode >= 300 {
-		log.Printf("kuik rejected inbound: %d", res.StatusCode)
+		// 403 here almost always means BRIDGE_SECRET and Kuik's
+		// WHATSAPP_BRIDGE_SECRET disagree — the single most likely
+		// misconfiguration, and otherwise invisible.
+		hint := ""
+		if res.StatusCode == 403 {
+			hint = " (signature rejected — does BRIDGE_SECRET match Kuik's WHATSAPP_BRIDGE_SECRET?)"
+		}
+		log.Printf("kuik rejected inbound %s: HTTP %d%s", payload.MessageID, res.StatusCode, hint)
+		return
 	}
+	log.Printf("forwarded %s from %s", payload.MessageID, payload.From)
 }
