@@ -48,8 +48,18 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
   const started = Date.now();
   const supabase = createAdminClient();
 
-  const provider = await resolveProvider(turn.ctx.tenantId);
-  if (!provider) return false;
+  const resolved = await resolveProvider(turn.ctx.tenantId);
+  if (!resolved.ok) {
+    // Record WHY. Returning false silently made a missing API key look exactly
+    // like a model with nothing to say — the operator has no way to tell those
+    // apart, and only one of them is fixable.
+    await logRun(
+      turn, 'none', 'none', 'error', 0, 0, started,
+      `IA no disponible: ${resolved.detail}`,
+    );
+    return false;
+  }
+  const provider = resolved.provider;
 
   if (!(await withinBudget(turn.ctx.tenantId, provider.ownKey))) {
     await logRun(turn, provider.id, provider.model, 'budget_exceeded', 0, 0, started);

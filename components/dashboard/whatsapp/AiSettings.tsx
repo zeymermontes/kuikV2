@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, AlertTriangle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Card, Input, Label, Textarea, Button } from '@/components/ui';
 import { saveAiConfig } from '@/app/(dashboard)/whatsapp/actions';
@@ -29,7 +29,16 @@ interface Config {
  * so there is no "reveal" and cannot be one. Only the last four characters come
  * back, which is enough to recognise which key is stored.
  */
-export function AiSettings({ config, usage }: { config: Config | null; usage: number }) {
+export function AiSettings({
+  config,
+  usage,
+  lastFailure,
+}: {
+  config: Config | null;
+  usage: number;
+  /** Most recent run that could not answer, so the reason is visible here. */
+  lastFailure: { outcome: string; error: string | null; created_at: string } | null;
+}) {
   const t = useTranslations('whatsapp');
   const [cfg, setCfg] = useState<Config>(
     config ?? {
@@ -138,6 +147,15 @@ export function AiSettings({ config, usage }: { config: Config | null; usage: nu
             onBlur={(e) => patch({ monthly_message_budget: e.target.value ? Number(e.target.value) : null })}
           />
           <p className="mt-1 text-xs text-neutral-500">{t('usageThisMonth', { count: usage })}</p>
+        </div>
+      )}
+
+      {lastFailure && (
+        <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          <p className="flex items-center gap-1.5 font-medium">
+            <AlertTriangle className="h-3.5 w-3.5" /> {t('aiLastFailure')}
+          </p>
+          <p className="mt-0.5">{lastFailure.error ?? lastFailure.outcome}</p>
         </div>
       )}
 

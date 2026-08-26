@@ -13,6 +13,12 @@ import type { ProviderId } from './types';
  * quality rating — but not a spending ceiling Kuik has no business imposing.
  */
 
+/** Why the AI could not run, in terms an operator can act on. */
+export type ResolveFailure =
+  | 'platform_disabled'
+  | 'unknown_provider'
+  | 'no_key';
+
 export interface ResolvedProvider {
   id: ProviderId;
   model: string;
@@ -30,7 +36,11 @@ function bytea(v: unknown): Buffer {
   return Buffer.from(s.startsWith('\\x') ? s.slice(2) : s, 'hex');
 }
 
-export async function resolveProvider(tenantId: string): Promise<ResolvedProvider | null> {
+export type ResolveResult =
+  | { ok: true; provider: ResolvedProvider }
+  | { ok: false; reason: ResolveFailure; detail: string };
+
+export async function resolveProvider(tenantId: string): Promise<ResolveResult> {
   const supabase = createAdminClient();
 
   const [{ data: platform }, { data: cfgRow }] = await Promise.all([
@@ -39,7 +49,9 @@ export async function resolveProvider(tenantId: string): Promise<ResolvedProvide
   ]);
 
   // A super admin can switch every tenant's AI off without a deploy.
-  if ((platform as { ai_enabled?: boolean } | null)?.ai_enabled === false) return null;
+  if ((platform as { ai_enabled?: boolean } | null)?.ai_enabled === false) {
+    return { ok: false, reason: 'platform_disabled', detail: 'IA apagada para toda la plataforma en /admin' };
+  }
 
   const cfg = cfgRow as {
     provider: ProviderId; model: string | null; use_own_key: boolean;
@@ -52,7 +64,9 @@ export async function resolveProvider(tenantId: string): Promise<ResolvedProvide
     (platform as { ai_default_provider?: ProviderId } | null)?.ai_default_provider ??
     'deepseek') as ProviderId;
   const entry = REGISTRY[id];
-  if (!entry) return null;
+  if (!entry) {
+    return { ok: false, reason: 'unknown_provider', detail: `proveedor desconocido: ${id}` };
+  }
 
   let apiKey: string | null = null;
   let ownKey = false;
@@ -76,21 +90,32 @@ export async function resolveProvider(tenantId: string): Promise<ResolvedProvide
   }
 
   if (!apiKey) apiKey = process.env[entry.envKey] ?? null;
-  if (!apiKey) return null;
+  if (!apiKey) {
+    // The single most common reason the assistant quietly stops using AI, and
+    // previously indistinguishable from "the model had nothing to say".
+    return {
+      ok: false,
+      reason: 'no_key',
+      detail: `falta la variable de entorno ${entry.envKey} (proveedor ${id})`,
+    };
+  }
 
   return {
-    id,
-    // Three levels, most specific first: what this restaurant chose, what the
-    // super admin set for everyone, then the code's own fallback.
-    model:
-      cfg?.model ||
-      (platform as { ai_default_model?: string | null } | null)?.ai_default_model ||
-      entry.defaultModel,
-    apiKey,
-    baseUrl: cfg?.base_url ?? undefined,
-    temperature: cfg?.temperature ?? 0.2,
-    maxTokens: cfg?.max_output_tokens ?? 400,
-    systemExtra: cfg?.system_prompt_extra ?? null,
-    ownKey,
+    ok: true,
+    provider: {
+      id,
+      // Three levels, most specific first: what this restaurant chose, what
+      // the super admin set for everyone, then the code's own fallback.
+      model:
+        cfg?.model ||
+        (platform as { ai_default_model?: string | null } | null)?.ai_default_model ||
+        entry.defaultModel,
+      apiKey,
+      baseUrl: cfg?.base_url ?? undefined,
+      temperature: cfg?.temperature ?? 0.2,
+      maxTokens: cfg?.max_output_tokens ?? 400,
+      systemExtra: cfg?.system_prompt_extra ?? null,
+      ownKey,
+    },
   };
 }

@@ -1125,6 +1125,7 @@
     "conflictNotYours": "not yours",
     "conflictSupport": "Some businesses listed aren't managed by you. Contact Kuik support to release them.",
     "warnDisabled": "Your number is connected but WhatsApp is off, so nothing gets answered. Turn it on below.",
-    "warnBotOff": "Auto-replies are off: messages are recorded, but the assistant stays quiet."
+    "warnBotOff": "Auto-replies are off: messages are recorded, but the assistant stays quiet.",
+    "aiLastFailure": "The AI couldn't answer last time"
   }
 }

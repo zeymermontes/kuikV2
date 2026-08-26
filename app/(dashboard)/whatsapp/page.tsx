@@ -19,7 +19,7 @@ export default async function WhatsappPage() {
   const period = new Date();
   period.setUTCDate(1);
 
-  const [{ data: numbers }, { data: settings }, { data: canned }, { data: goals }, { data: aiConfig }, { data: usage }] =
+  const [{ data: numbers }, { data: settings }, { data: canned }, { data: goals }, { data: aiConfig }, { data: lastAiFailure }, { data: usage }] =
     await Promise.all([
       supabase.from('whatsapp_numbers').select('*').eq('tenant_id', tenant.id).order('created_at'),
       supabase.from('whatsapp_settings').select('*').eq('tenant_id', tenant.id).maybeSingle(),
@@ -31,6 +31,16 @@ export default async function WhatsappPage() {
         .from('ai_providers_config')
         .select('provider, model, use_own_key, key_last4, system_prompt_extra, monthly_message_budget')
         .eq('tenant_id', tenant.id)
+        .maybeSingle(),
+      // The most recent AI failure, so "the assistant stopped using AI" has a
+      // reason on screen instead of only in a table nobody queries.
+      supabase
+        .from('ai_runs')
+        .select('outcome, error, created_at')
+        .eq('tenant_id', tenant.id)
+        .in('outcome', ['error', 'budget_exceeded', 'guard_blocked'])
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle(),
       supabase
         .from('ai_usage_counters')
@@ -68,6 +78,7 @@ export default async function WhatsappPage() {
         <AiSettings
           config={aiConfig as Parameters<typeof AiSettings>[0]['config']}
           usage={(usage as { messages: number } | null)?.messages ?? 0}
+          lastFailure={lastAiFailure as { outcome: string; error: string | null; created_at: string } | null}
         />
       )}
     </div>
