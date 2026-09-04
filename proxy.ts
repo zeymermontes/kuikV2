@@ -25,15 +25,14 @@ export async function proxy(request: NextRequest) {
   // (Render health checks) don't pass our Cloudflare and are exempt. Inert
   // until KUIK_EDGE_SECRET is set — never set it in local dev, where
   // ROOT_HOST is "localhost" and every request would be refused.
-  // The APEX is deliberately exempt: kuik.mx is an A record straight to
-  // Render's IP, and on that path our Cloudflare zone's Transform Rule does
-  // not stamp the header (verified in production — the apex served 403 to
-  // everyone while every subdomain passed). Subdomains ride the CNAME through
-  // Cloudflare-for-SaaS where the stamp demonstrably arrives, and the apex
-  // only serves the marketing page; a direct-to-origin request forging
-  // Host: kuik.mx dies at Render's own edge anyway.
+  // The apex was briefly exempt: as an A record straight to Render's IP its
+  // path skipped the zone's rulesets entirely, so the stamp never arrived and
+  // arming the lock 403'd the marketing page. It is now a flattened CNAME to
+  // kuik.onrender.com — the same orange-to-orange path as the subdomains —
+  // and the zone's rules demonstrably execute there (rate-limit 429s observed
+  // on the apex after the switch), so the whole zone is locked again.
   const edgeSecret = process.env.KUIK_EDGE_SECRET;
-  if (edgeSecret && host.endsWith(`.${ROOT_HOST}`)) {
+  if (edgeSecret && (host === ROOT_HOST || host.endsWith(`.${ROOT_HOST}`))) {
     if (request.headers.get('x-kuik-edge') !== edgeSecret) {
       return new NextResponse('Forbidden', { status: 403 });
     }
