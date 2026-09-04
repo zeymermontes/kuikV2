@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { rateLimit, clientIp, bucketKey } from '@/lib/rate-limit';
 import { contentTypeFor, LANDING_DIR } from '@/lib/landing';
 import { getLandingVars, applyLandingVars, isSubstitutable } from '@/lib/landing-vars';
 import { LANDING_BRIDGE } from '@/lib/landing-bridge';
@@ -16,16 +17,36 @@ import { LANDING_BRIDGE } from '@/lib/landing-bridge';
  * allow-same-origin, so its JS runs in an opaque origin and can't reach our
  * session, cookies, or APIs — regardless of which host serves the bytes.
  */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ tenantId: string; path: string[] }> },
 ) {
   const { tenantId, path } = await params;
   const rel = path.join('/');
 
+  // The id is the first segment of a storage key, so refuse anything that is
+  // not literally a UUID before it gets near the bucket — and skip the storage
+  // round-trip for garbage requests while at it.
+  if (!UUID.test(tenantId)) return new Response('Not found', { status: 404 });
+
   // Block path traversal and stray dotfiles.
   if (!rel || rel.includes('..') || rel.split('/').some((s) => s.startsWith('.'))) {
     return new Response('Not found', { status: 404 });
+  }
+
+  // This was the one public route with no limiter at all, and each hit costs a
+  // Storage download plus, for HTML, the settings queries behind the template
+  // variables. Generous budgets — a landing pulls many assets per page view —
+  // but bounded: per caller and, botnet-proof, per tenant.
+  const ip = clientIp(req);
+  const [byIp, byTenant] = await Promise.all([
+    rateLimit(bucketKey('landing:ip', `${tenantId}:${ip}`, 60), 300, 60),
+    rateLimit(bucketKey('landing:tenant', tenantId, 60), 3000, 60),
+  ]);
+  if (!byIp.ok || !byTenant.ok) {
+    return new Response('Too many requests', { status: 429 });
   }
 
   const supabase = createAdminClient();
@@ -56,8 +77,9 @@ export async function GET(
     return new Response(body, {
       headers: {
         'content-type': contentType,
-        // Shorter than the assets: these carry live settings now.
-        'cache-control': 'public, max-age=60',
+        // Shorter than the assets: these carry live settings now. s-maxage
+        // lets the CDN absorb repeats once Cloudflare fronts the domain.
+        'cache-control': 'public, max-age=60, s-maxage=60',
         'x-content-type-options': 'nosniff',
       },
     });
@@ -66,7 +88,7 @@ export async function GET(
   return new Response(await data.arrayBuffer(), {
     headers: {
       'content-type': contentType,
-      'cache-control': 'public, max-age=300',
+      'cache-control': 'public, max-age=300, s-maxage=300',
       'x-content-type-options': 'nosniff',
     },
   });
