@@ -50,7 +50,11 @@ export function WhatsappPair({ numbers }: { numbers: ConnectedNumber[] }) {
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
 
   const poll = useCallback(async () => {
-    const res = await fetch('/api/whatsapp/pair');
+    // A unique URL per poll, on top of the route's no-store. A CDN keys its
+    // cache on the query string, so this holds even if an edge rule decides a
+    // plain 200 is cacheable — and a stale body here means a dead QR on screen
+    // and a countdown frozen at whatever second it was first read.
+    const res = await fetch(`/api/whatsapp/pair?t=${Date.now()}`, { cache: 'no-store' });
     const json = await res.json();
     if (!json.ok) {
       setError(json.error ?? 'bridge_error');

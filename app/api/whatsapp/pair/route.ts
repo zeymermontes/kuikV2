@@ -21,6 +21,24 @@ export const dynamic = 'force-dynamic';
 /** Synthetic id standing in for Meta's phone_number_id, which does not exist here. */
 const bridgeId = (tenantId: string) => `bridge:${tenantId}`;
 
+/**
+ * Every reply here must reach the browser uncached.
+ *
+ * `force-dynamic` only governs how WE render; it says nothing to anything in
+ * between. A QR rotates every ~20 seconds and the countdown is measured in
+ * them, so a cached body means the dashboard shows a code that WhatsApp has
+ * already retired — the phone reads it, opens its confirmation dialog, and
+ * fails with "could not link the device". Cloudflare fronts this origin with a
+ * respect-origin cache rule, and a 200 with no cache-control is exactly what it
+ * decides for itself.
+ */
+function fresh(body: unknown, status = 200) {
+  return NextResponse.json(body, {
+    status,
+    headers: { 'cache-control': 'no-store, must-revalidate', pragma: 'no-cache' },
+  });
+}
+
 export interface NumberConflict {
   tenantId: string;
   name: string;
@@ -75,7 +93,7 @@ async function findConflicts(
 export async function POST() {
   const { tenant } = await requireOwner();
   if (!bridgeConfigured()) {
-    return NextResponse.json({ ok: false, error: 'bridge_not_configured' }, { status: 503 });
+    return fresh({ ok: false, error: 'bridge_not_configured' }, 503);
   }
 
   try {
@@ -100,16 +118,16 @@ export async function POST() {
       { onConflict: 'phone_number_id' },
     );
 
-    return NextResponse.json({ ok: true, ...session });
+    return fresh({ ok: true, ...session });
   } catch (err) {
-    return NextResponse.json({ ok: false, error: String(err).slice(0, 200) }, { status: 502 });
+    return fresh({ ok: false, error: String(err).slice(0, 200) }, 502);
   }
 }
 
 export async function GET() {
   const { tenant, user } = await requireOwner();
   if (!bridgeConfigured()) {
-    return NextResponse.json({ ok: false, error: 'bridge_not_configured' }, { status: 503 });
+    return fresh({ ok: false, error: 'bridge_not_configured' }, 503);
   }
 
   const supabaseRead = createAdminClient();
@@ -134,7 +152,7 @@ export async function GET() {
       .from('whatsapp_numbers')
       .update({ status: 'disconnected', pairing_expires_at: null, updated_at: new Date().toISOString() })
       .eq('phone_number_id', bridgeId(tenant.id));
-    return NextResponse.json({ ok: true, status: 'disconnected', error: 'qr_expired' });
+    return fresh({ ok: true, status: 'disconnected', error: 'qr_expired' });
   }
 
   try {
@@ -166,12 +184,12 @@ export async function GET() {
         tenant.id,
         user.id,
       );
-      return NextResponse.json({ ok: true, ...session, conflicts });
+      return fresh({ ok: true, ...session, conflicts });
     }
 
-    return NextResponse.json({ ok: true, ...session });
+    return fresh({ ok: true, ...session });
   } catch (err) {
-    return NextResponse.json({ ok: false, error: String(err).slice(0, 200) }, { status: 502 });
+    return fresh({ ok: false, error: String(err).slice(0, 200) }, 502);
   }
 }
 
@@ -194,5 +212,5 @@ export async function DELETE() {
     .eq('phone_number_id', bridgeId(tenant.id));
 
   revalidatePath('/whatsapp');
-  return NextResponse.json({ ok: true });
+  return fresh({ ok: true });
 }
