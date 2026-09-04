@@ -6,7 +6,6 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { seal, last4 } from '@/lib/crypto';
 import type { ProviderId } from '@/lib/ai/types';
-import type { FlowDef } from '@/lib/whatsapp/flow';
 
 export async function saveWhatsappSettings(patch: {
   enabled?: boolean;
@@ -33,23 +32,6 @@ export async function saveCannedReply(key: string, body: string): Promise<void> 
     { tenant_id: tenant.id, key, locale: 'es', body, enabled: true },
     { onConflict: 'tenant_id,key,locale' },
   );
-  revalidatePath('/whatsapp');
-}
-
-export async function saveGoal(id: string, patch: {
-  enabled?: boolean;
-  reply_body?: string | null;
-  name?: string;
-  /** The question-by-question script the bot follows when AI is off. */
-  flow?: FlowDef | null;
-}): Promise<void> {
-  const { tenant } = await requireManager();
-  const supabase = await createClient();
-  await supabase
-    .from('whatsapp_goals')
-    .update({ ...patch, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .eq('tenant_id', tenant.id);
   revalidatePath('/whatsapp');
 }
 

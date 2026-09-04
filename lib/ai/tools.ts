@@ -5,6 +5,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { formatPrice } from '@/lib/utils';
 import { normalizeText } from '@/lib/whatsapp/parse';
 import { botCreateReservation, botHandoff, CreateReservationInput, type BotContext } from '@/lib/whatsapp/actions';
+import { completeRunFromAi } from '@/lib/whatsapp/flows/complete';
+import { endRun, loadRun } from '@/lib/whatsapp/flows/run-store';
+import type { FlowSlot } from '@/lib/whatsapp/flows/schema';
 import type { RenderVars } from '@/lib/whatsapp/render';
 import type { ToolDef } from './types';
 
@@ -63,6 +66,66 @@ const Reply = z.object({
     .describe('TODOS los datos confirmados hasta ahora, no solo los de este turno. Omite los que sigan sin confirmar.'),
 });
 
+/**
+ * A flow's slots, turned into the schema `datos` must satisfy — this is how
+ * the restaurant's canvas ends up constraining what the model may write down.
+ */
+export function buildCollectSchema(slots: FlowSlot[]): z.ZodObject {
+  const shape: Record<string, z.ZodType> = {};
+  for (const slot of slots) {
+    let field: z.ZodType;
+    switch (slot.type) {
+      case 'number': {
+        let n = z.number();
+        if (slot.min != null) n = n.min(slot.min);
+        if (slot.max != null) n = n.max(slot.max);
+        field = n;
+        break;
+      }
+      case 'date':
+        field = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+          .describe('Fecha completa YYYY-MM-DD. Si el cliente fue ambiguo, pregunta antes de anotar.');
+        break;
+      case 'time':
+        field = z.string().regex(/^\d{2}:\d{2}$/).describe('Hora en formato 24h HH:MM.');
+        break;
+      case 'phone':
+        field = z.string().regex(/^\d{8,15}$/).describe('Solo dígitos, con lada.');
+        break;
+      case 'email':
+        field = z.string().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
+        break;
+      case 'choice':
+        field = z.enum((slot.options ?? []).map((o) => o.id) as [string, ...string[]])
+          .describe(`Una de: ${(slot.options ?? []).map((o) => `${o.id} (${o.title})`).join(', ')}`);
+        break;
+      default:
+        field = z.string().min(1).max(120);
+    }
+    shape[slot.key] = field.optional().describe(
+      `${slot.label}.${(field.description ? ` ${field.description}` : '')}`,
+    );
+  }
+  return z.object(shape);
+}
+
+/**
+ * The reply schema for a flow run: the flow's own slots instead of the fixed
+ * booking fields, plus a pocket for whatever the diner volunteers unprompted.
+ */
+export function buildReplySchema(slots?: FlowSlot[]) {
+  if (!slots?.length) return Reply;
+  return z.object({
+    mensaje: z.string().min(1).max(900)
+      .describe('El texto que se le manda al cliente por WhatsApp.'),
+    datos: buildCollectSchema(slots).optional()
+      .describe('TODOS los datos confirmados hasta ahora, no solo los de este turno. Omite los que sigan sin confirmar.'),
+    datos_extra: z.record(z.string(), z.string()).optional()
+      .describe('Datos útiles que el cliente dé sin que se los pidas (alergias, ocasión especial, etc.), como pares clave-valor cortos.'),
+  });
+}
+export type FlowReply = z.infer<ReturnType<typeof buildReplySchema>>;
+
 export const TOOL_SCHEMAS = {
   responder: Reply,
   buscar_menu: SearchMenu,
@@ -71,6 +134,7 @@ export const TOOL_SCHEMAS = {
   enviar_menu: Empty,
   crear_reserva: CreateReservationInput,
   pasar_con_humano: Handoff,
+  finalizar_flujo: Empty,
 } as const;
 
 export type ToolName = keyof typeof TOOL_SCHEMAS;
@@ -78,8 +142,10 @@ export type ToolName = keyof typeof TOOL_SCHEMAS;
 /**
  * @param collecting - true while the model is running a booking conversation,
  *   which is the only time it should be writing partial state down.
+ * @param replySchema - the run's own reply schema (slots from its flow graph);
+ *   defaults to the fixed booking shape.
  */
-export function toolDefinitions(collecting = false): ToolDef[] {
+export function toolDefinitions(collecting = false, replySchema: z.ZodType = Reply): ToolDef[] {
   const base: ToolDef[] = [
     {
       name: 'buscar_menu',
@@ -116,14 +182,27 @@ export function toolDefinitions(collecting = false): ToolDef[] {
   ];
 
   if (collecting) {
+    // During a flow run the ONLY way to commit is finalizar_flujo — it walks
+    // the graph's action nodes, so a notify_staff after the booking still
+    // fires. Leaving crear_reserva up would offer a shortcut around them.
+    const reservaIdx = base.findIndex((d) => d.name === 'crear_reserva');
+    if (reservaIdx >= 0) base.splice(reservaIdx, 1);
     base.unshift({
       name: 'responder',
       description:
         'SIEMPRE termina tu turno llamando a esta herramienta. Es la única forma de ' +
         'hablarle al cliente. En `datos` repite TODOS los datos que ya confirmaste, ' +
         'incluidos los de turnos anteriores. NUNCA pongas ahí algo ambiguo: si dijo ' +
-        '"el 30" y no sabes el mes, deja `date` fuera y pregúntalo en el mensaje.',
-      parameters: toJsonSchema(Reply),
+        '"el 30" y no sabes el mes, deja el dato fuera y pregúntalo en el mensaje.',
+      parameters: toJsonSchema(replySchema),
+    });
+    base.push({
+      name: 'finalizar_flujo',
+      description:
+        'Ejecuta la acción del flujo en curso (registrar la solicitud, avisar al restaurante). ' +
+        'Llámala SOLO cuando ya confirmaste con el cliente todos los datos requeridos y él ' +
+        'dio el sí al resumen. Antes de llamarla, asegúrate de haber reportado todos los datos en `responder`.',
+      parameters: toJsonSchema(Empty),
     });
   }
 
@@ -212,14 +291,17 @@ export async function runTool(
       const args = parsed.data as z.infer<typeof CreateReservationInput>;
       const result = await botCreateReservation(ctx, args);
 
-      if (result.ok) {
+      if (result.ok && ctx.flowRunId) {
         // The booking is done, so the conversation must leave booking mode —
         // otherwise the next "gracias" is read as another answer to a question
         // that no longer exists.
-        await createAdminClient()
-          .from('whatsapp_conversations')
-          .update({ active_goal_id: null, state: {} })
-          .eq('id', ctx.conversationId);
+        const supabase = createAdminClient();
+        const run = await loadRun(supabase, ctx.flowRunId);
+        if (run) {
+          await endRun(supabase, run, 'completed', 'ai', {
+            crear_reserva: { ok: true, reservation_id: result.data?.id },
+          });
+        }
       }
 
       return {
@@ -228,6 +310,14 @@ export async function runTool(
           : `No se pudo registrar: ${result.message}. Explícaselo al cliente y ofrece otra opción.`,
         facts: [String(args.party_size)],
       };
+    }
+
+    case 'finalizar_flujo': {
+      if (!ctx.flowRunId) {
+        return { content: 'No hay un flujo activo que finalizar.', facts: [] };
+      }
+      const result = await completeRunFromAi(ctx.flowRunId, ctx, vars);
+      return { content: result.detail, facts: result.facts };
     }
 
     case 'pasar_con_humano': {
@@ -243,23 +333,4 @@ export async function runTool(
 
 function extractNumbers(text: string): string[] {
   return (text.match(/\d+(?:[.,]\d+)?/g) ?? []).map((n) => n.replace(',', '.'));
-}
-
-/**
- * Save the facts a structured reply reported.
- *
- * The model sends the FULL set each turn, not a delta, so this replaces rather
- * than merges: that is what lets a diner correct themselves ("mejor 6") without
- * the old value lingering underneath.
- */
-export async function persistBookingState(
-  conversationId: string,
-  values: Record<string, unknown>,
-): Promise<void> {
-  const clean = Object.fromEntries(Object.entries(values).filter(([, v]) => v !== undefined));
-  const supabase = createAdminClient();
-  await supabase
-    .from('whatsapp_conversations')
-    .update({ state: { values: clean }, updated_at: new Date().toISOString() })
-    .eq('id', conversationId);
 }

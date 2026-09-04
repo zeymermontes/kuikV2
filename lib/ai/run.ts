@@ -7,7 +7,9 @@ import { renderTemplate } from '@/lib/whatsapp/render';
 import { REGISTRY } from './registry';
 import { resolveProvider } from './resolve';
 import { withinBudget, recordUsage } from './budget';
-import { toolDefinitions, runTool, persistBookingState, TOOL_SCHEMAS } from './tools';
+import { persistRunAnswers } from '@/lib/whatsapp/flows/run-store';
+import type { FlowSlot } from '@/lib/whatsapp/flows/schema';
+import { toolDefinitions, runTool, buildReplySchema } from './tools';
 import { checkGrounding, GROUNDING_FALLBACK } from './guard';
 import type { ChatMessage } from './types';
 
@@ -40,6 +42,10 @@ export interface AiTurn {
     needed: { key: string; prompt: string; options?: string[] }[];
     /** What has already been pinned down. */
     known: Record<string, unknown>;
+    /** The flow run being driven; where answers persist and how the turn ends. */
+    runId?: string;
+    /** The flow's slot definitions — they become the reply's `datos` schema. */
+    slots?: FlowSlot[];
   };
 }
 
@@ -81,7 +87,10 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
     .map((m) => ({ role: m.direction === 'inbound' ? 'user' : 'assistant', content: m.body! }));
 
   const system = buildSystemPrompt(turn, provider.systemExtra);
-  const tools = toolDefinitions(Boolean(turn.collecting));
+  // The reply schema is derived from the flow's own slots, so what the model
+  // may write down is exactly what the restaurant drew on the canvas.
+  const replySchema = buildReplySchema(turn.collecting?.slots);
+  const tools = toolDefinitions(Boolean(turn.collecting), replySchema);
   const signal = AbortSignal.timeout(TURN_TIMEOUT_MS);
 
   // Everything the tools actually returned this turn. The guard checks the
@@ -112,10 +121,16 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
       // tool result the model would then try to answer again.
       const replyCall = res.toolCalls.find((c) => c.name === 'responder');
       if (replyCall) {
-        const parsed = TOOL_SCHEMAS.responder.safeParse(replyCall.arguments);
+        const parsed = replySchema.safeParse(replyCall.arguments);
         if (parsed.success) {
-          const { mensaje, datos } = parsed.data;
-          if (datos) await persistBookingState(turn.ctx.conversationId, datos);
+          const { mensaje, datos, datos_extra } = parsed.data as {
+            mensaje: string;
+            datos?: Record<string, unknown>;
+            datos_extra?: Record<string, string>;
+          };
+          if (turn.collecting?.runId && (datos || datos_extra)) {
+            await persistRunAnswers(turn.collecting.runId, datos, datos_extra);
+          }
           return finish(turn, provider, mensaje, facts, promptTokens, completionTokens, started);
         }
         // Malformed arguments: hand the error back so it can correct itself,
@@ -263,7 +278,9 @@ function buildSystemPrompt(turn: AiTurn, extra: string | null): string {
       '- Las fechas van como YYYY-MM-DD y las horas como HH:MM de 24 horas.',
       '  Tradúcelas tú a partir de lo que dijo el cliente y de la fecha de hoy.',
       '- Cuando ya tengas todo, LEE EL RESUMEN al cliente y espera su confirmación.',
-      '- Solo después de que confirme, llama a `crear_reserva`.',
+      turn.collecting.runId
+        ? '- Solo después de que confirme, llama a `finalizar_flujo`.'
+        : '- Solo después de que confirme, llama a `crear_reserva`.',
     );
   } else {
     lines.push('', 'Puedes ayudar con:', options);

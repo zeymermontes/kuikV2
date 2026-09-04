@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { processEvents } from '@/lib/whatsapp/inbound';
+import { runFlowTimers } from '@/lib/whatsapp/flows/timers';
 import { sendToTenant } from '@/lib/push/send';
 
 export const runtime = 'nodejs';
@@ -68,11 +69,18 @@ export async function GET(req: NextRequest) {
     ).catch(() => {});
   }
 
-  // 3. Prune. Raw payloads can hold anything a customer typed, so they should
+  // 3. Flow timers: nudge diners who went quiet mid-flow, close out the ones
+  //    who never came back. Also purges runs older than 90 days.
+  const timers = await runFlowTimers(supabase);
+
+  // 4. Prune. Raw payloads can hold anything a customer typed, so they should
   //    not accumulate indefinitely.
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString();
   await supabase.from('whatsapp_events').delete().eq('status', 'done').lt('received_at', thirtyDaysAgo);
   await supabase.from('rate_limits').delete().lt('expires_at', new Date().toISOString());
 
-  return NextResponse.json({ ok: true, reprocessed: ids.length, idleWarned: warned.size });
+  return NextResponse.json({
+    ok: true, reprocessed: ids.length, idleWarned: warned.size,
+    nudged: timers.nudged, closedRuns: timers.closed,
+  });
 }

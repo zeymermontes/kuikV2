@@ -21,12 +21,11 @@ export default async function WhatsappPage() {
   const period = new Date();
   period.setUTCDate(1);
 
-  const [{ data: numbers }, { data: settings }, { data: canned }, { data: goals }, { data: aiConfig }, { data: lastAiFailure }, { data: recentMessages }, { data: usage }] =
+  const [{ data: numbers }, { data: settings }, { data: canned }, { data: aiConfig }, { data: lastAiFailure }, { data: recentMessages }, { data: usage }] =
     await Promise.all([
       supabase.from('whatsapp_numbers').select('*').eq('tenant_id', tenant.id).order('created_at'),
       supabase.from('whatsapp_settings').select('*').eq('tenant_id', tenant.id).maybeSingle(),
       supabase.from('whatsapp_canned_replies').select('key, body').eq('tenant_id', tenant.id).eq('locale', 'es'),
-      supabase.from('whatsapp_goals').select('*').eq('tenant_id', tenant.id).order('priority', { ascending: false }),
       // Deliberately NOT `select('*')`: the sealed key columns must never reach
       // a React tree, so the column list is explicit.
       supabase
@@ -95,7 +94,6 @@ export default async function WhatsappPage() {
       <BotSettings
         settings={settings as Parameters<typeof BotSettings>[0]['settings']}
         canned={(canned ?? []) as { key: string; body: string }[]}
-        goals={(goals ?? []) as Parameters<typeof BotSettings>[0]['goals']}
         hasNumber={numberRows.some((n) => n.status === 'connected')}
       />
 

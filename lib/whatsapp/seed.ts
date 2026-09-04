@@ -1,5 +1,6 @@
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { FLOW_TEMPLATES, type FlowTemplate } from './flows/templates';
 
 /**
  * What a restaurant gets the moment it connects a number.
@@ -40,99 +41,66 @@ const CANNED: { key: string; body: string }[] = [
   },
 ];
 
-const GOALS = [
-  {
-    key: 'reservation',
-    name: 'Reservar mesa',
-    description: 'Reservar una mesa o un salón privado.',
-    priority: 100,
-    resolver: 'flow',
-    action: 'create_reservation',
-    triggers: [
-      { kind: 'keyword', value: 'reservar' },
-      { kind: 'keyword', value: 'reservacion' },
-      { kind: 'keyword', value: 'reserva' },
-      { kind: 'keyword', value: 'mesa' },
-      { kind: 'keyword', value: 'apartar' },
-    ],
-    flow: {
-      slots: [
-        { key: 'party_size', type: 'number', min: 1, max: 50, prompt: '¿Para cuántas personas? 🍽️' },
-        { key: 'date', type: 'date', prompt: '¿Qué día te gustaría venir?' },
-        { key: 'time', type: 'time', prompt: '¿A qué hora?' },
-        { key: 'customer_name', type: 'text', prompt: '¿A nombre de quién la dejo?' },
-      ],
-      confirm: {
-        body: 'Confirmo: {{party_size}} personas el {{date}} a las {{time}}, a nombre de {{customer_name}}. ¿Está bien?',
-      },
-      onConfirm: 'create_reservation',
-      onCancel: 'Sin problema 👍 ¿Te ayudo con algo más?',
-    },
-  },
-  {
-    key: 'hours',
-    name: 'Horarios',
-    description: 'Consultar a qué hora abre y cierra el restaurante.',
-    priority: 80,
-    resolver: 'reply',
-    reply_body: 'Nuestro horario es:\n{{horario_semana}}',
-    triggers: [
-      { kind: 'keyword', value: 'horario' },
-      { kind: 'keyword', value: 'horarios' },
-      { kind: 'keyword', value: 'abren' },
-      { kind: 'keyword', value: 'cierran' },
-      { kind: 'keyword', value: 'abierto' },
-    ],
-  },
-  {
-    key: 'menu',
-    name: 'Ver el menú',
-    // Note the deliberate choice: with AI off, the right answer to "how much is
-    // the salmon?" is the menu link, not a quoted price. Quoting needs a product
-    // lookup, which is what the AI's buscar_menu tool is for.
-    description: 'Ver el menú y los precios.',
-    priority: 70,
-    resolver: 'reply',
-    reply_body: 'Aquí está nuestro menú completo con precios 📖\n{{menu_url}}',
-    triggers: [
-      { kind: 'keyword', value: 'menu' },
-      { kind: 'keyword', value: 'carta' },
-      { kind: 'keyword', value: 'precio' },
-      { kind: 'keyword', value: 'precios' },
-      { kind: 'keyword', value: 'cuesta' },
-      { kind: 'keyword', value: 'cuanto' },
-    ],
-  },
-  {
-    key: 'location',
-    name: 'Cómo llegar',
-    description: 'Consultar la dirección y cómo llegar.',
-    priority: 60,
-    resolver: 'reply',
-    reply_body: 'Estamos en {{direccion}} 📍\n{{mapa}}',
-    triggers: [
-      { kind: 'keyword', value: 'direccion' },
-      { kind: 'keyword', value: 'ubicacion' },
-      { kind: 'keyword', value: 'donde' },
-      { kind: 'keyword', value: 'llegar' },
-      { kind: 'keyword', value: 'mapa' },
-    ],
-  },
-  {
-    key: 'human',
-    name: 'Hablar con alguien',
-    description: 'Pasar la conversación a una persona del restaurante.',
-    priority: 10,
-    resolver: 'reply',
-    reply_body: 'Claro, en un momento te atiende una persona 🙋',
-    action: 'handoff',
-    triggers: [
-      { kind: 'keyword', value: 'humano' },
-      { kind: 'keyword', value: 'persona' },
-      { kind: 'keyword', value: 'agente' },
-    ],
-  },
-];
+// The conversational defaults live in lib/whatsapp/flows/templates.ts as
+// published graphs — the same five things every restaurant is asked, now
+// editable on the canvas.
+
+/**
+ * Insert templates as ALREADY-PUBLISHED flows (version 1), skipping any key
+ * the tenant has — so re-pairing never clobbers an edited flow. Exported for
+ * the one-shot goal backfill, which feeds converted goals through the same
+ * door.
+ */
+export async function seedFlows(
+  supabase: ReturnType<typeof createAdminClient>,
+  tenantId: string,
+  templates: (FlowTemplate & { enabled?: boolean })[],
+): Promise<void> {
+  const { data: existing } = await supabase
+    .from('whatsapp_flows')
+    .select('key')
+    .eq('tenant_id', tenantId);
+  const have = new Set(((existing ?? []) as { key: string }[]).map((r) => r.key));
+
+  for (const t of templates) {
+    if (have.has(t.key)) continue;
+    // Insert as a DRAFT first and flip published_version only after the
+    // snapshot lands: a failure in between leaves an unpublished draft the
+    // owner can publish from the canvas, never a flow pointing at a missing
+    // version (which would end every run as graph_missing).
+    const { data: flow } = await supabase
+      .from('whatsapp_flows')
+      .insert({
+        tenant_id: tenantId,
+        key: t.key,
+        name: t.name,
+        description: t.description,
+        enabled: t.enabled ?? true,
+        priority: t.priority,
+        triggers: t.triggers,
+        mode: t.mode,
+        draft_graph: t.graph,
+        published_version: 0,
+        nudge_after_minutes: t.nudge_after_minutes,
+        max_nudges: t.max_nudges,
+        nudge_message: t.nudge_message,
+        close_after_minutes: t.close_after_minutes,
+        close_message: t.close_message,
+      })
+      .select('id')
+      .single();
+    if (!flow) continue;
+    const flowId = (flow as { id: string }).id;
+    const { error: verError } = await supabase.from('whatsapp_flow_versions').insert({
+      flow_id: flowId,
+      tenant_id: tenantId,
+      version: 1,
+      graph: t.graph,
+    });
+    if (verError) continue;
+    await supabase.from('whatsapp_flows').update({ published_version: 1 }).eq('id', flowId);
+  }
+}
 
 export async function seedDefaults(tenantId: string, wabaId: string): Promise<void> {
   const supabase = createAdminClient();
@@ -156,10 +124,7 @@ export async function seedDefaults(tenantId: string, wabaId: string): Promise<vo
     { onConflict: 'tenant_id,key,locale', ignoreDuplicates: true },
   );
 
-  await supabase.from('whatsapp_goals').upsert(
-    GOALS.map((g) => ({ tenant_id: tenantId, ...g })),
-    { onConflict: 'tenant_id,key', ignoreDuplicates: true },
-  );
+  await seedFlows(supabase, tenantId, FLOW_TEMPLATES);
 
   // Clone Kuik's template blueprints into this tenant's own account. Under
   // Coexistence every restaurant has its own WABA, so approval happens once

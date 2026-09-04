@@ -22,6 +22,8 @@ export interface BotContext {
   /** The restaurant's today, "YYYY-MM-DD". */
   today: string;
   customerName?: string | null;
+  /** Set while an AI turn is driving a flow run — lets tools close that run. */
+  flowRunId?: string;
 }
 
 export interface ActionResult {

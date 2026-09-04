@@ -112,7 +112,14 @@ export function Sidebar({
             canUse(plan, item.feature as Feature)),
       ).map(
         ({ href, icon: Icon, key }) => (
-          <NavLink key={href} href={href} active={pathname === href} icon={Icon} onClick={() => setOpen(false)}>
+          <NavLink
+            key={href}
+            href={href}
+            // /whatsapp has subroutes (flows, inbox); the item stays lit there.
+            active={pathname === href || (href === '/whatsapp' && pathname.startsWith('/whatsapp/'))}
+            icon={Icon}
+            onClick={() => setOpen(false)}
+          >
             {t(key)}
             {key === 'reservations' && (
               <PendingReservationsBadge tenantId={activeTenantId} initial={pendingReservations} />

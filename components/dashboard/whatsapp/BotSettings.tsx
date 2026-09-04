@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { ArrowRight, Workflow } from 'lucide-react';
 import { Card, Textarea, Label, Input } from '@/components/ui';
 import { RENDER_VARIABLES } from '@/lib/whatsapp/render';
-import { saveWhatsappSettings, saveCannedReply, saveGoal } from '@/app/(dashboard)/whatsapp/actions';
-import { FlowEditor } from './FlowEditor';
-import type { FlowDef } from '@/lib/whatsapp/flow';
+import { saveWhatsappSettings, saveCannedReply } from '@/app/(dashboard)/whatsapp/actions';
 
 interface Settings {
   enabled: boolean;
@@ -18,10 +18,6 @@ interface Settings {
 }
 
 interface Canned { key: string; body: string }
-interface Goal {
-  id: string; key: string; name: string; enabled: boolean;
-  reply_body: string | null; resolver: string; flow: FlowDef | null;
-}
 
 function Switch({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
   return (
@@ -37,12 +33,10 @@ const CANNED_KEYS = ['greeting', 'away', 'fallback', 'handoff', 'reservation_ok'
 export function BotSettings({
   settings: initial,
   canned: initialCanned,
-  goals: initialGoals,
   hasNumber,
 }: {
   settings: Settings | null;
   canned: Canned[];
-  goals: Goal[];
   hasNumber: boolean;
 }) {
   const t = useTranslations('whatsapp');
@@ -55,7 +49,6 @@ export function BotSettings({
   const [canned, setCanned] = useState<Record<string, string>>(
     Object.fromEntries(initialCanned.map((c) => [c.key, c.body])),
   );
-  const [goals, setGoals] = useState(initialGoals);
   const [, start] = useTransition();
 
   function patch(next: Partial<Settings>) {
@@ -132,39 +125,19 @@ export function BotSettings({
         ))}
       </Card>
 
-      <Card className="space-y-3">
-        <div>
-          <h2 className="font-semibold">{t('goalsTitle')}</h2>
-          <p className="text-sm text-neutral-500">{t('goalsHint')}</p>
-        </div>
-        {goals.map((g) => (
-          <div key={g.id} className="rounded-lg border border-neutral-200 p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">{g.name}</span>
-              <Switch
-                on={g.enabled}
-                label={g.name}
-                onClick={() => {
-                  const next = !g.enabled;
-                  setGoals((cur) => cur.map((x) => (x.id === g.id ? { ...x, enabled: next } : x)));
-                  start(async () => saveGoal(g.id, { enabled: next }));
-                }}
-              />
-            </div>
-            {g.resolver === 'reply' && (
-              <Textarea
-                className="mt-2"
-                rows={2}
-                defaultValue={g.reply_body ?? ''}
-                onBlur={(e) => start(async () => saveGoal(g.id, { reply_body: e.target.value }))}
-              />
-            )}
-            {/* A 'flow' goal is a script of questions rather than a single
-                canned answer — this is where that script gets written. */}
-            {g.resolver === 'flow' && g.enabled && <FlowEditor goalId={g.id} initial={g.flow} />}
+      {/* What the bot can DO lives in the flow builder now. */}
+      <Link href="/whatsapp/flows" className="block">
+        <Card className="flex items-center gap-3 transition hover:border-neutral-300">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-100">
+            <Workflow className="h-5 w-5 text-neutral-600" />
           </div>
-        ))}
-      </Card>
+          <div className="min-w-0 flex-1">
+            <h2 className="font-semibold">{t('flowsLink')}</h2>
+            <p className="text-sm text-neutral-500">{t('flowsLinkHint')}</p>
+          </div>
+          <ArrowRight className="h-4 w-4 shrink-0 text-neutral-400" />
+        </Card>
+      </Link>
     </div>
   );
 }

@@ -5,14 +5,16 @@ import { parseWeekHours, isOpenNowIn, todayHoursIn, mapHref } from '@/lib/hours'
 import { todayInTz } from '@/lib/time';
 import { tenantBaseUrl } from '@/lib/config';
 import { rateLimit, bucketKey } from '@/lib/rate-limit';
-import { normalizeText, parseSpanishDate, parseSpanishTime, parsePartySize } from './parse';
-import { matchGoal, buildMenu, type MatchableGoal } from './intent';
+import { canUse, effectivePlan } from '@/lib/plan';
+import { normalizeText } from './parse';
+import { buildMenu } from './intent';
 import { renderTemplate, type RenderVars } from './render';
-import { step, type FlowDef, type FlowState, type Slot } from './flow';
-import { botCreateReservation, botHandoff, type BotContext } from './actions';
+import { botHandoff, type BotContext } from './actions';
 import { sendMessage } from './send';
+import { runFlowTurn } from './flows/runtime';
+import { endRun } from './flows/run-store';
 import { runAi } from '@/lib/ai/run';
-import type { OutboundDraft } from './types';
+import type { OutboundDraft, WhatsappFlow, WhatsappFlowRun } from './types';
 
 /**
  * Decides what — if anything — the bot says back.
@@ -21,6 +23,12 @@ import type { OutboundDraft } from './types';
  * restaurant is using the same number from their phone, so the bot must never
  * talk over a human, never answer its own messages, and never keep going once
  * someone has taken over.
+ *
+ * Conversation goals are FLOWS now (whatsapp_flows, a published graph each);
+ * the actual walking lives in flows/runtime.ts. This file keeps the etiquette:
+ * opt-out, handoff keywords, rate caps, greeting, and the plan gate — flows
+ * and AI are the Pro product, so a basic tenant's bot greets and hands off but
+ * never starts a run.
  */
 
 export interface BotTurn {
@@ -35,17 +43,16 @@ export async function runBot(turn: BotTurn): Promise<void> {
 
   const { data: convRow } = await supabase
     .from('whatsapp_conversations')
-    .select('id, tenant_id, branch_id, phone_number_id, bot_enabled, handoff_at, active_goal_id, state, contact:whatsapp_contacts(wa_id, opted_out, is_blocked, profile_name)')
+    .select('id, tenant_id, branch_id, phone_number_id, bot_enabled, handoff_at, active_flow_run_id, contact:whatsapp_contacts(id, wa_id, opted_out, is_blocked, profile_name)')
     .eq('id', turn.conversationId)
     .maybeSingle();
   if (!convRow) return;
 
   const conv = convRow as unknown as {
     id: string; tenant_id: string; branch_id: string | null; phone_number_id: string;
-    bot_enabled: boolean; handoff_at: string | null; active_goal_id: string | null;
-    state: Record<string, unknown>;
-    contact: { wa_id: string; opted_out: boolean; is_blocked: boolean; profile_name: string | null }
-           | { wa_id: string; opted_out: boolean; is_blocked: boolean; profile_name: string | null }[];
+    bot_enabled: boolean; handoff_at: string | null; active_flow_run_id: string | null;
+    contact: { id: string; wa_id: string; opted_out: boolean; is_blocked: boolean; profile_name: string | null }
+           | { id: string; wa_id: string; opted_out: boolean; is_blocked: boolean; profile_name: string | null }[];
   };
   const contact = Array.isArray(conv.contact) ? conv.contact[0] : conv.contact;
   if (!contact || contact.opted_out || contact.is_blocked) return;
@@ -83,6 +90,7 @@ export async function runBot(turn: BotTurn): Promise<void> {
   if (settings.handoff_keywords.some((k) => text.includes(normalizeText(k)))) {
     const ctx = await buildContext(supabase, conv, contact.wa_id, contact.profile_name);
     await botHandoff(ctx, 'keyword');
+    await markRunHandoff(supabase, conv.active_flow_run_id);
     await say(conv.id, [{ type: 'text', body: await canned(supabase, turn.tenantId, 'handoff', {}) }]);
     return;
   }
@@ -94,21 +102,40 @@ export async function runBot(turn: BotTurn): Promise<void> {
   if (!hourly.ok || !daily.ok) {
     const ctx = await buildContext(supabase, conv, contact.wa_id, contact.profile_name);
     await botHandoff(ctx, 'budget');
+    await markRunHandoff(supabase, conv.active_flow_run_id);
     return;
   }
 
-  const ctx = await buildContext(supabase, conv, contact.wa_id, contact.profile_name);
-  const { vars, open } = await buildVars(supabase, turn.tenantId, conv.branch_id);
+  // Four independent lookups; on the per-message hot path they must not run
+  // serially. (The runnable graph is NOT fetched here — the runtime loads the
+  // published snapshot only when a run actually starts or continues.)
+  const [ctx, { vars, open }, { data: subRow }, { data: flowRows }] = await Promise.all([
+    buildContext(supabase, conv, contact.wa_id, contact.profile_name),
+    buildVars(supabase, turn.tenantId, conv.branch_id),
+    supabase
+      .from('subscriptions')
+      .select('status, plan')
+      .eq('tenant_id', turn.tenantId)
+      .maybeSingle(),
+    supabase
+      .from('whatsapp_flows')
+      .select('id, tenant_id, key, name, description, enabled, priority, triggers, mode, published_version, nudge_after_minutes, max_nudges, nudge_message, close_after_minutes, close_message')
+      .eq('tenant_id', turn.tenantId)
+      .eq('enabled', true)
+      .gt('published_version', 0)
+      .order('priority', { ascending: false }),
+  ]);
 
-  const { data: goalRows } = await supabase
-    .from('whatsapp_goals')
-    .select('*')
-    .eq('tenant_id', turn.tenantId)
-    .eq('enabled', true)
-    .order('priority', { ascending: false });
-  const goals = (goalRows ?? []) as (MatchableGoal & {
-    resolver: string; reply_body: string | null; flow: FlowDef | null; action: string | null;
-  })[];
+  // The plan gate. Flows, AI turns and the inbox are what Pro pays for; a
+  // basic tenant's bot still greets, hands off and honors opt-out, and a run
+  // that began before a downgrade is allowed to finish.
+  const botsAllowed = subRow
+    ? canUse(effectivePlan(subRow as { status: 'trialing' | 'active' | 'past_due' | 'canceled'; plan: 'basic' | 'pro' }), 'wa_bots')
+    : false;
+  const aiAllowed = Boolean(settings.ai_enabled) && botsAllowed;
+
+  const flows = (flowRows ?? []) as unknown as WhatsappFlow[];
+  const aiGoals = flows.map((f) => ({ key: f.key, name: f.name, description: f.description }));
 
   // Out of hours, say so — but keep going. A booking request at 2am should
   // still book; replacing the whole reply with "we're closed" is the mistake
@@ -119,150 +146,69 @@ export async function runBot(turn: BotTurn): Promise<void> {
     if (away) replies.push({ type: 'text', body: away });
   }
 
+  // Active run, or a flow whose triggers match: the runtime takes it from here.
+  const handled = await runFlowTurn({
+    supabase, conv, contactId: contact.id, botCtx: ctx, vars,
+    turn: { text: turn.text, replyId: turn.replyId },
+    flows, aiEnabled: aiAllowed, botsAllowed, aiGoals,
+    pendingReplies: replies,
+  });
+  if (handled) return;
+
   // First contact in a while gets a greeting plus the menu. Without this the
   // seeded 'greeting' reply was dead config, and a plain "hola" — the single
   // most common opening message — fell through to the "didn't understand"
   // fallback, which reads as a broken bot.
   const isFirstTurn =
-    !conv.active_goal_id &&
+    !conv.active_flow_run_id &&
     (await isNewConversation(supabase, conv.id, settings.greet_cooldown_seconds ?? 21600));
 
-  // Mid-flow: keep filling the same goal rather than re-matching intent.
-  const active = conv.active_goal_id ? goals.find((g) => g.id === conv.active_goal_id) : null;
-  const matched = active ? { goal: active, score: 100 } : matchGoal(goals, turn.text, turn.replyId);
+  // The menu buttons start flows, so a basic tenant's greeting goes without
+  // them — a button that silently does nothing reads as a broken bot.
+  const menuButtons = botsAllowed ? buildMenu(flows).slice(0, 3) : [];
 
-  if (!matched) {
-    if (isFirstTurn) {
-      const greeting = await canned(supabase, turn.tenantId, 'greeting', vars);
-      replies.push({
-        type: 'interactive',
-        body: greeting || renderTemplate('¡Hola! ¿En qué te puedo ayudar?', vars),
-        buttons: buildMenu(goals).slice(0, 3),
-      });
-      await say(conv.id, replies);
-      return;
-    }
-
-    if (settings.ai_enabled) {
-      const handled = await runAi({ ctx, text: turn.text, vars, goals });
-      if (handled) return;
-    }
-    // Never guess. Offer the menu, which always works.
-    const fallback = await canned(supabase, turn.tenantId, 'fallback', vars);
-    replies.push({
-      type: 'interactive',
-      body: fallback || renderTemplate('¿En qué te puedo ayudar?', vars),
-      buttons: buildMenu(goals).slice(0, 3),
-    });
+  if (isFirstTurn) {
+    const greeting = await canned(supabase, turn.tenantId, 'greeting', vars);
+    const body = greeting || renderTemplate('¡Hola! ¿En qué te puedo ayudar?', vars);
+    replies.push(menuButtons.length
+      ? { type: 'interactive', body, buttons: menuButtons }
+      : { type: 'text', body });
     await say(conv.id, replies);
     return;
   }
 
-  const goal = matched.goal as (typeof goals)[number];
-
-  if (goal.resolver === 'reply' && goal.reply_body) {
-    replies.push({ type: 'text', body: renderTemplate(goal.reply_body, vars) });
-    await supabase.from('whatsapp_conversations').update({ active_goal_id: null, state: {} }).eq('id', conv.id);
-    await say(conv.id, replies);
-    return;
+  if (aiAllowed) {
+    const handledByAi = await runAi({ ctx, text: turn.text, vars, goals: aiGoals });
+    if (handledByAi) return;
   }
 
-  if (goal.resolver === 'flow' && goal.flow) {
-    const state = (active ? (conv.state as unknown as FlowState) : null) ?? { values: {} };
-
-    // With AI on, the model runs the booking instead of the scripted questions.
-    //
-    // The script is still what defines WHAT has to be collected — the
-    // restaurant wrote it — but the model decides how to ask, can clarify an
-    // ambiguous answer ("el 30" of which month?), and can take a detour to
-    // answer something else without losing its place. The rigid step() below
-    // stays as the fallback for every way this can fail: no key, budget spent,
-    // provider down, timeout.
-    if (settings.ai_enabled) {
-      const needed = goal.flow.slots
-        .filter((slot) => slot.required !== false && state.values[slot.key] === undefined)
-        .map((slot) => ({
-          key: slot.key,
-          prompt: slot.prompt,
-          options: slot.options?.map((o) => o.title),
-        }));
-
-      const handled = await runAi({
-        ctx,
-        text: turn.text,
-        vars,
-        goals,
-        collecting: { goalName: goal.name, needed, known: state.values },
-      });
-
-      if (handled) {
-        // The model may have written new facts down through `anotar_datos`, so
-        // only the goal pointer is touched here — overwriting state would undo
-        // whatever it just learned.
-        await supabase
-          .from('whatsapp_conversations')
-          .update({ active_goal_id: goal.id })
-          .eq('id', conv.id);
-        return;
-      }
-    }
-
-    const result = step(goal.flow, state, { text: turn.text, replyId: turn.replyId }, {
-      parse: (slot: Slot, raw: string) =>
-        slot.type === 'date' ? parseSpanishDate(raw, ctx.today)
-        : slot.type === 'time' ? parseSpanishTime(raw)
-        : slot.key === 'party_size' ? parsePartySize(raw)
-        : null,
-    });
-
-    replies.push(...result.replies);
-
-    if (result.action?.kind === 'create_reservation') {
-      const v = result.action.values;
-      const outcome = await botCreateReservation(ctx, {
-        customer_name: String(v.customer_name ?? contact.profile_name ?? 'Cliente'),
-        party_size: Number(v.party_size ?? 2),
-        date: String(v.date ?? ctx.today),
-        time: String(v.time ?? '20:00'),
-        area: v.area ? String(v.area) : undefined,
-      });
-      replies.push({
-        type: 'text',
-        body: outcome.ok
-          ? renderTemplate(await canned(supabase, turn.tenantId, 'reservation_ok', vars) ||
-              'Tu solicitud quedó registrada. Te confirmamos en unos minutos.', vars)
-          : reservationErrorMessage(String(outcome.data?.error ?? 'failed')),
-      });
-    }
-
-    await supabase
-      .from('whatsapp_conversations')
-      .update({
-        active_goal_id: result.done ? null : goal.id,
-        state: result.done ? {} : (result.state as unknown as Record<string, unknown>),
-      })
-      .eq('id', conv.id);
-
-    await say(conv.id, replies);
-    return;
-  }
-
-  if (settings.ai_enabled) {
-    const handled = await runAi({ ctx, text: turn.text, vars, goals });
-    if (handled) return;
-  }
+  // Never guess. Offer the menu, which always works.
+  const fallback = await canned(supabase, turn.tenantId, 'fallback', vars);
+  const body = fallback || renderTemplate('¿En qué te puedo ayudar?', vars);
+  replies.push(menuButtons.length
+    ? { type: 'interactive', body, buttons: menuButtons }
+    : { type: 'text', body });
   await say(conv.id, replies);
 }
 
-/** Turn a refusal code from the booking RPC into something a diner can act on. */
-function reservationErrorMessage(code: string): string {
-  switch (code) {
-    case 'slot_full': return 'Ya no tenemos lugar a esa hora. ¿Probamos con otro horario?';
-    case 'too_soon': return 'Esa hora está muy próxima para reservar. ¿Buscamos otro momento?';
-    case 'too_far': return 'Esa fecha está demasiado lejos para reservar todavía.';
-    case 'party_out_of_range': return 'Para ese número de personas, mejor te contactamos directamente.';
-    case 'not_enabled': return 'Por ahora no estamos tomando reservaciones en línea.';
-    default: return 'No pude registrar la reservación. Un momento y te atiende una persona.';
+/** A keyword or budget handoff mid-run: the run ends as 'handoff', visibly. */
+async function markRunHandoff(
+  supabase: ReturnType<typeof createAdminClient>,
+  activeRunId: string | null,
+): Promise<void> {
+  if (!activeRunId) return;
+  const { data } = await supabase
+    .from('whatsapp_flow_runs')
+    .select('id, tenant_id, flow_id, flow_version, conversation_id')
+    .eq('id', activeRunId)
+    .eq('status', 'active')
+    .maybeSingle();
+  if (data) {
+    await endRun(
+      supabase,
+      data as Pick<WhatsappFlowRun, 'id' | 'tenant_id' | 'flow_id' | 'flow_version' | 'conversation_id'>,
+      'handoff', 'handoff_keyword',
+    );
   }
 }
 

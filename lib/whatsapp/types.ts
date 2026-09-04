@@ -1,5 +1,5 @@
 export type WhatsappNumberStatus =
-  | 'pending' | 'connected' | 'disconnected' | 'error' | 'banned';
+  | 'pending' | 'pairing' | 'connected' | 'disconnected' | 'error' | 'banned';
 
 export interface WhatsappNumber {
   id: string;
@@ -13,7 +13,7 @@ export interface WhatsappNumber {
   verified_name: string | null;
   quality_rating: string | null;
   messaging_limit_tier: string | null;
-  mode: 'coexistence' | 'cloud_api';
+  mode: 'coexistence' | 'cloud_api' | 'bridge';
   status: WhatsappNumberStatus;
   is_default: boolean;
   last_inbound_at: string | null;
@@ -36,11 +36,84 @@ export interface WhatsappConversation {
   bot_enabled: boolean;
   handoff_at: string | null;
   handoff_by: string | null;
+  /** DEPRECATED since 0057 — superseded by active_flow_run_id. */
   active_goal_id: string | null;
+  /** DEPRECATED since 0057 — run state lives on whatsapp_flow_runs. */
   state: Record<string, unknown>;
+  active_flow_run_id: string | null;
   last_inbound_at: string | null;
   last_outbound_at: string | null;
   reservation_id: string | null;
+}
+
+/* ---------------------------------------------------------------- flows */
+
+export type FlowRunStatus =
+  | 'active' | 'completed' | 'abandoned' | 'expired' | 'handoff' | 'canceled';
+
+export type FlowRunEngine = 'linear' | 'ai';
+
+/** One stored answer inside whatsapp_flow_runs.answers. */
+export interface FlowRunAnswer {
+  value: string | number;
+  at: string;
+  source: 'button' | 'text' | 'ai';
+}
+
+export interface WhatsappFlow {
+  id: string;
+  tenant_id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  enabled: boolean;
+  priority: number;
+  triggers: { kind: 'keyword' | 'regex' | 'interactive_id'; value: string }[];
+  mode: FlowRunEngine;
+  /** See lib/whatsapp/flows/schema.ts for the graph shape. */
+  draft_graph: Record<string, unknown>;
+  /** 0 = never published; the runnable graph is in whatsapp_flow_versions. */
+  published_version: number;
+  nudge_after_minutes: number | null;
+  max_nudges: number;
+  nudge_message: string | null;
+  close_after_minutes: number | null;
+  close_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WhatsappFlowVersion {
+  id: string;
+  flow_id: string;
+  tenant_id: string;
+  version: number;
+  graph: Record<string, unknown>;
+  published_at: string;
+  published_by: string | null;
+}
+
+export interface WhatsappFlowRun {
+  id: string;
+  tenant_id: string;
+  flow_id: string;
+  flow_version: number;
+  conversation_id: string;
+  contact_id: string;
+  status: FlowRunStatus;
+  engine: FlowRunEngine;
+  current_node_id: string | null;
+  answers: Record<string, FlowRunAnswer>;
+  extra_data: Record<string, string>;
+  nudge_count: number;
+  nudge_due_at: string | null;
+  close_due_at: string | null;
+  ended_reason: string | null;
+  action_result: Record<string, unknown> | null;
+  started_at: string;
+  last_inbound_at: string | null;
+  completed_at: string | null;
+  ended_at: string | null;
 }
 
 export interface WhatsappContact {
