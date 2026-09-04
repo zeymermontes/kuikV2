@@ -119,6 +119,9 @@ export default async function TenantLayout({
 
   const locale = tenantLocale(data.tenant.locale);
   const messages = (await import(`@/messages/${locale}.json`)).default;
+  // Explicit timeZone silences next-intl's ENVIRONMENT_FALLBACK log on every
+  // SSR render, and the restaurant's own zone is the only correct value here.
+  const timeZone = data.tenant.timezone || 'America/Mexico_City';
 
   // Per-tenant theme exposed as CSS variables; consumed by the menu components.
   const themeVars = {
@@ -190,7 +193,7 @@ export default async function TenantLayout({
   );
 
   return (
-    <PublicIntlProvider locale={locale} messages={messages}>
+    <PublicIntlProvider locale={locale} messages={messages} timeZone={timeZone}>
       <HtmlLang locale={locale} />
       {theme.custom_font_url && (
         <style>{`@font-face{font-family:'${CUSTOM_FONT}';src:url('${theme.custom_font_url}');font-display:swap;}`}</style>
