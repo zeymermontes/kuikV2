@@ -50,7 +50,8 @@ export async function listConversations(
 
   let contactIds: string[] | null = null;
   if (filters.q?.trim()) {
-    const q = filters.q.trim().replace(/[%_]/g, '');
+    // %_ are LIKE wildcards; ,() and quotes are PostgREST `.or()` syntax.
+    const q = filters.q.trim().replace(/[%_,()"'\\]/g, '');
     const { data } = await supabase
       .from('whatsapp_contacts')
       .select('id')

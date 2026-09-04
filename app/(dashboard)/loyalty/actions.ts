@@ -15,14 +15,22 @@ export async function findCustomer(query: string): Promise<LoyaltyCustomer | nul
   const { tenantId, supabase } = await ctx();
   const q = query.trim();
   if (!q) return null;
-  const code = q.toUpperCase();
+  // Both halves feed a PostgREST `.or()` filter, so only the characters a
+  // code or phone can actually contain get through.
+  const code = q.toUpperCase().replace(/[^A-Z0-9-]/g, '');
   const phone = q.replace(/\D/g, '');
+
+  const clauses = [
+    code ? `code.eq.${code}` : null,
+    phone.length >= 8 ? `phone.eq.${phone}` : null,
+  ].filter(Boolean);
+  if (clauses.length === 0) return null;
 
   const { data } = await supabase
     .from('loyalty_customers')
     .select('*')
     .eq('tenant_id', tenantId)
-    .or(`code.eq.${code}${phone.length >= 8 ? `,phone.eq.${phone}` : ''}`)
+    .or(clauses.join(','))
     .limit(1)
     .maybeSingle<LoyaltyCustomer>();
   return data ?? null;

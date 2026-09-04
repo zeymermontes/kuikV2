@@ -27,12 +27,19 @@ import type {
  */
 export const getTenantByHostKey = cache(
   async (hostKey: string): Promise<FullTenant | null> => {
+    // The key is interpolated into a PostgREST `.or()` filter, where commas
+    // and dots are syntax — and via /s/<param> it is attacker-writable. Only
+    // hostname characters may pass; nothing legitimate is lost, since neither
+    // a subdomain nor a domain can contain anything else.
+    const key = hostKey.toLowerCase();
+    if (!/^[a-z0-9.-]{1,253}$/.test(key)) return null;
+
     const supabase = createAdminClient();
 
     const { data: tenant } = await supabase
       .from('tenants')
       .select('*')
-      .or(`subdomain.eq.${hostKey},custom_domain.eq.${hostKey}`)
+      .or(`subdomain.eq.${key},custom_domain.eq.${key}`)
       .maybeSingle<Tenant>();
 
     if (!tenant) return null;
