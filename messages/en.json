@@ -1110,6 +1110,7 @@
     "pair_waiting": "Waiting for you to scan…",
     "pair_warnTitle": "Before you connect",
     "pair_warnBody": "This links Kuik as another device using an unofficial library. WhatsApp's terms don't allow it, and if they detect it they can ban this number — the same one printed on your menus. Meta's official route is slower to set up but carries no such risk.",
+    "pair_note_clock": "If your phone says it can't link because of the date and time, scan a freshly generated code: WhatsApp gives that same warning when the code has already expired. If it keeps happening, check that your phone's date and time are set automatically.",
     "pair_note_device": "It uses one of your linked-device slots.",
     "pair_note_phone_on": "Your phone must come online at least every 14 days or it unlinks.",
     "pair_note_no_buttons": "Tappable buttons are sent as a numbered list; the diner replies with the number.",

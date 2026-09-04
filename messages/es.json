@@ -1110,6 +1110,7 @@
     "pair_waiting": "Esperando a que lo escanees…",
     "pair_warnTitle": "Antes de conectar",
     "pair_warnBody": "Esto vincula Kuik como un dispositivo más, usando una librería no oficial. WhatsApp no lo permite en sus términos y, si lo detecta, puede bloquear este número — el mismo que tienes impreso en tus menús. La vía oficial de Meta es más lenta de dar de alta pero no tiene ese riesgo.",
+    "pair_note_clock": "Si tu celular dice que no puede vincular por la fecha y hora, escanea un código recién generado: WhatsApp da ese mismo aviso cuando el código ya expiró. Si vuelve a pasar, revisa que tu celular tenga fecha y hora automáticas.",
     "pair_note_device": "Ocupa uno de tus espacios de dispositivo vinculado.",
     "pair_note_phone_on": "Tu celular debe prenderse al menos cada 14 días o se desvincula.",
     "pair_note_no_buttons": "Los botones para tocar se mandan como lista numerada; el cliente contesta con el número.",

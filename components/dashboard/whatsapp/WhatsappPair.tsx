@@ -128,7 +128,13 @@ export function WhatsappPair({ numbers }: { numbers: ConnectedNumber[] }) {
       }
     };
 
-    if (document.visibilityState === 'visible') startPolling();
+    if (document.visibilityState === 'visible') {
+      // Immediately, not in two seconds: a regenerated attempt has no code yet
+      // when the POST returns, and a spinner where the QR just was reads as
+      // the button having done nothing.
+      void tick();
+      startPolling();
+    }
     document.addEventListener('visibilitychange', onVisibility);
 
     // Local countdown, corrected by the server on every poll.
@@ -174,6 +180,13 @@ export function WhatsappPair({ numbers }: { numbers: ConnectedNumber[] }) {
       if (!json.ok) {
         setError(json.error ?? 'bridge_error');
         setState('error');
+        return;
+      }
+      // A fresh attempt should never come back dead, but saying "pairing" over
+      // a session the bridge just declared expired is how you get a countdown
+      // ticking beside a code that can never be scanned.
+      if (json.error === 'qr_expired' || json.status === 'disconnected') {
+        setState('expired');
         return;
       }
       setQr(json.qr ?? null);
@@ -263,6 +276,11 @@ export function WhatsappPair({ numbers }: { numbers: ConnectedNumber[] }) {
             <li>2. {t('pair_step2')}</li>
             <li>3. {t('pair_step3')}</li>
           </ol>
+
+          {/* WhatsApp blames the clock whenever it refuses a code, including
+              when the real reason was a stale one. Say so here rather than
+              leaving someone chasing their phone's settings. */}
+          <p className="w-full text-xs text-neutral-500">{t('pair_note_clock')}</p>
 
           <div className="flex w-full items-center justify-between">
             <p className="flex items-center gap-1.5 text-xs text-neutral-500">

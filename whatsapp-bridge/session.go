@@ -118,8 +118,24 @@ func (m *Manager) deviceForTenant(ctx context.Context, tenantID string) (*store.
 func (m *Manager) Start(ctx context.Context, tenantID string) (*Session, error) {
 	if s, ok := m.Get(tenantID); ok {
 		status, _, _ := s.snapshot()
-		if status == "connected" || status == "pairing" {
+		if status == "connected" {
 			return s, nil
+		}
+		// Any other in-memory session is a pairing attempt in some state — live,
+		// past its deadline, or errored. A POST here is either the first "connect"
+		// or a "regenerate" click, and both mean "give me a working code NOW".
+		// Reusing the old session would hand back a stale QR with the original
+		// deadline: the countdown never resets, and scanning the dead code makes
+		// WhatsApp reject the link with a misleading "check your date & time"
+		// error. So tear it down and issue a genuinely fresh attempt.
+		m.abandon(tenantID, s, "restarting")
+
+		// abandon bails out if the code was scanned in the split second since
+		// the snapshot above, in which case there is nothing to regenerate.
+		if cur, ok := m.Get(tenantID); ok {
+			if st, _, _ := cur.snapshot(); st == "connected" {
+				return cur, nil
+			}
 		}
 	}
 
@@ -260,14 +276,14 @@ func (m *Manager) Start(ctx context.Context, tenantID string) (*Session, error) 
 				// channel keeps producing them, but nobody is watching, and
 				// each one keeps the connection alive.
 				if time.Now().After(session.pairingDeadline) {
-					m.abandon(tenantID, "qr_expired")
+					m.abandon(tenantID, session, "qr_expired")
 					return
 				}
 				session.set("pairing", evt.Code, "")
 			case "success":
 				session.set("connected", "", "")
 			case "timeout":
-				m.abandon(tenantID, "qr_expired")
+				m.abandon(tenantID, session, "qr_expired")
 				return
 			case "err-client-outdated":
 				// whatsmeow has fallen behind WhatsApp's protocol. Nothing to
@@ -282,10 +298,8 @@ func (m *Manager) Start(ctx context.Context, tenantID string) (*Session, error) 
 	// unpaired client still holds a socket. Close it either way.
 	go func() {
 		time.Sleep(time.Until(session.pairingDeadline) + 5*time.Second)
-		if s, ok := m.Get(tenantID); ok {
-			if status, _, _ := s.snapshot(); status == "pairing" {
-				m.abandon(tenantID, "qr_expired")
-			}
+		if status, _, _ := session.snapshot(); status == "pairing" {
+			m.abandon(tenantID, session, "qr_expired")
 		}
 	}()
 
@@ -297,20 +311,27 @@ func (m *Manager) Start(ctx context.Context, tenantID string) (*Session, error) 
 // Deliberately NOT a full Stop: the device was never paired, so there are no
 // stored credentials to delete, and calling Logout on an unpaired client
 // errors.
-func (m *Manager) abandon(tenantID, reason string) {
-	s, ok := m.Get(tenantID)
-	if !ok {
+//
+// `target` is the attempt the caller means to end. It matters because a
+// superseded attempt's goroutines — the QR reader and the deadline backstop —
+// outlive the attempt itself and would otherwise tear down whichever session
+// happens to hold the tenant's slot, i.e. the one that just replaced them.
+func (m *Manager) abandon(tenantID string, target *Session, reason string) {
+	m.mu.Lock()
+	current, ok := m.sessions[tenantID]
+	if !ok || current != target {
+		m.mu.Unlock()
 		return
 	}
-	if status, _, _ := s.snapshot(); status == "connected" {
+	if status, _, _ := current.snapshot(); status == "connected" {
+		m.mu.Unlock()
 		return // it got scanned in the meantime
 	}
-	s.Client.Disconnect()
-	s.set("disconnected", "", reason)
-
-	m.mu.Lock()
 	delete(m.sessions, tenantID)
 	m.mu.Unlock()
+
+	current.Client.Disconnect()
+	current.set("disconnected", "", reason)
 }
 
 // superviseReconnect brings a paired session back after it drops.
