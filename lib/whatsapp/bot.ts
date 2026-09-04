@@ -12,6 +12,7 @@ import { botHandoff, type BotContext } from './actions';
 import { sendMessage } from './send';
 import { runFlowTurn } from './flows/runtime';
 import { endRun } from './flows/run-store';
+import { handleReservationReply } from './reservation-reply';
 import { runAi } from '@/lib/ai/run';
 import type { OutboundDraft, WhatsappFlow, WhatsappFlowRun } from './types';
 
@@ -35,6 +36,8 @@ export interface BotTurn {
   conversationId: string;
   text: string;
   replyId?: string | null;
+  /** A voice note that couldn't be transcribed — answer that, not silence. */
+  kind?: 'audio_unreadable';
 }
 
 export async function runBot(turn: BotTurn): Promise<void> {
@@ -42,7 +45,7 @@ export async function runBot(turn: BotTurn): Promise<void> {
 
   const { data: convRow } = await supabase
     .from('whatsapp_conversations')
-    .select('id, tenant_id, branch_id, phone_number_id, bot_enabled, handoff_at, active_flow_run_id, contact:whatsapp_contacts(id, wa_id, opted_out, is_blocked, profile_name)')
+    .select('id, tenant_id, branch_id, phone_number_id, bot_enabled, handoff_at, active_flow_run_id, reservation_id, contact:whatsapp_contacts(id, wa_id, opted_out, is_blocked, profile_name)')
     .eq('id', turn.conversationId)
     .maybeSingle();
   if (!convRow) return;
@@ -50,6 +53,7 @@ export async function runBot(turn: BotTurn): Promise<void> {
   const conv = convRow as unknown as {
     id: string; tenant_id: string; branch_id: string | null; phone_number_id: string;
     bot_enabled: boolean; handoff_at: string | null; active_flow_run_id: string | null;
+    reservation_id: string | null;
     contact: { id: string; wa_id: string; opted_out: boolean; is_blocked: boolean; profile_name: string | null }
            | { id: string; wa_id: string; opted_out: boolean; is_blocked: boolean; profile_name: string | null }[];
   };
@@ -98,6 +102,10 @@ export async function runBot(turn: BotTurn): Promise<void> {
     return;
   }
 
+  // A "1" or "2" answering yesterday's reservation reminder — deterministic,
+  // before flows or AI, because it changes a booking's fate.
+  if (await handleReservationReply(supabase, conv, turn.text)) return;
+
   // Caps that protect the AI bill AND the number's quality rating, which is the
   // one asset a restaurant cannot buy back once Meta downgrades it.
   const hourly = await rateLimit(bucketKey('wa:bot:h', contact.wa_id, 3600), settings.max_bot_replies_per_hour, 3600);
@@ -106,6 +114,17 @@ export async function runBot(turn: BotTurn): Promise<void> {
     const ctx = await buildContext(supabase, conv, contact.wa_id, contact.profile_name);
     await botHandoff(ctx, 'budget');
     await markRunHandoff(supabase, conv.active_flow_run_id);
+    return;
+  }
+
+  // A voice note nobody could transcribe: say so. Ignoring an audio reads as
+  // being left on seen — the one thing a paid bot must never do.
+  if (turn.kind === 'audio_unreadable') {
+    const fallback = await canned(supabase, turn.tenantId, 'audio_fallback', {});
+    await say(conv.id, [{
+      type: 'text',
+      body: fallback || 'Recibí tu audio 🎧 pero por ahora no puedo escucharlo. ¿Me lo escribes? 🙏',
+    }]);
     return;
   }
 
@@ -294,20 +313,34 @@ async function buildVars(
   tenantId: string,
   branchId: string | null,
 ): Promise<{ vars: RenderVars; open: boolean }> {
-  const [{ data: tenant }, { data: contact }] = await Promise.all([
+  const [{ data: tenant }, { data: contactRow }, { data: branchRow }] = await Promise.all([
     supabase.from('tenants').select('name, subdomain, custom_domain, timezone').eq('id', tenantId).maybeSingle(),
     supabase.from('tenant_contact').select('address, maps_url, hours, whatsapp_phone').eq('tenant_id', tenantId).maybeSingle(),
+    branchId
+      ? supabase.from('branches').select('address, maps_url, hours, whatsapp_phone').eq('id', branchId).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const t = tenant as { name: string; subdomain: string; custom_domain: string | null; timezone: string } | null;
-  const c = contact as { address: string | null; maps_url: string | null; hours: unknown; whatsapp_phone: string | null } | null;
+  type ContactShape = { address: string | null; maps_url: string | null; hours: unknown; whatsapp_phone: string | null };
+  const main = contactRow as ContactShape | null;
+  const branch = branchRow as ContactShape | null;
+
+  // A number tied to a branch answers with THAT branch's facts, falling back
+  // per field — same override rule the public menu uses (MenuScreen.tsx).
+  const c: ContactShape | null = branch
+    ? {
+        address: branch.address ?? main?.address ?? null,
+        maps_url: branch.maps_url ?? main?.maps_url ?? null,
+        hours: branch.hours ?? main?.hours ?? null,
+        whatsapp_phone: branch.whatsapp_phone ?? main?.whatsapp_phone ?? null,
+      }
+    : main;
 
   const week = parseWeekHours(c?.hours);
   const tz = t?.timezone;
   const today = week ? todayHoursIn(week, tz) : null;
   const open = week ? isOpenNowIn(week, tz) : true;
-
-  void branchId; // branch-specific hours are a later refinement
 
   return {
     open,

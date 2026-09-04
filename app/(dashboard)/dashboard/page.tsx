@@ -1,7 +1,8 @@
-import { Eye, MessageCircle, TrendingUp } from 'lucide-react';
+import { Bot, CalendarCheck, Eye, MessageCircle, TrendingUp } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { requireAnalytics } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
+import { daysAgoISO } from '@/lib/utils';
 import { Card } from '@/components/ui';
 
 export default async function DashboardPage() {
@@ -9,13 +10,27 @@ export default async function DashboardPage() {
   const t = await getTranslations('dashboard');
   const supabase = await createClient();
 
-  const [{ data: stats }, { data: top }] = await Promise.all([
-    supabase.rpc('tenant_stats', { p_tenant: ctx.tenant.id, p_days: 30 }).single<{
-      total_views: number;
-      total_orders: number;
-    }>(),
-    supabase.rpc('top_products', { p_tenant: ctx.tenant.id, p_days: 30, p_limit: 10 }),
-  ]);
+  const since = daysAgoISO(30);
+  const [{ data: stats }, { data: top }, { count: botConversations }, { count: botReservations }] =
+    await Promise.all([
+      supabase.rpc('tenant_stats', { p_tenant: ctx.tenant.id, p_days: 30 }).single<{
+        total_views: number;
+        total_orders: number;
+      }>(),
+      supabase.rpc('top_products', { p_tenant: ctx.tenant.id, p_days: 30, p_limit: 10 }),
+      // What the WhatsApp bot handled without a human: the case for Pro.
+      supabase
+        .from('whatsapp_flow_runs')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', ctx.tenant.id)
+        .gte('started_at', since),
+      supabase
+        .from('reservations')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', ctx.tenant.id)
+        .eq('source', 'bot')
+        .gte('created_at', since),
+    ]);
 
   const topProducts = (top ?? []) as { product_id: string; name: string; views: number }[];
   const maxViews = topProducts[0]?.views ?? 1;
@@ -31,6 +46,8 @@ export default async function DashboardPage() {
           label={t('whatsappOrders')}
           value={stats?.total_orders ?? 0}
         />
+        <StatCard icon={Bot} label={t('botConversations')} value={botConversations ?? 0} />
+        <StatCard icon={CalendarCheck} label={t('botReservations')} value={botReservations ?? 0} />
       </div>
 
       <Card>

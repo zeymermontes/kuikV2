@@ -50,6 +50,22 @@ export default async function ReportsPage({
       supabase.rpc('top_customers', { p_tenant: tenant.id, p_limit: 10 }),
     ]);
 
+  // What the WhatsApp bot handled on its own in the same window.
+  const botSince = daysAgoISO(days);
+  const [{ count: botRuns }, { count: botReservations }] = await Promise.all([
+    supabase
+      .from('whatsapp_flow_runs')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenant.id)
+      .gte('started_at', botSince),
+    supabase
+      .from('reservations')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenant.id)
+      .eq('source', 'bot')
+      .gte('created_at', botSince),
+  ]);
+
   const salesRows = (sales ?? []) as SalesRow[];
   const hourRows = (hours ?? []) as HourRow[];
   const topProducts = (topP ?? []) as TopProduct[];
@@ -128,6 +144,8 @@ export default async function ReportsPage({
         <Kpi label={t('members')} value={String(loySummary.members ?? 0)} />
         <Kpi label={t('profit')} value={formatPrice(pProfit, currency)} />
         <Kpi label={t('margin')} value={`${Math.round(pMargin)}%`} />
+        <Kpi label={t('botConversations')} value={String(botRuns ?? 0)} />
+        <Kpi label={t('botReservations')} value={String(botReservations ?? 0)} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">

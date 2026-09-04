@@ -24,7 +24,8 @@ const ES: Record<NotificationKind, (v: Vars) => string> = {
     `${v.restaurant} para el ${v.date} a las ${v.time}. ¿Buscamos otro horario?`,
   reminder_24h: (v) =>
     `¡Hola ${v.name}! Te recordamos tu reservación en ${v.restaurant} mañana ` +
-    `${v.date} a las ${v.time} para ${v.party} personas. Si no puedes venir, avísanos.`,
+    `${v.date} a las ${v.time} para ${v.party} personas.\n\n` +
+    `Responde *1* para confirmar o *2* si ya no puedes venir.`,
 };
 
 const EN: Record<NotificationKind, (v: Vars) => string> = {
@@ -36,7 +37,8 @@ const EN: Record<NotificationKind, (v: Vars) => string> = {
     `on ${v.date} at ${v.time}. Shall we look for another time?`,
   reminder_24h: (v) =>
     `Hi ${v.name}! A reminder about your table at ${v.restaurant} tomorrow, ` +
-    `${v.date} at ${v.time}, for ${v.party}. Let us know if you can't make it.`,
+    `${v.date} at ${v.time}, for ${v.party}.\n\n` +
+    `Reply *1* to confirm or *2* if you can't make it.`,
 };
 
 export function renderNotification(

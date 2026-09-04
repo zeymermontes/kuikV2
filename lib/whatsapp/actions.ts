@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createReservation } from '@/lib/reservations/create';
 import { normalizeWaId } from '@/lib/phone';
+import { sendToTenant } from '@/lib/push/send';
 
 /**
  * What a conversation can actually DO.
@@ -113,5 +114,25 @@ export async function botHandoff(ctx: BotContext, reason?: string): Promise<Acti
       handoff_by: reason ?? 'keyword',
     })
     .eq('id', ctx.conversationId);
+
+  // A handoff without a notification is a diner waiting for a human who
+  // doesn't know they exist. Best-effort: the handoff stands even if no one
+  // has push subscriptions.
+  await sendToTenant(ctx.tenantId, ['owner', 'manager'], (locale) =>
+    locale === 'en'
+      ? {
+          title: 'A customer is waiting on WhatsApp',
+          body: `${ctx.customerName || 'A customer'} asked for a person. The bot stepped aside.`,
+          tag: `wa-handoff-${ctx.conversationId}`,
+          url: `/whatsapp/inbox?c=${ctx.conversationId}`,
+        }
+      : {
+          title: 'Un cliente espera en WhatsApp',
+          body: `${ctx.customerName || 'Un cliente'} pidió hablar con una persona. El bot se hizo a un lado.`,
+          tag: `wa-handoff-${ctx.conversationId}`,
+          url: `/whatsapp/inbox?c=${ctx.conversationId}`,
+        },
+  ).catch(() => {});
+
   return { ok: true, message: 'handoff' };
 }

@@ -8,7 +8,8 @@ import { processEvents } from '@/lib/whatsapp/inbound';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const MAX_BODY = 64 * 1024;
+// Voice notes travel base64'd from the bridge (≤8MB raw ≈ ~11MB encoded).
+const MAX_BODY = 12 * 1024 * 1024;
 
 /**
  * Inbound messages from the whatsmeow bridge.
@@ -37,6 +38,9 @@ export async function POST(req: NextRequest) {
     text?: string;
     isGroup?: boolean;
     fromMe?: boolean;
+    mediaType?: string;
+    mediaMime?: string;
+    mediaB64?: string;
   };
   try {
     body = JSON.parse(raw);
@@ -79,12 +83,21 @@ export async function POST(req: NextRequest) {
         // go back to. `phone` is separate and often absent — LID addressing
         // exists precisely so the number is not disclosed.
         contacts: [{ wa_id: body.from, phone: body.phone ?? null, profile: { name: body.pushName ?? null } }],
-        messages: [{
-          id: body.messageId,
-          from: body.from,
-          type: 'text',
-          text: { body: body.text ?? '' },
-        }],
+        messages: [
+          body.mediaType === 'audio'
+            ? {
+                id: body.messageId,
+                from: body.from,
+                type: 'audio',
+                audio: { mime: body.mediaMime ?? null, dataB64: body.mediaB64 ?? null },
+              }
+            : {
+                id: body.messageId,
+                from: body.from,
+                type: 'text',
+                text: { body: body.text ?? '' },
+              },
+        ],
         _transport: 'bridge',
       },
       status: 'pending',

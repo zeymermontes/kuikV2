@@ -41,11 +41,12 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
     supabase.from('whatsapp_flows').select(flowColumns).eq('tenant_id', tenant.id),
   ]);
 
-  // The selected conversation's transcript + its runs.
+  // The selected conversation's transcript + its runs + bot state.
   let messages: InboxMessage[] = [];
   let runs: WhatsappFlowRun[] = [];
+  let selectedConv: { id: string; bot_enabled: boolean; handoff_at: string | null; handoff_by: string | null } | null = null;
   if (sp.c) {
-    const [{ data: msgRows }, { data: runRows }] = await Promise.all([
+    const [{ data: msgRows }, { data: runRows }, { data: convRow }] = await Promise.all([
       supabase
         .from('whatsapp_messages')
         .select('id, direction, origin, body, status, created_at')
@@ -60,9 +61,16 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
         .eq('tenant_id', tenant.id)
         .order('started_at', { ascending: false })
         .limit(5),
+      supabase
+        .from('whatsapp_conversations')
+        .select('id, bot_enabled, handoff_at, handoff_by')
+        .eq('id', sp.c)
+        .eq('tenant_id', tenant.id)
+        .maybeSingle(),
     ]);
     messages = ((msgRows ?? []) as InboxMessage[]).reverse();
     runs = (runRows ?? []) as WhatsappFlowRun[];
+    selectedConv = convRow as typeof selectedConv;
   }
 
   return (
@@ -77,6 +85,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
         initialCursor={nextCursor}
         filters={filters}
         selectedId={sp.c ?? null}
+        selectedConv={selectedConv}
         messages={messages}
         runs={runs}
         flows={(flowRows ?? []) as unknown as { id: string; name: string; draft_graph?: Record<string, unknown> }[]}

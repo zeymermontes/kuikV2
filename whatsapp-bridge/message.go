@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"log"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
@@ -41,7 +43,17 @@ type InboundPayload struct {
 	Timestamp int64  `json:"timestamp"`
 	IsGroup   bool   `json:"isGroup"`
 	FromMe    bool   `json:"fromMe"`
+	// Voice notes: the bytes travel base64'd so Kuik can transcribe them.
+	// Empty MediaB64 with a MediaType still gets forwarded — Kuik then knows
+	// to answer "no pude escuchar tu audio" instead of staying silent.
+	MediaType string `json:"mediaType,omitempty"`
+	MediaMime string `json:"mediaMime,omitempty"`
+	MediaB64  string `json:"mediaB64,omitempty"`
 }
+
+// Voice notes are opus at ~1.5 MB/minute; anything past this is a podcast,
+// not a booking request.
+const maxAudioBytes = 8 << 20
 
 // extractText pulls readable text out of the several shapes WhatsApp uses.
 //
@@ -81,7 +93,16 @@ type Forwarder struct {
 	url    string
 	secret string
 	client *http.Client
-	queue  chan InboundPayload
+	queue  chan queueItem
+}
+
+// queueItem defers the expensive parts — media download and the HTTP post —
+// to the worker pool, so the socket goroutine only ever enqueues.
+type queueItem struct {
+	payload InboundPayload
+	// Set for a voice note: the worker downloads it through this client.
+	audio *waE2E.AudioMessage
+	cli   *whatsmeow.Client
 }
 
 const (
@@ -96,7 +117,7 @@ func NewForwarder(url, secret string) *Forwarder {
 		url:    url,
 		secret: secret,
 		client: &http.Client{Timeout: 15 * time.Second},
-		queue:  make(chan InboundPayload, forwardQueueSize),
+		queue:  make(chan queueItem, forwardQueueSize),
 	}
 	for i := 0; i < forwardWorkers; i++ {
 		go f.worker()
@@ -105,12 +126,27 @@ func NewForwarder(url, secret string) *Forwarder {
 }
 
 func (f *Forwarder) worker() {
-	for payload := range f.queue {
-		f.post(payload)
+	for item := range f.queue {
+		if item.audio != nil && item.cli != nil {
+			// Download on the WORKER, never the socket goroutine. A failure
+			// still forwards the payload — Kuik answers "couldn't listen"
+			// instead of leaving the diner on read.
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			data, err := item.cli.Download(ctx, item.audio)
+			cancel()
+			if err != nil {
+				log.Printf("audio download failed for %s: %v", item.payload.MessageID, err)
+			} else if len(data) > maxAudioBytes {
+				log.Printf("audio %s too large (%d bytes), forwarding without media", item.payload.MessageID, len(data))
+			} else {
+				item.payload.MediaB64 = base64.StdEncoding.EncodeToString(data)
+			}
+		}
+		f.post(item.payload)
 	}
 }
 
-func (f *Forwarder) Handle(tenantID string, evt *events.Message) {
+func (f *Forwarder) Handle(tenantID string, evt *events.Message, cli *whatsmeow.Client) {
 	// Groups are noise for a reservation bot, and replying in one would be
 	// worse than staying quiet.
 	if evt.Info.IsGroup {
@@ -118,7 +154,8 @@ func (f *Forwarder) Handle(tenantID string, evt *events.Message) {
 		return
 	}
 	text := extractText(evt.Message)
-	if strings.TrimSpace(text) == "" {
+	audio := evt.Message.GetAudioMessage()
+	if strings.TrimSpace(text) == "" && audio == nil {
 		// Media without a caption, a reaction, a poll — nothing the bot can
 		// read. Logged because "nothing happened" needs a reason.
 		log.Printf("skipping message with no text from %s (type %s)", evt.Info.Sender.String(), evt.Info.Type)
@@ -149,10 +186,20 @@ func (f *Forwarder) Handle(tenantID string, evt *events.Message) {
 		FromMe:    evt.Info.IsFromMe,
 	}
 
+	item := queueItem{payload: payload}
+	if audio != nil && strings.TrimSpace(text) == "" {
+		item.payload.MediaType = "audio"
+		item.payload.MediaMime = audio.GetMimetype()
+		if audio.GetFileLength() <= maxAudioBytes {
+			item.audio = audio
+			item.cli = cli
+		}
+	}
+
 	// Hand off and return immediately: this runs inside whatsmeow's socket
 	// goroutine and must not block it.
 	select {
-	case f.queue <- payload:
+	case f.queue <- item:
 	default:
 		log.Printf("forward queue full, dropping message %s from %s", payload.MessageID, payload.From)
 	}

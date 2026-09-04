@@ -9,6 +9,7 @@ import { TrialBanner } from '@/components/dashboard/TrialBanner';
 import { PwaProvider } from '@/components/dashboard/PwaProvider';
 import { StaffIntlProvider } from '@/components/intl/StaffIntlProvider';
 import { getPendingSummary } from './reservations/actions';
+import { getHandoffCount } from './whatsapp/inbox/actions';
 import type { MemberRole } from '@/lib/database.types';
 import { exitSupport } from './admin/actions';
 
@@ -50,9 +51,11 @@ export default async function DashboardLayout({
   // were being sent away from. Every role can see reservations today, so this
   // is really insurance against that list being narrowed later.
   const canSeeReservations = RESERVATION_ROLES.includes(ctx.role);
-  const pending = canSeeReservations
-    ? await getPendingSummary()
-    : { total: 0, days: [] };
+  const canSeeWhatsapp = ctx.role === 'owner' || ctx.role === 'manager';
+  const [pending, handoffs] = await Promise.all([
+    canSeeReservations ? getPendingSummary() : Promise.resolve({ total: 0, days: [] }),
+    canSeeWhatsapp ? getHandoffCount() : Promise.resolve({ total: 0 }),
+  ]);
   const tAdmin = ctx.support ? await getTranslations('superAdmin') : null;
 
   return (
@@ -73,6 +76,7 @@ export default async function DashboardLayout({
             plan={effectivePlan(ctx.subscription)}
             enforcePlan={ctx.support}
             pendingReservations={pending.total}
+            pendingHandoffs={handoffs.total}
           />
           <div className="flex min-w-0 flex-1 flex-col pt-14 md:pt-0">
             {ctx.support && tAdmin && (

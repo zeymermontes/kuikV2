@@ -34,6 +34,25 @@ export const bridgeNotifier: CustomerNotifier = {
 
     const to = (data as { wa_id: string } | null)?.wa_id ?? e164.replace('+', '');
 
+    // Tie the conversation to the reservation BEFORE the message goes out, so
+    // a reply ("1" / "2") can be matched back to the right booking.
+    if (data && input.reservation.id) {
+      const { data: contactRow } = await supabase
+        .from('whatsapp_contacts')
+        .select('id')
+        .eq('tenant_id', input.tenant.id)
+        .eq('wa_id', to)
+        .maybeSingle();
+      const contactId = (contactRow as { id: string } | null)?.id;
+      if (contactId) {
+        await supabase
+          .from('whatsapp_conversations')
+          .update({ reservation_id: input.reservation.id })
+          .eq('tenant_id', input.tenant.id)
+          .eq('contact_id', contactId);
+      }
+    }
+
     try {
       const res = await sendViaBridge(input.tenant.id, to, { text: input.body });
       return { status: 'sent', providerId: res.id };

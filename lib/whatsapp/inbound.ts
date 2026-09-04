@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizeWaId } from '@/lib/phone';
 import { windowExpiryFrom } from './window';
 import { runBot } from './bot';
+import { transcribeAudio } from './transcribe';
 
 /**
  * Turns raw webhook payloads into conversations, messages and bot replies.
@@ -112,10 +113,20 @@ async function upsertConversation(
 
   const contactId = (contact as { id: string }).id;
 
+  // The number knows which branch it belongs to (set at onboarding); the
+  // conversation inherits it so the bot can answer with THAT branch's hours
+  // and address instead of the main location's.
+  const { data: numberRow } = await supabase
+    .from('whatsapp_numbers')
+    .select('branch_id')
+    .eq('phone_number_id', phoneNumberId)
+    .maybeSingle();
+  const branchId = (numberRow as { branch_id: string | null } | null)?.branch_id ?? null;
+
   const { data: conv } = await supabase
     .from('whatsapp_conversations')
     .upsert(
-      { tenant_id: tenantId, phone_number_id: phoneNumberId, contact_id: contactId, transport },
+      { tenant_id: tenantId, phone_number_id: phoneNumberId, contact_id: contactId, transport, branch_id: branchId },
       { onConflict: 'phone_number_id,contact_id' },
     )
     .select('id')
@@ -144,6 +155,8 @@ interface InboundMessage {
     button_reply?: { id?: string; title?: string };
     list_reply?: { id?: string; title?: string };
   };
+  /** Bridge voice notes: bytes travel base64'd for transcription. */
+  audio?: { mime?: string | null; dataB64?: string | null };
 }
 
 async function handleInbound(supabase: Supabase, row: EventRow): Promise<void> {
@@ -167,7 +180,7 @@ async function handleInbound(supabase: Supabase, row: EventRow): Promise<void> {
       transport, profile?.phone ?? null,
     );
 
-    const body =
+    let body =
       msg.text?.body ??
       msg.interactive?.button_reply?.title ??
       msg.interactive?.list_reply?.title ??
@@ -176,6 +189,26 @@ async function handleInbound(supabase: Supabase, row: EventRow): Promise<void> {
     // to parse Spanish free text at all.
     const replyId =
       msg.interactive?.button_reply?.id ?? msg.interactive?.list_reply?.id ?? null;
+
+    // A voice note becomes text right here, so everything downstream — flows,
+    // AI, the inbox transcript — sees what the diner SAID. No transcript
+    // (no key configured, download failed) leaves body empty; the bot then
+    // answers that it couldn't listen instead of ignoring them.
+    let audioUnreadable = false;
+    if (msg.type === 'audio') {
+      const b64 = msg.audio?.dataB64;
+      const transcript = b64
+        ? await transcribeAudio(Buffer.from(b64, 'base64'), msg.audio?.mime ?? null)
+        : null;
+      if (transcript) body = transcript;
+      else audioUnreadable = true;
+    }
+
+    // The base64 must NOT land in whatsapp_messages.payload — events get
+    // purged at 30 days, messages don't, and a megabyte per voice note adds
+    // up fast.
+    const storedPayload: Record<string, unknown> = { ...(msg as unknown as Record<string, unknown>) };
+    if (msg.audio) storedPayload.audio = { mime: msg.audio.mime ?? null };
 
     const { data: inserted } = await supabase
       .from('whatsapp_messages')
@@ -188,7 +221,8 @@ async function handleInbound(supabase: Supabase, row: EventRow): Promise<void> {
           origin: 'customer',
           type: msg.type,
           body,
-          payload: msg as unknown as Record<string, unknown>,
+          media_mime: msg.audio?.mime ?? null,
+          payload: storedPayload,
         },
         { onConflict: 'wa_message_id', ignoreDuplicates: true },
       )
@@ -214,7 +248,10 @@ async function handleInbound(supabase: Supabase, row: EventRow): Promise<void> {
       .update({ last_inbound_at: now.toISOString() })
       .eq('phone_number_id', phoneNumberId);
 
-    await runBot({ tenantId, conversationId, text: body, replyId });
+    await runBot({
+      tenantId, conversationId, text: body, replyId,
+      ...(audioUnreadable ? { kind: 'audio_unreadable' as const } : {}),
+    });
   }
 }
 

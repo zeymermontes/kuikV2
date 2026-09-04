@@ -8,7 +8,7 @@ import { botCreateReservation, botHandoff, CreateReservationInput, type BotConte
 import { completeRunFromAi } from '@/lib/whatsapp/flows/complete';
 import { endRun, loadRun } from '@/lib/whatsapp/flows/run-store';
 import type { FlowSlot } from '@/lib/whatsapp/flows/schema';
-import type { RenderVars } from '@/lib/whatsapp/render';
+import { renderTemplate, type RenderVars } from '@/lib/whatsapp/render';
 import type { ToolDef } from './types';
 
 /**
@@ -22,6 +22,11 @@ import type { ToolDef } from './types';
 
 const SearchMenu = z.object({
   query: z.string().min(1).max(60).describe('Palabra a buscar, p. ej. "camarones"'),
+});
+
+const SearchFaq = z.object({
+  tema: z.string().min(1).max(60)
+    .describe('Sobre qué pregunta el cliente, p. ej. "estacionamiento", "mascotas", "terraza"'),
 });
 
 const Empty = z.object({});
@@ -129,6 +134,7 @@ export type FlowReply = z.infer<ReturnType<typeof buildReplySchema>>;
 export const TOOL_SCHEMAS = {
   responder: Reply,
   buscar_menu: SearchMenu,
+  consultar_info: SearchFaq,
   consultar_horarios: Empty,
   consultar_ubicacion: Empty,
   enviar_menu: Empty,
@@ -152,6 +158,13 @@ export function toolDefinitions(collecting = false, replySchema: z.ZodType = Rep
       description:
         'Busca platillos en el menú real del restaurante. ÚSALA SIEMPRE antes de hablar de precios o disponibilidad de un platillo.',
       parameters: toJsonSchema(SearchMenu),
+    },
+    {
+      name: 'consultar_info',
+      description:
+        'Busca en la información adicional que el restaurante escribió (estacionamiento, mascotas, ' +
+        'terraza, formas de pago, promociones, etc.). ÚSALA antes de decir que no sabes algo.',
+      parameters: toJsonSchema(SearchFaq),
     },
     {
       name: 'consultar_horarios',
@@ -270,6 +283,40 @@ export async function runTool(
           `${h.disponible ? '' : ' (no disponible hoy)'}`,
       );
       return { content: lines.join('\n'), facts };
+    }
+
+    case 'consultar_info': {
+      const { tema } = parsed.data as z.infer<typeof SearchFaq>;
+      const supabase = createAdminClient();
+      const { data } = await supabase
+        .from('whatsapp_faqs')
+        .select('topic, answer, keywords')
+        .eq('tenant_id', ctx.tenantId)
+        .eq('enabled', true)
+        .order('position')
+        .limit(50);
+      const rows = (data ?? []) as { topic: string; answer: string; keywords: string[] }[];
+      const q = normalizeText(tema);
+
+      // Match on topic or keywords; if nothing matches, hand back the topic
+      // LIST so the model can retry with the right term instead of guessing.
+      const hits = rows.filter((r) =>
+        normalizeText(r.topic).includes(q) || q.includes(normalizeText(r.topic)) ||
+        r.keywords.some((k) => normalizeText(k).includes(q) || q.includes(normalizeText(k))),
+      );
+      if (hits.length === 0) {
+        return {
+          content: rows.length
+            ? `Sin resultados para "${tema}". Temas disponibles: ${rows.map((r) => r.topic).join(', ')}. ` +
+              'Si ninguno aplica, NO inventes: di que no tienes ese dato.'
+            : 'El restaurante no ha escrito información adicional. No inventes: di que no tienes ese dato.',
+          facts: [],
+        };
+      }
+      const content = hits.slice(0, 5)
+        .map((h) => `${h.topic}: ${renderTemplate(h.answer, vars)}`)
+        .join('\n');
+      return { content, facts: extractNumbers(content) };
     }
 
     case 'consultar_horarios':

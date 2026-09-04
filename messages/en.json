@@ -72,7 +72,9 @@
     "totalViews": "Total views",
     "whatsappOrders": "WhatsApp orders",
     "viewMenu": "View public menu",
-    "noData": "No data yet. Share your menu to get started."
+    "noData": "No data yet. Share your menu to get started.",
+    "botConversations": "Bot conversations (30 days)",
+    "botReservations": "Bot reservations (30 days)"
   },
   "menuEditor": {
     "title": "Menu editor",
@@ -825,7 +827,8 @@
     "f_branches": "Branches",
     "f_reports": "Advanced reports",
     "additionalRestaurant": "Additional restaurant",
-    "additionalIntro": "Extra restaurant on your Pro account:"
+    "additionalIntro": "Extra restaurant on your Pro account:",
+    "f_wabot": "WhatsApp bot: flows, AI assistant and inbox"
   },
   "pro": {
     "locked": "{feature} is a Pro feature",
@@ -905,7 +908,9 @@
     "topCustomers": "Top customers",
     "visits": "{n} visits",
     "export": "Export CSV",
-    "noData": "No data in this period yet."
+    "noData": "No data in this period yet.",
+    "botConversations": "Bot conversations",
+    "botReservations": "Bot reservations"
   },
   "superAdmin": {
     "title": "Super Admin",
@@ -1313,9 +1318,27 @@
       "nudgeAt": "Re-ask at {time}",
       "closeAt": "Closes at {time}",
       "reservationCreated": "📅 A reservation was created from this flow",
-      "endedReason": "Reason: {reason}"
+      "endedReason": "Reason: {reason}",
+      "botActive": "Bot active in this conversation",
+      "botPaused": "Bot paused",
+      "pausedByStaff": "Paused by the team from Kuik.",
+      "pausedByHandoff": "A customer asked for a human or the team took the chat.",
+      "pauseBot": "Pause bot",
+      "resumeBot": "Resume bot"
     },
     "flowsLink": "Bot flows",
-    "flowsLinkHint": "Design on the canvas what the bot asks, what it does with the answers, and when it nudges or closes."
+    "flowsLinkHint": "Design on the canvas what the bot asks, what it does with the answers, and when it nudges or closes.",
+    "faqs": {
+      "title": "Extra info for the bot",
+      "hint": "Parking, pets, terrace, payment methods… The AI can only assert what you write here.",
+      "add": "Add",
+      "empty": "Write what your customers keep asking that the menu can't answer. The AI will use it verbatim.",
+      "topicPlaceholder": "Topic, e.g. Parking",
+      "answerPlaceholder": "The answer, in your words. e.g. Yes, free parking for customers.",
+      "keywordsPlaceholder": "extra words: parking, valet, car",
+      "keywordsHint": "Additional words that find this topic (comma-separated).",
+      "enabled": "Active",
+      "delete": "Delete"
+    }
   }
 }

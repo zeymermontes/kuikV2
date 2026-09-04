@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { PanelRightOpen, X } from 'lucide-react';
+import { Bot, PanelRightOpen, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
+import { setConversationBot } from '@/app/(dashboard)/whatsapp/inbox/actions';
 import type { ConversationItem, InboxFilters } from '@/app/(dashboard)/whatsapp/inbox/query';
 import type { MessageOrigin, WhatsappFlowRun } from '@/lib/whatsapp/types';
 import { ConversationList } from './ConversationList';
@@ -34,14 +35,22 @@ export interface InboxFlowRef {
  * New messages arrive live over the whatsapp_messages realtime channel — the
  * same one the boards already use.
  */
+export interface SelectedConv {
+  id: string;
+  bot_enabled: boolean;
+  handoff_at: string | null;
+  handoff_by: string | null;
+}
+
 export function InboxShell({
-  tenantId, initialItems, initialCursor, filters, selectedId, messages, runs, flows,
+  tenantId, initialItems, initialCursor, filters, selectedId, selectedConv, messages, runs, flows,
 }: {
   tenantId: string;
   initialItems: ConversationItem[];
   initialCursor: string | null;
   filters: InboxFilters;
   selectedId: string | null;
+  selectedConv: SelectedConv | null;
   messages: InboxMessage[];
   runs: WhatsappFlowRun[];
   flows: InboxFlowRef[];
@@ -131,7 +140,12 @@ export function InboxShell({
 
         {/* Run state — right column on desktop */}
         <div className="hidden min-h-0 overflow-y-auto border-l border-neutral-200 lg:block">
-          {selectedId && <RunPanel runs={runs} flows={flows} />}
+          {selectedId && (
+            <>
+              {selectedConv && <BotToggle conv={selectedConv} />}
+              <RunPanel runs={runs} flows={flows} />
+            </>
+          )}
         </div>
       </div>
 
@@ -146,10 +160,55 @@ export function InboxShell({
                 <X className="h-5 w-5" />
               </button>
             </div>
+            {selectedConv && <BotToggle conv={selectedConv} />}
             <RunPanel runs={runs} flows={flows} />
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** The release valve for a handoff: hand the conversation back to the bot. */
+function BotToggle({ conv }: { conv: SelectedConv }) {
+  const t = useTranslations('whatsapp.inbox');
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+
+  const toggle = (enabled: boolean) => startTransition(async () => {
+    await setConversationBot({ conversationId: conv.id, enabled });
+    router.refresh();
+  });
+
+  const active = conv.bot_enabled && !conv.handoff_at;
+  return (
+    <div className={cn(
+      'flex items-center justify-between gap-2 border-b border-neutral-100 px-4 py-3',
+      active ? 'bg-emerald-50/50' : 'bg-amber-50/60',
+    )}>
+      <div className="min-w-0 text-xs">
+        <div className="flex items-center gap-1.5 font-semibold">
+          <Bot className={cn('h-3.5 w-3.5', active ? 'text-emerald-600' : 'text-amber-600')} />
+          {active ? t('botActive') : t('botPaused')}
+        </div>
+        {!active && (
+          <p className="mt-0.5 text-neutral-500">
+            {conv.handoff_by === 'staff_dashboard' ? t('pausedByStaff') : t('pausedByHandoff')}
+          </p>
+        )}
+      </div>
+      <button
+        disabled={pending}
+        onClick={() => toggle(!active)}
+        className={cn(
+          'shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50',
+          active
+            ? 'border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50'
+            : 'bg-neutral-900 text-white hover:bg-neutral-700',
+        )}
+      >
+        {active ? t('pauseBot') : t('resumeBot')}
+      </button>
     </div>
   );
 }

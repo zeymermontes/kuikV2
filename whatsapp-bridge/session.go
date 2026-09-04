@@ -67,13 +67,13 @@ type Manager struct {
 	container *sqlstore.Container
 	registry  *Registry
 	logger    waLog.Logger
-	onMessage func(tenantID string, evt *events.Message)
+	onMessage func(tenantID string, evt *events.Message, cli *whatsmeow.Client)
 
 	mu       sync.RWMutex
 	sessions map[string]*Session
 }
 
-func NewManager(container *sqlstore.Container, registry *Registry, logger waLog.Logger, onMessage func(string, *events.Message)) *Manager {
+func NewManager(container *sqlstore.Container, registry *Registry, logger waLog.Logger, onMessage func(string, *events.Message, *whatsmeow.Client)) *Manager {
 	return &Manager{
 		container: container,
 		registry:  registry,
@@ -165,7 +165,7 @@ func (m *Manager) Start(ctx context.Context, tenantID string) (*Session, error) 
 				return
 			}
 			if m.onMessage != nil {
-				m.onMessage(tenantID, v)
+				m.onMessage(tenantID, v, session.Client)
 			}
 		case *events.Connected:
 			session.set("connected", "", "")

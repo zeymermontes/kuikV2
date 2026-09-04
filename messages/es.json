@@ -72,7 +72,9 @@
     "totalViews": "Vistas totales",
     "whatsappOrders": "Pedidos por WhatsApp",
     "viewMenu": "Ver menú público",
-    "noData": "Aún no hay datos. Comparte tu menú para empezar."
+    "noData": "Aún no hay datos. Comparte tu menú para empezar.",
+    "botConversations": "Conversaciones del bot (30 días)",
+    "botReservations": "Reservas por el bot (30 días)"
   },
   "menuEditor": {
     "title": "Editor de menú",
@@ -825,7 +827,8 @@
     "f_branches": "Sucursales",
     "f_reports": "Reportes avanzados",
     "additionalRestaurant": "Restaurante adicional",
-    "additionalIntro": "Restaurante extra en tu cuenta Pro:"
+    "additionalIntro": "Restaurante extra en tu cuenta Pro:",
+    "f_wabot": "Bot de WhatsApp: flujos, asistente con IA e inbox"
   },
   "pro": {
     "locked": "{feature} es una función Pro",
@@ -905,7 +908,9 @@
     "topCustomers": "Mejores clientes",
     "visits": "{n} visitas",
     "export": "Exportar CSV",
-    "noData": "Aún no hay datos en este periodo."
+    "noData": "Aún no hay datos en este periodo.",
+    "botConversations": "Conversaciones del bot",
+    "botReservations": "Reservas por el bot"
   },
   "superAdmin": {
     "title": "Super Admin",
@@ -1313,9 +1318,27 @@
       "nudgeAt": "Reintento a las {time}",
       "closeAt": "Cierre a las {time}",
       "reservationCreated": "📅 Se creó una reservación desde este flujo",
-      "endedReason": "Motivo: {reason}"
+      "endedReason": "Motivo: {reason}",
+      "botActive": "Bot activo en esta conversación",
+      "botPaused": "Bot pausado",
+      "pausedByStaff": "Pausado por el equipo desde Kuik.",
+      "pausedByHandoff": "Un cliente pidió atención humana o el equipo tomó el chat.",
+      "pauseBot": "Pausar bot",
+      "resumeBot": "Reactivar bot"
     },
     "flowsLink": "Flujos del bot",
-    "flowsLinkHint": "Diseña en el lienzo qué pregunta el bot, qué hace con las respuestas y cuándo insiste o cierra."
+    "flowsLinkHint": "Diseña en el lienzo qué pregunta el bot, qué hace con las respuestas y cuándo insiste o cierra.",
+    "faqs": {
+      "title": "Información adicional para el bot",
+      "hint": "Estacionamiento, mascotas, terraza, formas de pago… La IA solo puede afirmar lo que escribas aquí.",
+      "add": "Agregar",
+      "empty": "Escribe aquí lo que tus clientes preguntan seguido y el menú no responde. La IA lo usará palabra por palabra.",
+      "topicPlaceholder": "Tema, p. ej. Estacionamiento",
+      "answerPlaceholder": "La respuesta, con tus palabras. p. ej. Sí, tenemos estacionamiento gratis para clientes.",
+      "keywordsPlaceholder": "palabras extra: parking, valet, coche",
+      "keywordsHint": "Palabras adicionales con las que se encuentra este tema (separadas por comas).",
+      "enabled": "Activa",
+      "delete": "Eliminar"
+    }
   }
 }

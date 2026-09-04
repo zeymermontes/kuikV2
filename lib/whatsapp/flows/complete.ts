@@ -1,5 +1,6 @@
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { sendToTenant } from '@/lib/push/send';
 import { botCreateReservation, botHandoff, type BotContext } from '../actions';
 import { renderTemplate, type RenderVars } from '../render';
 import type { OutboundDraft } from '../types';
@@ -101,8 +102,23 @@ export async function executeActions(
         break;
       }
       case 'notify_staff': {
-        // Surface it where staff already look: the conversation gets flagged
-        // for a human WITHOUT silencing the bot (unlike handoff).
+        // A heads-up push WITHOUT silencing the bot (unlike handoff): the
+        // conversation keeps flowing, staff just get pointed at it.
+        await sendToTenant(ctx.tenantId, ['owner', 'manager'], (locale) =>
+          locale === 'en'
+            ? {
+                title: 'The bot flagged a conversation',
+                body: `${ctx.customerName || 'A customer'} reached a step your flow wants you to see.`,
+                tag: `wa-notify-${ctx.conversationId}`,
+                url: `/whatsapp/inbox?c=${ctx.conversationId}`,
+              }
+            : {
+                title: 'El bot te dejó un aviso',
+                body: `${ctx.customerName || 'Un cliente'} llegó a un paso que tu flujo marca como importante.`,
+                tag: `wa-notify-${ctx.conversationId}`,
+                url: `/whatsapp/inbox?c=${ctx.conversationId}`,
+              },
+        ).catch(() => {});
         results[action.nodeId] = { kind: action.kind, ok: true };
         break;
       }

@@ -35,6 +35,52 @@ export async function saveCannedReply(key: string, body: string): Promise<void> 
   revalidatePath('/whatsapp');
 }
 
+/** Create or update one FAQ — the AI's local knowledge (consultar_info). */
+export async function saveFaq(input: {
+  id?: string;
+  topic: string;
+  answer: string;
+  keywords: string;
+  enabled: boolean;
+}): Promise<{ ok: boolean; id?: string }> {
+  const { tenant } = await requireManager();
+  const supabase = await createClient();
+
+  const row = {
+    tenant_id: tenant.id,
+    topic: input.topic.trim().slice(0, 60),
+    answer: input.answer.trim().slice(0, 800),
+    keywords: input.keywords.split(',').map((k) => k.trim()).filter(Boolean).slice(0, 15),
+    enabled: input.enabled,
+    updated_at: new Date().toISOString(),
+  };
+  if (!row.topic || !row.answer) return { ok: false };
+
+  if (input.id) {
+    const { error } = await supabase
+      .from('whatsapp_faqs')
+      .update(row)
+      .eq('id', input.id)
+      .eq('tenant_id', tenant.id);
+    revalidatePath('/whatsapp');
+    return { ok: !error, id: input.id };
+  }
+  const { data, error } = await supabase
+    .from('whatsapp_faqs')
+    .insert(row)
+    .select('id')
+    .single();
+  revalidatePath('/whatsapp');
+  return { ok: !error, id: (data as { id: string } | null)?.id };
+}
+
+export async function deleteFaq(id: string): Promise<void> {
+  const { tenant } = await requireManager();
+  const supabase = await createClient();
+  await supabase.from('whatsapp_faqs').delete().eq('id', id).eq('tenant_id', tenant.id);
+  revalidatePath('/whatsapp');
+}
+
 /**
  * Store the restaurant's own model key.
  *

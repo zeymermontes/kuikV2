@@ -8,24 +8,27 @@ import { WhatsappConnect } from '@/components/dashboard/whatsapp/WhatsappConnect
 import { WhatsappPair } from '@/components/dashboard/whatsapp/WhatsappPair';
 import { BotSettings } from '@/components/dashboard/whatsapp/BotSettings';
 import { AiSettings } from '@/components/dashboard/whatsapp/AiSettings';
+import { FaqEditor, type Faq } from '@/components/dashboard/whatsapp/FaqEditor';
 import { WhatsappDiagnostics } from '@/components/dashboard/whatsapp/WhatsappDiagnostics';
+import { isPro } from '@/lib/plan';
 import { diagnose } from '@/lib/whatsapp/bridge';
 
 export const dynamic = 'force-dynamic';
 
 export default async function WhatsappPage() {
-  const { tenant, role } = await requireManager();
+  const { tenant, role, subscription } = await requireManager();
   const t = await getTranslations('whatsapp');
   const supabase = await createClient();
 
   const period = new Date();
   period.setUTCDate(1);
 
-  const [{ data: numbers }, { data: settings }, { data: canned }, { data: aiConfig }, { data: lastAiFailure }, { data: recentMessages }, { data: usage }] =
+  const [{ data: numbers }, { data: settings }, { data: canned }, { data: faqs }, { data: aiConfig }, { data: lastAiFailure }, { data: recentMessages }, { data: usage }] =
     await Promise.all([
       supabase.from('whatsapp_numbers').select('*').eq('tenant_id', tenant.id).order('created_at'),
       supabase.from('whatsapp_settings').select('*').eq('tenant_id', tenant.id).maybeSingle(),
       supabase.from('whatsapp_canned_replies').select('key, body').eq('tenant_id', tenant.id).eq('locale', 'es'),
+      supabase.from('whatsapp_faqs').select('id, topic, answer, keywords, enabled').eq('tenant_id', tenant.id).order('position'),
       // Deliberately NOT `select('*')`: the sealed key columns must never reach
       // a React tree, so the column list is explicit.
       supabase
@@ -96,6 +99,9 @@ export default async function WhatsappPage() {
         canned={(canned ?? []) as { key: string; body: string }[]}
         hasNumber={numberRows.some((n) => n.status === 'connected')}
       />
+
+      {/* The AI's local knowledge; only meaningful on the plan that has AI. */}
+      {isPro(subscription) && <FaqEditor faqs={(faqs ?? []) as Faq[]} />}
 
       {/* AI keys are owner-only, matching the RLS on ai_providers_config. */}
       {role === 'owner' && (

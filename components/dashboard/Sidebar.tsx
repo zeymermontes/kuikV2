@@ -37,6 +37,7 @@ import { setActiveTenant } from '@/app/(dashboard)/tenant-actions';
 import { LocaleSwitch } from './LocaleSwitch';
 import { InstallPrompt } from './InstallPrompt';
 import { PendingReservationsBadge } from './PendingReservationsBadge';
+import { HandoffBadge } from './HandoffBadge';
 
 // `roles` lists which member roles see each item.
 // `dev: true` items are in development — only shown to dev accounts (see lib/features.ts).
@@ -77,6 +78,7 @@ export function Sidebar({
   plan,
   enforcePlan,
   pendingReservations,
+  pendingHandoffs,
 }: {
   isSuperAdmin: boolean;
   showDevFeatures: boolean;
@@ -90,6 +92,8 @@ export function Sidebar({
   enforcePlan: boolean;
   /** Reservation requests still waiting on a yes or no, across all future days. */
   pendingReservations: number;
+  /** WhatsApp conversations parked waiting for a human. */
+  pendingHandoffs: number;
 }) {
   const pathname = usePathname();
   const t = useTranslations('nav');
@@ -123,6 +127,9 @@ export function Sidebar({
             {t(key)}
             {key === 'reservations' && (
               <PendingReservationsBadge tenantId={activeTenantId} initial={pendingReservations} />
+            )}
+            {key === 'whatsapp' && (
+              <HandoffBadge tenantId={activeTenantId} initial={pendingHandoffs} />
             )}
           </NavLink>
         ),
