@@ -6,8 +6,7 @@ import { todayInTz } from '@/lib/time';
 import { tenantBaseUrl } from '@/lib/config';
 import { rateLimit, bucketKey } from '@/lib/rate-limit';
 import { canUse, effectivePlan } from '@/lib/plan';
-import { normalizeText } from './parse';
-import { buildMenu } from './intent';
+import { buildMenu, matchesAnyKeyword } from './intent';
 import { renderTemplate, type RenderVars } from './render';
 import { botHandoff, type BotContext } from './actions';
 import { sendMessage } from './send';
@@ -57,10 +56,6 @@ export async function runBot(turn: BotTurn): Promise<void> {
   const contact = Array.isArray(conv.contact) ? conv.contact[0] : conv.contact;
   if (!contact || contact.opted_out || contact.is_blocked) return;
 
-  // A human is already on this conversation — usually because the owner
-  // replied from their own phone. Say nothing.
-  if (!conv.bot_enabled || conv.handoff_at) return;
-
   const { data: settingsRow } = await supabase
     .from('whatsapp_settings')
     .select('*')
@@ -74,24 +69,32 @@ export async function runBot(turn: BotTurn): Promise<void> {
   } | null;
   if (!settings?.enabled || !settings.bot_enabled) return;
 
-  const text = normalizeText(turn.text);
+  const resetSeconds = settings.greet_cooldown_seconds ?? 21600;
 
-  // Opting out has to work before anything else does.
-  if (settings.optout_keywords.some((k) => text.includes(normalizeText(k)))) {
+  // A human is on this conversation — usually because the owner replied from
+  // their own phone. Say nothing... while the conversation is HOT. After the
+  // cooldown of total silence (no diner, no bot, no staff) it counts as a NEW
+  // chat: the handoff is released and the bot wakes up. Without this, one
+  // "pásame con alguien" muted a conversation forever.
+  if (!conv.bot_enabled || conv.handoff_at) {
+    if (!(await conversationIsStale(supabase, conv.id, resetSeconds))) return;
+    await supabase
+      .from('whatsapp_conversations')
+      .update({ bot_enabled: true, handoff_at: null, handoff_by: null })
+      .eq('id', conv.id);
+    conv.bot_enabled = true;
+    conv.handoff_at = null;
+  }
+
+  // Opting out has to work before anything else does — deterministically,
+  // AI or not. Whole-word matching: "2 personas" must never read as intent.
+  if (matchesAnyKeyword(settings.optout_keywords, turn.text)) {
     await supabase
       .from('whatsapp_contacts')
       .update({ opted_out: true })
       .eq('tenant_id', turn.tenantId)
       .eq('wa_id', contact.wa_id);
     await say(conv.id, [{ type: 'text', body: await canned(supabase, turn.tenantId, 'optout_ack', {}) }]);
-    return;
-  }
-
-  if (settings.handoff_keywords.some((k) => text.includes(normalizeText(k)))) {
-    const ctx = await buildContext(supabase, conv, contact.wa_id, contact.profile_name);
-    await botHandoff(ctx, 'keyword');
-    await markRunHandoff(supabase, conv.active_flow_run_id);
-    await say(conv.id, [{ type: 'text', body: await canned(supabase, turn.tenantId, 'handoff', {}) }]);
     return;
   }
 
@@ -137,6 +140,18 @@ export async function runBot(turn: BotTurn): Promise<void> {
   const flows = (flowRows ?? []) as unknown as WhatsappFlow[];
   const aiGoals = flows.map((f) => ({ key: f.key, name: f.name, description: f.description }));
 
+  // "Pásame con una persona": with AI on, the MODEL reads the whole message
+  // and decides (it has the pasar_con_humano tool and the context to tell a
+  // request from a mention). The deterministic shortcut only fires when no AI
+  // will see the message — scripted mode has nothing to interpret with.
+  const wantsHuman = matchesAnyKeyword(settings.handoff_keywords, turn.text);
+  if (wantsHuman && !aiAllowed) {
+    await botHandoff(ctx, 'keyword');
+    await markRunHandoff(supabase, conv.active_flow_run_id);
+    await say(conv.id, [{ type: 'text', body: await canned(supabase, turn.tenantId, 'handoff', {}) }]);
+    return;
+  }
+
   // Out of hours, say so — but keep going. A booking request at 2am should
   // still book; replacing the whole reply with "we're closed" is the mistake
   // that makes a bot feel broken.
@@ -150,7 +165,7 @@ export async function runBot(turn: BotTurn): Promise<void> {
   const handled = await runFlowTurn({
     supabase, conv, contactId: contact.id, botCtx: ctx, vars,
     turn: { text: turn.text, replyId: turn.replyId },
-    flows, aiEnabled: aiAllowed, botsAllowed, aiGoals,
+    flows, aiEnabled: aiAllowed, botsAllowed, aiGoals, wantsHuman,
     pendingReplies: replies,
   });
   if (handled) return;
@@ -158,10 +173,12 @@ export async function runBot(turn: BotTurn): Promise<void> {
   // First contact in a while gets a greeting plus the menu. Without this the
   // seeded 'greeting' reply was dead config, and a plain "hola" — the single
   // most common opening message — fell through to the "didn't understand"
-  // fallback, which reads as a broken bot.
+  // fallback, which reads as a broken bot. (Not when they asked for a human:
+  // greeting over that request reads as being ignored.)
   const isFirstTurn =
+    !wantsHuman &&
     !conv.active_flow_run_id &&
-    (await isNewConversation(supabase, conv.id, settings.greet_cooldown_seconds ?? 21600));
+    (await isNewConversation(supabase, conv.id, resetSeconds));
 
   // The menu buttons start flows, so a basic tenant's greeting goes without
   // them — a button that silently does nothing reads as a broken bot.
@@ -180,6 +197,15 @@ export async function runBot(turn: BotTurn): Promise<void> {
   if (aiAllowed) {
     const handledByAi = await runAi({ ctx, text: turn.text, vars, goals: aiGoals });
     if (handledByAi) return;
+  }
+
+  // The AI was supposed to weigh this request but failed; honor it the
+  // deterministic way rather than answering with a menu.
+  if (wantsHuman) {
+    await botHandoff(ctx, 'keyword');
+    await markRunHandoff(supabase, conv.active_flow_run_id);
+    await say(conv.id, [{ type: 'text', body: await canned(supabase, turn.tenantId, 'handoff', {}) }]);
+    return;
   }
 
   // Never guess. Offer the menu, which always works.
@@ -301,6 +327,33 @@ async function buildVars(
     telefono: c?.whatsapp_phone ?? '',
     },
   };
+}
+
+/**
+ * Whether the conversation went completely silent long enough to count as a
+ * NEW chat — no messages from anyone (diner, bot, AI, staff), so a lingering
+ * handoff no longer means a human is actually attending.
+ *
+ * The just-arrived inbound is excluded by a small grace window: it was
+ * persisted right before runBot and would otherwise make every conversation
+ * look active.
+ */
+async function conversationIsStale(
+  supabase: ReturnType<typeof createAdminClient>,
+  conversationId: string,
+  resetSeconds: number,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from('whatsapp_messages')
+    .select('created_at')
+    .eq('conversation_id', conversationId)
+    .lt('created_at', new Date(Date.now() - 20_000).toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const last = (data as { created_at: string } | null)?.created_at;
+  if (!last) return true;
+  return Date.now() - new Date(last).getTime() > resetSeconds * 1000;
 }
 
 /**

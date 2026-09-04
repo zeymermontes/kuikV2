@@ -86,6 +86,25 @@ export function matchGoal(
   return best && best.score >= 2 ? best : null;
 }
 
+/**
+ * Whether the message contains any of the keywords as a WHOLE WORD.
+ *
+ * Substring matching is what silently killed the bot mid-booking: the answer
+ * "2 personas" to "¿para cuántas personas?" contains the handoff keyword
+ * "persona", so the diner's second message handed the conversation to a human
+ * and muted the bot. Word boundaries fix it — "\bpersona\b" does not match
+ * "personas" — while "quiero hablar con una persona" still triggers.
+ */
+export function matchesAnyKeyword(keywords: string[], text: string): boolean {
+  const s = normalizeText(text);
+  if (!s) return false;
+  return keywords.some((keyword) => {
+    const k = normalizeText(keyword);
+    if (!k) return false;
+    return new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(s);
+  });
+}
+
 /** The fallback that always works: "1 Reservar · 2 Horarios · …". */
 export function buildMenu(goals: MatchableGoal[]): { id: string; title: string }[] {
   return [...goals]

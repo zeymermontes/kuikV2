@@ -322,7 +322,15 @@ export async function runTool(
 
     case 'pasar_con_humano': {
       const { motivo } = parsed.data as z.infer<typeof Handoff>;
-      await botHandoff(ctx, motivo ? 'ai' : 'ai');
+      void motivo;
+      await botHandoff(ctx, 'ai');
+      // A flow run in progress ends as handoff, so the inbox shows where the
+      // diner was when a person took over.
+      if (ctx.flowRunId) {
+        const supabase = createAdminClient();
+        const run = await loadRun(supabase, ctx.flowRunId);
+        if (run) await endRun(supabase, run, 'handoff', 'ai');
+      }
       return { content: 'Listo, avisé a una persona del restaurante.', facts: [] };
     }
 

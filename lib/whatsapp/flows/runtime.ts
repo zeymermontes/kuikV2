@@ -3,13 +3,13 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { runAi } from '@/lib/ai/run';
 import { matchGoal } from '../intent';
 import { sendMessage } from '../send';
-import type { BotContext } from '../actions';
+import { botHandoff, type BotContext } from '../actions';
 import type { RenderVars } from '../render';
 import type { OutboundDraft, WhatsappFlow, WhatsappFlowRun } from '../types';
 import { resumeNodeId, spanishSlotParser, stepGraph, type GraphEngineCtx } from './engine';
 import type { FlowGraph } from './schema';
 import { slotsOf } from './schema';
-import { executeActions } from './complete';
+import { executeActions, getCanned } from './complete';
 import {
   createRun, endRun, loadPublishedGraph, loadRun,
   mergeAnswers, plainAnswers, timerDues,
@@ -38,6 +38,11 @@ export interface FlowTurnParams {
   botsAllowed: boolean;
   /** The goal list the AI shows as "what I can help with". */
   aiGoals: { key: string; name: string; description?: string | null }[];
+  /**
+   * The message matched a handoff keyword. With AI driving, the model reads
+   * it in full and decides; the scripted engine honors it outright.
+   */
+  wantsHuman?: boolean;
   /** Say these first (e.g. the out-of-hours notice) on the scripted path. */
   pendingReplies: OutboundDraft[];
 }
@@ -135,6 +140,19 @@ export async function runFlowTurn(params: FlowTurnParams): Promise<boolean> {
   }
 
   /* --------------------------------------------------------- linear mode */
+
+  // The scripted engine can't weigh "pásame con una persona" against the
+  // question it just asked — a human request beats the script.
+  if (params.wantsHuman) {
+    await botHandoff(ctx, 'keyword');
+    await endRun(supabase, run, 'handoff', 'handoff_keyword');
+    const handoffMsg = await getCanned(supabase, conv.tenant_id, 'handoff', vars);
+    await say(conv.id, [
+      ...params.pendingReplies,
+      { type: 'text', body: handoffMsg || 'Claro, en un momento te atiende una persona 🙋' },
+    ]);
+    return true;
+  }
 
   const engineCtx: GraphEngineCtx = { vars, parse: spanishSlotParser(ctx.today) };
 
