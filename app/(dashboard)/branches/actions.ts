@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { revalidateTenant } from '@/lib/revalidate';
 import { requireManager } from '@/lib/auth';
 import { isPro } from '@/lib/plan';
 import { slugify } from '@/lib/utils';
@@ -124,6 +125,7 @@ export async function createBranch(input: {
 
   revalidatePath('/branches');
   revalidatePath('/menu');
+  revalidateTenant(tenant.subdomain, tenant.custom_domain);
 }
 
 export async function updateBranch(
@@ -143,6 +145,7 @@ export async function updateBranch(
   await supabase.from('branches').update(fields).eq('id', id).eq('tenant_id', tenant.id);
   revalidatePath('/branches');
   revalidatePath('/menu');
+  revalidateTenant(tenant.subdomain, tenant.custom_domain);
 }
 
 export async function deleteBranch(id: string) {
@@ -151,4 +154,5 @@ export async function deleteBranch(id: string) {
   await supabase.from('branches').delete().eq('id', id).eq('tenant_id', tenant.id);
   revalidatePath('/branches');
   revalidatePath('/menu');
+  revalidateTenant(tenant.subdomain, tenant.custom_domain);
 }

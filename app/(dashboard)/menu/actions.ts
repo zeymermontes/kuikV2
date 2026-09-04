@@ -14,7 +14,7 @@ import type { SeparatorStyle, PricedOption, OptionGroup } from '@/lib/database.t
 async function ctx() {
   const { tenant } = await requireManager();
   const supabase = await createClient();
-  return { tenantId: tenant.id, subdomain: tenant.subdomain, supabase };
+  return { tenantId: tenant.id, subdomain: tenant.subdomain, customDomain: tenant.custom_domain, supabase };
 }
 
 /**
@@ -25,13 +25,13 @@ async function ctx() {
 async function serviceCtx() {
   const { tenant } = await requireTenant();
   const supabase = await createClient();
-  return { subdomain: tenant.subdomain, supabase };
+  return { subdomain: tenant.subdomain, customDomain: tenant.custom_domain, supabase };
 }
 
 // Re-render the editor and bust the public menu cache after every mutation.
-function revalidate(subdomain: string) {
+function revalidate(subdomain: string, customDomain?: string | null) {
   revalidatePath('/menu');
-  revalidateTenant(subdomain);
+  revalidateTenant(subdomain, customDomain);
 }
 
 // ── Categories ─────────────────────────────────────────────────────────────
@@ -40,7 +40,7 @@ export async function addCategory(
   branchId: string | null = null,
   parentId: string | null = null,
 ) {
-  const { tenantId, subdomain, supabase } = await ctx();
+  const { tenantId, subdomain, customDomain, supabase } = await ctx();
 
   // A subcategory lives on its parent's branch and may only hang off a
   // top-level category (the database enforces this too).
@@ -70,7 +70,7 @@ export async function addCategory(
     branch_id: branch,
     parent_id: parentId,
   });
-  revalidate(subdomain);
+  revalidate(subdomain, customDomain);
 }
 
 /**
@@ -79,7 +79,7 @@ export async function addCategory(
  * backstop.
  */
 export async function setCategoryParent(id: string, parentId: string | null) {
-  const { tenantId, subdomain, supabase } = await ctx();
+  const { tenantId, subdomain, customDomain, supabase } = await ctx();
 
   if (parentId) {
     if (parentId === id) return;
@@ -115,7 +115,7 @@ export async function setCategoryParent(id: string, parentId: string | null) {
     await supabase.from('categories').update({ parent_id: null, position: count ?? 0 }).eq('id', id);
   }
 
-  revalidate(subdomain);
+  revalidate(subdomain, customDomain);
 }
 
 export async function updateCategory(
@@ -130,28 +130,28 @@ export async function updateCategory(
     station: string | null;
   }>,
 ) {
-  const { subdomain, supabase } = await ctx();
+  const { subdomain, customDomain, supabase } = await ctx();
   await supabase.from('categories').update(fields).eq('id', id);
-  revalidate(subdomain);
+  revalidate(subdomain, customDomain);
 }
 
 export async function deleteCategory(id: string) {
-  const { subdomain, supabase } = await ctx();
+  const { subdomain, customDomain, supabase } = await ctx();
   await supabase.from('categories').delete().eq('id', id);
-  revalidate(subdomain);
+  revalidate(subdomain, customDomain);
 }
 
 export async function reorderCategories(ids: string[]) {
-  const { supabase, subdomain } = await ctx();
+  const { supabase, subdomain, customDomain } = await ctx();
   await Promise.all(
     ids.map((id, i) => supabase.from('categories').update({ position: i }).eq('id', id)),
   );
-  revalidate(subdomain);
+  revalidate(subdomain, customDomain);
 }
 
 // ── Products ───────────────────────────────────────────────────────────────
 export async function addProduct(categoryId: string, name: string) {
-  const { tenantId, subdomain, supabase } = await ctx();
+  const { tenantId, subdomain, customDomain, supabase } = await ctx();
   const nextPos = await nextPosition(supabase, categoryId);
   const { data } = await supabase
     .from('products')
@@ -163,7 +163,7 @@ export async function addProduct(categoryId: string, name: string) {
     })
     .select('id')
     .single<{ id: string }>();
-  revalidate(subdomain);
+  revalidate(subdomain, customDomain);
   // Return the new id so the editor can auto-open its config drawer.
   return data?.id ?? null;
 }
@@ -190,15 +190,15 @@ export async function updateProduct(
     option_groups: OptionGroup[];
   }>,
 ) {
-  const { subdomain, supabase } = await ctx();
+  const { subdomain, customDomain, supabase } = await ctx();
   await supabase.from('products').update(fields).eq('id', id);
-  revalidate(subdomain);
+  revalidate(subdomain, customDomain);
 }
 
 export async function deleteProduct(id: string) {
-  const { subdomain, supabase } = await ctx();
+  const { subdomain, customDomain, supabase } = await ctx();
   await supabase.from('products').delete().eq('id', id);
-  revalidate(subdomain);
+  revalidate(subdomain, customDomain);
 }
 
 /**
@@ -206,9 +206,9 @@ export async function deleteProduct(id: string) {
  * member (including waiters, who lack full menu-write permission).
  */
 export async function setProductAvailability(id: string, available: boolean) {
-  const { subdomain, supabase } = await serviceCtx();
+  const { subdomain, customDomain, supabase } = await serviceCtx();
   await supabase.rpc('set_product_availability', { p_id: id, p_available: available });
-  revalidate(subdomain);
+  revalidate(subdomain, customDomain);
 }
 
 // ── Separators ─────────────────────────────────────────────────────────────
@@ -217,7 +217,7 @@ export async function addSeparator(
   style: SeparatorStyle,
   label: string | null,
 ) {
-  const { tenantId, subdomain, supabase } = await ctx();
+  const { tenantId, subdomain, customDomain, supabase } = await ctx();
   const nextPos = await nextPosition(supabase, categoryId);
   await supabase.from('separators').insert({
     tenant_id: tenantId,
@@ -226,29 +226,29 @@ export async function addSeparator(
     label,
     position: nextPos,
   });
-  revalidate(subdomain);
+  revalidate(subdomain, customDomain);
 }
 
 export async function updateSeparator(
   id: string,
   fields: Partial<{ label: string | null; style: SeparatorStyle }>,
 ) {
-  const { subdomain, supabase } = await ctx();
+  const { subdomain, customDomain, supabase } = await ctx();
   await supabase.from('separators').update(fields).eq('id', id);
-  revalidate(subdomain);
+  revalidate(subdomain, customDomain);
 }
 
 export async function deleteSeparator(id: string) {
-  const { subdomain, supabase } = await ctx();
+  const { subdomain, customDomain, supabase } = await ctx();
   await supabase.from('separators').delete().eq('id', id);
-  revalidate(subdomain);
+  revalidate(subdomain, customDomain);
 }
 
 // Reorder a mixed list of products + separators within one category.
 export async function reorderEntries(
   entries: { kind: 'product' | 'separator'; id: string }[],
 ) {
-  const { subdomain, supabase } = await ctx();
+  const { subdomain, customDomain, supabase } = await ctx();
   await Promise.all(
     entries.map((e, i) =>
       supabase
@@ -257,7 +257,7 @@ export async function reorderEntries(
         .eq('id', e.id),
     ),
   );
-  revalidate(subdomain);
+  revalidate(subdomain, customDomain);
 }
 
 // Helper: next position across both products and separators in a category.

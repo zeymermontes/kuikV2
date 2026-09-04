@@ -169,7 +169,7 @@ export async function toggleReservations(enabled: boolean): Promise<void> {
   const supabase = await createClient();
   await supabase.from('tenant_contact').update({ reservations_enabled: enabled }).eq('tenant_id', tenant.id);
   revalidatePath('/reservations');
-  revalidateTenant(tenant.subdomain);
+  revalidateTenant(tenant.subdomain, tenant.custom_domain);
 }
 
 export async function setReservationRequired(
@@ -179,7 +179,7 @@ export async function setReservationRequired(
   const supabase = await createClient();
   await supabase.from('tenant_contact').update({ reservation_required: required }).eq('tenant_id', tenant.id);
   revalidatePath('/reservations');
-  revalidateTenant(tenant.subdomain);
+  revalidateTenant(tenant.subdomain, tenant.custom_domain);
 }
 
 export async function setReservationPolicy(policy: {
@@ -193,7 +193,7 @@ export async function setReservationPolicy(policy: {
   const supabase = await createClient();
   await supabase.from('tenant_contact').update(policy).eq('tenant_id', tenant.id);
   revalidatePath('/reservations');
-  revalidateTenant(tenant.subdomain);
+  revalidateTenant(tenant.subdomain, tenant.custom_domain);
 }
 
 // ── Areas ───────────────────────────────────────────────────────────────────
@@ -224,7 +224,7 @@ export async function saveArea(input: {
         .select('*').single();
 
   revalidatePath('/reservations');
-  revalidateTenant(tenant.subdomain);
+  revalidateTenant(tenant.subdomain, tenant.custom_domain);
   return (data as ReservationArea) ?? null;
 }
 
@@ -235,7 +235,7 @@ export async function deleteArea(id: string): Promise<void> {
   // deleted room does not take the night's reservations with it.
   await supabase.from('reservation_areas').delete().eq('id', id).eq('tenant_id', tenant.id);
   revalidatePath('/reservations');
-  revalidateTenant(tenant.subdomain);
+  revalidateTenant(tenant.subdomain, tenant.custom_domain);
 }
 
 // ── Pending across every upcoming day ───────────────────────────────────────

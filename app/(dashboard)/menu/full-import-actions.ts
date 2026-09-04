@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { revalidateTenant } from '@/lib/revalidate';
 import { requireManager } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { IMPORT_DESIGN_KEYS, type FullImportPayload, type ImportPreview, type ImportProduct,
@@ -12,7 +13,7 @@ const norm = (s: string) => (s ?? '').trim().toLowerCase();
 async function ctx() {
   const { tenant } = await requireManager();
   const supabase = await createClient();
-  return { tenantId: tenant.id, subdomain: tenant.subdomain, supabase };
+  return { tenantId: tenant.id, subdomain: tenant.subdomain, customDomain: tenant.custom_domain, supabase };
 }
 
 function branchFilter<T>(q: T, branchId: string | null): T {
@@ -135,7 +136,7 @@ export async function applyFullImport(
   branchId: string | null,
   deleteMissing: boolean,
 ): Promise<void> {
-  const { tenantId, subdomain, supabase } = await ctx();
+  const { tenantId, subdomain, customDomain, supabase } = await ctx();
 
   // ── Design (theme) ──────────────────────────────────────────────────────
   if (payload.design && branchId === null) {
@@ -254,7 +255,7 @@ export async function applyFullImport(
 
   revalidatePath('/menu');
   revalidatePath('/design');
-  revalidatePath(`/s/${subdomain}`);
+  revalidateTenant(subdomain, customDomain);
 }
 
 async function buildProductFields(

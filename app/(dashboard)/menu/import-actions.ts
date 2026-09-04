@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { revalidateTenant } from '@/lib/revalidate';
 import { requireManager } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 
@@ -28,7 +29,7 @@ const norm = (s: string) => (s ?? '').trim().toLowerCase();
 async function ctx() {
   const { tenant } = await requireManager();
   const supabase = await createClient();
-  return { tenantId: tenant.id, subdomain: tenant.subdomain, supabase };
+  return { tenantId: tenant.id, subdomain: tenant.subdomain, customDomain: tenant.custom_domain, supabase };
 }
 
 function branchFilter<T>(q: T, branchId: string | null): T {
@@ -97,7 +98,7 @@ export async function applyImport(
   branchId: string | null,
   deleteMissing: boolean,
 ): Promise<void> {
-  const { tenantId, subdomain, supabase } = await ctx();
+  const { tenantId, subdomain, customDomain, supabase } = await ctx();
   const { catList, prodList } = await loadExisting(supabase, tenantId, branchId);
 
   const catIdByName = new Map(catList.map((c) => [norm(c.name), c.id]));
@@ -167,5 +168,5 @@ export async function applyImport(
   }
 
   revalidatePath('/menu');
-  revalidatePath(`/s/${subdomain}`);
+  revalidateTenant(subdomain, customDomain);
 }

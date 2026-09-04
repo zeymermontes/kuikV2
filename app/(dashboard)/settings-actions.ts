@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { revalidateTenant } from '@/lib/revalidate';
 import { createClient } from '@/lib/supabase/server';
 import { requireTenant } from '@/lib/auth';
 import type { ServiceType, LoyaltyType } from '@/lib/database.types';
@@ -58,7 +59,7 @@ export async function updateTheme(
     .eq('tenant_id', tenant.id);
   revalidatePath('/design');
   revalidatePath('/menu');
-  revalidatePath(`/s/${tenant.subdomain}`);
+  revalidateTenant(tenant.subdomain, tenant.custom_domain);
 }
 
 /** Merge a partial set of look-and-feel knobs into tenant_theme.settings (jsonb). */
@@ -76,7 +77,7 @@ export async function updateMenuSettings(partial: Partial<MenuSettings>) {
     .update({ settings: merged, updated_at: new Date().toISOString() })
     .eq('tenant_id', tenant.id);
   revalidatePath('/design');
-  revalidatePath(`/s/${tenant.subdomain}`);
+  revalidateTenant(tenant.subdomain, tenant.custom_domain);
 }
 
 /**
@@ -107,7 +108,7 @@ export async function applyMenuPreset(presetId: string) {
 
   revalidatePath('/design');
   revalidatePath('/menu');
-  revalidatePath(`/s/${tenant.subdomain}`);
+  revalidateTenant(tenant.subdomain, tenant.custom_domain);
 }
 
 export async function updateLanding(
@@ -131,7 +132,7 @@ export async function updateLanding(
       { onConflict: 'tenant_id' },
     );
   revalidatePath('/landing');
-  revalidatePath(`/s/${tenant.subdomain}`);
+  revalidateTenant(tenant.subdomain, tenant.custom_domain);
 }
 
 export async function updateLoyalty(
@@ -154,7 +155,7 @@ export async function updateLoyalty(
       { onConflict: 'tenant_id' },
     );
   revalidatePath('/loyalty');
-  revalidatePath(`/s/${tenant.subdomain}`);
+  revalidateTenant(tenant.subdomain, tenant.custom_domain);
 }
 
 export async function updateOrdering(
@@ -185,7 +186,7 @@ export async function updateOrdering(
       { onConflict: 'tenant_id' },
     );
   revalidatePath('/ordering');
-  revalidatePath(`/s/${tenant.subdomain}`);
+  revalidateTenant(tenant.subdomain, tenant.custom_domain);
 }
 
 export async function updateContact(
@@ -209,5 +210,5 @@ export async function updateContact(
     .update({ ...fields, updated_at: new Date().toISOString() })
     .eq('tenant_id', tenant.id);
   revalidatePath('/contact');
-  revalidatePath(`/s/${tenant.subdomain}`);
+  revalidateTenant(tenant.subdomain, tenant.custom_domain);
 }
