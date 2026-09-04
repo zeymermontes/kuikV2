@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
-import { BookOpen, Plus, Trash2 } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
+import { BookOpen, ChevronDown, ClipboardCopy, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { Button, Card, Field, Input, Textarea } from '@/components/ui';
 import { deleteFaq, saveFaq } from '@/app/(dashboard)/whatsapp/actions';
+import { buildFaqAssistantPrompt, faqTopicKey, parseFaqBlocks } from '@/lib/whatsapp/faq-import';
 
 export interface Faq {
   id: string;
@@ -21,12 +22,62 @@ export interface Faq {
  * consultar_info — it can only say what's written here, so writing more
  * here IS making the bot smarter.
  */
-export function FaqEditor({ faqs: initial }: { faqs: Faq[] }) {
+export function FaqEditor({ faqs: initial, restaurantName }: { faqs: Faq[]; restaurantName: string }) {
   const t = useTranslations('whatsapp.faqs');
+  const locale = useLocale();
   const router = useRouter();
   const [faqs, setFaqs] = useState(initial);
   const [adding, setAdding] = useState(false);
+  const [assistOpen, setAssistOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [pasted, setPasted] = useState('');
+  const [importMsg, setImportMsg] = useState<{ ok: boolean; count: number } | null>(null);
+  const [importing, startImport] = useTransition();
   const [, start] = useTransition();
+
+  async function copyPrompt() {
+    const prompt = buildFaqAssistantPrompt({ locale, restaurantName, faqs });
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // Clipboard blocked (http, permissions): show the text for manual copy.
+      window.prompt(t('assistCopy'), prompt);
+    }
+  }
+
+  function importPaste() {
+    const seeds = parseFaqBlocks(pasted);
+    if (seeds.length === 0) {
+      setImportMsg({ ok: false, count: 0 });
+      return;
+    }
+    startImport(async () => {
+      const byTopic = new Map(faqs.map((f) => [faqTopicKey(f.topic), f] as const));
+      const merged = [...faqs];
+      let saved = 0;
+      for (const seed of seeds) {
+        const existing = byTopic.get(faqTopicKey(seed.topic));
+        const res = await saveFaq({
+          id: existing && !existing.id.startsWith('new_') ? existing.id : undefined,
+          topic: seed.topic,
+          answer: seed.answer,
+          keywords: seed.keywords.join(', '),
+          enabled: true,
+        });
+        if (!res.ok) continue;
+        saved += 1;
+        const next: Faq = { id: res.id ?? `new_${Date.now().toString(36)}`, ...seed, enabled: true };
+        const at = existing ? merged.findIndex((f) => f.id === existing.id) : -1;
+        if (at >= 0) merged[at] = next; else merged.push(next);
+      }
+      setFaqs(merged);
+      if (saved > 0) setPasted('');
+      setImportMsg({ ok: saved > 0, count: saved });
+      router.refresh();
+    });
+  }
 
   const persist = (faq: Faq) => start(async () => {
     await saveFaq({
@@ -62,6 +113,50 @@ export function FaqEditor({ faqs: initial }: { faqs: Faq[] }) {
         >
           <Plus className="h-3.5 w-3.5" /> {t('add')}
         </Button>
+      </div>
+
+      {/* Fill-by-interview: copy a prompt into any chat AI, paste its final
+          block back, and the list below populates itself. */}
+      <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50">
+        <button
+          onClick={() => setAssistOpen((o) => !o)}
+          className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"
+        >
+          <span className="flex items-center gap-2 text-sm font-medium">
+            <Sparkles className="h-4 w-4 text-violet-500" /> {t('assistTitle')}
+          </span>
+          <ChevronDown className={`h-4 w-4 text-neutral-400 transition ${assistOpen ? 'rotate-180' : ''}`} />
+        </button>
+        {assistOpen && (
+          <div className="space-y-3 border-t border-dashed border-neutral-300 px-3 py-3">
+            <p className="text-xs text-neutral-500">{t('assistHint')}</p>
+            <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={copyPrompt}>
+              <ClipboardCopy className="h-3.5 w-3.5" /> {copied ? t('assistCopied') : t('assistCopy')}
+            </Button>
+            <Textarea
+              rows={4}
+              value={pasted}
+              placeholder={t('assistPastePlaceholder')}
+              onChange={(e) => { setPasted(e.target.value); setImportMsg(null); }}
+              className="text-xs"
+            />
+            <div className="flex items-center gap-3">
+              <Button
+                variant="secondary"
+                className="px-3 py-1.5 text-xs"
+                onClick={importPaste}
+                disabled={!pasted.trim() || importing}
+              >
+                {importing ? t('assistImporting') : t('assistImport')}
+              </Button>
+              {importMsg && (
+                <p className={`text-xs ${importMsg.ok ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  {importMsg.ok ? t('assistImported', { count: importMsg.count }) : t('assistParseError')}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {faqs.length === 0 && !adding && (

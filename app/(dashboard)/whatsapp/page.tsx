@@ -101,7 +101,7 @@ export default async function WhatsappPage() {
       />
 
       {/* The AI's local knowledge; only meaningful on the plan that has AI. */}
-      {isPro(subscription) && <FaqEditor faqs={(faqs ?? []) as Faq[]} />}
+      {isPro(subscription) && <FaqEditor faqs={(faqs ?? []) as Faq[]} restaurantName={tenant.name} />}
 
       {/* AI keys are owner-only, matching the RLS on ai_providers_config. */}
       {role === 'owner' && (

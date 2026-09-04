@@ -1338,7 +1338,16 @@
       "keywordsPlaceholder": "palabras extra: parking, valet, coche",
       "keywordsHint": "Palabras adicionales con las que se encuentra este tema (separadas por comas).",
       "enabled": "Activa",
-      "delete": "Eliminar"
+      "delete": "Eliminar",
+      "assistTitle": "Llenar con ayuda de una IA",
+      "assistHint": "Copia este prompt y pégalo en ChatGPT, Claude o Gemini. La IA te entrevistará sobre tu restaurante y al final te dará un bloque de respuestas; pégalo aquí abajo y la lista se llena sola.",
+      "assistCopy": "Copiar prompt",
+      "assistCopied": "Copiado ✓",
+      "assistPastePlaceholder": "Pega aquí el bloque final que te dio la IA (TEMA / PALABRAS / RESPUESTA)…",
+      "assistImport": "Importar respuestas",
+      "assistImporting": "Importando…",
+      "assistImported": "{count, plural, one {Se importó 1 tema.} other {Se importaron # temas.}}",
+      "assistParseError": "No encontré temas en el texto. Pega el bloque final tal como te lo dio la IA (líneas TEMA: y RESPUESTA:)."
     }
   }
 }

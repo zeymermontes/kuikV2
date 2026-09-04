@@ -1338,7 +1338,16 @@
       "keywordsPlaceholder": "extra words: parking, valet, car",
       "keywordsHint": "Additional words that find this topic (comma-separated).",
       "enabled": "Active",
-      "delete": "Delete"
+      "delete": "Delete",
+      "assistTitle": "Fill in with an AI's help",
+      "assistHint": "Copy this prompt into ChatGPT, Claude or Gemini. The AI will interview you about your restaurant and hand you a final block of answers; paste it below and the list fills itself.",
+      "assistCopy": "Copy prompt",
+      "assistCopied": "Copied ✓",
+      "assistPastePlaceholder": "Paste the AI's final block here (TOPIC / KEYWORDS / ANSWER)…",
+      "assistImport": "Import answers",
+      "assistImporting": "Importing…",
+      "assistImported": "{count, plural, one {Imported 1 topic.} other {Imported # topics.}}",
+      "assistParseError": "No topics found in that text. Paste the final block exactly as the AI produced it (TOPIC: and ANSWER: lines)."
     }
   }
 }
