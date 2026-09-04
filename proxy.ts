@@ -14,6 +14,31 @@ export async function proxy(request: NextRequest) {
   const url = request.nextUrl;
   const host = (request.headers.get('host') ?? '').split(':')[0];
 
+  // ── Origin lock ──────────────────────────────────────────────────────────
+  // Cloudflare stamps every request it proxies with `X-Kuik-Edge: <secret>`
+  // (a Transform Rule on the kuik.mx zone). A request for a kuik.mx host that
+  // arrives WITHOUT the stamp came straight to the Render origin, skipping the
+  // edge — which is exactly how an attacker dodges Cloudflare's rate limits
+  // and forges `cf-connecting-ip` to rotate ours. Refuse it.
+  //
+  // Scope: kuik.mx hosts only. Custom tenant domains and kuik.onrender.com
+  // (Render health checks) don't pass our Cloudflare and are exempt. Inert
+  // until KUIK_EDGE_SECRET is set — never set it in local dev, where
+  // ROOT_HOST is "localhost" and every request would be refused.
+  const edgeSecret = process.env.KUIK_EDGE_SECRET;
+  if (edgeSecret) {
+    const onZone = host === ROOT_HOST || host.endsWith(`.${ROOT_HOST}`);
+    if (onZone && request.headers.get('x-kuik-edge') !== edgeSecret) {
+      return new NextResponse('Forbidden', { status: 403 });
+    }
+  }
+
+  // API routes take part in the origin lock but in nothing below: no session
+  // refresh (route handlers read their own cookies) and no tenant rewrite
+  // (the menu calls /api/track etc. from tenant hosts as-is). This preserves
+  // the behaviour from when the matcher excluded /api entirely.
+  if (url.pathname.startsWith('/api')) return NextResponse.next();
+
   const isRoot = host === ROOT_HOST || host === `www.${ROOT_HOST}`;
   const isApp = host === `${APP_SUBDOMAIN}.${ROOT_HOST}`;
 
@@ -37,6 +62,8 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Skip Next internals, API routes, and static assets.
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)'],
+  // Skip Next internals and static assets — but NOT /api: the origin lock
+  // above must cover the public API routes, which are the very thing a
+  // direct-to-origin attacker would aim at.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)'],
 };
