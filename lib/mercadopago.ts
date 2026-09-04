@@ -6,6 +6,11 @@ import { getPlatformSettings } from '@/lib/platform';
 function mpClient() {
   return new MercadoPagoConfig({
     accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN!,
+    options: {
+      // Partner attribution: sent as x-integrator-id on every API call.
+      // Optional — the client works the same without it.
+      integratorId: process.env.MP_INTEGRATOR_ID,
+    },
   });
 }
 
