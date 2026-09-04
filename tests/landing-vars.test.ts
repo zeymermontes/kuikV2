@@ -9,7 +9,9 @@ test('every documented variable is actually resolved', () => {
   // resolver is what delivers. A key in one and not the other renders as
   // literal {{braces}} on a real restaurant's site.
   const resolver = readFileSync(new URL('../lib/landing-vars.ts', import.meta.url), 'utf8');
-  const returned = resolver.slice(resolver.indexOf('return {'), resolver.indexOf('});', resolver.indexOf('return {')));
+  // Anchor on the resolver itself: the file has other object returns above it.
+  const fnStart = resolver.indexOf('export const getLandingVars');
+  const returned = resolver.slice(resolver.indexOf('return {', fnStart), resolver.indexOf('});', resolver.indexOf('return {', fnStart)));
   const missing = LANDING_VARIABLES.filter((v) => !new RegExp(`\\b${v.key}\\s*:`).test(returned));
   assert.deepEqual(missing.map((v) => v.key), [], 'documented but never resolved');
 });

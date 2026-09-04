@@ -28,9 +28,10 @@ const DAY_LABELS: Record<string, string> = {
 
 /**
  * Cached per request: a page pulls a stylesheet and a script that all want the
- * same values, and this should be one query, not three.
+ * same values, and this should be one query, not three. The flags below share
+ * the same load, so vars + flags still cost one round of queries.
  */
-export const getLandingVars = cache(async (tenantId: string): Promise<LandingVars> => {
+const loadLandingRows = cache(async (tenantId: string) => {
   const supabase = createAdminClient();
 
   const [{ data: tenant }, { data: contact }, { data: theme }] = await Promise.all([
@@ -38,6 +39,22 @@ export const getLandingVars = cache(async (tenantId: string): Promise<LandingVar
     supabase.from('tenant_contact').select('*').eq('tenant_id', tenantId).maybeSingle(),
     supabase.from('tenant_theme').select('logo_url, logo_wide_url, cover_image_url, primary_color, secondary_color, background_color, text_color, button_color').eq('tenant_id', tenantId).maybeSingle(),
   ]);
+
+  return { tenant, contact, theme };
+});
+
+/**
+ * Live switches the served landing must honour. Today just one: whether the
+ * bridge shows or hides the reservation CTAs (see lib/landing-bridge.ts).
+ */
+export const getLandingFlags = cache(async (tenantId: string): Promise<{ reservationsEnabled: boolean }> => {
+  const { contact } = await loadLandingRows(tenantId);
+  const c = contact as { reservations_enabled?: boolean | null } | null;
+  return { reservationsEnabled: Boolean(c?.reservations_enabled) };
+});
+
+export const getLandingVars = cache(async (tenantId: string): Promise<LandingVars> => {
+  const { tenant, contact, theme } = await loadLandingRows(tenantId);
 
   const t = tenant as {
     name: string; subdomain: string; custom_domain: string | null; timezone: string;

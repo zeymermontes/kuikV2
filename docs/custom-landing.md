@@ -145,6 +145,23 @@ Read them and wire up your links. The simplest pattern: mark links with a
 `target="_top"` makes the whole page navigate to the menu (allowed on a real
 click). Use `target="_blank"` instead if you'd rather open it in a new tab.
 
+### Reservation CTAs hide themselves
+
+The owner can turn reservations off in the Kuik dashboard. When that happens,
+the bridge Kuik injects into every served HTML page **hides reservation CTAs
+automatically** — no re-upload needed. What gets hidden:
+
+- Any element with `data-kuik="reservar"` (or `"reserve"`)
+- Any `<a>` whose `href` uses `{{reservar_url}}`
+- Any container with `data-kuik-if="reservas"` — use this to hide a whole
+  section (e.g. a "Reserva tu mesa" hero) rather than leaving a button-less
+  block behind
+
+So build every reservation CTA through that contract and nothing else; a
+hand-rolled reservation button would stay visible with nowhere to go. If your
+own CSS wants to react, Kuik also sets `data-kuik-reservas="on|off"` on the
+`<html>` element. `Kuik.reservar()` becomes a no-op while reservations are off.
+
 ## 6. Packaging the zip
 
 **macOS / Linux (terminal — recommended):**

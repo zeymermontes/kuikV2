@@ -60,8 +60,23 @@ El sitio va dentro de la app, así que puede pedirle cosas. Dos formas:
    La opción 2 abre la reservación ENCIMA de la landing, sin navegar. Prefiérela
    para el botón principal; la opción 1 sirve de respaldo si el JS no carga.
 
+RESERVACIONES — REGLA IMPORTANTE
+El dueño puede desactivar las reservaciones desde su panel, y Kuik OCULTA
+automáticamente todo CTA de reserva que use el contrato de arriba (los
+data-kuik="reservar" y los enlaces a {{reservar_url}}). Por eso:
+- Todo botón o enlace de reservar debe usar EXCLUSIVAMENTE esas dos formas;
+  nunca armes un CTA de reserva de otra manera.
+- Si una sección entera gira alrededor de reservar (un hero "Reserva tu mesa",
+  un bloque con texto y botón), envuélvela en data-kuik-if="reservas":
+    <section data-kuik-if="reservas"> … </section>
+  Kuik la esconde completa cuando las reservas están apagadas.
+- Diseña para que la página siga viéndose bien sin esos elementos (igual que
+  con las variables vacías). Si tu CSS quiere reaccionar, Kuik marca
+  html[data-kuik-reservas="off"] cuando están desactivadas.
+
 QUÉ INCLUIR
-- Portada con el nombre y un llamado claro a reservar.
+- Portada con el nombre y un llamado claro a reservar (con el contrato de
+  arriba, para que pueda ocultarse solo).
 - Un vistazo del lugar (fotos si te las dan, si no un diseño que aguante sin ellas).
 - Horarios, dirección con enlace a mapa, y contacto.
 - Pie con {{anio}} y las redes que existan.

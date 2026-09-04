@@ -1,8 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { rateLimit, clientIp, bucketKey } from '@/lib/rate-limit';
 import { contentTypeFor, LANDING_DIR } from '@/lib/landing';
-import { getLandingVars, applyLandingVars, isSubstitutable } from '@/lib/landing-vars';
-import { LANDING_BRIDGE } from '@/lib/landing-bridge';
+import { getLandingVars, getLandingFlags, applyLandingVars, isSubstitutable } from '@/lib/landing-vars';
+import { landingBridge } from '@/lib/landing-bridge';
 
 /**
  * Serves a tenant's uploaded custom-landing files from the `media` bucket.
@@ -67,11 +67,14 @@ export async function GET(
     // HTML also gets the bridge script, so the page can ask the app to open the
     // reservation sheet. The iframe is sandboxed without allow-same-origin, so
     // postMessage is the only channel it has — a fetch or a direct call would
-    // be blocked by the opaque origin.
+    // be blocked by the opaque origin. The bridge carries live flags (shares
+    // the cached load behind getLandingVars): with reservations switched off
+    // in the dashboard, it hides the landing's reservation CTAs outright.
     if (contentType.startsWith('text/html')) {
+      const bridge = landingBridge(await getLandingFlags(tenantId));
       body = body.includes('</body>')
-        ? body.replace('</body>', `${LANDING_BRIDGE}</body>`)
-        : body + LANDING_BRIDGE;
+        ? body.replace('</body>', `${bridge}</body>`)
+        : body + bridge;
     }
 
     return new Response(body, {

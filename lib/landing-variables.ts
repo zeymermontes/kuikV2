@@ -19,7 +19,7 @@ export const LANDING_VARIABLES: { key: string; describes: string }[] = [
   { key: 'horario_hoy', describes: 'Horario de hoy, ej. "13:00 a 23:00"' },
   { key: 'horario_semana', describes: 'Horario completo, una línea por día' },
   { key: 'menu_url', describes: 'Enlace al menú digital' },
-  { key: 'reservar_url', describes: 'Enlace que abre el formulario de reservación' },
+  { key: 'reservar_url', describes: 'Enlace que abre el formulario de reservación (Kuik lo oculta si las reservas están desactivadas)' },
   { key: 'home_url', describes: 'Enlace a la página principal del restaurante' },
   { key: 'instagram', describes: 'Enlace a Instagram' },
   { key: 'facebook', describes: 'Enlace a Facebook' },
