@@ -143,11 +143,7 @@ export function MenuView({
   const [query, setQuery] = useState('');
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [presetTable, setPresetTable] = useState<string | null>(null);
-  // Decided on the server from `?reservar=1`, so the first render matches and
-  // hydration stays quiet.
-  const [showReserve, setShowReserve] = useState(
-    openReservation && contact.reservations_enabled,
-  );
+  const [showReserve, setShowReserve] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [navStuck, setNavStuck] = useState(false);
@@ -300,6 +296,19 @@ export function MenuView({
     },
     [trackView],
   );
+
+  // /menu?reservar=1 opens the booking sheet on arrival, so a custom landing —
+  // or a printed QR, or a Google listing — can link to it with a plain anchor.
+  //
+  // Read here rather than from `searchParams` on the server: touching
+  // searchParams in a page opts it out of prerendering, and this route is the
+  // most-hit public page in the product. Same reason `?mesa` and `?product`
+  // below are read this way.
+  useEffect(() => {
+    if (!openReservation && !new URLSearchParams(window.location.search).has('reservar')) return;
+    if (!contact.reservations_enabled) return;
+    setShowReserve(true);
+  }, [openReservation, contact.reservations_enabled]);
 
   // Table QR: /menu?mesa=<n> pre-selects dine-in with that table number.
   useEffect(() => {

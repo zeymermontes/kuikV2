@@ -1,11 +1,30 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { PublicIntlProvider } from '@/components/intl/PublicIntlProvider';
+import { HtmlLang } from '@/components/intl/HtmlLang';
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES, type Locale } from '@/lib/config';
 import { getTenantByHostKey } from '@/lib/tenant';
 import { resolveMenuSettings, pickImage } from '@/lib/menu-settings';
 import { CUSTOM_FONT } from '@/lib/config';
 import { BackgroundMusic } from '@/components/menu/BackgroundMusic';
 
 type Params = { tenant: string };
+
+/**
+ * Opts this subtree into on-demand ISR instead of per-request rendering.
+ *
+ * A dynamic segment with no `generateStaticParams` is rendered fresh on every
+ * request and served `no-store` — which is what every public menu was doing,
+ * despite the `revalidate = 60` on the page. Returning an empty list plus
+ * `dynamicParams` keeps builds independent of the database (no tenant list is
+ * needed up front) while letting Next cache each tenant's menu the first time
+ * it is asked for. Edits stay instant regardless: lib/revalidate.ts already
+ * busts these exact paths whenever a restaurant changes something.
+ */
+export const dynamicParams = true;
+export async function generateStaticParams(): Promise<Params[]> {
+  return [];
+}
 
 /** Quote a font value, mapping the custom-font sentinel to its @font-face name. */
 function fontCss(value: string): string {
@@ -21,6 +40,19 @@ function googleFontsHref(families: string[]): string {
     .map((f) => `family=${f.trim().replace(/ /g, '+')}:wght@400;500;600;700`)
     .join('&');
   return `https://fonts.googleapis.com/css2?${params}&display=swap`;
+}
+
+/**
+ * The menu is read by diners, not by staff, so its language comes from the
+ * restaurant's own `tenants.locale` — never from the KUIK_LOCALE cookie. There
+ * is no language switcher on a public menu (it lives in the dashboard sidebar),
+ * so nothing is lost, and staying cookie-free is what lets this whole subtree be
+ * prerendered and cached instead of hitting the database on every view.
+ */
+function tenantLocale(value: string | null | undefined): Locale {
+  return SUPPORTED_LOCALES.includes(value as Locale)
+    ? (value as Locale)
+    : DEFAULT_LOCALE;
 }
 
 const DARK = {
@@ -45,9 +77,19 @@ export async function generateMetadata({
   const dark = settings.darkMode === 'on';
   // A dedicated favicon when the restaurant uploaded one, else the round logo.
   const icon =
-    pickImage(theme.favicon_url, theme.favicon_dark_url, settings.faviconVariant, dark) ??
+    pickImage(
+      theme.favicon_url,
+      theme.favicon_dark_url,
+      settings.faviconVariant,
+      dark,
+    ) ??
     pickImage(theme.logo_url, theme.logo_dark_url, settings.logoVariant, dark);
-  const ogImage = pickImage(theme.logo_url, theme.logo_dark_url, settings.logoVariant, dark);
+  const ogImage = pickImage(
+    theme.logo_url,
+    theme.logo_dark_url,
+    settings.logoVariant,
+    dark,
+  );
   return {
     title: tenant.name,
     description: `Menú de ${tenant.name}`,
@@ -56,9 +98,7 @@ export async function generateMetadata({
       description: `Menú de ${tenant.name}`,
       images: ogImage ? [ogImage] : undefined,
     },
-    icons: icon
-      ? { icon, shortcut: icon, apple: icon }
-      : undefined,
+    icons: icon ? { icon, shortcut: icon, apple: icon } : undefined,
   };
 }
 
@@ -77,15 +117,20 @@ export default async function TenantLayout({
   const settings = resolveMenuSettings(theme.settings);
   const dark = settings.darkMode === 'on';
 
+  const locale = tenantLocale(data.tenant.locale);
+  const messages = (await import(`@/messages/${locale}.json`)).default;
+
   // Per-tenant theme exposed as CSS variables; consumed by the menu components.
   const themeVars = {
     '--brand-primary': theme.primary_color,
     '--brand-secondary': theme.secondary_color,
     '--brand-bg': dark ? DARK.bg : theme.background_color,
     '--brand-text': dark ? DARK.text : theme.text_color,
-    '--brand-text-secondary': dark ? DARK.textSecondary : theme.text_secondary_color ?? '#737373',
-    '--brand-surface': dark ? DARK.surface : theme.card_color ?? '#ffffff',
-    '--brand-border': dark ? DARK.border : theme.border_color ?? '#e5e5e5',
+    '--brand-text-secondary': dark
+      ? DARK.textSecondary
+      : (theme.text_secondary_color ?? '#737373'),
+    '--brand-surface': dark ? DARK.surface : (theme.card_color ?? '#ffffff'),
+    '--brand-border': dark ? DARK.border : (theme.border_color ?? '#e5e5e5'),
     '--brand-separator': theme.separator_color ?? '#e5e5e5',
     '--brand-font': `${fontCss(theme.font_family)}, system-ui, sans-serif`,
     // Per-element fonts (fall back to the main font).
@@ -111,10 +156,12 @@ export default async function TenantLayout({
     // Section bar has its own color ("Barra de secciones"); when unset it uses a
     // neutral frosted default — independent of the page/card background colors.
     '--tab-bar-bg':
-      theme.tab_bar_color ?? `color-mix(in srgb, ${dark ? DARK.bg : '#ffffff'} 90%, transparent)`,
+      theme.tab_bar_color ??
+      `color-mix(in srgb, ${dark ? DARK.bg : '#ffffff'} 90%, transparent)`,
     '--tab-selected-bg': theme.tab_selected_color ?? theme.primary_color,
     '--tab-unselected-bg':
-      theme.tab_unselected_color ?? `color-mix(in srgb, ${theme.primary_color} 12%, transparent)`,
+      theme.tab_unselected_color ??
+      `color-mix(in srgb, ${theme.primary_color} 12%, transparent)`,
     '--tab-selected-text': theme.tab_font_color ?? '#ffffff',
     '--tab-unselected-text': theme.tab_font_color ?? theme.primary_color,
     // Buttons (fall back to the primary color / white text).
@@ -143,11 +190,14 @@ export default async function TenantLayout({
   );
 
   return (
-    <>
+    <PublicIntlProvider locale={locale} messages={messages}>
+      <HtmlLang locale={locale} />
       {theme.custom_font_url && (
         <style>{`@font-face{font-family:'${CUSTOM_FONT}';src:url('${theme.custom_font_url}');font-display:swap;}`}</style>
       )}
-      {googleFonts.length > 0 && <link rel="stylesheet" href={googleFontsHref(googleFonts)} />}
+      {googleFonts.length > 0 && (
+        <link rel="stylesheet" href={googleFontsHref(googleFonts)} />
+      )}
       {settings.darkMode === 'auto' && (
         <style>{`@media (prefers-color-scheme: dark){
           .kuik-root{--brand-bg:${DARK.bg};--brand-text:${DARK.text};--brand-text-secondary:${DARK.textSecondary};--brand-surface:${DARK.surface};--brand-border:${DARK.border}${theme.tab_bar_color ? '' : `;--tab-bar-bg:color-mix(in srgb, ${DARK.bg} 90%, transparent)`}}
@@ -174,7 +224,9 @@ export default async function TenantLayout({
             width: '100vw',
             height: '100lvh',
             backgroundColor: 'var(--brand-bg)',
-            backgroundImage: showBg ? `url(${theme.background_image_url})` : undefined,
+            backgroundImage: showBg
+              ? `url(${theme.background_image_url})`
+              : undefined,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}
@@ -182,8 +234,11 @@ export default async function TenantLayout({
         {children}
       </div>
       {theme.background_music_url && (
-        <BackgroundMusic url={theme.background_music_url} volume={theme.background_music_volume ?? 50} />
+        <BackgroundMusic
+          url={theme.background_music_url}
+          volume={theme.background_music_volume ?? 50}
+        />
       )}
-    </>
+    </PublicIntlProvider>
   );
 }
