@@ -23,12 +23,14 @@ const nextConfig: NextConfig = {
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // Only OUR Supabase project. The optimizer is unauthenticated and CPU-heavy
+    // (each unique url+w+q is a fresh transcode), so a wildcard here let anyone
+    // resize images from ANY *.supabase.co project through our server. The
+    // wildcard survives only as a fallback for a dev env with no URL configured.
     remotePatterns: [
-      ...(supabaseHost
-        ? [{ protocol: 'https' as const, hostname: supabaseHost }]
-        : []),
-      // Allow any Supabase project host during local dev / preview.
-      { protocol: 'https', hostname: '*.supabase.co' },
+      supabaseHost
+        ? { protocol: 'https' as const, hostname: supabaseHost }
+        : { protocol: 'https' as const, hostname: '*.supabase.co' },
     ],
   },
 };
