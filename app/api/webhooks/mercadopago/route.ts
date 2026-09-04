@@ -23,9 +23,19 @@ function mapStatus(mpStatus: string | undefined): SubscriptionStatus {
  * (mapped via external_reference = tenant_id).
  */
 export async function POST(req: NextRequest) {
-  // Optional shared-secret check (configured in the MP dashboard URL as ?secret=).
+  // Shared-secret check (configured in the MP dashboard URL as ?secret=).
+  //
+  // This used to be `if (secret && ...)` — an UNSET env var disabled the check
+  // entirely, and the handler acts on what it receives: a forged notification
+  // with an attacker-created preapproval whose external_reference names some
+  // victim tenant would rewrite that tenant's subscription. Fail closed: no
+  // secret configured means no webhook processing, loudly.
   const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
-  if (secret && req.nextUrl.searchParams.get('secret') !== secret) {
+  if (!secret) {
+    console.error('[mp-webhook] MERCADOPAGO_WEBHOOK_SECRET is not set; rejecting webhook');
+    return NextResponse.json({ ok: false }, { status: 503 });
+  }
+  if (req.nextUrl.searchParams.get('secret') !== secret) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
