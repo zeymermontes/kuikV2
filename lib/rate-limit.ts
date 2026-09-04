@@ -43,13 +43,30 @@ export async function rateLimit(
 }
 
 /**
- * The caller's IP, as far as it can be trusted. Render sits behind a proxy, so
- * x-forwarded-for's FIRST entry is the client; later entries are proxies.
- * Spoofable in principle, which is why it is only ever one of several buckets.
+ * The caller's IP, taken only from hops a client cannot write.
+ *
+ * This used to return x-forwarded-for's FIRST entry — which is whatever the
+ * CLIENT put there. One spoofed header per request meant a fresh bucket per
+ * request, and every per-IP limit in the product was decorative. The chain in
+ * production is client → Cloudflare → Render, so the trustworthy sources are:
+ *
+ *  - `cf-connecting-ip`: written (and overwritten) by Cloudflare itself.
+ *  - Failing that, the LAST x-forwarded-for entry — the one Render's own proxy
+ *    appended for its TCP peer. Every earlier entry arrived in the request and
+ *    proves nothing.
+ *
+ * Residual hole: someone who reaches the Render origin directly, skipping
+ * Cloudflare, can forge `cf-connecting-ip`. Closing that is Cloudflare-side
+ * work (an origin secret / authenticated pulls), not more parsing here.
  */
 export function clientIp(req: Request): string {
+  const cf = req.headers.get('cf-connecting-ip');
+  if (cf) return cf.trim();
   const fwd = req.headers.get('x-forwarded-for');
-  if (fwd) return fwd.split(',')[0].trim();
+  if (fwd) {
+    const hops = fwd.split(',');
+    return hops[hops.length - 1].trim() || 'unknown';
+  }
   return req.headers.get('x-real-ip')?.trim() || 'unknown';
 }
 
