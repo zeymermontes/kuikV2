@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Clock, ChevronRight } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, channelName } from '@/lib/supabase/client';
 import { getPendingSummary, type PendingSummary } from '@/app/(dashboard)/reservations/actions';
 
 /**
@@ -41,7 +41,7 @@ export function PendingStrip({
     };
 
     const channel = supabase
-      .channel(`reservations-pending-${tenantId}`)
+      .channel(channelName(`reservations-pending-${tenantId}`))
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'reservations', filter: `tenant_id=eq.${tenantId}` },

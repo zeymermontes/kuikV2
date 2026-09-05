@@ -2,6 +2,14 @@
 
 @theme inline {
   --font-sans: var(--font-inter);
+  /* POS brand tokens, set per tenant on the terminal root (lib/pos/theme.ts). */
+  --color-pos-accent: var(--pos-accent);
+  --color-pos-accent-text: var(--pos-accent-text);
+  --color-pos-accent-hover: var(--pos-accent-hover);
+  --color-pos-accent-soft: var(--pos-accent-soft);
+  --color-pos-sidebar: var(--pos-sidebar);
+  --color-pos-dark: var(--pos-dark);
+  --color-pos-bg: var(--pos-bg);
 }
 
 html,

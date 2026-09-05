@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Clock, Check, Printer, Volume2, VolumeX, Sun, Moon } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, channelName } from '@/lib/supabase/client';
 import { nowISO, nowMs } from '@/lib/pos/sync';
 import { printKitchenTicket } from '@/lib/pos/print';
 import type { KitchenTicket, TicketStatus } from '@/lib/pos/types';
@@ -89,7 +89,7 @@ export function KdsBoard({ tenantId, station, locale }: { tenantId: string; stat
       .then(({ data }) => setTickets(((data ?? []) as KitchenTicket[]).filter(match)));
 
     const channel = supabase
-      .channel(`kds-${tenantId}`)
+      .channel(channelName(`kds-${tenantId}`))
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'kitchen_tickets', filter: `tenant_id=eq.${tenantId}` },

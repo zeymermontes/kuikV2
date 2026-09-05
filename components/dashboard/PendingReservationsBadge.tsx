@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, channelName } from '@/lib/supabase/client';
 import { getPendingSummary } from '@/app/(dashboard)/reservations/actions';
 
 /**
@@ -36,7 +36,7 @@ export function PendingReservationsBadge({
     // Any change can move the number: a new request, a confirmation, a
     // cancellation, or an edit that moves a booking into the past.
     const channel = supabase
-      .channel(`reservations-badge-${tenantId}`)
+      .channel(channelName(`reservations-badge-${tenantId}`))
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'reservations', filter: `tenant_id=eq.${tenantId}` },

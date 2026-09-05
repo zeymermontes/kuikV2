@@ -218,7 +218,7 @@ export function CartSheet({
                   </div>
 
                   <div className="mt-2 flex items-center gap-3">
-                    <div className="flex items-center gap-3 rounded-full bg-[var(--tab-unselected-bg)] px-2 py-1">
+                    <div className="flex items-center gap-3 rounded-full bg-[var(--brand-muted)] px-2 py-1">
                       <button onClick={() => onDec(l.key)} aria-label="−" className="p-1">
                         <Minus className="h-4 w-4" />
                       </button>
@@ -344,7 +344,7 @@ export function CartSheet({
                       {transfer.note && (
                         <p className="mt-2 text-xs text-[var(--brand-text-secondary)]">{transfer.note}</p>
                       )}
-                      <p className="mt-2 rounded-lg bg-[var(--tab-unselected-bg)] px-2.5 py-2 text-xs font-medium">
+                      <p className="mt-2 rounded-lg bg-[var(--brand-muted)] px-2.5 py-2 text-xs font-medium">
                         {t('transferSendProof')}
                       </p>
                     </div>

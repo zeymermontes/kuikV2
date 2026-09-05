@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Bot, PanelRightOpen, X } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, channelName } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { setConversationBot } from '@/app/(dashboard)/whatsapp/inbox/actions';
 import type { ConversationItem, InboxFilters } from '@/app/(dashboard)/whatsapp/inbox/query';
@@ -81,7 +81,7 @@ export function InboxShell({
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
-      .channel(`wa-inbox-${tenantId}`)
+      .channel(channelName(`wa-inbox-${tenantId}`))
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'whatsapp_messages', filter: `tenant_id=eq.${tenantId}` },

@@ -5,7 +5,7 @@ import { Clock, UtensilsCrossed, ShoppingBag, Check, RefreshCw, CreditCard } fro
 import { useTranslations, useLocale } from 'next-intl';
 import type { OrderRow, OrderStatus } from '@/lib/database.types';
 import { formatPrice } from '@/lib/utils';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, channelName } from '@/lib/supabase/client';
 import { listOrders, setOrderStatus } from '@/app/(dashboard)/orders/actions';
 
 type Line = { name?: string; qty?: number; selections?: { name?: string }[] };
@@ -56,7 +56,7 @@ export function OrdersBoard({
       });
 
     const channel = supabase
-      .channel(`orders-${tenantId}`)
+      .channel(channelName(`orders-${tenantId}`))
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders', filter: `tenant_id=eq.${tenantId}` },

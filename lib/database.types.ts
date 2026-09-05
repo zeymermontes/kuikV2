@@ -158,6 +158,12 @@ export interface TenantContact {
   reservation_max_days: number;
   /** Skip the pending step and confirm public requests automatically. */
   reservation_auto_confirm: boolean;
+  /** Service periods shown at the host stand; null = app defaults. */
+  reservation_shifts: ReservationShift[] | null;
+  /** Turn time in minutes keyed by party size ("1".."8", larger falls back to the biggest); null = defaults. */
+  reservation_turn_minutes: Record<string, number> | null;
+  /** Minutes after the booked time before a party counts as late. */
+  reservation_late_minutes: number;
   instagram: string | null;
   facebook: string | null;
   website: string | null;
@@ -297,10 +303,68 @@ export interface Separator {
   created_at: string;
 }
 
-export type ReservationStatus = 'pending' | 'confirmed' | 'seated' | 'cancelled';
+/**
+ * Where a party is in its visit. The first four are the book; `arrived`,
+ * `partial` (some of the party is here) and `seated` are the floor; `waiting`
+ * and `notified` are the waitlist. Mirrors OpenTable's host app so a team
+ * moving over recognises every state.
+ */
+export type ReservationStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'arrived'
+  | 'partial'
+  | 'seated'
+  | 'finished'
+  | 'no_show'
+  | 'cancelled'
+  | 'waiting'
+  | 'notified';
+
+/** Course progression while a party is seated (OpenTable's "table status"). */
+export type TableStatus = 'seated' | 'appetizer' | 'entree' | 'dessert' | 'check' | 'paid' | 'bussing';
+
+export type TableShape = 'square' | 'round' | 'rect' | 'diamond';
+
+/** One table on the floor plan; x/y are grid cells. */
+export interface FloorTable {
+  id: string;
+  tenant_id: string;
+  branch_id: string | null;
+  /** The room (floor plan tab) it sits in. */
+  area_id: string | null;
+  label: string;
+  seats: number;
+  shape: TableShape;
+  x: number;
+  y: number;
+  /** Server section: who works this table this shift. */
+  server_name: string | null;
+  blocked_until: string | null;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Tables that join for a bigger party; seating on it takes every member. */
+export interface FloorCombination {
+  id: string;
+  tenant_id: string;
+  area_id: string | null;
+  table_ids: string[];
+  seats: number;
+  created_at: string;
+}
+
+export interface ReservationShift {
+  name: string;
+  /** "HH:MM" local wall-clock. */
+  start: string;
+  end: string;
+}
 
 /** Where a booking came from. Mirrors orders.channel. */
-export type ReservationSource = 'form' | 'manual' | 'bot' | 'phone';
+export type ReservationSource = 'form' | 'manual' | 'bot' | 'phone' | 'walkin';
 
 export interface Reservation {
   id: string;
@@ -323,6 +387,21 @@ export interface Reservation {
   note: string | null;
   status: ReservationStatus;
   source: ReservationSource;
+  // ── Host stand (0064) ──
+  /** Tables the party sits at; more than one is a combination. */
+  table_ids: string[];
+  table_status: TableStatus;
+  arrived_at: string | null;
+  seated_at: string | null;
+  finished_at: string | null;
+  /** Waitlist: minutes the guest was quoted. */
+  quoted_minutes: number | null;
+  notified_at: string | null;
+  server_name: string | null;
+  /** vip, first_time, birthday, allergy… */
+  tags: string[];
+  /** Per-party override of the turn time; null = by party size. */
+  turn_minutes: number | null;
   created_at: string;
 }
 

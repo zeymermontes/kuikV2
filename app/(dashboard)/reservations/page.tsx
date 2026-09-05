@@ -5,6 +5,7 @@ import { todayInTz } from '@/lib/time';
 import type { Reservation, ReservationArea, TenantContact } from '@/lib/database.types';
 import { ReservationsBoard } from '@/components/dashboard/ReservationsBoard';
 import { ReservationsSettings } from '@/components/dashboard/ReservationsSettings';
+import { HostPreview } from '@/components/dashboard/HostPreview';
 import { getPendingSummary } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -79,6 +80,7 @@ export default async function ReservationsPage({
           areas={(areas ?? []) as ReservationArea[]}
         />
       )}
+      {canConfigure && <HostPreview />}
     </div>
   );
 }

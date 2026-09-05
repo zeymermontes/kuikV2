@@ -205,7 +205,7 @@ const ROLE_HOME: Record<MemberRole, string> = {
   manager: '/dashboard',
   cashier: '/menu',
   waiter: '/menu',
-  host: '/reservations',
+  host: '/host',
 };
 
 export function homeForRole(role: MemberRole): string {

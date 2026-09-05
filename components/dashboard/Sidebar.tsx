@@ -27,6 +27,8 @@ import {
   LogOut,
   Menu as MenuIcon,
   X,
+  LayoutGrid,
+  GraduationCap,
 } from 'lucide-react';
 import { ChevronsUpDown, ChevronDown, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -56,6 +58,7 @@ const NAV = [
   // Operación
   { group: 'ops', href: '/dashboard', icon: LayoutDashboard, key: 'dashboard', roles: ['owner', 'manager'] },
   { group: 'ops', href: '/reservations', icon: CalendarCheck, key: 'reservations', roles: ['owner', 'manager', 'cashier', 'waiter', 'host'] },
+  { group: 'ops', href: '/host', icon: LayoutGrid, key: 'host', roles: ['owner', 'manager', 'cashier', 'waiter', 'host'] },
   { group: 'ops', href: '/orders', icon: ClipboardList, key: 'orders', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true },
   { group: 'ops', href: '/whatsapp', icon: MessageCircle, key: 'whatsapp', roles: ['owner', 'manager'] },
   { group: 'ops', href: '/pos', icon: Calculator, key: 'pos', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true, feature: 'pos' },
@@ -74,6 +77,7 @@ const NAV = [
   { group: 'settings', href: '/staff', icon: Users, key: 'staff', roles: ['owner'] },
   { group: 'settings', href: '/domain', icon: Globe, key: 'domain', roles: ['owner'], feature: 'custom_domain' },
   { group: 'settings', href: '/billing', icon: CreditCard, key: 'billing', roles: ['owner'] },
+  { group: 'settings', href: '/tutorial', icon: GraduationCap, key: 'tutorial', roles: ['owner', 'manager', 'cashier', 'waiter', 'host'] },
 
 ] as const;
 

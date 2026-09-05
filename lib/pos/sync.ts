@@ -3,7 +3,7 @@
 import type { Table } from 'dexie';
 import type { PosDexie } from './db';
 import { SYNC_ENTITIES, type SyncEntity } from './types';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, channelName } from '@/lib/supabase/client';
 
 type Supabase = ReturnType<typeof createClient>;
 type Row = { id: string; updated_at: string; tenant_id: string };
@@ -116,7 +116,7 @@ export function startSync(
     emit();
   };
 
-  let channel = supabase.channel(`pos-${tenantId}`);
+  let channel = supabase.channel(channelName(`pos-${tenantId}`));
   for (const entity of SYNC_ENTITIES) {
     channel = channel.on(
       'postgres_changes',

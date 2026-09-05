@@ -39,6 +39,9 @@ export function themeVars(theme: TenantTheme, settings: MenuSettings): CSSProper
     '--brand-surface': dark ? DARK.surface : (theme.card_color ?? '#ffffff'),
     '--brand-border': dark ? DARK.border : (theme.border_color ?? '#e5e5e5'),
     '--brand-separator': theme.separator_color ?? '#e5e5e5',
+    // Quiet pills inside sheets (a tag, a qty stepper): a faint tint of the
+    // text colour, so they read as surface detail whatever the tab colours are.
+    '--brand-muted': 'color-mix(in srgb, var(--brand-text) 8%, transparent)',
     '--brand-font': `${fontCss(theme.font_family)}, system-ui, sans-serif`,
     // Per-element fonts (fall back to the main font).
     '--font-category': elementFont(theme.font_category),

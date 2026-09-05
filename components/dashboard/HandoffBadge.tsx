@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, channelName } from '@/lib/supabase/client';
 import { getHandoffCount } from '@/app/(dashboard)/whatsapp/inbox/actions';
 
 /**
@@ -28,7 +28,7 @@ export function HandoffBadge({ tenantId, initial }: { tenantId: string; initial:
     };
 
     const channel = supabase
-      .channel(`wa-handoff-badge-${tenantId}`)
+      .channel(channelName(`wa-handoff-badge-${tenantId}`))
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'whatsapp_conversations', filter: `tenant_id=eq.${tenantId}` },

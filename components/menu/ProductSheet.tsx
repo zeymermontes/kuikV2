@@ -163,7 +163,7 @@ export function ProductSheet({
                         className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
                           optionKind(g) === 'takeaway'
                             ? 'bg-amber-100 text-amber-800'
-                            : 'bg-[var(--tab-unselected-bg)] text-[var(--brand-text-secondary)]'
+                            : 'bg-[var(--brand-muted)] text-[var(--brand-text-secondary)]'
                         }`}
                       >
                         {t(
@@ -232,7 +232,7 @@ export function ProductSheet({
         {/* Footer: qty + add (hidden in showcase mode) */}
         {!readOnly && (
         <div className="flex items-center gap-3 border-t border-[var(--brand-border)] px-5 py-4">
-          <div className="flex items-center gap-3 rounded-full bg-[var(--tab-unselected-bg)] px-2 py-1">
+          <div className="flex items-center gap-3 rounded-full bg-[var(--brand-muted)] px-2 py-1">
             <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="−" className="p-1">
               <Minus className="h-4 w-4" />
             </button>

@@ -49,7 +49,7 @@ export function HistoryScreen({
   }
 
   return (
-    <div className="min-h-dvh bg-neutral-50 text-neutral-900">
+    <div className="min-h-full text-neutral-900">
       <header className="flex items-center gap-2 border-b border-neutral-200 bg-white px-4 py-3">
         <button onClick={onBack} className="rounded-lg p-1.5 hover:bg-neutral-100">
           <ChevronLeft className="h-5 w-5" />

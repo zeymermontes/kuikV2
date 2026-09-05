@@ -7,6 +7,7 @@ import type { TenantOrdering } from '@/lib/database.types';
 import { OrderingForm } from '@/components/dashboard/OrderingForm';
 import { JumpToSetting } from '@/components/dashboard/JumpToSetting';
 import { TableQRs } from '@/components/dashboard/TableQRs';
+import { PosPreview } from '@/components/dashboard/PosPreview';
 
 export default async function OrderingPage() {
   const ctx = await requireOwner();
@@ -53,6 +54,7 @@ export default async function OrderingPage() {
       <p className="mb-6 text-sm text-neutral-500">{t('subtitle')}</p>
       <OrderingForm ordering={ordering} showPosSettings={showDevFeatures(ctx)} />
       <JumpToSetting />
+      {showDevFeatures(ctx) && <PosPreview />}
 
       {ordering.service_types.includes('dinein') && (
         <div className="mt-6">

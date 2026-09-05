@@ -5,11 +5,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ChevronLeft, ChevronRight, Clock, Users, Phone, Check, X, RefreshCw, Plus,
-  MessageCircle,
+  MessageCircle, LayoutGrid,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Reservation, ReservationArea, ReservationStatus } from '@/lib/database.types';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, channelName } from '@/lib/supabase/client';
 import { addDays } from '@/lib/time';
 import { digitsOnly } from '@/lib/utils';
 import {
@@ -23,8 +23,14 @@ import { PendingStrip } from './PendingStrip';
 const STATUS_TONE: Record<ReservationStatus, string> = {
   pending: 'bg-amber-100 text-amber-700',
   confirmed: 'bg-green-100 text-green-700',
+  arrived: 'bg-emerald-100 text-emerald-700',
+  partial: 'bg-teal-100 text-teal-700',
   seated: 'bg-blue-100 text-blue-700',
+  finished: 'bg-neutral-100 text-neutral-500',
+  no_show: 'bg-red-100 text-red-700',
   cancelled: 'bg-neutral-100 text-neutral-400 line-through',
+  waiting: 'bg-purple-100 text-purple-700',
+  notified: 'bg-indigo-100 text-indigo-700',
 };
 
 const FILTERS = ['all', 'pending', 'confirmed', 'seated', 'cancelled'] as const;
@@ -95,7 +101,7 @@ export function ReservationsBoard({
       });
 
     const channel = supabase
-      .channel(`reservations-${tenantId}`)
+      .channel(channelName(`reservations-${tenantId}`))
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'reservations', filter: `tenant_id=eq.${tenantId}` },
@@ -232,6 +238,9 @@ export function ReservationsBoard({
           <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
         </button>
         <PushToggle />
+        <Link href="/host" className="flex items-center gap-1.5 rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+          <LayoutGrid className="h-4 w-4" /> {t('hostStand')}
+        </Link>
         <button onClick={() => setShowForm(true)}
           className="flex items-center gap-1.5 rounded-lg bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white">
           <Plus className="h-4 w-4" /> {t('new')}

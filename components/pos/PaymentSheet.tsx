@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslations } from 'next-intl';
 import { X, Check, Printer, ChefHat } from 'lucide-react';
@@ -10,6 +10,7 @@ import { addPayment, closeTab } from '@/lib/pos/payments';
 import { printReceipt } from '@/lib/pos/print';
 import { formatPrice } from '@/lib/utils';
 import { NumPad } from './NumPad';
+import type { PayPhase } from './SaleScreen';
 
 const METHODS: PaymentMethod[] = ['cash', 'card', 'transfer', 'other'];
 const BILLS = [50, 100, 200, 500, 1000];
@@ -25,6 +26,8 @@ export function PaymentSheet({
   restaurantName,
   currency,
   locale,
+  initialMethod = 'cash',
+  onPhase,
   onClose,
   onPaid,
   onFire,
@@ -37,6 +40,10 @@ export function PaymentSheet({
   restaurantName: string;
   currency: string;
   locale: string;
+  /** Method pre-selected from the sale panel's quick buttons. */
+  initialMethod?: PaymentMethod;
+  /** Mirrors what the sheet is doing to the customer screen; null once it closes. */
+  onPhase?: (p: PayPhase | null) => void;
   onClose: () => void;
   onPaid: () => void;
   onFire: () => void | Promise<void>;
@@ -63,10 +70,11 @@ export function PaymentSheet({
   const due = Math.max(0, grandTotal - paid);
   const unfired = (items ?? []).filter((i) => !i.voided_at && !i.fired_at);
 
-  const [method, setMethod] = useState<PaymentMethod>('cash');
+  const [method, setMethod] = useState<PaymentMethod>(initialMethod);
   const [amount, setAmount] = useState<number>(grandTotal);
   const [tendered, setTendered] = useState<string>('');
   const [done, setDone] = useState(false);
+  const [lastChange, setLastChange] = useState(0);
 
   const [prevDue, setPrevDue] = useState(due);
   if (prevDue !== due) {
@@ -84,7 +92,21 @@ export function PaymentSheet({
 
   const tenderedNum = Number(tendered) || 0;
   const change = method === 'cash' && tenderedNum > amount ? tenderedNum - amount : 0;
-  const field = 'w-full rounded-xl border border-neutral-200 px-3 py-3 text-base focus:border-neutral-400 focus:outline-none';
+
+  // Keep the customer screen in step: due while paying, thanks + change once closed.
+  const phaseRef = useRef(onPhase);
+  useEffect(() => {
+    phaseRef.current = onPhase;
+  }, [onPhase]);
+  useEffect(() => {
+    phaseRef.current?.(
+      done
+        ? { phase: 'paid', paid: grandTotal, change: lastChange, tip, total: grandTotal, method }
+        : { phase: 'paying', due, paid, tip, total: grandTotal, method },
+    );
+  }, [done, due, paid, tip, grandTotal, method, lastChange]);
+  useEffect(() => () => phaseRef.current?.(null), []);
+  const field = 'w-full rounded-xl border border-neutral-200 px-3 py-3 text-base focus:border-pos-accent focus:outline-none';
 
   async function record() {
     if (amount <= 0) return;
@@ -101,6 +123,7 @@ export function PaymentSheet({
     });
     setTendered('');
     if (covers) {
+      setLastChange(change);
       await closeTab(db, tab, tip);
       setDone(true);
     }
@@ -135,7 +158,7 @@ export function PaymentSheet({
                 </button>
               )}
             </div>
-            <button onClick={onPaid} className="w-full rounded-full bg-neutral-900 py-3 font-semibold text-white">
+            <button onClick={onPaid} className="w-full rounded-full bg-pos-accent py-3 font-semibold text-white">
               {t('close')}
             </button>
           </div>
@@ -153,7 +176,7 @@ export function PaymentSheet({
           <X className="h-5 w-5" />
         </button>
 
-        <div className="mb-1 flex items-center justify-between">
+        <div className="mb-1 flex items-center justify-between pr-9">
           <h2 className="text-lg font-bold">{t('charge')}</h2>
           <button
             onClick={() => printReceipt(tab, items ?? [], payments ?? [], restaurantName, currency, locale)}
@@ -186,7 +209,7 @@ export function PaymentSheet({
                   setTipPct(p);
                 }}
                 className={`relative rounded-xl py-2 text-sm font-semibold ${
-                  tipMode === 'pct' && tipPct === p ? 'bg-neutral-900 text-white' : 'border border-neutral-300 text-neutral-600'
+                  tipMode === 'pct' && tipPct === p ? 'bg-pos-accent text-pos-accent-text' : 'border border-neutral-300 text-neutral-600'
                 }`}
               >
                 {p === SUGGESTED_TIP && (
@@ -198,7 +221,7 @@ export function PaymentSheet({
             <button
               onClick={() => setTipMode('custom')}
               className={`rounded-xl py-2 text-sm font-semibold ${
-                tipMode === 'custom' ? 'bg-neutral-900 text-white' : 'border border-neutral-300 text-neutral-600'
+                tipMode === 'custom' ? 'bg-pos-accent text-pos-accent-text' : 'border border-neutral-300 text-neutral-600'
               }`}
             >
               {t('other')}
@@ -207,10 +230,10 @@ export function PaymentSheet({
           {tipMode === 'custom' && (
             <div className="mt-2 flex gap-2">
               <div className="flex overflow-hidden rounded-lg border border-neutral-300 text-sm">
-                <button onClick={() => setTipCustomPct(false)} className={`px-3 ${!tipCustomPct ? 'bg-neutral-900 text-white' : 'text-neutral-600'}`}>
+                <button onClick={() => setTipCustomPct(false)} className={`px-3 ${!tipCustomPct ? 'bg-pos-accent text-pos-accent-text' : 'text-neutral-600'}`}>
                   {currency}
                 </button>
-                <button onClick={() => setTipCustomPct(true)} className={`px-3 ${tipCustomPct ? 'bg-neutral-900 text-white' : 'text-neutral-600'}`}>
+                <button onClick={() => setTipCustomPct(true)} className={`px-3 ${tipCustomPct ? 'bg-pos-accent text-pos-accent-text' : 'text-neutral-600'}`}>
                   %
                 </button>
               </div>
@@ -220,7 +243,7 @@ export function PaymentSheet({
                 value={tipCustom}
                 onChange={(e) => setTipCustom(e.target.value)}
                 placeholder="0"
-                className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none"
+                className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:border-pos-accent focus:outline-none"
               />
             </div>
           )}
@@ -245,7 +268,7 @@ export function PaymentSheet({
                   key={m}
                   onClick={() => setMethod(m)}
                   className={`rounded-xl py-2.5 text-xs font-semibold ${
-                    method === m ? 'bg-neutral-900 text-white' : 'border border-neutral-300 text-neutral-600'
+                    method === m ? 'bg-pos-accent text-pos-accent-text' : 'border border-neutral-300 text-neutral-600'
                   }`}
                 >
                   {methodLabel(m)}
@@ -304,7 +327,7 @@ export function PaymentSheet({
               </>
             )}
 
-            <button onClick={record} className="mt-2 w-full rounded-full bg-neutral-900 py-3.5 font-semibold text-white">
+            <button onClick={record} className="mt-2 w-full rounded-full bg-pos-accent py-3.5 font-semibold text-white">
               {amount >= due ? t('chargeClose') : t('recordPayment')}
             </button>
           </>
