@@ -916,6 +916,8 @@ export function MenuView({
               (ct?.primary_color ? `color-mix(in srgb, ${ct.primary_color} 12%, transparent)` : undefined);
             const selText = ct?.tab_font_color ?? (selBg ? '#ffffff' : undefined);
             const unselText = ct?.tab_font_color ?? ct?.primary_color;
+            const chipOpacity = active ? settings.navActiveOpacity : settings.navInactiveOpacity;
+            const chipBorder = active ? ct?.tab_selected_border_color : ct?.tab_unselected_border_color;
             return (
               <a
                 key={cat.id}
@@ -940,17 +942,19 @@ export function MenuView({
                   plainNav ? 'px-1 py-0.5' : 'rounded-full px-3 py-1.5'
                 } ${active ? 'font-bold' : 'font-medium'}`}
                 style={{
+                  // The opacity knobs fade the pill's fill only — text and icon
+                  // stay solid. Plain tabs have no fill, so there the whole
+                  // chip dims instead.
                   backgroundColor: plainNav
                     ? 'transparent'
-                    : active
-                      ? (selBg ?? 'var(--tab-selected-bg)')
-                      : (unselBg ?? 'var(--tab-unselected-bg)'),
+                    : `color-mix(in srgb, ${active ? (selBg ?? 'var(--tab-selected-bg)') : (unselBg ?? 'var(--tab-unselected-bg)')} ${Math.round(chipOpacity * 100)}%, transparent)`,
                   color: active
                     ? plainNav
                       ? (unselText ?? 'var(--tab-selected-text)')
                       : (selText ?? 'var(--tab-selected-text)')
                     : (unselText ?? 'var(--tab-unselected-text)'),
-                  opacity: active ? settings.navActiveOpacity : settings.navInactiveOpacity,
+                  opacity: plainNav ? chipOpacity : 1,
+                  boxShadow: chipBorder ? `inset 0 0 0 1px ${chipBorder}` : undefined,
                   fontFamily: ct?.font_category ? `'${ct.font_category}'` : 'var(--font-category)',
                 }}
               >

@@ -872,7 +872,8 @@ export function DesignForm({
                   type="color"
                   value={(local[key] ?? fallback).slice(0, 7)}
                   onChange={(e) => set(key, e.target.value)}
-                  className="h-7 w-8 shrink-0 cursor-pointer rounded border border-neutral-200 p-0"
+                  data-inherit={!local[key]}
+                  className="color-dot shrink-0"
                 />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[11px] font-medium">{label}</span>
@@ -901,6 +902,8 @@ export function DesignForm({
                           ['tab_selected_color', t('tabSelected'), local.tab_selected_color ?? local.primary_color],
                           ['tab_unselected_color', t('tabUnselected'), local.tab_unselected_color ?? '#eeeeee'],
                           ['tab_font_color', t('tabFont'), local.tab_font_color ?? local.text_color],
+                          ['tab_selected_border_color', t('tabSelectedBorder'), local.tab_selected_color ?? local.primary_color],
+                          ['tab_unselected_border_color', t('tabUnselectedBorder'), local.border_color ?? '#e5e5e5'],
                         ] as const
                       ).map(([key, label, fallback]) => (
                         <label key={key} title={label} className="flex items-center gap-1">
@@ -908,7 +911,8 @@ export function DesignForm({
                             type="color"
                             value={(th?.[key] ?? fallback).slice(0, 7)}
                             onChange={(e) => setCatTheme(c.id, key, e.target.value)}
-                            className={`h-7 w-8 cursor-pointer rounded border p-0 ${th?.[key] ? 'border-neutral-400' : 'border-dashed border-neutral-300 opacity-60'}`}
+                            data-inherit={!th?.[key]}
+                            className="color-dot"
                           />
                           {th?.[key] && (
                             <button type="button" onClick={() => setCatTheme(c.id, key, null)} className="px-0.5 text-neutral-300 hover:text-neutral-600" aria-label={t('clearColor')}>

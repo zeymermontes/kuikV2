@@ -27,6 +27,8 @@ export const CATEGORY_THEME_COLORS = [
   'tab_selected_color',
   'tab_unselected_color',
   'tab_font_color',
+  'tab_selected_border_color',
+  'tab_unselected_border_color',
 ] as const;
 
 export const CATEGORY_THEME_FONTS = [

@@ -204,6 +204,9 @@ export interface CategoryTheme {
   tab_selected_color?: string;
   tab_unselected_color?: string;
   tab_font_color?: string;
+  /** Outline of this section's chip while selected / not. */
+  tab_selected_border_color?: string;
+  tab_unselected_border_color?: string;
   font_family?: string;
   font_category?: string;
   font_product?: string;

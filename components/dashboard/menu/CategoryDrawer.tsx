@@ -159,7 +159,8 @@ export function CategoryDrawer({
                     type="color"
                     value={val ?? '#ffffff'}
                     onChange={(e) => setTheme(key, e.target.value)}
-                    className="h-7 w-8 shrink-0 cursor-pointer rounded border border-neutral-200 p-0"
+                    data-inherit={!val}
+                    className="color-dot shrink-0"
                   />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[11px] font-medium">{t(`th_${key}`)}</span>
