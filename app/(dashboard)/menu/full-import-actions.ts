@@ -288,7 +288,7 @@ async function buildProductFields(
       id: crypto.randomUUID(),
       name: g.name.trim(),
       description: g.description?.trim() || undefined,
-      kind: g.kind === 'takeaway' ? ('takeaway' as const) : ('dish' as const),
+      kind: g.kind === 'takeaway' || g.kind === 'drink' ? g.kind : ('dish' as const),
       required: g.required ?? false,
       multiple: g.multiple ?? true,
       options: (g.options ?? []).filter((o) => o.name).map((o) => ({ name: o.name, price: o.price ?? 0 })),

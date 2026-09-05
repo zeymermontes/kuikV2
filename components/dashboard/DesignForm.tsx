@@ -132,40 +132,36 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
   ];
 
   // ── Find a setting ────────────────────────────────────────────────────────
-  // The form has grown past what anyone scans by eye. Matching rows and card
-  // headings get an outline (.setting-hit), the first scrolls into view, and
-  // Enter walks to the next. Plain DOM work: the rows are labelled already.
+  // The form has grown past what anyone scans by eye. Typing lists every row,
+  // card heading or select *option* that matches ("scroll" finds Navigation
+  // through its "Continuous scroll" choice); picking one scrolls it into view
+  // and outlines it (.setting-hit). Plain DOM work: the rows are labelled.
   const rootRef = useRef<HTMLDivElement>(null);
-  const cursor = useRef(0);
   const [q, setQ] = useState('');
-  const [hits, setHits] = useState(0);
-  function runSearch(query: string, advance: boolean) {
+  const [hits, setHits] = useState<SettingHit[]>([]);
+  const [active, setActive] = useState(0);
+  const [open, setOpen] = useState(false);
+
+  function search(query: string) {
+    setQ(query);
+    setActive(0);
+    setOpen(true);
+    setHits(rootRef.current ? findSettings(rootRef.current, query) : []);
+  }
+
+  function goTo(hit: SettingHit) {
     const root = rootRef.current;
-    if (!root) return;
-    root.querySelectorAll('.setting-hit').forEach((el) => el.classList.remove('setting-hit'));
-    const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-    const nq = norm(query.trim());
-    if (nq.length < 2) {
-      setHits(0);
-      return;
-    }
-    const targets: HTMLElement[] = [];
-    root.querySelectorAll<HTMLElement>('[data-setting], label, h2').forEach((el) => {
-      if (!norm(el.dataset.setting ?? el.textContent ?? '').includes(nq)) return;
-      // A toggle's <label> is the row; a field's <label> sits above its input,
-      // so the row is its parent; a heading stands for its whole card.
-      const target = el.matches('[data-setting]')
-        ? el
-        : el.tagName === 'H2' || !el.querySelector('input')
-          ? el.parentElement
-          : el;
-      if (target && !targets.includes(target)) targets.push(target);
-    });
-    targets.forEach((el) => el.classList.add('setting-hit'));
-    setHits(targets.length);
-    if (targets.length === 0) return;
-    cursor.current = advance ? (cursor.current + 1) % targets.length : 0;
-    targets[cursor.current].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    root?.querySelectorAll('.setting-hit').forEach((el) => el.classList.remove('setting-hit'));
+    hit.el.classList.add('setting-hit');
+    hit.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setOpen(false);
+  }
+
+  function clearSearch() {
+    setQ('');
+    setHits([]);
+    setOpen(false);
+    rootRef.current?.querySelectorAll('.setting-hit').forEach((el) => el.classList.remove('setting-hit'));
   }
 
   return (
@@ -176,26 +172,62 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
             <input
               value={q}
-              onChange={(e) => {
-                setQ(e.target.value);
-                runSearch(e.target.value, false);
-              }}
+              onChange={(e) => search(e.target.value)}
+              onFocus={() => setOpen(true)}
+              onBlur={() => setOpen(false)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
+                if (e.key === 'ArrowDown') {
                   e.preventDefault();
-                  runSearch(q, true);
+                  setOpen(true);
+                  setActive((i) => Math.min(i + 1, hits.length - 1));
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  setActive((i) => Math.max(i - 1, 0));
+                } else if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (hits[active]) goTo(hits[active]);
                 } else if (e.key === 'Escape') {
-                  setQ('');
-                  runSearch('', false);
+                  clearSearch();
                 }
               }}
               placeholder={t('searchSettings')}
-              className="w-full rounded-xl border border-neutral-300 bg-white py-2 pl-9 pr-40 text-sm focus:border-neutral-900 focus:outline-none"
+              role="combobox"
+              aria-expanded={open && q.trim().length >= 2}
+              aria-controls="design-search-hits"
+              className="w-full rounded-xl border border-neutral-300 bg-white py-2 pl-9 pr-32 text-sm focus:border-neutral-900 focus:outline-none"
             />
             {q.trim().length >= 2 && (
               <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-500">
-                {t('searchHits', { count: hits })}
+                {t('searchHits', { count: hits.length })}
               </span>
+            )}
+            {open && q.trim().length >= 2 && hits.length > 0 && (
+              <ul
+                id="design-search-hits"
+                role="listbox"
+                // Keep focus in the input so a tap on a row is not lost to blur.
+                onMouseDown={(e) => e.preventDefault()}
+                className="absolute left-0 right-0 top-full z-20 mt-1 max-h-72 overflow-auto rounded-xl border border-neutral-200 bg-white p-1 shadow-lg"
+              >
+                {hits.map((h, i) => (
+                  <li key={i} role="option" aria-selected={i === active}>
+                    <button
+                      type="button"
+                      onClick={() => goTo(h)}
+                      onMouseEnter={() => setActive(i)}
+                      className={`flex w-full flex-col items-start rounded-lg px-3 py-2 text-left ${
+                        i === active ? 'bg-neutral-100' : ''
+                      }`}
+                    >
+                      <span className="text-sm font-medium">
+                        {h.label}
+                        {h.option && <span className="font-normal text-amber-700"> · {h.option}</span>}
+                      </span>
+                      {h.section && <span className="text-xs text-neutral-500">{h.section}</span>}
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </div>
@@ -386,7 +418,7 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
                 { font: 'font_description', label: t('fontDescription'), bold: 'descriptionBold', italic: 'descriptionItalic', size: 'descriptionSize' },
               ] as const
             ).map(({ font, label, bold, italic, size }) => (
-              <div key={font} className="rounded-lg border border-neutral-200 p-2">
+              <div key={font} data-setting={label} className="rounded-lg border border-neutral-200 p-2">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm font-medium">{label}</span>
                   <select
@@ -590,6 +622,7 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
           <ToggleRow label={t('animations')} checked={settings.animations} onChange={(v) => setS('animations', v)} />
           <ToggleRow label={t('showAddButton')} checked={settings.showAddButton} onChange={(v) => setS('showAddButton', v)} />
           <ToggleRow label={t('showOptionKind')} checked={settings.showOptionKind} onChange={(v) => setS('showOptionKind', v)} />
+          <ToggleRow label={t('imageToggle')} checked={settings.imageToggle} onChange={(v) => setS('imageToggle', v)} />
           <SelectRow
             label={t('productCase')}
             value={settings.productCase}
@@ -1349,6 +1382,50 @@ function StyleToggle({
       {children}
     </button>
   );
+}
+
+interface SettingHit {
+  /** The row (or whole card) to scroll to and outline. */
+  el: HTMLElement;
+  label: string;
+  /** Heading of the card the row sits in; null when the hit is the card itself. */
+  section: string | null;
+  /** The select option that matched, when the label itself did not. */
+  option: string | null;
+}
+
+const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+/** Every labelled row, card heading or select option under `root` matching `query`. */
+function findSettings(root: HTMLElement, query: string): SettingHit[] {
+  const nq = norm(query.trim());
+  if (nq.length < 2) return [];
+  const out: SettingHit[] = [];
+  const sectionOf = (el: HTMLElement): string | null => {
+    let card: HTMLElement = el;
+    while (card.parentElement && card.parentElement !== root) card = card.parentElement;
+    const h = card.querySelector('h2');
+    return h && h !== el ? (h.textContent ?? '').trim() : null;
+  };
+  root.querySelectorAll<HTMLElement>('[data-setting], label, h2').forEach((el) => {
+    // A toggle's <label> is the row; a field's <label> sits above its input,
+    // so the row is its parent; a heading stands for its whole card.
+    const target = el.matches('[data-setting]')
+      ? el
+      : el.tagName === 'H2' || !el.querySelector('input')
+        ? el.parentElement
+        : el;
+    if (!target || out.some((h) => h.el === target)) return;
+    const label = (el.dataset.setting ?? (el.tagName === 'H2' ? el.textContent : el.querySelector('span')?.textContent ?? el.textContent) ?? '').trim();
+    let option: string | null = null;
+    if (!norm(label).includes(nq)) {
+      const opt = Array.from(target.querySelectorAll('option')).find((o) => norm(o.textContent ?? '').includes(nq));
+      if (!opt) return;
+      option = (opt.textContent ?? '').trim();
+    }
+    out.push({ el: target, label, section: el.tagName === 'H2' ? null : sectionOf(target), option });
+  });
+  return out;
 }
 
 function SelectRow({

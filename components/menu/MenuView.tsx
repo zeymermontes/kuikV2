@@ -510,6 +510,7 @@ export function MenuView({
   // schemes (see .menu-fade in globals.css) instead of snapping.
   const activeTheme = filteredMenu.find((c) => c.id === effectiveActive)?.theme ?? null;
   const menuHasImages =
+    settings.imageToggle &&
     layout.image !== 'none' &&
     filteredMenu.some((c) =>
       [...c.entries, ...c.subcategories.flatMap((sub) => sub.entries)].some(
