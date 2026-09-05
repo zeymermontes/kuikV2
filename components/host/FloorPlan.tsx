@@ -48,6 +48,8 @@ export function FloorPlan({
   const box = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const drag = useRef<{ id: string; ox: number; oy: number; moved: boolean; el: HTMLElement } | null>(null);
+  // The click that follows a drag must not open the table; pointerup clears `drag` before it fires.
+  const justDragged = useRef(false);
 
   const cols = Math.max(10, ...views.map((v) => v.table.x + SIZE[v.table.shape].w + 1));
   const rows = Math.max(7, ...views.map((v) => v.table.y + SIZE[v.table.shape].h + 1));
@@ -83,6 +85,7 @@ export function FloorPlan({
     if (!d) return;
     d.el.style.transform = '';
     if (!d.moved) return;
+    justDragged.current = true;
     const nx = table.x + Math.round((e.clientX - d.ox) / (CELL * scale));
     const ny = table.y + Math.round((e.clientY - d.oy) / (CELL * scale));
     onMove(table.id, Math.max(0, nx), Math.max(0, ny));
@@ -124,7 +127,10 @@ export function FloorPlan({
               onPointerMove={onPointerMove}
               onPointerUp={(e) => onPointerUp(e, table)}
               onClick={() => {
-                if (drag.current?.moved) return;
+                if (justDragged.current) {
+                  justDragged.current = false;
+                  return;
+                }
                 onTap(table.id);
               }}
               className={`absolute flex items-center justify-center text-white transition-shadow ${
