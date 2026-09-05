@@ -156,6 +156,18 @@ export async function applyFullImport(
     }
   }
 
+  // ── Ordering copy ───────────────────────────────────────────────────────
+  if (payload.ordering && branchId === null && payload.ordering.notePlaceholder !== undefined) {
+    await supabase.from('tenant_ordering').upsert(
+      {
+        tenant_id: tenantId,
+        note_placeholder: payload.ordering.notePlaceholder?.trim().slice(0, 120) || null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'tenant_id' },
+    );
+  }
+
   // ── Categories + products ───────────────────────────────────────────────
   const { catList, prodList } = await loadExisting(supabase, tenantId, branchId);
   // Identified by parent + name, so sibling lists are independent.

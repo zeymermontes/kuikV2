@@ -77,6 +77,8 @@ export interface MenuSettings {
   showSearch: boolean;
   showFilters: boolean;
   showBadges: boolean;
+  /** The small "dish / drink / to go" tag beside each option group in the product sheet. */
+  showOptionKind: boolean;
   soldOutStyle: SoldOutStyle;
   showSocial: boolean;
   /** The "Open now · 12:00–23:00" badge under the header. */
@@ -168,6 +170,7 @@ export const DEFAULT_MENU_SETTINGS: MenuSettings = {
   showSearch: false,
   showFilters: false,
   showBadges: true,
+  showOptionKind: true,
   soldOutStyle: 'gray',
   showSocial: true,
   // Both default to true so nothing changes for a menu that predates them.

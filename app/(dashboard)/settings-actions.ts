@@ -180,6 +180,7 @@ export async function updateOrdering(
     transfer_holder: string | null;
     transfer_account: string | null;
     transfer_note: string | null;
+    note_placeholder: string | null;
   }>,
 ) {
   const { tenant } = await requireTenant();

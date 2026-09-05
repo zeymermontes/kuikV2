@@ -18,6 +18,8 @@ export function ProductSheet({
   onConfirm,
   initial,
   readOnly = false,
+  notePlaceholder,
+  showOptionKind = true,
 }: {
   product: Product;
   showPrice: boolean;
@@ -33,6 +35,10 @@ export function ProductSheet({
    * invisible on a look-only menu.
    */
   readOnly?: boolean;
+  /** The restaurant's own hint for the notes box; falls back to the built-in one. */
+  notePlaceholder?: string | null;
+  /** Whether to print the "dish / drink / to go" tag next to each option group. */
+  showOptionKind?: boolean;
 }) {
   const t = useTranslations('menu');
   const groups = resolveOptionGroups(product);
@@ -149,15 +155,23 @@ export function ProductSheet({
                 <div key={g.id} className="mt-5">
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     <h3 className="text-sm font-semibold">{g.name}</h3>
-                    <span
-                      className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                        optionKind(g) === 'takeaway'
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-[var(--tab-unselected-bg)] text-[var(--brand-text-secondary)]'
-                      }`}
-                    >
-                      {t(optionKind(g) === 'takeaway' ? 'optionsTakeaway' : 'optionsDish')}
-                    </span>
+                    {showOptionKind !== false && (
+                      <span
+                        className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                          optionKind(g) === 'takeaway'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-[var(--tab-unselected-bg)] text-[var(--brand-text-secondary)]'
+                        }`}
+                      >
+                        {t(
+                          optionKind(g) === 'takeaway'
+                            ? 'optionsTakeaway'
+                            : optionKind(g) === 'drink'
+                              ? 'optionsDrink'
+                              : 'optionsDish',
+                        )}
+                      </span>
+                    )}
                     {!readOnly && g.required && (
                       <span className="rounded-full bg-[var(--brand-button)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--brand-button-text)]">
                         {t('required')}
@@ -205,7 +219,7 @@ export function ProductSheet({
               <input
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder={t('notePlaceholder')}
+                placeholder={notePlaceholder || t('notePlaceholder')}
                 className="mt-5 w-full rounded-xl border border-[var(--brand-border)] bg-[var(--brand-surface)] px-3 py-2.5 text-sm focus:border-[var(--brand-primary)] focus:outline-none"
               />
             )}

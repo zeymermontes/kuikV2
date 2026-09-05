@@ -628,6 +628,9 @@ const SCHEMA_ES = `{
     "slogan": "...",                   // Eslogan o lema del restaurante.
     "background_image": "https://..."  // URL absoluta de la imagen de fondo (si la hay).
   },
+  "ordering": {                          // Opcional: textos del carrito.
+    "notePlaceholder": "Sin hielo, menos dulce…"  // Sugerencia en la caja de notas de cada producto, pensada para lo que vende ESTE negocio (bebidas: hielo, dulzor, leche; comida: sin cebolla, término).
+  },
   "categories": [
     {
       "name": "Pizzas",  // Nombre de la sección/categoría. Aparece en la barra de categorías.
@@ -664,7 +667,7 @@ const SCHEMA_ES = `{
           "prepTime": "15 min",      // Tiempo de preparación (opcional).
           "calories": 800,           // Calorías (opcional, número).
           "optionGroups": [          // Grupos de opciones que el cliente elige al ordenar.
-            // "kind": "dish" = opción del platillo (por defecto); "takeaway" = opción para llevar
+            // "kind": "dish" = opción del platillo (por defecto); "drink" = de la bebida (leche, dulzor, hielo); "takeaway" = opción para llevar
             // (empaque, cubiertos, salsas aparte). Se le muestra al cliente para distinguirlas.
             { "name":"Tamaño", "description":"", "kind":"dish", "required":true, "multiple":false,  // required=obligatorio. multiple:false = elige UNO (radio); true = elige VARIOS (checkbox).
               "options":[ {"name":"Chico","price":0}, {"name":"Grande","price":30} ] },  // price = costo EXTRA que se SUMA al precio base (0 si no agrega).
@@ -700,7 +703,8 @@ Reglas importantes:
 - "tags": usa SOLO de esta lista cuando aplique: new, bestseller, spicy, vegan, vegetarian, glutenfree, house, promo.
 - "optionGroups": modela tamaños, extras y "quitar" como grupos. "required"=obligatorio, "multiple":false=elige uno / true=elige varios. El "price" de cada opción es el costo EXTRA que se suma al "price" base del producto (0 si no agrega). Si el producto no tiene opciones, omite "optionGroups".
 - Toda lista del tipo "A SU ELECCIÓN" / "A ELEGIR" que aparezca bajo un platillo es un optionGroup de ese platillo (título = "name", cada renglón = una opción con price 0), NO productos sueltos ni una subcategoría.
-- "kind" en cada optionGroup: "dish" para opciones del platillo, "takeaway" para opciones de para llevar (empaque, cubiertos, salsa aparte). Si no estás seguro, usa "dish".
+- "kind" en cada optionGroup: "dish" para opciones del platillo, "drink" para opciones de una bebida (tipo de leche, nivel de dulzor, hielo, tamaño de vaso), "takeaway" para opciones de para llevar (empaque, cubiertos, salsa aparte). Si no estás seguro, usa "dish".
+- "ordering.notePlaceholder": una sugerencia corta (máx. 60 caracteres) para la caja de notas del cliente, acorde a lo que vende el negocio: bebidas → "Sin hielo, menos dulce…"; comida → "Sin cebolla, extra salsa…".
 - "image" y "background_image": URLs absolutas de las imágenes del sitio (si existen).
 - Iconos de categoría: si la barra de categorías del sitio usa ilustraciones o iconos propios (no emojis), pon esa URL en el "image" de cada categoría. Si son emojis o no hay iconos, usa solo "icon" con un emoji representativo.
 - No inventes datos: si un campo no está, omítelo (o null donde corresponda).
@@ -722,7 +726,7 @@ Reglas:
 - TODOS los colores en #RRGGBB; detecta los colores reales del sitio (fondo, tarjetas, botones, pestañas de categorías, textos, acentos).
 - Precios solo números. "tags" solo de: new, bestseller, spicy, vegan, vegetarian, glutenfree, house, promo.
 - Usa "subcategories" cuando una sección tenga títulos internos; no concatenes nombres.
-- Las listas "A SU ELECCIÓN" bajo un platillo son "optionGroups" de ese platillo, con "kind":"dish" (o "takeaway" si es para llevar).
+- Las listas "A SU ELECCIÓN" bajo un platillo son "optionGroups" de ese platillo, con "kind":"dish" ("drink" en bebidas, "takeaway" si es para llevar).
 - No inventes datos: omite el campo (o null) si no está.
 
 Entrégame el archivo .zip para descargar.`;
@@ -779,6 +783,9 @@ const SCHEMA_EN = `{
     "slogan": "...",                   // Restaurant slogan/tagline.
     "background_image": "https://..."  // Absolute URL of the background image (if any).
   },
+  "ordering": {                          // Optional: the cart's own copy.
+    "notePlaceholder": "No ice, less sweet…"  // Hint inside every product's notes box, fitted to what THIS business sells (drinks: ice, sweetness, milk; food: no onion, doneness).
+  },
   "categories": [
     {
       "name": "Pizzas",  // Section/category name. Appears in the category bar.
@@ -815,7 +822,7 @@ const SCHEMA_EN = `{
           "prepTime": "15 min",      // Prep time (optional).
           "calories": 800,           // Calories (optional, number).
           "optionGroups": [          // Option groups the customer picks when ordering.
-            // "kind": "dish" = part of the dish (default); "takeaway" = to-go option
+            // "kind": "dish" = part of the dish (default); "drink" = about the drink (milk, sweetness, ice); "takeaway" = to-go option
             // (packaging, cutlery, sauce on the side). Shown to the guest so they can tell them apart.
             { "name":"Size", "description":"", "kind":"dish", "required":true, "multiple":false,  // required=mandatory. multiple:false = choose ONE (radio); true = choose MANY (checkbox).
               "options":[ {"name":"Small","price":0}, {"name":"Large","price":30} ] },  // price = EXTRA cost ADDED to the base price (0 if none).
@@ -851,7 +858,8 @@ Important rules:
 - "tags": ONLY from this list when relevant: new, bestseller, spicy, vegan, vegetarian, glutenfree, house, promo.
 - "optionGroups": model sizes, extras and "remove" as groups. "required"=mandatory, "multiple":false=choose one / true=choose many. Each option's "price" is the EXTRA cost added to the product's base "price" (0 if none). Omit "optionGroups" if the product has no options.
 - Any "YOUR CHOICE OF" / "CHOICE OF" list printed under a dish is an optionGroup of that dish (heading = "name", each line = an option with price 0), NOT separate products and NOT a subcategory.
-- "kind" on each optionGroup: "dish" for options of the dish itself, "takeaway" for to-go options (packaging, cutlery, sauce on the side). Use "dish" when unsure.
+- "kind" on each optionGroup: "dish" for options of the dish itself, "drink" for a drink's options (milk type, sweetness level, ice, cup size), "takeaway" for to-go options (packaging, cutlery, sauce on the side). Use "dish" when unsure.
+- "ordering.notePlaceholder": a short hint (max 60 characters) for the guest's notes box, fitted to what the business sells: drinks → "No ice, less sweet…"; food → "No onion, extra sauce…".
 - "image" and "background_image": absolute URLs of the site's images (if any).
 - Category icons: if the site's category bar uses its own illustrations or icons (not emoji), put that URL in each category's "image". If they are emoji or there are none, just use "icon" with a representative emoji.
 - Don't invent data: omit a field (or null where appropriate) if it's missing.
@@ -873,7 +881,7 @@ Rules:
 - ALL colors in #RRGGBB; detect the site's real colors (background, cards, buttons, category tabs, text, accent).
 - Prices numbers only. "tags" only from: new, bestseller, spicy, vegan, vegetarian, glutenfree, house, promo.
 - Use "subcategories" when a section has inner headings; never concatenate names.
-- "YOUR CHOICE OF" lists under a dish are "optionGroups" of that dish, with "kind":"dish" (or "takeaway" for to-go).
+- "YOUR CHOICE OF" lists under a dish are "optionGroups" of that dish, with "kind":"dish" ("drink" for drinks, "takeaway" for to-go).
 - Don't invent data: omit the field (or null) if missing.
 
 Give me the .zip file to download.`;

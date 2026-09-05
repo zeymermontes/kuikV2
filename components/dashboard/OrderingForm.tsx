@@ -203,6 +203,15 @@ export function OrderingForm({
         <ToggleRow label={t('collectAddress')} checked={o.collect_address} onChange={(v) => set('collect_address', v)} />
         <ToggleRow label={t('collectPickupTime')} checked={o.collect_pickup_time} onChange={(v) => set('collect_pickup_time', v)} />
         <ToggleRow label={t('collectTable')} checked={o.collect_table} onChange={(v) => set('collect_table', v)} />
+        <div className="border-t border-neutral-100 pt-3">
+          <Label>{t('notePlaceholder')}</Label>
+          <Input
+            defaultValue={o.note_placeholder ?? ''}
+            placeholder={t('notePlaceholderHint')}
+            maxLength={120}
+            onBlur={(e) => set('note_placeholder', e.target.value.trim() || null)}
+          />
+        </div>
       </Card>
 
       {/* Payment: which methods the cart offers, and the transfer details it shows. */}

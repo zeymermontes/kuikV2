@@ -1020,6 +1020,8 @@ export function MenuView({
           currency={currency}
           locale={locale}
           readOnly={!orderingEnabled}
+          notePlaceholder={ordering.note_placeholder}
+          showOptionKind={settings.showOptionKind}
           onClose={() => setActiveProduct(null)}
           onConfirm={(line) =>
             dispatch({

@@ -132,6 +132,8 @@ export interface TenantOrdering {
   /** CLABE or account number, shown to the guest who picks transfer. */
   transfer_account: string | null;
   transfer_note: string | null;
+  /** Hint in the notes box; null = the built-in "Sin cebolla, extra salsa…". */
+  note_placeholder: string | null;
   updated_at: string;
 }
 
@@ -238,7 +240,8 @@ export interface PricedOption {
  * protein") or how it is packed to go ("extra tortillas", "cutlery"). Shown to
  * the guest so they can tell the two apart. Defaults to 'dish'.
  */
-export type OptionKind = 'dish' | 'takeaway';
+/** What an option group is about; shown as a small tag so "Size" reads right on a drink and a dish alike. */
+export type OptionKind = 'dish' | 'drink' | 'takeaway';
 
 export interface OptionGroup {
   id: string;

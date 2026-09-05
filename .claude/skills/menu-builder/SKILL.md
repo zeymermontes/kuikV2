@@ -54,6 +54,7 @@ Never invent prices, descriptions or items. Missing → omit the field.
     "slogan": "…",
     "background_image": "fondo.jpg" // filename in images/ or URL
   },
+  "ordering": { "notePlaceholder": "Sin hielo, menos dulce…" },   // optional: hint in the guest's notes box, fitted to what they sell
   "categories": [
     {
       "name": "Desayunos", "icon": "🥞",  // icon = ONE emoji; or "image": "cat-desayunos.png" for a custom tab icon
@@ -84,7 +85,8 @@ Never invent prices, descriptions or items. Missing → omit the field.
   ]
 }
 ```
-Rules: option `price` is the EXTRA added to the base; `multiple:false` =
+Rules: option `price` is the EXTRA added to the base; `kind` is dish
+(default), drink (milk, sweetness, ice, cup size) or takeaway; `multiple:false` =
 choose one; a parent that only holds subcategories has no `products`; don't
 concatenate names ("Desayunos · Para comenzar" is wrong — that's a subcategory).
 

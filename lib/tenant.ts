@@ -94,6 +94,7 @@ export const getTenantByHostKey = cache(
       transfer_holder: null,
       transfer_account: null,
       transfer_note: null,
+      note_placeholder: null,
       updated_at: tenant.created_at,
     };
 

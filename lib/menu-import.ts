@@ -13,7 +13,7 @@ export interface ImportOptionGroup {
   name: string;
   description?: string;
   /** 'dish' (part of the dish) or 'takeaway' (packing/to-go). Defaults to 'dish'. */
-  kind?: 'dish' | 'takeaway';
+  kind?: 'dish' | 'drink' | 'takeaway';
   required?: boolean;
   multiple?: boolean; // true = choose many, false = choose one
   options: ImportOption[]; // each option's price is an extra cost (0 if free)
@@ -84,8 +84,15 @@ export const IMPORT_DESIGN_KEYS = [
   'font_family', 'slogan',
 ] as const;
 
+/** The cart's own copy, settable from an import. */
+export interface ImportOrdering {
+  /** Hint inside the notes box, fitted to what the business sells. */
+  notePlaceholder?: string | null;
+}
+
 export interface FullImportPayload {
   design?: ImportDesign;
+  ordering?: ImportOrdering;
   categories: ImportCategory[];
 }
 

@@ -71,8 +71,8 @@ def check_options(r: Report, where: str, groups) -> None:
         if not isinstance(g, dict) or not str(g.get('name', '')).strip():
             r.err(f'{gw}: needs a "name"')
             continue
-        if g.get('kind') not in (None, 'dish', 'takeaway'):
-            r.err(f'{gw}: kind must be "dish" or "takeaway"')
+        if g.get('kind') not in (None, 'dish', 'drink', 'takeaway'):
+            r.err(f'{gw}: kind must be "dish", "drink" or "takeaway"')
         opts = g.get('options')
         if not isinstance(opts, list) or not opts:
             r.err(f'{gw} ({g["name"]}): needs a non-empty "options" list')
@@ -180,6 +180,12 @@ def validate(payload) -> Report:
             if design.get('font_family') and design['font_family'] not in FONTS:
                 r.warn(f'design.font_family "{design["font_family"]}" is not in the curated list {sorted(FONTS)}; Google Fonts will still load it by name')
             image_ref(r, 'design.background_image', design.get('background_image'))
+    ordering = payload.get('ordering')
+    if ordering is not None:
+        if not isinstance(ordering, dict):
+            r.err('"ordering" must be an object')
+        elif ordering.get('notePlaceholder') is not None and not isinstance(ordering['notePlaceholder'], str):
+            r.err('ordering.notePlaceholder must be a string')
     cats = payload.get('categories')
     if not isinstance(cats, list) or not cats:
         r.err('"categories" must be a non-empty list')

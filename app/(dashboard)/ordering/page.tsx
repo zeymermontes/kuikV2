@@ -41,6 +41,7 @@ export default async function OrderingPage() {
     transfer_holder: null,
     transfer_account: null,
     transfer_note: null,
+    note_placeholder: null,
     updated_at: new Date(0).toISOString(),
   };
 

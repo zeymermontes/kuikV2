@@ -39,7 +39,7 @@ export function hasOptions(p: Product): boolean {
 }
 
 export function optionKind(g: OptionGroup): OptionKind {
-  return g.kind === 'takeaway' ? 'takeaway' : 'dish';
+  return g.kind === 'takeaway' || g.kind === 'drink' ? g.kind : 'dish';
 }
 
 /** True when the product has anything worth opening a detail sheet for. */

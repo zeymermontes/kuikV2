@@ -142,13 +142,19 @@ export function OptionGroupsEditor({
                   {t('chooseMany')}
                 </button>
               </div>
-              {/* Is this group about the dish itself, or about taking it away? */}
+              {/* Is this group about the dish, the drink, or taking it away? */}
               <div className="flex overflow-hidden rounded-lg border border-neutral-300">
                 <button
                   onClick={() => patchGroup(g.id, { kind: 'dish' })}
-                  className={`px-2 py-1 text-xs ${g.kind !== 'takeaway' ? 'bg-neutral-900 text-white' : 'text-neutral-600'}`}
+                  className={`px-2 py-1 text-xs ${(g.kind ?? 'dish') === 'dish' ? 'bg-neutral-900 text-white' : 'text-neutral-600'}`}
                 >
                   {t('kindDish')}
+                </button>
+                <button
+                  onClick={() => patchGroup(g.id, { kind: 'drink' })}
+                  className={`px-2 py-1 text-xs ${g.kind === 'drink' ? 'bg-neutral-900 text-white' : 'text-neutral-600'}`}
+                >
+                  {t('kindDrink')}
                 </button>
                 <button
                   onClick={() => patchGroup(g.id, { kind: 'takeaway' })}

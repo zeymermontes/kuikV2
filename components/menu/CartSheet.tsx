@@ -239,7 +239,7 @@ export function CartSheet({
                   <input
                     value={l.note ?? ''}
                     onChange={(e) => onNote(l.key, e.target.value)}
-                    placeholder={t('notePlaceholder')}
+                    placeholder={ordering.note_placeholder || t('notePlaceholder')}
                     className="mt-2 w-full rounded-xl border border-[var(--brand-border)] bg-[var(--brand-surface)] px-3 py-2 text-sm focus:border-[var(--brand-primary)] focus:outline-none"
                   />
                 </li>
