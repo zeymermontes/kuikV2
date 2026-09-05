@@ -35,6 +35,8 @@ export function LiveMenu(props: ComponentProps<typeof MenuView>) {
     const onMessage = (e: MessageEvent) => {
       if (!allowed.has(e.origin)) return;
       const d = e.data as { type?: string; theme?: TenantTheme } | null;
+      // Something saved server-side (a category's design): fetch it afresh.
+      if (d?.type === 'kuik:reload') return location.reload();
       if (!d || d.type !== 'kuik:design' || !d.theme) return;
       setPreview(true);
       setTheme(d.theme);

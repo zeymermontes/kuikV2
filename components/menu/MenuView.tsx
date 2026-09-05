@@ -931,7 +931,7 @@ export function MenuView({
                       ? (unselText ?? 'var(--tab-selected-text)')
                       : (selText ?? 'var(--tab-selected-text)')
                     : (unselText ?? 'var(--tab-unselected-text)'),
-                  opacity: active ? 1 : settings.navInactiveOpacity,
+                  opacity: active ? settings.navActiveOpacity : settings.navInactiveOpacity,
                   fontFamily: ct?.font_category ? `'${ct.font_category}'` : 'var(--font-category)',
                 }}
               >

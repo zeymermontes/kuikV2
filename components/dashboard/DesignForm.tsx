@@ -3,7 +3,8 @@
 import { useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
-import type { TenantTheme } from '@/lib/database.types';
+import type { TenantTheme, CategoryTheme } from '@/lib/database.types';
+import { updateCategory } from '@/app/(dashboard)/menu/actions';
 import { MENU_FONTS, CUSTOM_FONT } from '@/lib/config';
 import { resolveMenuSettings, type MenuSettings } from '@/lib/menu-settings';
 import { MENU_PRESETS, getPreset, presetSettings } from '@/lib/menu-presets';
@@ -48,11 +49,14 @@ export function DesignForm({
   theme,
   previewUrl,
   published,
+  categories = [],
 }: {
   theme: TenantTheme;
   /** The tenant's public base URL, for the live preview iframe. */
   previewUrl: string;
   published: boolean;
+  /** Top-level sections of the main menu, for their own tab colours. */
+  categories?: { id: string; name: string; theme: CategoryTheme | null }[];
 }) {
   const t = useTranslations('design');
   const locale = useLocale();
@@ -63,6 +67,21 @@ export function DesignForm({
 
   // What the live preview renders: the draft theme with the draft settings folded in.
   const previewTheme = useMemo(() => ({ ...local, settings: settings as unknown as TenantTheme['settings'] }), [local, settings]);
+
+  // A section's own tab colours live on the category (Menu → section design);
+  // edited here they save straight away and the preview reloads to show them.
+  const [catThemes, setCatThemes] = useState<Record<string, CategoryTheme | null>>(() =>
+    Object.fromEntries(categories.map((c) => [c.id, c.theme])),
+  );
+  const [previewReload, setPreviewReload] = useState(0);
+  function setCatTheme(id: string, key: keyof CategoryTheme, value: string | null) {
+    const next: CategoryTheme = { ...(catThemes[id] ?? {}) };
+    if (value) next[key] = value;
+    else delete next[key];
+    const theme = Object.keys(next).length ? next : null;
+    setCatThemes((m) => ({ ...m, [id]: theme }));
+    void updateCategory(id, { theme }).then(() => setPreviewReload((n) => n + 1));
+  }
 
   function set<K extends keyof TenantTheme>(key: K, value: TenantTheme[K]) {
     setLocal((s) => ({ ...s, [key]: value }));
@@ -822,6 +841,21 @@ export function DesignForm({
               <span className="w-10 text-right text-[10px] text-neutral-400">{Math.round(settings.navInactiveOpacity * 100)}%</span>
             </div>
           </div>
+          <div data-setting={t('navActiveOpacity')} className="flex items-center justify-between gap-3">
+            <span className="text-sm font-medium">{t('navActiveOpacity')}</span>
+            <div className="flex flex-1 items-center gap-2">
+              <input
+                type="range"
+                min={0.2}
+                max={1}
+                step={0.05}
+                value={settings.navActiveOpacity}
+                onChange={(e) => setS('navActiveOpacity', Number(e.target.value))}
+                className="h-1 flex-1 cursor-pointer accent-neutral-900"
+              />
+              <span className="w-10 text-right text-[10px] text-neutral-400">{Math.round(settings.navActiveOpacity * 100)}%</span>
+            </div>
+          </div>
           {/* The same four theme colours the Colours card edits, repeated here
               because this is where owners look for them. */}
           <div className="grid grid-cols-2 gap-2">
@@ -852,6 +886,43 @@ export function DesignForm({
               </label>
             ))}
           </div>
+          {categories.length > 0 && (
+            <div data-setting={t('navPerCategory')} className="rounded-xl bg-neutral-50 p-3">
+              <p className="text-xs font-medium text-neutral-500">{t('navPerCategory')}</p>
+              <p className="mb-2 text-[10px] text-neutral-400">{t('navPerCategoryHint')}</p>
+              <div className="space-y-2">
+                {categories.map((c) => {
+                  const th = catThemes[c.id];
+                  return (
+                    <div key={c.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 bg-white px-2 py-1.5">
+                      <span className="min-w-[6rem] flex-1 truncate text-sm font-medium">{c.name}</span>
+                      {(
+                        [
+                          ['tab_selected_color', t('tabSelected'), local.tab_selected_color ?? local.primary_color],
+                          ['tab_unselected_color', t('tabUnselected'), local.tab_unselected_color ?? '#eeeeee'],
+                          ['tab_font_color', t('tabFont'), local.tab_font_color ?? local.text_color],
+                        ] as const
+                      ).map(([key, label, fallback]) => (
+                        <label key={key} title={label} className="flex items-center gap-1">
+                          <input
+                            type="color"
+                            value={(th?.[key] ?? fallback).slice(0, 7)}
+                            onChange={(e) => setCatTheme(c.id, key, e.target.value)}
+                            className={`h-7 w-8 cursor-pointer rounded border p-0 ${th?.[key] ? 'border-neutral-400' : 'border-dashed border-neutral-300 opacity-60'}`}
+                          />
+                          {th?.[key] && (
+                            <button type="button" onClick={() => setCatTheme(c.id, key, null)} className="px-0.5 text-neutral-300 hover:text-neutral-600" aria-label={t('clearColor')}>
+                              ×
+                            </button>
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* Options printed in the menu */}
@@ -950,7 +1021,7 @@ export function DesignForm({
       {/* Live preview */}
       <div className="lg:sticky lg:top-6 lg:self-start">
         <Label>{t('preview')}</Label>
-        <LivePreview url={previewUrl} published={published} theme={previewTheme} />
+        <LivePreview url={previewUrl} published={published} theme={previewTheme} reloadKey={previewReload} />
       </div>
     </div>
   );

@@ -13,12 +13,15 @@ export function LivePreview({
   url,
   published,
   theme,
+  reloadKey = 0,
 }: {
   /** The tenant's public base URL, on our own domain. */
   url: string;
   published: boolean;
   /** The draft theme, with the draft `settings` folded in. */
   theme: TenantTheme;
+  /** Bump after a server-side save the draft cannot carry (a category's design) to reload the menu. */
+  reloadKey?: number;
 }) {
   const t = useTranslations('design');
   const frame = useRef<HTMLIFrameElement>(null);
@@ -43,6 +46,14 @@ export function LivePreview({
     const id = setTimeout(send, 80);
     return () => clearTimeout(id);
   }, [ready, send]);
+
+  // Reload after the server has the change (the saving action revalidated the
+  // page); the menu then announces ready again and gets the draft re-sent.
+  useEffect(() => {
+    if (!reloadKey) return;
+    const id = setTimeout(() => frame.current?.contentWindow?.postMessage({ type: 'kuik:reload' }, origin), 600);
+    return () => clearTimeout(id);
+  }, [reloadKey, origin]);
 
   if (!published) {
     return <p className="rounded-xl border border-dashed border-neutral-300 p-4 text-sm text-neutral-500">{t('previewUnpublished')}</p>;
