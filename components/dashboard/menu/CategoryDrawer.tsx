@@ -7,6 +7,7 @@ import { MENU_FONTS } from '@/lib/config';
 import { CATEGORY_THEME_COLORS, CATEGORY_THEME_FONTS } from '@/lib/category-theme';
 import { Input, Label, Button } from '@/components/ui';
 import { ImageUploader } from '@/components/dashboard/ImageUploader';
+import { ColorWheel } from '@/components/dashboard/ColorWheel';
 import { Drawer } from './Drawer';
 import { updateCategory, deleteCategory, setCategoryParent } from '@/app/(dashboard)/menu/actions';
 
@@ -155,12 +156,13 @@ export function CategoryDrawer({
               const val = category.theme?.[key];
               return (
                 <div key={key} className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-2 py-1.5">
-                  <input
-                    type="color"
-                    value={val ?? '#ffffff'}
-                    onChange={(e) => setTheme(key, e.target.value)}
-                    data-inherit={!val}
-                    className="color-dot shrink-0"
+                  <ColorWheel
+                    value={val}
+                    fallback="#ffffff"
+                    label={t(`th_${key}`)}
+                    size="sm"
+                    onChange={(hex) => setTheme(key, hex)}
+                    onClear={() => setTheme(key, null)}
                   />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[11px] font-medium">{t(`th_${key}`)}</span>

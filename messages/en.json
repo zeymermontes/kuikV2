@@ -224,6 +224,12 @@
     "th_font_price": "Price font",
     "th_font_description": "Description font"
   },
+  "colorPicker": {
+    "brightness": "Brightness",
+    "opacity": "Opacity",
+    "inherit": "Use the general colour",
+    "done": "Done"
+  },
   "design": {
     "title": "Design",
     "brand": "Brand",

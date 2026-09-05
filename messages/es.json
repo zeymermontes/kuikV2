@@ -224,6 +224,12 @@
     "th_font_price": "Fuente de precios",
     "th_font_description": "Fuente de descripciones"
   },
+  "colorPicker": {
+    "brightness": "Brillo",
+    "opacity": "Opacidad",
+    "inherit": "Usar el color general",
+    "done": "Listo"
+  },
   "design": {
     "title": "Diseño",
     "brand": "Marca",

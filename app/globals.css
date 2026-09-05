@@ -98,23 +98,39 @@ body {
 /* Below ~336px there is no sensible two-up; fall back to one column. */
 @media (max-width: 21rem) { .kuik-grid-2 { grid-template-columns: minmax(0, 1fr); } }
 
-/* A colour input drawn as a plain circle (native picker on tap, phones too). */
+/* The colour swatch that opens our wheel picker (components/dashboard/ColorWheel). */
 .color-dot {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 1.75rem;
-  height: 1.75rem;
   padding: 0;
   border: 2px solid #fff;
   border-radius: 9999px;
   box-shadow: 0 0 0 1px #d4d4d4;
-  background: none;
   cursor: pointer;
 }
-.color-dot::-webkit-color-swatch-wrapper { padding: 0; }
-.color-dot::-webkit-color-swatch { border: none; border-radius: 9999px; }
-.color-dot::-moz-color-swatch { border: none; border-radius: 9999px; }
-.color-dot[data-inherit='true'] { box-shadow: 0 0 0 1px #d4d4d4; opacity: 0.55; border-style: dashed; border-color: #a3a3a3; }
+.color-dot[data-inherit='true'] { opacity: 0.55; border-style: dashed; border-color: #a3a3a3; }
+.color-slider {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 0.75rem;
+  border-radius: 9999px;
+  outline: none;
+}
+.color-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 9999px;
+  background: #fff;
+  border: 1px solid #a3a3a3;
+  box-shadow: 0 1px 3px rgba(0,0,0,.3);
+}
+.color-slider::-moz-range-thumb {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 9999px;
+  background: #fff;
+  border: 1px solid #a3a3a3;
+}
 
 /* Design form search: a matched row or card, until the query is cleared. */
 .setting-hit {

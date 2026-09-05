@@ -14,6 +14,7 @@ import { FontPicker } from '@/components/dashboard/FontPicker';
 import { CustomFontUploader } from '@/components/dashboard/CustomFontUploader';
 import { MusicUploader } from '@/components/dashboard/MusicUploader';
 import { LivePreview } from '@/components/dashboard/LivePreview';
+import { ColorWheel } from '@/components/dashboard/ColorWheel';
 
 // Accept 3/4/6/8-digit hex (the 4/8 forms carry alpha).
 const HEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
@@ -358,11 +359,12 @@ export function DesignForm({
                 <div key={key}>
                   <Label>{label}</Label>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={rgb}
-                      onChange={(e) => set(key, toHex(e.target.value, alpha))}
-                      className="h-9 w-10 shrink-0 cursor-pointer rounded border border-neutral-200"
+                    <ColorWheel
+                      value={local[key] ?? null}
+                      fallback={fallback ?? '#000000'}
+                      label={label}
+                      alpha
+                      onChange={(hex) => set(key, hex)}
                     />
                     <input
                       type="text"
@@ -868,12 +870,13 @@ export function DesignForm({
               ] as const
             ).map(([key, label, fallback]) => (
               <label key={key} data-setting={label} className="flex items-center gap-2 rounded-lg border border-neutral-200 px-2 py-1.5">
-                <input
-                  type="color"
-                  value={(local[key] ?? fallback).slice(0, 7)}
-                  onChange={(e) => set(key, e.target.value)}
-                  data-inherit={!local[key]}
-                  className="color-dot shrink-0"
+                <ColorWheel
+                  value={local[key]}
+                  fallback={fallback}
+                  label={label}
+                  size="sm"
+                  onChange={(hex) => set(key, hex)}
+                  onClear={() => set(key, null)}
                 />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[11px] font-medium">{label}</span>
@@ -907,12 +910,13 @@ export function DesignForm({
                         ] as const
                       ).map(([key, label, fallback]) => (
                         <label key={key} title={label} className="flex items-center gap-1">
-                          <input
-                            type="color"
-                            value={(th?.[key] ?? fallback).slice(0, 7)}
-                            onChange={(e) => setCatTheme(c.id, key, e.target.value)}
-                            data-inherit={!th?.[key]}
-                            className="color-dot"
+                          <ColorWheel
+                            value={th?.[key]}
+                            fallback={fallback}
+                            label={`${c.name} · ${label}`}
+                            size="sm"
+                            onChange={(hex) => setCatTheme(c.id, key, hex)}
+                            onClear={() => setCatTheme(c.id, key, null)}
                           />
                           {th?.[key] && (
                             <button type="button" onClick={() => setCatTheme(c.id, key, null)} className="px-0.5 text-neutral-300 hover:text-neutral-600" aria-label={t('clearColor')}>
