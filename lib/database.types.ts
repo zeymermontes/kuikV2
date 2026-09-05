@@ -137,8 +137,18 @@ export interface TenantOrdering {
   transfer_note: string | null;
   /** Hint in the notes box; null = the built-in "Sin cebolla, extra salsa…". */
   note_placeholder: string | null;
+  /** Receipt paper at payment: offer a button, print by itself, or never (see 0065). */
+  print_receipt_mode: PrintReceiptMode;
+  /** Every fire goes to the station printers without a tap. */
+  print_kitchen_auto: boolean;
+  /** Kick the cash drawer when a cash payment closes the sale. */
+  print_drawer_cash: boolean;
+  /** Extra lines under the receipt total: RFC, address, a thank-you. */
+  receipt_footer: string | null;
   updated_at: string;
 }
+
+export type PrintReceiptMode = 'ask' | 'auto' | 'off';
 
 export interface TenantContact {
   tenant_id: string;
@@ -342,6 +352,72 @@ export interface FloorTable {
   server_name: string | null;
   blocked_until: string | null;
   position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── Print queue (0065) ────────────────────────────────────────────────────────
+/** The small program installed on one machine in the restaurant that drains the queue. */
+export interface PrintAgent {
+  id: string;
+  tenant_id: string;
+  branch_id: string | null;
+  name: string;
+  /** sha256 of the bearer token; the token is shown once at creation. */
+  token_hash: string;
+  platform: string | null;
+  version: string | null;
+  last_seen_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** How the agent reaches a printer: raw TCP on the LAN, or an OS printer (USB/Bluetooth). */
+export type PrinterKind = 'network' | 'system';
+export type PrinterRole = 'receipt' | 'kitchen' | 'report';
+/** Characters per line: 32 for 58 mm paper, 48 for 80 mm. */
+export type PrinterWidth = 32 | 42 | 48;
+
+export interface Printer {
+  id: string;
+  tenant_id: string;
+  branch_id: string | null;
+  agent_id: string | null;
+  name: string;
+  kind: PrinterKind;
+  /** host[:port] for network, the OS printer name for system. */
+  address: string;
+  width: PrinterWidth;
+  roles: PrinterRole[];
+  /** Kitchen stations routed here; empty = every station. */
+  stations: string[];
+  has_drawer: boolean;
+  cut: boolean;
+  copies: number;
+  enabled: boolean;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PrintJobKind = 'kitchen' | 'receipt' | 'report' | 'drawer' | 'test';
+export type PrintJobStatus = 'queued' | 'printing' | 'done' | 'failed';
+
+export interface PrintJob {
+  id: string;
+  tenant_id: string;
+  printer_id: string;
+  kind: PrintJobKind;
+  /** A PrintDoc (lib/pos/print-doc.ts). */
+  doc: unknown;
+  status: PrintJobStatus;
+  attempts: number;
+  error: string | null;
+  ref_id: string | null;
+  created_by: string | null;
+  claimed_at: string | null;
+  printed_at: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -7,7 +7,8 @@ import {
 } from 'lucide-react';
 import { createClient, channelName } from '@/lib/supabase/client';
 import { nowISO, nowMs } from '@/lib/pos/sync';
-import { printKitchenTicket } from '@/lib/pos/print';
+import { printKitchenTicket } from '@/lib/pos/printing';
+import { usePrinting } from './PrintingContext';
 import type { KitchenTicket, TicketStatus } from '@/lib/pos/types';
 import { ExplainLayer } from '@/components/ExplainLayer';
 
@@ -65,6 +66,7 @@ export function KdsBoard({
   initial?: KitchenTicket[];
 }) {
   const t = useTranslations('kds');
+  const printing = usePrinting();
   const supabase = useMemo(() => createClient(), []);
   const [tickets, setTickets] = useState<KitchenTicket[]>(initial);
   const [now, setNow] = useState(0);
@@ -359,7 +361,7 @@ export function KdsBoard({
                       >
                         <Check className="h-5 w-5" /> {t(`bump_${tk.status}`)}
                       </button>
-                      <button onClick={() => printKitchenTicket(tk, locale)} data-help="kds_print" className={`rounded-xl border px-3 ${ctrl}`} title={t('print')}>
+                      <button onClick={() => printKitchenTicket(printing, tk, locale, true)} data-help="kds_print" className={`rounded-xl border px-3 ${ctrl}`} title={t('print')}>
                         <Printer className="h-5 w-5" />
                       </button>
                     </footer>

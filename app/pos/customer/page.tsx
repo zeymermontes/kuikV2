@@ -14,15 +14,22 @@ export const metadata: Metadata = {
   title: 'Kuik POS — Pantalla del cliente',
 };
 
-/** The customer-facing screen. Opened from the terminal onto a second display; `?demo=1` mirrors the demo terminal. */
-export default async function CustomerScreenPage({ searchParams }: { searchParams: Promise<{ demo?: string }> }) {
+/**
+ * The customer-facing screen. Opened from the terminal onto a second display;
+ * `?screen=<register>` follows that register from another device over
+ * Realtime; `?demo=1` mirrors the demo terminal.
+ */
+export default async function CustomerScreenPage({ searchParams }: { searchParams: Promise<{ demo?: string; screen?: string }> }) {
   const { tenant, theme, subscription } = await requireTenant();
   if (!isPro(subscription)) return <PosLocked title="POS" />;
   const locale = await getLocale();
-  const demo = !!(await searchParams).demo;
+  const params = await searchParams;
+  const demo = !!params.demo;
+  const screen = (params.screen ?? '').trim();
   return (
     <CustomerDisplay
       scope={demo ? demoScope(tenant.id) : tenant.id}
+      remote={!demo && screen ? { tenantId: tenant.id, register: screen } : null}
       brand={{
         name: tenant.name,
         logoUrl: theme.logo_url,

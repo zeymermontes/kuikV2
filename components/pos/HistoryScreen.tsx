@@ -7,7 +7,8 @@ import { ChevronLeft, ChevronDown, ChevronRight, Printer, Clock, RotateCcw, Sear
 import type { PosDexie } from '@/lib/pos/db';
 import type { PosTab, TabItem, Payment } from '@/lib/pos/types';
 import { formatPrice } from '@/lib/utils';
-import { printReceipt } from '@/lib/pos/print';
+import { printReceipt } from '@/lib/pos/printing';
+import { usePrinting, useReceiptLabels } from './PrintingContext';
 import { reopenTab } from '@/lib/pos/tabs';
 
 export function HistoryScreen({
@@ -26,6 +27,8 @@ export function HistoryScreen({
   onBack: () => void;
 }) {
   const t = useTranslations('pos');
+  const printing = usePrinting();
+  const labels = useReceiptLabels();
   const [query, setQuery] = useState('');
   const paid = useLiveQuery(() => db.tabs.where('status').equals('paid').toArray(), [db], [] as PosTab[]);
 
@@ -45,7 +48,13 @@ export function HistoryScreen({
       db.tab_items.where('tab_id').equals(tab.id).toArray(),
       db.payments.where('tab_id').equals(tab.id).toArray(),
     ]);
-    printReceipt(tab, items, payments, restaurantName, currency, locale);
+    printReceipt(printing, tab, items, payments, {
+      restaurant: restaurantName,
+      locale,
+      money: (n) => formatPrice(n, currency, locale),
+      labels,
+      fallback: true,
+    });
   }
 
   return (

@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { QRCodeSVG } from 'qrcode.react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslations } from 'next-intl';
 import {
@@ -28,6 +30,7 @@ import {
   Clock,
   Cast,
   ExternalLink,
+  Printer,
 } from 'lucide-react';
 import { posDb } from '@/lib/pos/db';
 import { startSync, nowISO, retryDead, enqueueUpsert, type SyncState } from '@/lib/pos/sync';
@@ -39,11 +42,15 @@ import {
   openCustomerScreen,
   presentCustomerScreen,
   useDisplayPublisher,
+  registerSlug,
+  DEFAULT_REGISTER,
   type DisplayBrand,
   type DisplayState,
 } from '@/lib/pos/customer-screen';
-import { demoScope, type PosTab, type PosMenu, type RegisterShift, type TabItem } from '@/lib/pos/types';
-import type { FloorTable } from '@/lib/database.types';
+import { demoScope, type PosTab, type PosMenu, type RegisterShift, type TabItem, type PrintJob } from '@/lib/pos/types';
+import { DEFAULT_PRINT_SETTINGS, retryJob, type PrintSettings } from '@/lib/pos/printing';
+import { PrintingProvider } from './PrintingContext';
+import type { FloorTable, Printer as PrinterRow } from '@/lib/database.types';
 import { formatPrice } from '@/lib/utils';
 import { SaleScreen, type PayPhase } from './SaleScreen';
 import { PosModal } from './PosModal';
@@ -53,7 +60,7 @@ import { DenomCount } from './DenomCount';
 import { ExplainLayer } from '@/components/ExplainLayer';
 
 type View = 'sale' | 'tables' | 'orders' | 'history' | 'register';
-type Modal = 'newTab' | 'openReg' | 'closeReg' | 'server' | null;
+type Modal = 'newTab' | 'openReg' | 'closeReg' | 'server' | 'remoteScreen' | null;
 
 const INPUT = 'w-full rounded-xl border border-neutral-200 px-3 py-3 text-base focus:border-pos-accent focus:outline-none';
 const PRIMARY = 'w-full rounded-xl bg-pos-accent py-3 font-semibold text-white hover:bg-pos-accent-hover';
@@ -70,6 +77,9 @@ export function PosTerminal({
   posTables,
   floorTables = [],
   floorPlan,
+  printers = [],
+  printSettings,
+  notePlaceholder = null,
   menu: initialMenu,
   themeStyle,
   demo = false,
@@ -88,6 +98,10 @@ export function PosTerminal({
   floorTables?: { label: string; seats: number; area: string | null }[];
   /** The same plan with positions and shapes, for the map tab of the table picker. */
   floorPlan?: { tables: FloorTable[]; areas: { id: string; name: string }[] };
+  /** The restaurant's printers (lib/pos/printing.ts routes jobs to them). */
+  printers?: PrinterRow[];
+  printSettings?: PrintSettings;
+  notePlaceholder?: string | null;
   menu: PosMenu;
   /** Brand colours as CSS variables (lib/pos/theme.ts). */
   themeStyle?: React.CSSProperties;
@@ -108,6 +122,9 @@ export function PosTerminal({
   const [field, setField] = useState('');
   const [zShift, setZShift] = useState<RegisterShift | null>(null);
   const [serverName, setServerName] = useState('');
+  // Which register this device is, for a customer screen on another device.
+  const [register, setRegister] = useState(DEFAULT_REGISTER);
+  const [copied, setCopied] = useState(false);
   const [query, setQuery] = useState('');
   const [bell, setBell] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
@@ -117,9 +134,17 @@ export function PosTerminal({
 
   // Active server is remembered per device (Fudo-style attribution).
   useEffect(() => {
-    const id = setTimeout(() => setServerName(localStorage.getItem('pos_server') ?? ''), 0);
+    const id = setTimeout(() => {
+      setServerName(localStorage.getItem('pos_server') ?? '');
+      setRegister(localStorage.getItem('pos_register') || DEFAULT_REGISTER);
+    }, 0);
     return () => clearTimeout(id);
   }, []);
+  function saveRegister(v: string) {
+    const name = v.trim() || DEFAULT_REGISTER;
+    localStorage.setItem('pos_register', name);
+    setRegister(name);
+  }
   function saveServer() {
     const v = field.trim();
     localStorage.setItem('pos_server', v);
@@ -199,6 +224,12 @@ export function PosTerminal({
   const shift = useLiveQuery(() => db.register_shifts.where('status').equals('open').first(), [db]);
   const shiftId = shift?.id ?? null;
   const failed = useLiveQuery(() => db.outbox.where('status').equals('dead').count(), [db], 0);
+  // Prints the agent could not do (printer off, out of paper): shown with a retry.
+  const failedPrints = useLiveQuery(() => db.print_jobs.where('status').equals('failed').toArray(), [db], [] as PrintJob[]);
+  const printCtx = useMemo(
+    () => ({ db, tenantId, userId, printers, settings: printSettings ?? DEFAULT_PRINT_SETTINGS, demo }),
+    [db, tenantId, userId, printers, printSettings, demo],
+  );
 
   // Look the open tab up by id (not from the open/held list) so it stays mounted
   // after payment marks it 'paid' — otherwise the success screen would unmount.
@@ -212,7 +243,8 @@ export function PosTerminal({
   const live = useMemo(() => (items ?? []).filter((i) => !i.voided_at), [items]);
 
   // ── Customer screen ────────────────────────────────────────────────────────
-  const publish = useDisplayPublisher(scope, brand);
+  const remote = useMemo(() => (demo ? null : { tenantId, register }), [demo, tenantId, register]);
+  const publish = useDisplayPublisher(scope, brand, remote);
   useEffect(() => {
     const imageOf = new Map(menu.products.map((p) => [p.id, p.image_url] as const));
     const state: DisplayState = selected
@@ -242,6 +274,16 @@ export function PosTerminal({
   }, [publish, selected, live, payPhase, menu.products]);
 
   const customerUrl = `/pos/customer${demo ? '?demo=1' : ''}`;
+  const remoteUrl = typeof window === 'undefined' ? '' : `${window.location.origin}/pos/customer?screen=${registerSlug(register)}`;
+  async function copyRemoteUrl() {
+    try {
+      await navigator.clipboard.writeText(remoteUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* the link is on screen */
+    }
+  }
   async function launchCustomerScreen() {
     const r = await openCustomerScreen(customerUrl);
     setToast(r === 'second-screen' ? t('screenSecond') : r === 'window' ? t('screenWindow') : t('screenBlocked'));
@@ -361,14 +403,21 @@ export function PosTerminal({
   };
 
   return (
+    <PrintingProvider db={db} tenantId={tenantId} userId={userId} printers={printers} settings={printSettings} demo={demo}>
     <div className="flex h-dvh overflow-hidden bg-pos-bg text-neutral-900" style={themeStyle}>
       {/* Sidebar */}
       <nav className="hidden w-[76px] shrink-0 flex-col bg-pos-sidebar p-3 text-white md:flex xl:w-60 xl:p-4">
         <div className="mb-6 flex items-center gap-3 px-1 pt-1">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-pos-accent text-lg font-black">K</div>
+          {brand.logoUrl ? (
+            <Image src={brand.logoUrl} alt={restaurantName} width={80} height={80} className="h-10 w-10 shrink-0 rounded-2xl bg-white object-cover" />
+          ) : (
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-pos-accent text-lg font-black uppercase">
+              {restaurantName.trim().charAt(0) || 'K'}
+            </div>
+          )}
           <div className="hidden min-w-0 xl:block">
-            <p className="truncate text-base font-bold leading-tight">Kuik</p>
-            <p className="text-[11px] uppercase tracking-widest text-neutral-400">POS{demo ? ` · ${t('demoBadge')}` : ''}</p>
+            <p className="truncate text-base font-bold leading-tight" title={restaurantName}>{restaurantName}</p>
+            <p className="text-[11px] uppercase tracking-widest text-neutral-400">Kuik POS{demo ? ` · ${t('demoBadge')}` : ''}</p>
           </div>
         </div>
         <div className="flex flex-col gap-1">
@@ -483,13 +532,13 @@ export function PosTerminal({
               title={t('notifications')}
             >
               <Bell className="h-4 w-4" />
-              {(sync.pending > 0 || failed > 0 || !sync.online) && (
+              {(sync.pending > 0 || failed > 0 || failedPrints.length > 0 || !sync.online) && (
                 <span
                   className={`absolute -right-1 -top-1 min-w-[18px] rounded-full px-1 text-[10px] font-bold text-white ${
-                    failed > 0 || !sync.online ? 'bg-red-500' : 'bg-pos-accent'
+                    failed > 0 || failedPrints.length > 0 || !sync.online ? 'bg-red-500' : 'bg-pos-accent'
                   }`}
                 >
-                  {failed > 0 ? failed : sync.pending > 0 ? sync.pending : '!'}
+                  {failed + failedPrints.length > 0 ? failed + failedPrints.length : sync.pending > 0 ? sync.pending : '!'}
                 </span>
               )}
             </button>
@@ -518,6 +567,30 @@ export function PosTerminal({
                     </span>
                     <button onClick={() => retryDead(db)} className="rounded-lg border border-red-300 px-2 py-0.5 text-xs font-medium">
                       {t('retry')}
+                    </button>
+                  </div>
+                )}
+                {failedPrints.length > 0 && (
+                  <div className="mt-1 rounded-xl bg-red-50 px-2 py-1.5 text-red-700">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5">
+                        <Printer className="h-4 w-4" /> {t('printFailed', { n: failedPrints.length })}
+                      </span>
+                      <button
+                        onClick={() => failedPrints.forEach((j) => retryJob(printCtx, j))}
+                        className="rounded-lg border border-red-300 px-2 py-0.5 text-xs font-medium"
+                      >
+                        {t('retry')}
+                      </button>
+                    </div>
+                    <p className="mt-1 truncate text-xs text-red-600/80" title={failedPrints[0].error ?? ''}>
+                      {failedPrints[0].error}
+                    </p>
+                    <button
+                      onClick={() => db.print_jobs.bulkDelete(failedPrints.map((j) => j.id))}
+                      className="mt-1 text-xs text-red-600/80 underline"
+                    >
+                      {t('printDismiss')}
                     </button>
                   </div>
                 )}
@@ -561,6 +634,7 @@ export function PosTerminal({
               posTables={posTables}
               floorTables={floorTables}
               floorPlan={floorPlan}
+              notePlaceholder={notePlaceholder}
             />
           )}
 
@@ -720,6 +794,15 @@ export function PosTerminal({
                         <Cast className="h-4 w-4" /> {t('present')}
                       </button>
                     )}
+                    {!demo && (
+                      <button
+                        data-help="pos_remoteScreen"
+                        onClick={() => setModal('remoteScreen')}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-200 py-3 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
+                      >
+                        <MonitorSmartphone className="h-4 w-4" /> {t('remoteScreen')}
+                      </button>
+                    )}
                     <a
                       href={customerUrl}
                       target="_blank"
@@ -760,6 +843,29 @@ export function PosTerminal({
           <button onClick={confirmNewTab} className={PRIMARY}>
             {t('create')}
           </button>
+        </PosModal>
+      )}
+
+      {modal === 'remoteScreen' && (
+        <PosModal title={t('remoteScreenTitle')} onClose={() => setModal(null)}>
+          <p className="mb-3 text-sm text-neutral-500">{t('remoteScreenHint')}</p>
+          <div className="mb-3 flex justify-center rounded-2xl bg-white p-3 ring-1 ring-neutral-200">
+            <QRCodeSVG value={remoteUrl} size={180} level="M" />
+          </div>
+          <div className="mb-3 flex items-center gap-2">
+            <code className="min-w-0 flex-1 truncate rounded-xl bg-neutral-100 px-3 py-2 text-xs">{remoteUrl}</code>
+            <button onClick={copyRemoteUrl} className="shrink-0 rounded-xl border border-neutral-200 px-3 py-2 text-xs font-semibold">
+              {copied ? t('copied') : t('copyLink')}
+            </button>
+          </div>
+          <label className="mb-1 block text-xs text-neutral-500">{t('registerName')}</label>
+          <input
+            defaultValue={register}
+            onBlur={(e) => saveRegister(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && saveRegister((e.target as HTMLInputElement).value)}
+            className={INPUT}
+          />
+          <p className="mt-1 text-xs text-neutral-400">{t('registerNameHint')}</p>
         </PosModal>
       )}
 
@@ -823,8 +929,9 @@ export function PosTerminal({
         </PosModal>
       )}
 
-      {zShift && <ZReport db={db} shift={zShift} currency={currency} locale={locale} onClose={() => setZShift(null)} />}
+      {zShift && <ZReport db={db} shift={zShift} restaurantName={restaurantName} currency={currency} locale={locale} onClose={() => setZShift(null)} />}
       {demo && <ExplainLayer initialOn={explain} />}
     </div>
+    </PrintingProvider>
   );
 }

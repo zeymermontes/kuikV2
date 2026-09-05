@@ -7,7 +7,8 @@ import { X, Check, Printer, ChefHat } from 'lucide-react';
 import type { PosDexie } from '@/lib/pos/db';
 import type { PosTab, Payment, PaymentMethod, TabItem } from '@/lib/pos/types';
 import { addPayment, closeTab } from '@/lib/pos/payments';
-import { printReceipt } from '@/lib/pos/print';
+import { kickDrawer, printReceipt } from '@/lib/pos/printing';
+import { usePrinting, useReceiptLabels } from './PrintingContext';
 import { formatPrice } from '@/lib/utils';
 import { NumPad } from './NumPad';
 import type { PayPhase } from './SaleScreen';
@@ -49,8 +50,15 @@ export function PaymentSheet({
   onFire: () => void | Promise<void>;
 }) {
   const t = useTranslations('pos');
+  const printing = usePrinting();
+  const labels = useReceiptLabels();
   const methodLabel = (m: PaymentMethod) => t(`method_${m}`);
   const money = (n: number) => formatPrice(n, currency, locale);
+  const receiptMode = printing.settings.receiptMode;
+
+  function print(drawer = false) {
+    printReceipt(printing, tab, items ?? [], payments ?? [], { restaurant: restaurantName, locale, money, labels, drawer, fallback: true });
+  }
 
   const payments = useLiveQuery(() => db.payments.where('tab_id').equals(tab.id).toArray(), [db, tab.id], [] as Payment[]);
   const items = useLiveQuery(() => db.tab_items.where('tab_id').equals(tab.id).toArray(), [db, tab.id], [] as TabItem[]);
@@ -59,13 +67,19 @@ export function PaymentSheet({
   const [tipMode, setTipMode] = useState<'pct' | 'custom'>('pct');
   const [tipCustom, setTipCustom] = useState('');
   const [tipCustomPct, setTipCustomPct] = useState(false);
+  // The tip is figured on the sale itself, never on `tab.total`: once the tab
+  // closes, its total already carries the tip, and a percentage of that would
+  // stack a second tip on the thank-you screen.
+  const base = Math.max(0, tab.subtotal - (tab.discount ?? 0));
   const tip =
-    tipMode === 'custom'
-      ? tipCustomPct
-        ? Math.round(tab.total * (Number(tipCustom) || 0)) / 100
-        : Number(tipCustom) || 0
-      : Math.round(tab.total * tipPct) / 100;
-  const grandTotal = tab.total + tip;
+    tab.status === 'paid'
+      ? tab.tip
+      : tipMode === 'custom'
+        ? tipCustomPct
+          ? Math.round(base * (Number(tipCustom) || 0)) / 100
+          : Number(tipCustom) || 0
+        : Math.round(base * tipPct) / 100;
+  const grandTotal = base + tip;
   const paid = (payments ?? []).reduce((s, p) => s + p.amount, 0);
   const due = Math.max(0, grandTotal - paid);
   const unfired = (items ?? []).filter((i) => !i.voided_at && !i.fired_at);
@@ -124,8 +138,17 @@ export function PaymentSheet({
     setTendered('');
     if (covers) {
       setLastChange(change);
+      const closed = { ...tab, status: 'paid' as const, tip, total: base + tip };
       await closeTab(db, tab, tip);
       setDone(true);
+      // Paper and drawer without a tap, when the restaurant set it up that way.
+      const cashDrawer = method === 'cash' && printing.settings.drawerCash;
+      const allPayments = [...(payments ?? []), { method, amount, change } as Payment];
+      if (receiptMode === 'auto') {
+        printReceipt(printing, closed, items ?? [], allPayments, { restaurant: restaurantName, locale, money, labels, drawer: cashDrawer });
+      } else if (cashDrawer) {
+        kickDrawer(printing);
+      }
     }
   }
 
@@ -143,12 +166,14 @@ export function PaymentSheet({
 
           <div className="mt-6 space-y-2">
             <div className="flex gap-2">
-              <button
-                onClick={() => printReceipt(tab, items ?? [], payments ?? [], restaurantName, currency, locale)}
-                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-neutral-300 py-3 font-semibold text-neutral-700"
-              >
-                <Printer className="h-5 w-5" /> {t('printTicket')}
-              </button>
+              {receiptMode !== 'off' && (
+                <button
+                  onClick={() => print()}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-full border border-neutral-300 py-3 font-semibold text-neutral-700"
+                >
+                  <Printer className="h-5 w-5" /> {t(receiptMode === 'auto' ? 'printAgain' : 'printTicket')}
+                </button>
+              )}
               {unfired.length > 0 && (
                 <button
                   onClick={() => onFire()}
@@ -178,12 +203,11 @@ export function PaymentSheet({
 
         <div className="mb-1 flex items-center justify-between pr-9">
           <h2 className="text-lg font-bold">{t('charge')}</h2>
-          <button
-            onClick={() => printReceipt(tab, items ?? [], payments ?? [], restaurantName, currency, locale)}
-            className="flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-900"
-          >
-            <Printer className="h-4 w-4" /> {t('receipt')}
-          </button>
+          {receiptMode !== 'off' && (
+            <button onClick={() => print()} className="flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-900">
+              <Printer className="h-4 w-4" /> {t('receipt')}
+            </button>
+          )}
         </div>
 
         {/* Big amount due */}
@@ -192,7 +216,7 @@ export function PaymentSheet({
           <p className="text-3xl font-extrabold">{money(due)}</p>
           {tip > 0 && (
             <p className="mt-1 text-xs text-neutral-400">
-              {t('total')} {money(tab.total)} · {t('tip')} {money(tip)}
+              {t('total')} {money(base)} · {t('tip')} {money(tip)}
             </p>
           )}
         </div>

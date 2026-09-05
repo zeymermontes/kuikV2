@@ -32,6 +32,8 @@ import type { PosTab, PosMenu, TabItem, PaymentMethod } from '@/lib/pos/types';
 import { addLineToTab, setItemQty, voidItem, setDiscount, setGuests, voidTab } from '@/lib/pos/tabs';
 import { enqueueUpsert } from '@/lib/pos/sync';
 import { fireToKitchen } from '@/lib/pos/kitchen';
+import { printKitchenTicket } from '@/lib/pos/printing';
+import { usePrinting } from './PrintingContext';
 import { hasOptions } from '@/lib/menu-options';
 import { PosModal } from './PosModal';
 import { formatPrice } from '@/lib/utils';
@@ -81,6 +83,7 @@ export function SaleScreen({
   posTables,
   floorTables = [],
   floorPlan,
+  notePlaceholder = null,
 }: {
   db: PosDexie;
   /** The sale being built; null until the first product is tapped. */
@@ -108,8 +111,11 @@ export function SaleScreen({
   /** Host-stand floor plan, when the restaurant drew one. */
   floorTables?: { label: string; seats: number; area: string | null }[];
   floorPlan?: { tables: FloorTable[]; areas: { id: string; name: string }[] };
+  /** The restaurant's hint for the notes box (tenant_ordering.note_placeholder). */
+  notePlaceholder?: string | null;
 }) {
   const t = useTranslations('pos');
+  const printing = usePrinting();
   const money = (n: number) => formatPrice(n, currency, locale);
   const [activeCat, setActiveCat] = useState<string>(ALL);
   const [sheetProduct, setSheetProduct] = useState<Product | null>(null);
@@ -239,8 +245,11 @@ export function SaleScreen({
     setMenuOpen(false);
     setModal(kind);
   }
-  function fire() {
-    if (tab) fireToKitchen(db, tenantId, userId, tab, live, stationOf);
+  async function fire() {
+    if (!tab) return;
+    const tickets = await fireToKitchen(db, tenantId, userId, tab, live, stationOf);
+    // The KDS shows the ticket either way; paper is for kitchens that want it.
+    if (printing.settings.kitchenAuto) for (const tk of tickets) printKitchenTicket(printing, tk, locale);
   }
   function startPay(method: PaymentMethod) {
     if (!tab || live.length === 0 || !shiftId) return;
@@ -545,6 +554,7 @@ export function SaleScreen({
           showPrice
           currency={currency}
           locale={locale}
+          notePlaceholder={notePlaceholder}
           onClose={() => setSheetProduct(null)}
           onConfirm={async (line) => {
             const target = await ensureTab();
@@ -564,6 +574,7 @@ export function SaleScreen({
               showPrice
               currency={currency}
               locale={locale}
+              notePlaceholder={notePlaceholder}
               initial={{ qty: editItem.qty, note: editItem.note, selections: editItem.selections }}
               onClose={() => setEditItem(null)}
               onConfirm={async (line) => {

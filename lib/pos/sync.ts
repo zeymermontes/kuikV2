@@ -74,6 +74,18 @@ export async function flushOutbox(db: PosDexie, supabase: Supabase): Promise<voi
   }
 }
 
+/**
+ * Print jobs are not pulled down like the other entities — the queue belongs to
+ * the agent — but the terminal wants to know whether what it sent got printed.
+ * After a reconnect, refresh the ones still in flight locally.
+ */
+async function catchUpPrintJobs(db: PosDexie, supabase: Supabase): Promise<void> {
+  const open = await db.print_jobs.where('status').anyOf('queued', 'printing').primaryKeys();
+  if (open.length === 0) return;
+  const { data } = await supabase.from('print_jobs').select('*').in('id', open.slice(0, 200));
+  for (const row of (data ?? []) as Row[]) await applyRemote(db, 'print_jobs', row);
+}
+
 async function catchUp(db: PosDexie, supabase: Supabase, tenantId: string, entity: SyncEntity): Promise<void> {
   const cursorRow = await db.meta.get(`cursor_${entity}`);
   const cursor = typeof cursorRow?.value === 'string' ? cursorRow.value : undefined;
@@ -126,10 +138,20 @@ export function startSync(
       },
     );
   }
+  // Status of the jobs this device queued (done / failed), as the agent reports them.
+  channel = channel.on(
+    'postgres_changes',
+    { event: 'UPDATE', schema: 'public', table: 'print_jobs', filter: `tenant_id=eq.${tenantId}` },
+    async (payload) => {
+      const row = payload.new as Row;
+      if (await db.print_jobs.get(row.id)) applyRemote(db, 'print_jobs', row).then(emit);
+    },
+  );
   channel.subscribe(async (status) => {
     live = status === 'SUBSCRIBED';
     if (live) {
       for (const entity of SYNC_ENTITIES) await catchUp(db, supabase, tenantId, entity);
+      await catchUpPrintJobs(db, supabase);
       await sync();
     }
     emit();

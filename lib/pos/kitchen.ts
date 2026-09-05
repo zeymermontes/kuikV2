@@ -12,9 +12,9 @@ export async function fireToKitchen(
   tab: PosTab,
   items: TabItem[],
   stationOf: (productId: string | null) => string,
-): Promise<void> {
+): Promise<KitchenTicket[]> {
   const unfired = items.filter((i) => !i.voided_at && !i.fired_at);
-  if (unfired.length === 0) return;
+  if (unfired.length === 0) return [];
 
   const byStation = new Map<string, TabItem[]>();
   for (const it of unfired) {
@@ -25,6 +25,7 @@ export async function fireToKitchen(
   }
 
   const t = nowISO();
+  const tickets: KitchenTicket[] = [];
   for (const [station, group] of byStation) {
     const ticketId = newId();
     const ticket: KitchenTicket = {
@@ -43,5 +44,7 @@ export async function fireToKitchen(
     };
     await enqueueUpsert(db, 'kitchen_tickets', ticket);
     for (const g of group) await enqueueUpsert(db, 'tab_items', { ...g, fired_at: t, ticket_id: ticketId });
+    tickets.push(ticket);
   }
+  return tickets;
 }

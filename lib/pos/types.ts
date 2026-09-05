@@ -104,9 +104,13 @@ export interface KitchenTicket {
   updated_at: string;
 }
 
+export type { PrintJob, PrintJobKind, PrintJobStatus, Printer } from '@/lib/database.types';
+
 // Tables that participate in offline sync (local table name === Postgres table name).
-export type SyncEntity = 'tabs' | 'tab_items' | 'payments' | 'register_shifts' | 'kitchen_tickets';
-export const SYNC_ENTITIES: SyncEntity[] = ['tabs', 'tab_items', 'payments', 'register_shifts', 'kitchen_tickets'];
+// print_jobs goes UP through the outbox like the rest but is not pulled down in
+// full: the queue is the agent's, the terminal only hears status changes live.
+export type SyncEntity = 'tabs' | 'tab_items' | 'payments' | 'register_shifts' | 'kitchen_tickets' | 'print_jobs';
+export const SYNC_ENTITIES: Exclude<SyncEntity, 'print_jobs'>[] = ['tabs', 'tab_items', 'payments', 'register_shifts', 'kitchen_tickets'];
 
 /** Channel scope for the dashboard demo pair (`/pos?demo=1` ↔ `/pos/customer?demo=1`); server-safe. */
 export const demoScope = (tenantId: string) => `demo:${tenantId}`;

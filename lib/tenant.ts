@@ -96,6 +96,10 @@ export const getTenantByHostKey = cache(
       transfer_account: null,
       transfer_note: null,
       note_placeholder: null,
+      print_receipt_mode: 'ask',
+      print_kitchen_auto: true,
+      print_drawer_cash: true,
+      receipt_footer: null,
       updated_at: tenant.created_at,
     };
 

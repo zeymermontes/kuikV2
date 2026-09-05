@@ -6,7 +6,9 @@ import type { PosDexie } from '@/lib/pos/db';
 import type { RegisterShift, Payment, PaymentMethod } from '@/lib/pos/types';
 import { Printer, Download } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
-import { printHtml } from '@/lib/pos/print';
+import { printReport } from '@/lib/pos/printing';
+import { zReportDoc } from '@/lib/pos/print-doc';
+import { usePrinting, useZLabels } from './PrintingContext';
 import { PosModal } from './PosModal';
 
 const METHODS: PaymentMethod[] = ['cash', 'card', 'transfer', 'other'];
@@ -14,17 +16,21 @@ const METHODS: PaymentMethod[] = ['cash', 'card', 'transfer', 'other'];
 export function ZReport({
   db,
   shift,
+  restaurantName = '',
   currency,
   locale,
   onClose,
 }: {
   db: PosDexie;
   shift: RegisterShift;
+  restaurantName?: string;
   currency: string;
   locale: string;
   onClose: () => void;
 }) {
   const t = useTranslations('pos');
+  const printing = usePrinting();
+  const zLabels = useZLabels();
   const money = (n: number) => formatPrice(n, currency, locale);
 
   const payments = useLiveQuery(
@@ -50,19 +56,7 @@ export function ZReport({
   const count = (payments ?? []).length;
 
   function printZ() {
-    const row = (l: string, v: string) => `<div class="row"><span>${l}</span><span>${v}</span></div>`;
-    const methods = METHODS.map((m) => row(`${t(`method_${m}`)} ·${by[m].count}`, money(by[m].amount))).join('');
-    printHtml(
-      t('zTitle'),
-      `<h1>${t('zTitle')}</h1>
-       ${row(t('opening'), money(shift.opening_cash))}<hr/>
-       ${methods}
-       ${tips > 0 ? row(t('tips'), money(tips)) : ''}<hr/>
-       <div class="row lg">${row(`${t('totalCharged')} ·${count}`, money(total))}</div><hr/>
-       ${row(t('zExpected'), money(shift.expected_cash ?? 0))}
-       ${row(t('zCounted'), money(shift.closing_cash ?? 0))}
-       <div class="row lg">${row(t('zDiff'), money(shift.over_short ?? 0))}</div>`,
-    );
+    printReport(printing, zReportDoc(shift, payments ?? [], { restaurant: restaurantName, locale, money, labels: zLabels }), shift.id);
   }
 
   function downloadZ() {

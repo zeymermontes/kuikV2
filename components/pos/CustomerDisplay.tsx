@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { Check, Maximize2, UtensilsCrossed } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
-import { IDLE_STATE, useDisplaySubscriber, type DisplayBrand, type DisplayState } from '@/lib/pos/customer-screen';
+import { IDLE_STATE, useDisplaySubscriber, type DisplayBrand, type DisplayState, type RemoteScope } from '@/lib/pos/customer-screen';
 
 /**
  * The second screen: what the guest sees while the cashier builds the sale.
@@ -16,9 +16,12 @@ export function CustomerDisplay({
   scope,
   brand: initialBrand,
   themeStyle,
+  remote = null,
 }: {
   scope: string;
   brand: DisplayBrand;
+  /** Follow a register on another device over Realtime (`?screen=<register>`). */
+  remote?: RemoteScope | null;
   /** Brand colours as CSS variables (lib/pos/theme.ts). */
   themeStyle?: React.CSSProperties;
 }) {
@@ -27,11 +30,15 @@ export function CustomerDisplay({
   const [brand, setBrand] = useState(initialBrand);
   const [fullscreen, setFullscreen] = useState(false);
 
-  useDisplaySubscriber(scope, (s, b) => {
-    setBrand(b);
-    // The cashier closing the receipt sends idle at once; the thank-you stays up a moment first.
-    setState((cur) => (cur.phase === 'paid' && s.phase === 'idle' && Date.now() - cur.at < 8000 ? cur : s));
-  });
+  const link = useDisplaySubscriber(
+    scope,
+    (s, b) => {
+      setBrand(b);
+      // The cashier closing the receipt sends idle at once; the thank-you stays up a moment first.
+      setState((cur) => (cur.phase === 'paid' && s.phase === 'idle' && Date.now() - cur.at < 8000 ? cur : s));
+    },
+    remote,
+  );
 
   useEffect(() => {
     const onChange = () => setFullscreen(!!document.fullscreenElement);
@@ -66,6 +73,17 @@ export function CustomerDisplay({
           <h1 className="text-2xl font-extrabold tracking-tight landscape:text-4xl">{brand.name}</h1>
           {brand.slogan && <p className="mt-1 text-sm text-white/75 landscape:text-lg">{brand.slogan}</p>}
         </div>
+        {remote && (
+          <span
+            className={`absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black/20 px-2.5 py-1 text-[11px] font-medium ${
+              link === 'live' ? 'text-white/70' : 'text-amber-200'
+            }`}
+            title={remote.register}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${link === 'live' ? 'bg-green-400' : 'animate-pulse bg-amber-300'}`} />
+            {link === 'live' ? remote.register : t('remoteConnecting')}
+          </span>
+        )}
         {!fullscreen && (
           <button
             onClick={() => document.documentElement.requestFullscreen?.().catch(() => {})}

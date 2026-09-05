@@ -5,7 +5,7 @@ import { resolveMenuSettings } from '@/lib/menu-settings';
 import { isPro } from '@/lib/plan';
 import { posThemeVars } from '@/lib/pos/theme';
 import { themeVars } from '@/lib/theme-vars';
-import type { Category, FloorTable, Product } from '@/lib/database.types';
+import type { Category, FloorTable, Printer, Product, TenantOrdering } from '@/lib/database.types';
 import { PosTerminal } from '@/components/pos/PosTerminal';
 import { PosLocked } from '@/components/pos/PosLocked';
 import { demoAreas, demoTables } from '@/lib/host/demo';
@@ -22,7 +22,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
   const demo = !!params.demo;
   const explain = demo && !!params.explain;
 
-  const [{ data: categories }, { data: products }, { data: ordering }, { data: floor }, { data: areas }] = await Promise.all([
+  const [{ data: categories }, { data: products }, { data: ordering }, { data: floor }, { data: areas }, { data: printers }] = await Promise.all([
     supabase
       .from('categories')
       .select('*')
@@ -31,10 +31,13 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       .eq('is_visible', true)
       .order('position'),
     supabase.from('products').select('*').eq('tenant_id', tenant.id).eq('is_hidden', false).order('position'),
-    supabase.from('tenant_ordering').select('cash_count_mode, cash_denominations, pos_tables').eq('tenant_id', tenant.id).maybeSingle(),
+    // `*` rather than a column list: a deploy that lands before migration 0065
+    // is applied must still get the cash settings, with the print ones defaulting.
+    supabase.from('tenant_ordering').select('*').eq('tenant_id', tenant.id).maybeSingle(),
     // The host stand's plan, when the restaurant drew one: the POS floor map uses its tables.
     supabase.from('floor_tables').select('*').eq('tenant_id', tenant.id).order('position'),
     supabase.from('reservation_areas').select('id, name').eq('tenant_id', tenant.id).order('position'),
+    supabase.from('printers').select('*').eq('tenant_id', tenant.id).eq('enabled', true).order('position'),
   ]);
   const areaName = new Map(((areas ?? []) as { id: string; name: string }[]).map((a) => [a.id, a.name]));
   let planTables = (floor ?? []) as FloorTable[];
@@ -53,7 +56,11 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
 
   const settings = resolveMenuSettings(theme.settings);
   const currency = settings.currency;
-  const cash = (ordering as { cash_count_mode?: 'total' | 'denominations'; cash_denominations?: number[] | null; pos_tables?: number } | null) ?? null;
+  const cash =
+    (ordering as Pick<
+      TenantOrdering,
+      'cash_count_mode' | 'cash_denominations' | 'pos_tables' | 'print_receipt_mode' | 'print_kitchen_auto' | 'print_drawer_cash' | 'receipt_footer' | 'note_placeholder'
+    > | null) ?? null;
 
   return (
     <PosTerminal
@@ -68,6 +75,14 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       posTables={cash?.pos_tables ?? 0}
       floorTables={floorTables}
       floorPlan={{ tables: planTables, areas: planAreas }}
+      printers={(printers ?? []) as Printer[]}
+      printSettings={{
+        receiptMode: cash?.print_receipt_mode ?? 'ask',
+        kitchenAuto: cash?.print_kitchen_auto ?? true,
+        drawerCash: cash?.print_drawer_cash ?? true,
+        footer: cash?.receipt_footer ?? null,
+      }}
+      notePlaceholder={cash?.note_placeholder ?? null}
       menu={{ categories: (categories ?? []) as Category[], products: (products ?? []) as Product[] }}
       // The menu's own variables too: the product sheet (options, notes) is the
       // public menu's and paints itself with `--brand-*`.
