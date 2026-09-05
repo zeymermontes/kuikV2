@@ -1845,7 +1845,7 @@
     "host_assign_t": "Asignar mesa",
     "host_assign_b": "Entra en modo sentar: eliges la mesa en el plano y el grupo pasa a Sentadas.",
     "host_table_t": "Mesa",
-    "host_table_b": "Color = estado del grupo sentado; lila = reservación próxima; gris = libre. El círculo es cuántas personas; abajo, el mesero. Toca para ver el grupo o sentar a alguien.",
+    "host_table_b": "Cada mesa cuenta su historia con el color y lo que trae escrito. Gris: libre, el número chico son sus lugares. Lila con hora (p. ej. 14:21): tiene una reservación a esa hora, así que no la ocupes con algo largo; el círculo es de cuántas personas. Con color e ícono: el grupo ya está sentado y el ícono dice en qué van (entrada, plato fuerte, postre, cuenta, pagado, limpiar). Punto o borde rojo: se pasaron de su tiempo de mesa. Abajo, el mesero que la atiende. Toca la mesa para ver al grupo o sentar a alguien.",
     "host_addTable_t": "Agregar mesa",
     "host_addTable_b": "Crea una mesa nueva en el plano: nombre, lugares, forma y área."
   }

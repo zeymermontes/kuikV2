@@ -1845,7 +1845,7 @@
     "host_assign_t": "Assign table",
     "host_assign_b": "Enters seating mode: pick the table on the plan and the party moves to Seated.",
     "host_table_t": "Table",
-    "host_table_b": "Colour = the seated party's status; lavender = booking coming up; grey = free. The circle is the party size; below, the server. Tap to see the party or seat someone.",
+    "host_table_b": "Each table tells its story with its colour and what is written on it. Grey: free, the small number is its seats. Lavender with a time (e.g. 14:21): a booking arrives at that time, so do not fill it with something long; the circle is the party size. Coloured with an icon: the party is seated and the icon says where they are (appetizer, entrée, dessert, check, paid, bussing). Red dot or border: they are past their turn time. Below, the server working it. Tap the table to see the party or seat someone.",
     "host_addTable_t": "Add table",
     "host_addTable_b": "Creates a new table on the plan: name, seats, shape and room."
   }
