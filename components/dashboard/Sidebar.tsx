@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -28,7 +28,7 @@ import {
   Menu as MenuIcon,
   X,
 } from 'lucide-react';
-import { ChevronsUpDown, Plus } from 'lucide-react';
+import { ChevronsUpDown, ChevronDown, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { canUse, type PlanTier, type Feature } from '@/lib/plan';
 import type { MemberRole } from '@/lib/database.types';
@@ -122,7 +122,7 @@ export function Sidebar({
   );
 
   const nav = (
-    <nav className="-mx-1 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-1">
+    <nav className="-mx-1 flex flex-col gap-1 px-1">
       {NAV_GROUPS.map((group) => {
         const items = visible.filter((item) => item.group === group);
         if (items.length === 0) return null;
@@ -186,7 +186,7 @@ export function Sidebar({
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-neutral-200 bg-white p-4 md:flex">
         <div className="mb-4 px-2 text-xl font-bold tracking-tight">Kuik</div>
         {switcher}
-        {nav}
+        <ScrollableNav>{nav}</ScrollableNav>
         {footer}
       </aside>
 
@@ -210,7 +210,7 @@ export function Sidebar({
               </button>
             </div>
             {switcher}
-            {nav}
+            <ScrollableNav>{nav}</ScrollableNav>
             {footer}
           </div>
         </div>
@@ -263,6 +263,65 @@ function RestaurantSwitcher({
           </Link>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Scroll container for the nav with a hint that there is more below.
+ *
+ * On macOS the scrollbar is invisible until you scroll, so a group cut off at
+ * the bottom looked like the end of the list. A fade plus a bobbing chevron
+ * shows while there is content below; a fade at the top shows once you have
+ * scrolled. Measured by ResizeObserver (which fires on observe) and on
+ * scroll, so state is only ever set from those callbacks.
+ */
+function ScrollableNav({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState({ up: false, down: false });
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () =>
+      setMore({
+        up: el.scrollTop > 4,
+        down: el.scrollTop + el.clientHeight < el.scrollHeight - 4,
+      });
+    el.addEventListener('scroll', measure, { passive: true });
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    // The nav's own height changes too (a group appears, a badge wraps).
+    if (el.firstElementChild) ro.observe(el.firstElementChild);
+    return () => {
+      el.removeEventListener('scroll', measure);
+      ro.disconnect();
+    };
+  }, []);
+
+  return (
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      <div ref={ref} className="min-h-0 flex-1 overflow-y-auto">
+        {children}
+      </div>
+      <div
+        hidden={!more.up}
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-white to-transparent"
+      />
+      <div
+        hidden={!more.down}
+        className="pointer-events-none absolute inset-x-0 bottom-0 flex h-14 items-end justify-center bg-gradient-to-t from-white via-white/90 to-transparent pb-1"
+      >
+        <button
+          type="button"
+          aria-label="scroll"
+          onClick={() => ref.current?.scrollBy({ top: 200, behavior: 'smooth' })}
+          className="pointer-events-auto flex h-7 w-7 animate-bounce items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-500 shadow-sm"
+        >
+          <ChevronDown className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }
