@@ -1663,7 +1663,8 @@
     "editHint": "Arrastra para mover · doble toque para agregar",
     "noTable": "Sin mesa",
     "prevDay": "Día anterior",
-    "nextDay": "Día siguiente"
+    "nextDay": "Día siguiente",
+    "keptWaiting": "Sigue en lista de espera: cotízale, siéntalo después o quítalo."
   },
   "tutorial": {
     "title": "Tutoriales",

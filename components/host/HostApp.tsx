@@ -96,7 +96,8 @@ export function HostApp({
   const [areaId, setAreaId] = useState<string | null>(areas[0]?.id ?? null);
   const [editMode, setEditMode] = useState(false);
   const [comboPick, setComboPick] = useState<string[] | null>(null);
-  const [seating, setSeating] = useState<{ partyId: string; tableIds: string[]; move: boolean } | null>(null);
+  // `fresh`: a walk-in created seconds ago with "seat now"; backing out must not lose them.
+  const [seating, setSeating] = useState<{ partyId: string; tableIds: string[]; move: boolean; fresh?: boolean } | null>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [collapsed, setCollapsed] = useState<Set<Section>>(new Set());
   const [query, setQuery] = useState('');
@@ -254,6 +255,17 @@ export function HostApp({
     setSeating(null);
   }
 
+  // Backing out of seating a brand-new walk-in: they stay on the waitlist and
+  // their sheet opens, so the host can quote them, seat them later or remove them.
+  function cancelSeating() {
+    const s = seating;
+    setSeating(null);
+    if (s?.fresh) {
+      setSheet({ kind: 'party', id: s.partyId });
+      setToast(t('keptWaiting'));
+    }
+  }
+
   function saveCombo() {
     if (!comboPick || comboPick.length < 2) return;
     const ids = comboPick;
@@ -375,7 +387,7 @@ export function HostApp({
               <span className="font-bold">{seating.move ? t('movingBar', { name: seatingParty.customer_name }) : t('seatingBar', { name: seatingParty.customer_name, n: seatingParty.party_size })}</span>
               <span className="ml-2 text-neutral-500">{seating.tableIds.length ? seating.tableIds.map(labelOf).join(' + ') : t('selectTables')}</span>
             </span>
-            <button onClick={() => setSeating(null)} className="rounded-xl border border-neutral-200 p-2" aria-label={t('cancel')}><X className="h-4 w-4" /></button>
+            <button onClick={cancelSeating} className="rounded-xl border border-neutral-200 p-2" aria-label={t('cancel')}><X className="h-4 w-4" /></button>
             <button onClick={confirmSeating} disabled={seating.tableIds.length === 0} className="rounded-xl bg-pos-accent px-3 py-2 text-sm font-semibold text-pos-accent-text disabled:opacity-40">
               <Check className="mr-1 inline h-4 w-4" /> {seating.move ? t('act_move') : t('seat')}
             </button>
@@ -645,13 +657,13 @@ export function HostApp({
               const r: Reservation = {
                 id: `demo-r-${Date.now()}`, tenant_id: tenantId, branch_id: null, area_id: input.areaId, customer_name: input.name, phone: input.phone,
                 party_size: input.party, date: day, time: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, starts_at: nowIso,
-                note: input.note, status: input.seatNow && tableIds.length ? 'seated' : input.seatNow ? 'arrived' : 'waiting', source: 'walkin', table_ids: tableIds,
+                note: input.note, status: input.seatNow && tableIds.length ? 'seated' : 'waiting', source: 'walkin', table_ids: tableIds,
                 table_status: 'seated', arrived_at: nowIso, seated_at: input.seatNow && tableIds.length ? nowIso : null, finished_at: null,
                 quoted_minutes: input.seatNow ? null : input.quotedMinutes, notified_at: null, server_name: null, tags: input.tags, turn_minutes: null, created_at: nowIso,
               };
               setReservations((cur) => [...cur, r]);
               if (pickLater) {
-                setSeating({ partyId: r.id, tableIds: [], move: false });
+                setSeating({ partyId: r.id, tableIds: [], move: false, fresh: true });
                 showFloor();
               }
               return;
@@ -670,7 +682,7 @@ export function HostApp({
               if (!r) return;
               setReservations((cur) => [...cur.filter((x) => x.id !== r.id), r]);
               if (pickLater) {
-                setSeating({ partyId: r.id, tableIds: [], move: false });
+                setSeating({ partyId: r.id, tableIds: [], move: false, fresh: true });
                 showFloor();
               }
             });

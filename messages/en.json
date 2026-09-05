@@ -1663,7 +1663,8 @@
     "editHint": "Drag to move · double-tap to add",
     "noTable": "No table",
     "prevDay": "Previous day",
-    "nextDay": "Next day"
+    "nextDay": "Next day",
+    "keptWaiting": "Still on the waitlist: quote them, seat them later or remove them."
   },
   "tutorial": {
     "title": "Tutorials",
