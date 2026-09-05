@@ -3,7 +3,7 @@
 import { useMemo, useReducer, useState, useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Search, Globe, MapPin, ChevronDown, ChevronLeft, X, CalendarCheck } from 'lucide-react';
+import { Search, Globe, MapPin, ChevronDown, ChevronLeft, X, CalendarCheck, Clock } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type {
   Tenant,
@@ -28,7 +28,8 @@ import {
   pickImage,
 } from '@/lib/menu-settings';
 import { categoryThemeVars, categoryPageVars, categoryThemeFonts, googleFontsHref } from '@/lib/category-theme';
-import { mapHref } from '@/lib/hours';
+import { mapHref, parseWeekHours } from '@/lib/hours';
+import { HoursSheet } from '@/components/menu/HoursSheet';
 import { digitsOnly, slugify } from '@/lib/utils';
 import { BADGES, badgeLabel } from '@/lib/badges';
 import { hasDetail } from '@/lib/menu-options';
@@ -676,6 +677,8 @@ export function MenuView({
           contact={contact}
           showSocial={settings.showSocial}
           showDirections={settings.showDirections}
+          showHours={settings.showHours}
+          timezone={tenant.timezone}
         />
         {contact.reservations_enabled && !landingEnabled && (
           <button
@@ -708,6 +711,8 @@ export function MenuView({
             contact={contact}
             showSocial={settings.showSocial}
             showDirections={settings.showDirections}
+            showHours={settings.showHours}
+            timezone={tenant.timezone}
           />
           {loyalty.enabled && plan === 'pro' && (
             <LoyaltyButton tenantId={tenant.id} program={loyalty} logoUrl={logo} />
@@ -1147,20 +1152,27 @@ function FacebookIcon({ className }: { className?: string }) {
   );
 }
 
-// "Get directions" + social links as labeled pills in one row.
+// "Get directions", "Hours" + social links as labeled pills in one row.
 function ContactLinks({
   contact,
   showSocial,
   showDirections,
+  showHours,
+  timezone,
 }: {
   contact: TenantContact;
   showSocial: boolean;
   showDirections: boolean;
+  showHours: boolean;
+  timezone: string | null | undefined;
 }) {
   const t = useTranslations('menu');
+  const [hoursOpen, setHoursOpen] = useState(false);
   const map = showDirections ? mapHref(contact.maps_url, contact.address) : null;
-  const items: { href: string; label: string; icon: React.ReactNode }[] = [];
+  const items: { href?: string; onClick?: () => void; label: string; icon: React.ReactNode }[] = [];
   if (map) items.push({ href: map, label: t('directions'), icon: <MapPin className="h-4 w-4" /> });
+  if (showHours && parseWeekHours(contact.hours))
+    items.push({ onClick: () => setHoursOpen(true), label: t('hours'), icon: <Clock className="h-4 w-4" /> });
   if (showSocial) {
     if (contact.instagram)
       items.push({
@@ -1173,20 +1185,22 @@ function ContactLinks({
   }
   if (items.length === 0) return null;
 
+  const pill = 'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium';
+  const pillStyle = { backgroundColor: 'var(--brand-surface)', color: 'var(--brand-primary)' };
   return (
     <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
-      {items.map(({ href, label, icon }, i) => (
-        <a
-          key={i}
-          href={href}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium"
-          style={{ backgroundColor: 'var(--brand-surface)', color: 'var(--brand-primary)' }}
-        >
-          {icon} {label}
-        </a>
-      ))}
+      {items.map(({ href, onClick, label, icon }, i) =>
+        href ? (
+          <a key={i} href={href} target="_blank" rel="noreferrer" className={pill} style={pillStyle}>
+            {icon} {label}
+          </a>
+        ) : (
+          <button key={i} type="button" onClick={onClick} className={pill} style={pillStyle}>
+            {icon} {label}
+          </button>
+        ),
+      )}
+      {hoursOpen && <HoursSheet hours={contact.hours} timezone={timezone} onClose={() => setHoursOpen(false)} />}
     </div>
   );
 }

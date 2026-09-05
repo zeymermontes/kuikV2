@@ -830,6 +830,7 @@
     "sun": "Sun",
     "open": "Open",
     "closed": "Closed",
+    "title": "Opening hours",
     "openNow": "Open now",
     "closedNow": "Closed"
   },
@@ -1031,6 +1032,7 @@
     "search": "Search the menu",
     "clearSearch": "Clear search",
     "directions": "Get directions",
+    "hours": "Hours",
     "reserve": "Reserve",
     "back": "Back",
     "chooseBranch": "Choose branch",

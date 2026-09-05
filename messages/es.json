@@ -830,6 +830,7 @@
     "sun": "Dom",
     "open": "Abierto",
     "closed": "Cerrado",
+    "title": "Horario",
     "openNow": "Abierto ahora",
     "closedNow": "Cerrado"
   },
@@ -1031,6 +1032,7 @@
     "search": "Buscar en el menú",
     "clearSearch": "Limpiar búsqueda",
     "directions": "Cómo llegar",
+    "hours": "Horario",
     "reserve": "Reservar",
     "back": "Volver",
     "chooseBranch": "Elige sucursal",
