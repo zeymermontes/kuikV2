@@ -42,3 +42,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# menu workspaces: restaurant data + a python venv, not code
+/menus/*
+!/menus/README.md
+!/menus/.tools/
+/menus/.tools/.venv/
+/menus/.tools/__pycache__/
