@@ -1706,7 +1706,9 @@
     "host_waitlist_t": "Avisa que la mesa está lista",
     "host_waitlist_b": "En un grupo en espera toca «Mesa lista» para mandarle el WhatsApp; queda como «Avisada» y el cronómetro se pone amarillo o rojo si se pasa de lo cotizado.",
     "host_finish_t": "Termina y libera",
-    "host_finish_b": "«Terminar» libera la mesa y manda la visita a Terminadas. Desde ajustes (engrane) defines turnos, tiempos de mesa por tamaño y minutos de gracia."
+    "host_finish_b": "«Terminar» libera la mesa y manda la visita a Terminadas. Desde ajustes (engrane) defines turnos, tiempos de mesa por tamaño y minutos de gracia.",
+    "openTab": "Abrir tutorial en otra pestaña",
+    "fullscreen": "Pantalla completa"
   },
   "help": {
     "modeOn": "Modo explicar: toca algo",

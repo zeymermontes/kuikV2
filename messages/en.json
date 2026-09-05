@@ -1706,7 +1706,9 @@
     "host_waitlist_t": "Say the table is ready",
     "host_waitlist_b": "On a waiting party tap “Table ready” to send the WhatsApp; it becomes “Notified” and the timer turns yellow or red past the quoted wait.",
     "host_finish_t": "Finish and free the table",
-    "host_finish_b": "“Finish” frees the table and moves the visit to Finished. In settings (gear) you define shifts, turn times by party size and the grace minutes."
+    "host_finish_b": "“Finish” frees the table and moves the visit to Finished. In settings (gear) you define shifts, turn times by party size and the grace minutes.",
+    "openTab": "Open tutorial in a new tab",
+    "fullscreen": "Full screen"
   },
   "help": {
     "modeOn": "Explain mode: tap anything",
