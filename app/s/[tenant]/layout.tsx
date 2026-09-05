@@ -4,7 +4,8 @@ import { PublicIntlProvider } from '@/components/intl/PublicIntlProvider';
 import { HtmlLang } from '@/components/intl/HtmlLang';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES, type Locale } from '@/lib/config';
 import { getTenantByHostKey } from '@/lib/tenant';
-import { resolveMenuSettings, pickImage, SHEET_RADIUS } from '@/lib/menu-settings';
+import { resolveMenuSettings, pickImage } from '@/lib/menu-settings';
+import { themeVars as buildThemeVars, DARK } from '@/lib/theme-vars';
 import { CUSTOM_FONT } from '@/lib/config';
 import { BackgroundMusic } from '@/components/menu/BackgroundMusic';
 
@@ -26,15 +27,6 @@ export async function generateStaticParams(): Promise<Params[]> {
   return [];
 }
 
-/** Quote a font value, mapping the custom-font sentinel to its @font-face name. */
-function fontCss(value: string): string {
-  return `'${value}'`; // both the sentinel and Google names are used verbatim as family
-}
-/** CSS value for a per-element font; falls back to the main menu font. */
-function elementFont(font: string | null): string {
-  return font ? `${fontCss(font)}, var(--brand-font)` : 'var(--brand-font)';
-}
-
 function googleFontsHref(families: string[]): string {
   const params = families
     .map((f) => `family=${f.trim().replace(/ /g, '+')}:wght@400;500;600;700`)
@@ -54,14 +46,6 @@ function tenantLocale(value: string | null | undefined): Locale {
     ? (value as Locale)
     : DEFAULT_LOCALE;
 }
-
-const DARK = {
-  bg: '#111114',
-  text: '#f5f5f5',
-  textSecondary: 'rgba(245,245,245,0.6)',
-  surface: 'rgba(255,255,255,0.07)',
-  border: 'rgba(255,255,255,0.12)',
-};
 
 export async function generateMetadata({
   params,
@@ -123,60 +107,9 @@ export default async function TenantLayout({
   // SSR render, and the restaurant's own zone is the only correct value here.
   const timeZone = data.tenant.timezone || 'America/Mexico_City';
 
-  // Per-tenant theme exposed as CSS variables; consumed by the menu components.
-  const themeVars = {
-    '--brand-primary': theme.primary_color,
-    '--brand-secondary': theme.secondary_color,
-    '--brand-bg': dark ? DARK.bg : theme.background_color,
-    '--brand-text': dark ? DARK.text : theme.text_color,
-    '--brand-text-secondary': dark
-      ? DARK.textSecondary
-      : (theme.text_secondary_color ?? '#737373'),
-    '--brand-surface': dark ? DARK.surface : (theme.card_color ?? '#ffffff'),
-    '--brand-border': dark ? DARK.border : (theme.border_color ?? '#e5e5e5'),
-    '--brand-separator': theme.separator_color ?? '#e5e5e5',
-    '--brand-font': `${fontCss(theme.font_family)}, system-ui, sans-serif`,
-    // Per-element fonts (fall back to the main font).
-    '--font-category': elementFont(theme.font_category),
-    '--font-product': elementFont(theme.font_product),
-    '--font-price': elementFont(theme.font_price),
-    '--font-description': elementFont(theme.font_description),
-    // Per-element typography (bold / italic / size), base sizes in rem.
-    '--fw-category': settings.categoryBold ? '700' : '400',
-    '--fst-category': settings.categoryItalic ? 'italic' : 'normal',
-    '--fs-category': `${1.25 * settings.categorySize}rem`,
-    '--fs-subcategory': `${1.25 * settings.categorySize * settings.subcategorySize}rem`,
-    '--fw-product': settings.productBold ? '700' : '400',
-    '--fst-product': settings.productItalic ? 'italic' : 'normal',
-    '--fs-product': `${1 * settings.productSize}rem`,
-    '--fw-price': settings.priceBold ? '700' : '400',
-    '--fst-price': settings.priceItalic ? 'italic' : 'normal',
-    '--fs-price': `${1 * settings.priceSize}rem`,
-    '--fw-description': settings.descriptionBold ? '700' : '400',
-    '--fst-description': settings.descriptionItalic ? 'italic' : 'normal',
-    '--fs-description': `${0.875 * settings.descriptionSize}rem`,
-    // Category tab bar + colors (fall back to the primary color).
-    // Section bar has its own color ("Barra de secciones"); when unset it uses a
-    // neutral frosted default — independent of the page/card background colors.
-    '--tab-bar-bg':
-      theme.tab_bar_color ??
-      `color-mix(in srgb, ${dark ? DARK.bg : '#ffffff'} 90%, transparent)`,
-    '--tab-selected-bg': theme.tab_selected_color ?? theme.primary_color,
-    '--tab-unselected-bg':
-      theme.tab_unselected_color ??
-      `color-mix(in srgb, ${theme.primary_color} 12%, transparent)`,
-    '--tab-selected-text': theme.tab_font_color ?? '#ffffff',
-    '--tab-unselected-text': theme.tab_font_color ?? theme.primary_color,
-    // Buttons (fall back to the primary color / white text).
-    '--brand-button': theme.button_color ?? theme.primary_color,
-    '--brand-button-text': theme.button_text_color ?? '#ffffff',
-    // Search bar (fall back to surface / text / border).
-    '--search-bg': theme.search_bg_color ?? 'var(--brand-surface)',
-    '--search-text': theme.search_text_color ?? 'var(--brand-text)',
-    '--search-border': theme.search_border_color ?? 'var(--brand-border)',
-    // Cart / product sheets follow the card radius (see SHEET_RADIUS).
-    '--sheet-radius': SHEET_RADIUS[settings.cornerRadius],
-  } as React.CSSProperties;
+  // Per-tenant theme exposed as CSS variables; consumed by the menu components
+  // (and re-applied live by the dashboard preview — see lib/theme-vars.ts).
+  const themeVars = buildThemeVars(theme, settings);
 
   // background image is suppressed in forced-dark mode for legibility
   const showBg = theme.background_image_url && !dark;

@@ -209,6 +209,8 @@ export interface CategoryTheme {
   font_product?: string;
   font_price?: string;
   font_description?: string;
+  /** Full-page backdrop while this section is in view (hosted URL). */
+  background_image?: string;
 }
 
 export interface Category {

@@ -256,7 +256,7 @@ export function ProductCard({
   const twoSided = Boolean(footerPrice || soldOut) && Boolean(addControl);
   const footer = (soldOut || addControl || footerPrice) && (
     <div
-      className={`mt-auto flex items-center gap-2 ${
+      className={`mt-auto flex flex-wrap items-center gap-2 ${
         settings.cardDivider ? 'border-t pt-3' : 'pt-2'
       } ${twoSided ? 'justify-between' : JUSTIFY_CLASS[align]}`}
       style={settings.cardDivider ? { borderColor: 'var(--brand-border)' } : undefined}

@@ -196,6 +196,16 @@ export async function applyFullImport(
     const cn = norm(cat.name);
     if (!cn) return null;
     const iconImage = await resolveImage(supabase, tenantId, cat.image);
+    // The section design, with a bundled backdrop filename turned into a URL.
+    const sectionTheme = async () => {
+      const th = importCategoryTheme(cat);
+      if (th?.background_image) {
+        const url = await resolveImage(supabase, tenantId, th.background_image);
+        if (url) th.background_image = url;
+        else delete th.background_image;
+      }
+      return th && Object.keys(th).length ? th : null;
+    };
     let id = catIdByKey.get(key(parentId, cat.name));
     if (!id) {
       const position = parentId ? (nextSubPos.get(parentId) ?? 0) : nextCatPos++;
@@ -209,7 +219,7 @@ export async function applyFullImport(
           name: cat.name.trim(),
           icon: cat.icon ?? null,
           icon_image_url: iconImage ?? null,
-          theme: importCategoryTheme(cat),
+          theme: await sectionTheme(),
           position,
         })
         .select('id')
@@ -223,7 +233,7 @@ export async function applyFullImport(
       if (iconImage) patch.icon_image_url = iconImage;
       // Any design key present rewrites the scheme (null clears it); none leaves it alone.
       if (cat.theme !== undefined || cat.color !== undefined || cat.background !== undefined) {
-        patch.theme = importCategoryTheme(cat);
+        patch.theme = await sectionTheme();
       }
       if (Object.keys(patch).length) await supabase.from('categories').update(patch).eq('id', id);
     }

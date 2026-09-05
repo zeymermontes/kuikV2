@@ -118,6 +118,7 @@ export function MenuView({
   openReservation = false,
   landingEnabled = false,
   channel = 'online',
+  preview = false,
   menu,
 }: {
   tenant: Tenant;
@@ -135,6 +136,8 @@ export function MenuView({
   landingEnabled?: boolean;
   /** 'qr' = reached from a QR inside the restaurant; 'online' = a shared link. */
   channel?: 'online' | 'qr';
+  /** Inside the dashboard's live preview: never count views. */
+  preview?: boolean;
   menu: MenuCategory[];
 }) {
   const t = useTranslations('menu');
@@ -176,8 +179,6 @@ export function MenuView({
     ordering.ordering_enabled && channelOrdering && Boolean(contact.whatsapp_phone);
   const radiusClass = RADIUS_CLASS[settings.cornerRadius];
   const layout = useMemo(() => resolveItemLayout(settings), [settings]);
-  // The owner may switch photos off outright (Design → "Show product photos").
-  const itemLayout = settings.showImages ? layout : { ...layout, image: 'none' as const };
 
   // Readable anchors: #desayunos rather than #cat-<uuid>. A subcategory is
   // prefixed with its parent so two "Extras" under different sections stay
@@ -282,6 +283,7 @@ export function MenuView({
 
   const trackView = useCallback(
     (productId: string) => {
+      if (preview) return;
       fetch(`/api/track/${tenant.id}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -289,7 +291,7 @@ export function MenuView({
         keepalive: true,
       }).catch(() => {});
     },
-    [tenant.id],
+    [tenant.id, preview],
   );
 
   // Tapping a product always opens its detail sheet (image, options, qty).
@@ -512,17 +514,26 @@ export function MenuView({
   // schemes (see .menu-fade in globals.css) instead of snapping.
   const activeTheme = filteredMenu.find((c) => c.id === effectiveActive)?.theme ?? null;
   const sectionFonts = categoryThemeFonts(filteredMenu.map((c) => c.theme));
+  // Sections with their own backdrop. Every image gets a fixed layer that is
+  // only opaque while its section is in view, so one backdrop cross-fades
+  // into the next (and into the tenant's own, underneath, when a section has
+  // none) instead of popping.
+  const sectionBackdrops = Array.from(
+    new Set(filteredMenu.map((c) => c.theme?.background_image).filter((u): u is string => Boolean(u))),
+  );
 
   // One run of products/separators, shared by a section and its subcategories.
   const EntryList = ({ entries }: { entries: MenuCategory['entries'] }) =>
     entries.length === 0 ? null : (
       <div
-        className={gridContainer ? 'grid grid-cols-2' : 'flex flex-col'}
+        // Two-up only while each card keeps ~15rem: on a narrow phone the
+        // price-and-button row no longer fits, so the grid drops to one column.
+        className={gridContainer ? 'grid grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))]' : 'flex flex-col'}
         style={{ gap: layout.gap }}
       >
         {entries.map((entry) =>
           entry.kind === 'separator' ? (
-            <div key={`s-${entry.id}`} className={gridContainer ? 'col-span-2' : ''}>
+            <div key={`s-${entry.id}`} className={gridContainer ? 'col-span-full' : ''}>
               <SeparatorRow separator={entry} />
             </div>
           ) : (
@@ -535,7 +546,7 @@ export function MenuView({
               qty={qtyByProduct[entry.id] ?? 0}
               orderingEnabled={orderingEnabled}
               openable={orderingEnabled || hasDetail(entry)}
-              layout={itemLayout}
+              layout={layout}
               settings={settings}
               radiusClass={radiusClass}
               onOpen={() => openProduct(entry)}
@@ -551,10 +562,31 @@ export function MenuView({
       className="menu-fade min-h-screen w-full pb-28"
       style={{
         ...categoryPageVars(activeTheme),
-        backgroundColor: activeTheme?.background_color ?? 'transparent',
+        // With a backdrop the colour lives on that layer (under the image), so
+        // the page itself stays clear and lets it through.
+        backgroundColor: activeTheme?.background_image ? 'transparent' : (activeTheme?.background_color ?? 'transparent'),
         color: activeTheme?.text_color,
       }}
     >
+      {sectionBackdrops.map((url) => {
+        const owner = filteredMenu.find((c) => c.theme?.background_image === url)?.theme;
+        return (
+          <div
+            key={url}
+            aria-hidden
+            className="pointer-events-none fixed left-0 top-0 -z-10 transition-opacity duration-700 ease-in-out"
+            style={{
+              width: '100vw',
+              height: '100lvh',
+              backgroundColor: owner?.background_color,
+              backgroundImage: `url(${url})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              opacity: activeTheme?.background_image === url ? 1 : 0,
+            }}
+          />
+        );
+      })}
       {/* Fonts only a section asks for; React hoists the link into <head>. */}
       {sectionFonts.length > 0 && (
         <link rel="stylesheet" precedence="menu-fonts" href={googleFontsHref(sectionFonts)} />
@@ -811,11 +843,9 @@ export function MenuView({
               settings.fullWidthHeader ? '' : `mx-auto w-full ${headerWidthClass}`
             }`}
           >
-          <div
-            className={`flex items-center gap-2 px-4 py-3 ${
-              settings.fullWidthHeader ? 'mx-auto w-max min-w-full justify-center' : ''
-            }`}
-          >
+          {/* Sized to its chips and at least the strip's width: a handful of
+              sections sit centred, more than fit scroll with none clipped. */}
+          <div className="mx-auto flex w-max min-w-full items-center justify-center gap-2 px-4 py-3">
           {filteredMenu.map((cat) => {
             const active = effectiveActive === cat.id;
             // A section with its own design shows it on its tab too.

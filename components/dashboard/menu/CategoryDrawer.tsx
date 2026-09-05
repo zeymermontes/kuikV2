@@ -196,6 +196,17 @@ export function CategoryDrawer({
               </div>
             ))}
           </div>
+          <div className="mt-3">
+            <Label>{t('sectionBackground')}</Label>
+            <ImageUploader
+              value={category.theme?.background_image ?? null}
+              tenantId={tenantId}
+              folder="backgrounds"
+              shape="wide"
+              onChange={(url) => setTheme('background_image', url)}
+            />
+            <p className="mt-1 text-[10px] text-neutral-400">{t('sectionBackgroundHint')}</p>
+          </div>
         </div>
 
         {/* Section banner */}

@@ -272,11 +272,13 @@ export function MenuImportExport({
       if (data.design?.background_image) data.design.background_image = await upload(data.design.background_image);
       for (const c of data.categories ?? []) {
         if (c.image) c.image = await upload(c.image);
+        if (c.theme?.background_image) c.theme.background_image = (await upload(c.theme.background_image)) ?? undefined;
         for (const p of c.products ?? []) {
           if (p.image) p.image = await upload(p.image);
         }
         for (const sub of c.subcategories ?? []) {
           if (sub.image) sub.image = await upload(sub.image);
+          if (sub.theme?.background_image) sub.theme.background_image = (await upload(sub.theme.background_image)) ?? undefined;
           for (const p of sub.products ?? []) {
             if (p.image) p.image = await upload(p.image);
           }
@@ -477,9 +479,11 @@ export function MenuImportExport({
       // round-trips through import without losing them.
       for (const c of payload.categories) {
         if (c.image) c.image = await localize(c.image, `cat-${c.name}`);
+        if (c.theme?.background_image) c.theme.background_image = (await localize(c.theme.background_image, `bg-${c.name}`)) ?? undefined;
         for (const p of c.products ?? []) if (p.image) p.image = await localize(p.image, p.name);
         for (const sub of c.subcategories ?? []) {
           if (sub.image) sub.image = await localize(sub.image, `cat-${sub.name}`);
+          if (sub.theme?.background_image) sub.theme.background_image = (await localize(sub.theme.background_image, `bg-${sub.name}`)) ?? undefined;
           for (const p of sub.products ?? []) if (p.image) p.image = await localize(p.image, p.name);
         }
       }
@@ -648,9 +652,12 @@ const SCHEMA_ES = `{
       // la página se desvanece a estos colores cuando esa sección está en pantalla.
       // Acepta las mismas llaves que "design" (colores #RRGGBB y fuentes), todas opcionales;
       // lo que no pongas hereda del menú. Omite "theme" si la sección no tiene look propio.
+      // "background_image": imagen de fondo de toda la página mientras esta sección está en
+      // pantalla (nombre de archivo en images/ o URL); se desvanece hacia la de la siguiente sección.
       "theme": { "primary_color": "#RRGGBB", "secondary_color": "#RRGGBB", "background_color": "#RRGGBB",
                  "text_color": "#RRGGBB", "card_color": "#RRGGBB", "button_color": "#RRGGBB",
-                 "tab_selected_color": "#RRGGBB", "font_category": "Playfair Display", "font_product": "Outfit" },
+                 "tab_selected_color": "#RRGGBB", "font_category": "Playfair Display", "font_product": "Outfit",
+                 "background_image": "fondo-matcha.jpg" },
       "subcategories": [
         { "name": "Para comenzar", "icon": "🥞", "image": "https://...", "products": [ /* mismos campos que abajo */ ] }
       ],
@@ -803,9 +810,12 @@ const SCHEMA_EN = `{
       // fades to these colours while that section is on screen. Same keys as "design"
       // (#RRGGBB colours and fonts), all optional; anything left out inherits from the menu.
       // Omit "theme" when the section has no look of its own.
+      // "background_image": a full-page backdrop while this section is on screen (filename in
+      // images/ or URL); it cross-fades into the next section's.
       "theme": { "primary_color": "#RRGGBB", "secondary_color": "#RRGGBB", "background_color": "#RRGGBB",
                  "text_color": "#RRGGBB", "card_color": "#RRGGBB", "button_color": "#RRGGBB",
-                 "tab_selected_color": "#RRGGBB", "font_category": "Playfair Display", "font_product": "Outfit" },
+                 "tab_selected_color": "#RRGGBB", "font_category": "Playfair Display", "font_product": "Outfit",
+                 "background_image": "backdrop-matcha.jpg" },
       "subcategories": [
         { "name": "To start", "icon": "🥞", "image": "https://...", "products": [ /* same fields as below */ ] }
       ],

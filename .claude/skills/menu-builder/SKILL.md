@@ -60,7 +60,8 @@ Never invent prices, descriptions or items. Missing → omit the field.
       "name": "Desayunos", "icon": "🥞",  // icon = ONE emoji; or "image": "cat-desayunos.png" for a custom tab icon
       "color": "#2d5a27", "background": "#dfe4c2",   // shorthands: section accent + background
       "theme": { "primary_color": "#…", "background_color": "#…", "text_color": "#…", "card_color": "#…",
-                 "font_category": "Playfair Display", "font_product": "Outfit" },   // or the full section design (any design colour/font key); the page fades to it on scroll
+                 "font_category": "Playfair Display", "font_product": "Outfit",
+                 "background_image": "bg-desayunos.jpg" },   // or the full section design (any design colour/font key); the page fades to it on scroll. background_image = full-page backdrop for the section (file in images/), cross-fades too
       "subcategories": [                    // optional, ONE level; only categories show in the tab bar
         { "name": "Para comenzar", "products": [ /* same shape */ ] }
       ],

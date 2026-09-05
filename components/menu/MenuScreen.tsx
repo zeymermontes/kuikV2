@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { getTenantByHostKey, getMenu, getBranch } from '@/lib/tenant';
-import { MenuView } from './MenuView';
+import { LiveMenu } from './LiveMenu';
 import { PdfMenu } from './PdfMenu';
 
 /**
@@ -49,7 +49,7 @@ export async function MenuScreen({
     : data.contact;
 
   return (
-    <MenuView
+    <LiveMenu
       tenant={data.tenant}
       theme={data.theme}
       contact={contact}

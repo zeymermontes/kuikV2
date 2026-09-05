@@ -146,6 +146,8 @@ def check_category(r: Report, where: str, c, depth: int) -> None:
                 elif k.startswith('font_'):
                     if v not in FONTS:
                         r.warn(f'{where}: theme.{k} "{v}" is not in the curated font list (Google Fonts will still load it)')
+                elif k == 'background_image':
+                    image_ref(r, f'{where} theme', v)
                 else:
                     r.warn(f'{where}: theme.{k} is not a design key; ignored')
     check_products(r, where, c.get('products'))

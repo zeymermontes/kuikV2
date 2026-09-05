@@ -1,28 +1,18 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import type { TenantTheme } from '@/lib/database.types';
 import { MENU_FONTS, CUSTOM_FONT } from '@/lib/config';
-import { BADGES } from '@/lib/badges';
-import {
-  resolveMenuSettings,
-  resolveItemLayout,
-  ALIGN_CLASS,
-  JUSTIFY_CLASS,
-  ITEMS_CLASS,
-  textTransform,
-  pickImage,
-  type MenuSettings,
-  type ItemLayout,
-} from '@/lib/menu-settings';
+import { resolveMenuSettings, type MenuSettings } from '@/lib/menu-settings';
 import { MENU_PRESETS, getPreset, presetSettings } from '@/lib/menu-presets';
 import { Card, Label, Input } from '@/components/ui';
 import { ImageUploader } from '@/components/dashboard/ImageUploader';
 import { FontPicker } from '@/components/dashboard/FontPicker';
 import { CustomFontUploader } from '@/components/dashboard/CustomFontUploader';
 import { MusicUploader } from '@/components/dashboard/MusicUploader';
+import { LivePreview } from '@/components/dashboard/LivePreview';
 
 // Accept 3/4/6/8-digit hex (the 4/8 forms carry alpha).
 const HEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
@@ -54,13 +44,25 @@ import {
   applyMenuPreset,
 } from '@/app/(dashboard)/settings-actions';
 
-export function DesignForm({ theme }: { theme: TenantTheme }) {
+export function DesignForm({
+  theme,
+  previewUrl,
+  published,
+}: {
+  theme: TenantTheme;
+  /** The tenant's public base URL, for the live preview iframe. */
+  previewUrl: string;
+  published: boolean;
+}) {
   const t = useTranslations('design');
   const locale = useLocale();
   const [local, setLocal] = useState(theme);
   const [settings, setSettings] = useState<MenuSettings>(
     resolveMenuSettings(theme.settings),
   );
+
+  // What the live preview renders: the draft theme with the draft settings folded in.
+  const previewTheme = useMemo(() => ({ ...local, settings: settings as unknown as TenantTheme['settings'] }), [local, settings]);
 
   function set<K extends keyof TenantTheme>(key: K, value: TenantTheme[K]) {
     setLocal((s) => ({ ...s, [key]: value }));
@@ -622,7 +624,12 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
           <ToggleRow label={t('animations')} checked={settings.animations} onChange={(v) => setS('animations', v)} />
           <ToggleRow label={t('showAddButton')} checked={settings.showAddButton} onChange={(v) => setS('showAddButton', v)} />
           <ToggleRow label={t('showOptionKind')} checked={settings.showOptionKind} onChange={(v) => setS('showOptionKind', v)} />
-          <ToggleRow label={t('showImages')} checked={settings.showImages} onChange={(v) => setS('showImages', v)} />
+          {/* The same knob as "photo position: none", worded as the question owners ask. */}
+          <ToggleRow
+            label={t('showImages')}
+            checked={settings.imagePosition !== 'none'}
+            onChange={(v) => setS('imagePosition', v ? 'auto' : 'none')}
+          />
           <SelectRow
             label={t('productCase')}
             value={settings.productCase}
@@ -895,7 +902,7 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
       {/* Live preview */}
       <div className="lg:sticky lg:top-6 lg:self-start">
         <Label>{t('preview')}</Label>
-        <Preview local={local} settings={settings} t={t} />
+        <LivePreview url={previewUrl} published={published} theme={previewTheme} />
       </div>
     </div>
   );
@@ -958,404 +965,6 @@ function BrandImage({
         </div>
       </div>
       <p className="mt-2 text-xs text-neutral-500">{hint}</p>
-    </div>
-  );
-}
-
-const BB = BADGES.find((b) => b.key === 'bestseller');
-const BESTSELLER = BB ? { emoji: BB.emoji, label: BB.es, color: BB.color, text: BB.text } : undefined;
-
-function Preview({
-  local,
-  settings,
-  t,
-}: {
-  local: TenantTheme;
-  settings: MenuSettings;
-  t: (key: string) => string;
-}) {
-  const layout = resolveItemLayout(settings);
-  const dark = settings.darkMode === 'on';
-  const bg = dark ? '#111114' : local.background_color;
-  const text = dark ? '#f5f5f5' : local.text_color;
-  const textSec = dark ? 'rgba(245,245,245,.6)' : local.text_secondary_color ?? '#737373';
-  const card = dark ? 'rgba(255,255,255,.07)' : local.card_color ?? '#ffffff';
-  const border = dark ? 'rgba(255,255,255,.12)' : local.border_color ?? '#e5e5e5';
-  const sep = local.separator_color ?? '#e5e5e5';
-  const radius = { none: 0, sm: 8, md: 12, lg: 16, xl: 24 }[settings.cornerRadius] ?? 16;
-
-  const cardStyle: React.CSSProperties = {
-    backgroundColor: layout.surface ? card : undefined,
-    borderRadius: radius,
-    border: layout.surface && settings.cardBorder ? `1px solid ${border}` : undefined,
-    boxShadow: layout.surface && settings.cardShadow ? '0 1px 6px rgba(0,0,0,.08)' : undefined,
-  };
-  // Same fallbacks the public menu uses, so the preview matches it exactly.
-  const p = local.primary_color;
-  const tabSelBg = local.tab_selected_color ?? p;
-  const tabUnselBg = local.tab_unselected_color ?? `color-mix(in srgb, ${p} 12%, transparent)`;
-  const tabSelText = local.tab_font_color ?? '#ffffff';
-  const tabUnselText = local.tab_font_color ?? p;
-  const colors = {
-    text,
-    textSec,
-    primary: p,
-    btnBg: local.button_color ?? p,
-    btnText: local.button_text_color ?? '#ffffff',
-    card,
-    border,
-  };
-  const searchBg = local.search_bg_color ?? local.card_color ?? '#ffffff';
-  const searchText = local.search_text_color ?? text;
-  const searchBorder = local.search_border_color ?? local.border_color ?? '#e5e5e5';
-  const ef = (f: string | null) => (f ? `'${f}', '${local.font_family}'` : `'${local.font_family}'`);
-  const elStyle = (f: string | null, b: boolean, i: boolean, size: number, base: number): React.CSSProperties => ({
-    fontFamily: ef(f),
-    fontWeight: b ? 700 : 400,
-    fontStyle: i ? 'italic' : 'normal',
-    fontSize: `${base * size}rem`,
-  });
-  const styles = {
-    category: elStyle(local.font_category, settings.categoryBold, settings.categoryItalic, settings.categorySize, 1.25),
-    product: elStyle(local.font_product, settings.productBold, settings.productItalic, settings.productSize, 1),
-    price: elStyle(local.font_price, settings.priceBold, settings.priceItalic, settings.priceSize, 1),
-    description: elStyle(local.font_description, settings.descriptionBold, settings.descriptionItalic, settings.descriptionSize, 0.875),
-  };
-
-  const wideLogoPreview =
-    pickImage(local.logo_wide_url, local.logo_wide_dark_url, settings.logoWideVariant, dark) ??
-    pickImage(local.logo_url, local.logo_dark_url, settings.logoVariant, dark);
-
-  const rule = <span className="my-1.5 block h-px w-full" style={{ backgroundColor: sep }} />;
-
-  return (
-    <div
-      className="overflow-hidden rounded-2xl border border-neutral-200 p-5"
-      style={{
-        backgroundColor: bg,
-        color: text,
-        fontFamily: `'${local.font_family}', sans-serif`,
-        backgroundImage: local.background_image_url ? `url(${local.background_image_url})` : undefined,
-        backgroundSize: 'cover',
-      }}
-    >
-      {/* Bar header: back · wordmark · WhatsApp, spanning the preview. */}
-      {settings.headerStyle === 'bar' && (
-        <div
-          className="-mx-5 -mt-5 mb-3 flex items-center gap-2 px-3 py-2"
-          style={{ backgroundColor: local.tab_bar_color ?? '#111114' }}
-        >
-          <span className="flex flex-1 justify-start">
-            <span
-              className="rounded-full border px-2 py-0.5 text-[10px] font-medium"
-              style={{ borderColor: tabSelText, color: tabSelText }}
-            >
-              {t('previewBack')}
-            </span>
-          </span>
-          <span className="flex shrink-0 items-center justify-center">
-            {wideLogoPreview ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={wideLogoPreview}
-                alt=""
-                style={{ height: Math.min(settings.logoWideHeight, 40), width: 'auto' }}
-                className="object-contain"
-              />
-            ) : (
-              <span className="text-sm font-bold" style={{ color: tabSelText }}>
-                Tu Restaurante
-              </span>
-            )}
-          </span>
-          <span className="flex flex-1 justify-end">
-            <span
-              className="rounded-full border px-2 py-0.5 text-[10px] font-medium"
-              style={{ borderColor: tabSelText, color: tabSelText }}
-            >
-              WhatsApp
-            </span>
-          </span>
-        </div>
-      )}
-
-      <div className="space-y-3">
-        {settings.headerStyle !== 'bar' && settings.showName && (
-          <p className="text-xl font-extrabold" style={{ color: text }}>Tu Restaurante</p>
-        )}
-        {settings.showSlogan && local.slogan && (
-          <p className="text-xs" style={{ color: textSec }}>{local.slogan}</p>
-        )}
-
-        {/* Search bar */}
-        {settings.showSearch && (
-          <div
-            className="flex items-center gap-2 rounded-full border px-3 py-2 text-xs"
-            style={{ backgroundColor: searchBg, color: searchText, borderColor: searchBorder }}
-          >
-            <span className="opacity-50">🔍</span>
-            <span className="flex-1 opacity-50">Buscar…</span>
-          </div>
-        )}
-
-        {/* Category tab bar */}
-        <div
-          className="-mx-5 flex gap-2 px-5 py-2"
-          style={{
-            fontFamily: ef(local.font_category),
-            backgroundColor:
-              local.tab_bar_color ?? `color-mix(in srgb, ${dark ? '#111114' : '#ffffff'} 90%, transparent)`,
-          }}
-        >
-          {[
-            { label: 'Entradas', on: true },
-            { label: 'Postres', on: false },
-          ].map((tab) => (
-            <PreviewTab
-              key={tab.label}
-              label={tab.label}
-              active={tab.on}
-              settings={settings}
-              bg={tab.on ? tabSelBg : tabUnselBg}
-              color={tab.on ? tabSelText : tabUnselText}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Section heading */}
-      <div className={`pt-2 ${ALIGN_CLASS[settings.categoryAlign]}`}>
-        {settings.categoryRule === 'both' && rule}
-        <h3
-          style={{
-            color: local.secondary_color,
-            textTransform: textTransform(settings.categoryCase),
-            ...styles.category,
-          }}
-        >
-          Entradas
-        </h3>
-        {settings.categoryRule !== 'none' && rule}
-      </div>
-
-      <div
-        className={layout.columns === 2 ? 'grid grid-cols-2' : 'flex flex-col'}
-        style={{ gap: layout.gap, marginTop: '0.5rem' }}
-      >
-        <PreviewItem
-          layout={layout} settings={settings} cardStyle={cardStyle} colors={colors} styles={styles} radius={radius}
-          name="Tacos al pastor" price="$120" strike="$150" desc="Con piña, cebolla y cilantro." photo badge={BESTSELLER}
-        />
-        {/* Separator */}
-        <div className={`flex items-center gap-3 py-1 ${layout.columns === 2 ? 'col-span-2' : ''}`}>
-          <span className="h-px flex-1" style={{ backgroundColor: sep }} />
-          <span className="text-xs font-medium uppercase tracking-wide" style={{ color: textSec }}>Especiales</span>
-          <span className="h-px flex-1" style={{ backgroundColor: sep }} />
-        </div>
-
-        <PreviewItem
-          layout={layout} settings={settings} cardStyle={cardStyle} colors={colors} styles={styles} radius={radius}
-          name="Quesadilla" price="$80" desc="Queso fundido y guacamole."
-          options={['Pollo', 'Res', 'Chorizo', 'Rajas']}
-        />
-      </div>
-    </div>
-  );
-}
-
-/** One chip in the previewed category bar, honouring the nav icon settings. */
-function PreviewTab({
-  label,
-  active,
-  settings,
-  bg,
-  color,
-}: {
-  label: string;
-  active: boolean;
-  settings: MenuSettings;
-  bg: string;
-  color: string;
-}) {
-  const stacked = settings.navIconPosition === 'top' || settings.navIconPosition === 'bottom';
-  const plain = settings.navTabShape === 'plain';
-  const glyph = <span style={{ fontSize: settings.navIconSize * 0.7, lineHeight: 1 }}>🍽️</span>;
-  const icon = settings.navIconPosition !== 'none' &&
-    (settings.navIconShape === 'circle' ? (
-      <span
-        className="flex shrink-0 items-center justify-center rounded-full"
-        style={{ width: settings.navIconSize * 1.15, height: settings.navIconSize * 1.15, backgroundColor: bg }}
-      >
-        {glyph}
-      </span>
-    ) : (
-      glyph
-    ));
-  return (
-    <span
-      className={`flex items-center text-xs ${stacked ? 'w-16 flex-col gap-1 text-center leading-tight' : 'gap-1.5'} ${
-        plain ? 'px-1' : 'rounded-full px-3 py-1'
-      } ${active ? 'font-bold' : 'font-medium'}`}
-      style={{
-        backgroundColor: plain ? 'transparent' : bg,
-        color,
-        opacity: plain && !active ? 0.7 : 1,
-      }}
-    >
-      {settings.navIconPosition !== 'bottom' && icon}
-      <span>{label}</span>
-      {settings.navIconPosition === 'bottom' && icon}
-    </span>
-  );
-}
-
-function PreviewItem({
-  layout,
-  settings,
-  cardStyle,
-  colors,
-  styles,
-  radius,
-  name,
-  price,
-  strike,
-  desc,
-  badge,
-  photo,
-  options,
-}: {
-  layout: ItemLayout;
-  settings: MenuSettings;
-  cardStyle: React.CSSProperties;
-  colors: { text: string; textSec: string; primary: string; btnBg: string; btnText: string; card: string; border: string };
-  styles: { product: React.CSSProperties; price: React.CSSProperties; description: React.CSSProperties };
-  radius: number;
-  name: string;
-  price: string;
-  strike?: string;
-  desc?: string;
-  badge?: { emoji: string; label: string; color: string; text: string };
-  photo?: boolean;
-  options?: string[];
-}) {
-  const align = layout.align;
-  const showImage = layout.image !== 'none' && Boolean(photo);
-  const beside = showImage && (layout.image === 'left' || layout.image === 'right');
-  const pad = settings.density === 'compact' ? 8 : 12;
-  const flush = showImage && !beside && layout.imageSize === 'full' && layout.surface;
-
-  const ratio = layout.imageRatio === 'video' ? '16 / 9'
-    : layout.imageRatio === 'wide' ? '21 / 9'
-    : layout.imageRatio === 'natural' ? '4 / 3'
-    : '1 / 1';
-  const blockWidth = layout.imageSize === 'full' ? '100%' : layout.imageSize === 'medium' ? '66%' : '33%';
-
-  const img = showImage && (
-    <span
-      className="block shrink-0 bg-neutral-200 bg-gradient-to-br from-neutral-200 to-neutral-300"
-      style={
-        beside
-          ? { width: layout.imageSize === 'thumb' ? 48 : 60, height: layout.imageSize === 'thumb' ? 48 : 60, borderRadius: settings.imageShape === 'circle' ? 999 : settings.imageShape === 'square' ? 0 : 8 }
-          : {
-              width: blockWidth,
-              aspectRatio: ratio,
-              marginLeft: align === 'center' ? 'auto' : align === 'right' ? 'auto' : undefined,
-              marginRight: align === 'center' ? 'auto' : undefined,
-              borderRadius: flush ? 0 : settings.imageShape === 'square' ? 0 : 8,
-            }
-      }
-    />
-  );
-
-  const priceEl = (
-    <span className="inline-flex items-baseline gap-1.5" style={styles.price}>
-      {strike && <span className="text-xs line-through" style={{ color: colors.textSec }}>{strike}</span>}
-      <span style={{ color: colors.primary }}>{price}</span>
-    </span>
-  );
-  const nameEl = (
-    <span style={{ color: colors.text, textTransform: textTransform(settings.productCase), ...styles.product }}>
-      {name}
-      {layout.price === 'inline' && <span className="ml-2">{priceEl}</span>}
-    </span>
-  );
-
-  let titleRow: React.ReactNode = nameEl;
-  if (layout.price === 'below') {
-    titleRow = <>{nameEl}<span className="mt-0.5 block">{priceEl}</span></>;
-  } else if (layout.price === 'dots') {
-    titleRow = (
-      <span className="flex w-full items-baseline gap-2">
-        <span className="shrink-0">{nameEl}</span>
-        <span className="min-w-4 flex-1 border-b border-dotted opacity-40" style={{ borderColor: colors.textSec }} />
-        <span className="shrink-0">{priceEl}</span>
-      </span>
-    );
-  } else if (layout.price === 'right') {
-    titleRow = (
-      <span className="flex w-full items-start justify-between gap-2">{nameEl}{priceEl}</span>
-    );
-  }
-
-  const body = (
-    <div className={`flex min-w-0 flex-1 flex-col ${ALIGN_CLASS[align]} ${ITEMS_CLASS[align]}`}>
-      {badge && settings.showBadges && (
-        <span
-          className="mb-1 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
-          style={{ backgroundColor: badge.color, color: badge.text }}
-        >
-          {badge.emoji} {badge.label}
-        </span>
-      )}
-      {titleRow}
-      {desc && (
-        <p className="mt-1" style={{ color: colors.textSec, textTransform: textTransform(settings.descriptionCase), ...styles.description }}>
-          {desc}
-        </p>
-      )}
-      {settings.showInlineOptions && options && (
-        <div className="mt-1.5 w-full">
-          <span className={`block text-[11px] font-semibold ${ALIGN_CLASS[align]}`} style={{ color: colors.primary }}>
-            Proteína a elegir
-          </span>
-          <div
-            className={`mt-1 grid gap-1 ${align === 'center' ? 'mx-auto w-[85%]' : 'w-full'}`}
-            style={{ gridTemplateColumns: `repeat(${settings.inlineOptionColumns}, minmax(0, 1fr))` }}
-          >
-            {options.map((o) => (
-              <span key={o} className="px-1.5 py-0.5 text-left text-[11px]" style={{ backgroundColor: colors.card, borderRadius: radius / 2 }}>
-                {settings.inlineOptionBullet} {o}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-      {(settings.showAddButton || layout.price === 'footer') && (
-        <span
-          className={`mt-2 flex items-center gap-2 ${
-            layout.price === 'footer' && settings.showAddButton ? 'justify-between' : JUSTIFY_CLASS[align]
-          } ${settings.cardDivider ? 'border-t pt-2' : ''}`}
-          style={settings.cardDivider ? { borderColor: colors.border } : undefined}
-        >
-          {layout.price === 'footer' && priceEl}
-          {settings.showAddButton && (
-            <span className="rounded-full px-4 py-1.5 text-xs font-semibold" style={{ backgroundColor: colors.btnBg, color: colors.btnText }}>
-              Agregar
-            </span>
-          )}
-        </span>
-      )}
-    </div>
-  );
-
-  return (
-    <div
-      className={`flex ${beside ? (layout.image === 'right' ? 'flex-row-reverse gap-3' : 'gap-3') : 'flex-col gap-2'} overflow-hidden`}
-      style={{ ...cardStyle, padding: layout.surface && !flush ? pad : undefined }}
-    >
-      {(layout.image === 'top' || beside) && img}
-      {flush ? <div className="flex flex-1 flex-col" style={{ padding: pad }}>{body}</div> : body}
-      {layout.image === 'bottom' && img}
     </div>
   );
 }

@@ -125,5 +125,7 @@ export function importCategoryTheme(cat: {
   for (const [k, val] of Object.entries(cat.theme ?? {})) {
     if (typeof val === 'string' && val) t[k] = val;
   }
+  // A bundled filename is resolved to a hosted URL by the importer afterwards.
+  if (cat.theme?.background_image === null) delete t.background_image;
   return Object.keys(t).length ? (t as CategoryTheme) : null;
 }
