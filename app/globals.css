@@ -61,3 +61,24 @@ body {
     animation: none;
   }
 }
+
+/* Section designs: the page chrome fades to the section in view (MenuView). */
+.menu-fade,
+.menu-fade nav,
+.menu-fade section,
+.menu-fade h2,
+.menu-fade h3 {
+  transition:
+    background-color 0.6s ease,
+    color 0.6s ease,
+    border-color 0.6s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .menu-fade,
+  .menu-fade nav,
+  .menu-fade section,
+  .menu-fade h2,
+  .menu-fade h3 {
+    transition: none;
+  }
+}

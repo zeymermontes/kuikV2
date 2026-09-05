@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { revalidateTenant } from '@/lib/revalidate';
+import { importCategoryTheme } from '@/lib/category-theme';
 import { requireManager } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { IMPORT_DESIGN_KEYS, type FullImportPayload, type ImportPreview, type ImportProduct,
@@ -196,6 +197,7 @@ export async function applyFullImport(
           name: cat.name.trim(),
           icon: cat.icon ?? null,
           icon_image_url: iconImage ?? null,
+          theme: importCategoryTheme(cat),
           position,
         })
         .select('id')
@@ -207,6 +209,10 @@ export async function applyFullImport(
       const patch: Record<string, unknown> = {};
       if (cat.icon != null) patch.icon = cat.icon;
       if (iconImage) patch.icon_image_url = iconImage;
+      // Any design key present rewrites the scheme (null clears it); none leaves it alone.
+      if (cat.theme !== undefined || cat.color !== undefined || cat.background !== undefined) {
+        patch.theme = importCategoryTheme(cat);
+      }
       if (Object.keys(patch).length) await supabase.from('categories').update(patch).eq('id', id);
     }
     seenCatIds.add(id);

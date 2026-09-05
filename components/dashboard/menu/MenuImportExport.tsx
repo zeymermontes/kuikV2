@@ -420,6 +420,7 @@ export function MenuImportExport({
           name: c.name,
           icon: c.icon ?? undefined,
           image: c.icon_image_url ?? undefined,
+          theme: c.theme ?? undefined,
           products: productsOf(c.id),
           ...(subs.length
             ? {
@@ -427,6 +428,7 @@ export function MenuImportExport({
                   name: sub.name,
                   icon: sub.icon ?? undefined,
                   image: sub.icon_image_url ?? undefined,
+                  theme: sub.theme ?? undefined,
                   products: productsOf(sub.id),
                 })),
               }
@@ -638,6 +640,14 @@ const SCHEMA_ES = `{
       // "Omelettes y huevos", "Chilaquiles"), pon "Desayunos" como categoría y
       // cada título como subcategoría. Solo las categorías aparecen en la barra;
       // las subcategorías se muestran como títulos DENTRO de esa sección.
+      // "theme" (opcional): el diseño PROPIO de esta sección. Úsalo cuando la carta cambia
+      // de look por sección (p.ej. la sección de matcha en verde salvia y la de café en crema):
+      // la página se desvanece a estos colores cuando esa sección está en pantalla.
+      // Acepta las mismas llaves que "design" (colores #RRGGBB y fuentes), todas opcionales;
+      // lo que no pongas hereda del menú. Omite "theme" si la sección no tiene look propio.
+      "theme": { "primary_color": "#RRGGBB", "secondary_color": "#RRGGBB", "background_color": "#RRGGBB",
+                 "text_color": "#RRGGBB", "card_color": "#RRGGBB", "button_color": "#RRGGBB",
+                 "tab_selected_color": "#RRGGBB", "font_category": "Playfair Display", "font_product": "Outfit" },
       "subcategories": [
         { "name": "Para comenzar", "icon": "🥞", "image": "https://...", "products": [ /* mismos campos que abajo */ ] }
       ],
@@ -781,6 +791,14 @@ const SCHEMA_EN = `{
       // and eggs", "Chilaquiles"), make "Breakfast" the category and each heading
       // a subcategory. Only categories appear in the bar; subcategories render as
       // headings INSIDE that section.
+      // "theme" (optional): this section's OWN design. Use it when the menu changes look per
+      // section (e.g. the matcha section on sage green, the coffee section on cream): the page
+      // fades to these colours while that section is on screen. Same keys as "design"
+      // (#RRGGBB colours and fonts), all optional; anything left out inherits from the menu.
+      // Omit "theme" when the section has no look of its own.
+      "theme": { "primary_color": "#RRGGBB", "secondary_color": "#RRGGBB", "background_color": "#RRGGBB",
+                 "text_color": "#RRGGBB", "card_color": "#RRGGBB", "button_color": "#RRGGBB",
+                 "tab_selected_color": "#RRGGBB", "font_category": "Playfair Display", "font_product": "Outfit" },
       "subcategories": [
         { "name": "To start", "icon": "🥞", "image": "https://...", "products": [ /* same fields as below */ ] }
       ],

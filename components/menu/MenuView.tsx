@@ -27,6 +27,7 @@ import {
   showCategoryTitle,
   pickImage,
 } from '@/lib/menu-settings';
+import { categoryThemeVars, categoryPageVars, categoryThemeFonts, googleFontsHref } from '@/lib/category-theme';
 import { mapHref } from '@/lib/hours';
 import { digitsOnly, slugify } from '@/lib/utils';
 import { BADGES, badgeLabel } from '@/lib/badges';
@@ -483,6 +484,28 @@ export function MenuView({
     ? filteredMenu.filter((c) => c.id === effectiveActive)
     : filteredMenu;
 
+  // A section's own design: its variables win inside it (headings, cards,
+  // prices, fonts) and a background tints the block behind its items.
+  const sectionScheme = (cat: MenuCategory): React.CSSProperties => {
+    const t = cat.theme;
+    if (!t) return {};
+    const s: React.CSSProperties = { ...categoryThemeVars(t) };
+    if (t.text_color) s.color = t.text_color;
+    if (t.background_color) {
+      s.backgroundColor = t.background_color;
+      s.marginInline = '-1rem';
+      s.paddingInline = '1rem';
+      s.paddingBlock = '1rem';
+      s.borderRadius = '1.25rem';
+    }
+    return s;
+  };
+
+  // The page chrome follows whichever section is in view and fades between
+  // schemes (see .menu-fade in globals.css) instead of snapping.
+  const activeTheme = filteredMenu.find((c) => c.id === effectiveActive)?.theme ?? null;
+  const sectionFonts = categoryThemeFonts(filteredMenu.map((c) => c.theme));
+
   // One run of products/separators, shared by a section and its subcategories.
   const EntryList = ({ entries }: { entries: MenuCategory['entries'] }) =>
     entries.length === 0 ? null : (
@@ -517,7 +540,18 @@ export function MenuView({
     );
 
   return (
-    <div className="min-h-screen w-full pb-28">
+    <div
+      className="menu-fade min-h-screen w-full pb-28"
+      style={{
+        ...categoryPageVars(activeTheme),
+        backgroundColor: activeTheme?.background_color ?? 'transparent',
+        color: activeTheme?.text_color,
+      }}
+    >
+      {/* Fonts only a section asks for; React hoists the link into <head>. */}
+      {sectionFonts.length > 0 && (
+        <link rel="stylesheet" precedence="menu-fonts" href={googleFontsHref(sectionFonts)} />
+      )}
       {/* Top bar: back · logo · reserve, spanning the viewport. */}
       {barHeader && (
         <div style={{ backgroundColor: 'var(--tab-bar-bg)' }}>
@@ -770,6 +804,14 @@ export function MenuView({
           >
           {filteredMenu.map((cat) => {
             const active = effectiveActive === cat.id;
+            // A section with its own design shows it on its tab too.
+            const ct = cat.theme;
+            const selBg = ct?.tab_selected_color ?? ct?.primary_color;
+            const unselBg =
+              ct?.tab_unselected_color ??
+              (ct?.primary_color ? `color-mix(in srgb, ${ct.primary_color} 12%, transparent)` : undefined);
+            const selText = ct?.tab_font_color ?? (selBg ? '#ffffff' : undefined);
+            const unselText = ct?.tab_font_color ?? ct?.primary_color;
             return (
               <a
                 key={cat.id}
@@ -797,11 +839,15 @@ export function MenuView({
                   backgroundColor: plainNav
                     ? 'transparent'
                     : active
-                      ? 'var(--tab-selected-bg)'
-                      : 'var(--tab-unselected-bg)',
-                  color: active ? 'var(--tab-selected-text)' : 'var(--tab-unselected-text)',
+                      ? (selBg ?? 'var(--tab-selected-bg)')
+                      : (unselBg ?? 'var(--tab-unselected-bg)'),
+                  color: active
+                    ? plainNav
+                      ? (unselText ?? 'var(--tab-selected-text)')
+                      : (selText ?? 'var(--tab-selected-text)')
+                    : (unselText ?? 'var(--tab-unselected-text)'),
                   opacity: plainNav && !active ? 0.7 : 1,
-                  fontFamily: 'var(--font-category)',
+                  fontFamily: ct?.font_category ? `'${ct.font_category}'` : 'var(--font-category)',
                 }}
               >
                 {navIcon !== 'none' && navIcon !== 'bottom' && (
@@ -838,7 +884,7 @@ export function MenuView({
               ref={(el) => {
                 sectionRefs.current[cat.id] = el;
               }}
-              style={{ scrollMarginTop: showNav ? barH + 12 : 24 }}
+              style={{ scrollMarginTop: showNav ? barH + 12 : 24, ...sectionScheme(cat) }}
             >
               {/* Anchors handed out before sections had readable ids. */}
               <span

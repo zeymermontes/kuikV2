@@ -2,7 +2,9 @@
 
 import { Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import type { Category } from '@/lib/database.types';
+import type { Category, CategoryTheme } from '@/lib/database.types';
+import { MENU_FONTS } from '@/lib/config';
+import { CATEGORY_THEME_COLORS, CATEGORY_THEME_FONTS } from '@/lib/category-theme';
 import { Input, Label, Button } from '@/components/ui';
 import { ImageUploader } from '@/components/dashboard/ImageUploader';
 import { Drawer } from './Drawer';
@@ -28,6 +30,14 @@ export function CategoryDrawer({
 }) {
   const t = useTranslations('menuEditor');
   const tc = useTranslations('common');
+
+  // One key at a time; an empty theme is stored as null so "inherit" stays the default.
+  function setTheme(key: keyof CategoryTheme, value: string | null) {
+    const next: CategoryTheme = { ...(category.theme ?? {}) };
+    if (value) next[key] = value;
+    else delete next[key];
+    updateCategory(category.id, { theme: Object.keys(next).length ? next : null });
+  }
 
   return (
     <Drawer
@@ -119,6 +129,72 @@ export function CategoryDrawer({
               />
               <p className="mt-1 text-[10px] text-neutral-400">{t('tabIconHint')}</p>
             </div>
+          </div>
+        </div>
+
+        {/* Section design — its own colours and fonts; the page fades to them as
+            the section scrolls into view. */}
+        <div className="rounded-xl bg-neutral-50 p-3">
+          <div className="mb-2 flex items-start justify-between gap-2">
+            <div>
+              <p className="text-xs font-medium text-neutral-500">{t('sectionDesign')}</p>
+              <p className="text-[10px] text-neutral-400">{t('sectionDesignHint')}</p>
+            </div>
+            {category.theme && (
+              <button
+                type="button"
+                onClick={() => updateCategory(category.id, { theme: null })}
+                className="shrink-0 text-xs text-neutral-400 underline hover:text-neutral-700"
+              >
+                {t('clearDesign')}
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {CATEGORY_THEME_COLORS.map((key) => {
+              const val = category.theme?.[key];
+              return (
+                <div key={key} className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-2 py-1.5">
+                  <input
+                    type="color"
+                    value={val ?? '#ffffff'}
+                    onChange={(e) => setTheme(key, e.target.value)}
+                    className="h-7 w-8 shrink-0 cursor-pointer rounded border border-neutral-200 p-0"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[11px] font-medium">{t(`th_${key}`)}</span>
+                    <span className="block font-mono text-[10px] text-neutral-400">{val ?? t('th_inherit')}</span>
+                  </span>
+                  {val && (
+                    <button
+                      type="button"
+                      onClick={() => setTheme(key, null)}
+                      aria-label={t('clearColor')}
+                      className="px-1 text-neutral-300 hover:text-neutral-600"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {CATEGORY_THEME_FONTS.map((key) => (
+              <div key={key}>
+                <Label>{t(`th_${key}`)}</Label>
+                <select
+                  value={category.theme?.[key] ?? ''}
+                  onChange={(e) => setTheme(key, e.target.value || null)}
+                  className="w-full rounded-lg border border-neutral-300 px-2 py-2 text-sm"
+                >
+                  <option value="">{t('th_inherit')}</option>
+                  {MENU_FONTS.map((f) => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
           </div>
         </div>
 

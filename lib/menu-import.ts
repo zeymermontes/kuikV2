@@ -1,3 +1,5 @@
+import type { CategoryTheme } from '@/lib/database.types';
+
 // Shared shape for the rich menu import (ZIP / AI JSON). The same payload is
 // produced from an Excel sheet (flat → grouped), a ZIP (menu.json + images),
 // or an AI scrape (design + categories + image URLs).
@@ -41,6 +43,12 @@ export interface ImportCategory {
   icon?: string | null;
   /** Image used as the category's icon in the tab bar (URL or bundled filename). */
   image?: string | null;
+  /** Shorthand: one accent for headings, prices, add button and active tab. */
+  color?: string | null;
+  /** Shorthand: the background behind this section's items. */
+  background?: string | null;
+  /** The full section design (any tenant-theme colour/font key); wins over the shorthands. */
+  theme?: Partial<CategoryTheme> | null;
   /** Optional: a parent that only holds subcategories has no products of its own. */
   products?: ImportProduct[];
   /** Sections nested inside this one. One level deep; ignored on a subcategory. */

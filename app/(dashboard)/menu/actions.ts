@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { revalidateTenant } from '@/lib/revalidate';
 import { requireTenant, requireManager } from '@/lib/auth';
-import type { SeparatorStyle, PricedOption, OptionGroup } from '@/lib/database.types';
+import type { SeparatorStyle, PricedOption, OptionGroup, CategoryTheme } from '@/lib/database.types';
 
 /**
  * Editing the menu is manager+. RLS already refuses everyone else, but silently
@@ -128,6 +128,7 @@ export async function updateCategory(
     banner_image_url: string | null;
     is_visible: boolean;
     station: string | null;
+    theme: CategoryTheme | null;
   }>,
 ) {
   const { subdomain, customDomain, supabase } = await ctx();
