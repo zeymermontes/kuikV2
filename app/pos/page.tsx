@@ -8,6 +8,7 @@ import { themeVars } from '@/lib/theme-vars';
 import type { Category, Product } from '@/lib/database.types';
 import { PosTerminal } from '@/components/pos/PosTerminal';
 import { PosLocked } from '@/components/pos/PosLocked';
+import { demoAreas, demoTables } from '@/lib/host/demo';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,11 +37,16 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
     supabase.from('reservation_areas').select('id, name').eq('tenant_id', tenant.id).order('position'),
   ]);
   const areaName = new Map(((areas ?? []) as { id: string; name: string }[]).map((a) => [a.id, a.name]));
-  const floorTables = ((floor ?? []) as { label: string; seats: number; area_id: string | null }[]).map((x) => ({
+  let floorTables = ((floor ?? []) as { label: string; seats: number; area_id: string | null }[]).map((x) => ({
     label: x.label,
     seats: x.seats,
     area: x.area_id ? (areaName.get(x.area_id) ?? null) : null,
   }));
+  // The demo shows the floor bridge even before the restaurant draws a plan.
+  if (demo && floorTables.length === 0) {
+    const names = new Map(demoAreas(tenant.id).map((a) => [a.id, a.name]));
+    floorTables = demoTables(tenant.id).map((x) => ({ label: x.label, seats: x.seats, area: x.area_id ? (names.get(x.area_id) ?? null) : null }));
+  }
 
   const settings = resolveMenuSettings(theme.settings);
   const currency = settings.currency;

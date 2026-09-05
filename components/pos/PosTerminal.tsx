@@ -555,7 +555,7 @@ export function PosTerminal({
               onPaid={() => select(null)}
               onVoided={() => select(null)}
               posTables={posTables}
-              floorLabels={floorTables.map((x) => x.label)}
+              floorTables={floorTables}
             />
           )}
 

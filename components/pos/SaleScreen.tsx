@@ -77,7 +77,7 @@ export function SaleScreen({
   onPaid,
   onVoided,
   posTables,
-  floorLabels = [],
+  floorTables = [],
 }: {
   db: PosDexie;
   /** The sale being built; null until the first product is tapped. */
@@ -102,8 +102,8 @@ export function SaleScreen({
   onVoided: () => void;
   /** Numbered tables on the floor map; 0 = free-text labels only. */
   posTables: number;
-  /** Host-stand floor plan labels, when the restaurant drew one. */
-  floorLabels?: string[];
+  /** Host-stand floor plan, when the restaurant drew one. */
+  floorTables?: { label: string; seats: number; area: string | null }[];
 }) {
   const t = useTranslations('pos');
   const money = (n: number) => formatPrice(n, currency, locale);
@@ -657,29 +657,43 @@ export function SaleScreen({
 
       {modal === 'table' && tab && (
         <PosModal title={t('table')} onClose={() => setModal(null)}>
-          {(posTables > 0 || floorLabels.length > 0) && (
-            <div className="mb-3 grid max-h-56 grid-cols-5 gap-2 overflow-y-auto">
-              {(floorLabels.length > 0 ? floorLabels : Array.from({ length: posTables }, (_, i) => String(i + 1))).map((label) => {
-                const taken = openTabs.find((x) => x.table_label === label && x.id !== tab.id);
-                const current = tab.table_label === label;
-                return (
-                  <button
-                    key={label}
-                    onClick={() => applyTable(label)}
-                    disabled={!!taken}
-                    className={`aspect-square rounded-xl text-sm font-bold ring-1 ring-black/5 disabled:opacity-30 ${
-                      current ? 'bg-pos-accent text-pos-accent-text' : 'bg-neutral-100 hover:bg-neutral-200'
-                    }`}
-                    title={taken ? t('tableTaken') : undefined}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
+          {(posTables > 0 || floorTables.length > 0) && (
+            <div className="mb-3 max-h-64 space-y-3 overflow-y-auto">
+              {(floorTables.length > 0
+                ? [...new Set(floorTables.map((x) => x.area ?? ''))].map((area) => ({
+                    area,
+                    tables: floorTables.filter((x) => (x.area ?? '') === area),
+                  }))
+                : [{ area: '', tables: Array.from({ length: posTables }, (_, i) => ({ label: String(i + 1), seats: 0, area: null })) }]
+              ).map((group) => (
+                <div key={group.area}>
+                  {group.area && <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-400">{group.area}</p>}
+                  <div className="grid grid-cols-5 gap-2">
+                    {group.tables.map(({ label, seats }) => {
+                      const taken = openTabs.find((x) => x.table_label === label && x.id !== tab.id);
+                      const current = tab.table_label === label;
+                      return (
+                        <button
+                          key={label}
+                          onClick={() => applyTable(label)}
+                          disabled={!!taken}
+                          className={`flex aspect-square flex-col items-center justify-center rounded-xl text-sm font-bold ring-1 ring-black/5 disabled:opacity-30 ${
+                            current ? 'bg-pos-accent text-pos-accent-text' : 'bg-neutral-100 hover:bg-neutral-200'
+                          }`}
+                          title={taken ? t('tableTaken') : undefined}
+                        >
+                          {label}
+                          {seats > 0 && <span className="text-[10px] font-medium opacity-60">{seats}</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
           <input
-            autoFocus={posTables === 0 && floorLabels.length === 0}
+            autoFocus={posTables === 0 && floorTables.length === 0}
             value={field}
             onChange={(e) => setField(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && applyTable()}
