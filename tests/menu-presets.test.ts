@@ -30,13 +30,14 @@ test('preset ids are unique and never carry tenant-owned content', () => {
   }
 });
 
-test('matcha resolves to two photo-less columns with the price on the button row', () => {
+test('matcha resolves to two columns, photo on top, price on the button row', () => {
   const matcha = getPreset('matcha');
   assert.ok(matcha);
   const s = resolveMenuSettings(presetSettings(matcha));
   const layout = resolveItemLayout(s);
   assert.equal(layout.columns, 2);
-  assert.equal(layout.image, 'none');
+  assert.equal(layout.image, 'top');
+  assert.equal(layout.imageSize, 'full');
   assert.equal(layout.price, 'footer');
   assert.equal(layout.surface, true);
   assert.equal(s.cardDivider, true);

@@ -188,18 +188,18 @@ const OCEAN: MenuPreset = {
 };
 
 /**
- * Matcha — a matcha-bar app screen: a narrow single column of white text-only
- * cards in a two-up grid, deep-green display headings, a monospace face for
+ * Matcha — a matcha-bar app screen: a narrow column of white cards in a
+ * two-up grid, each with its photo up top, deep-green display headings, a monospace face for
  * descriptions and prices, a hairline across each card with the price on the
  * left and a soft green "add" pill on the right, and light-green tab pills on
- * a frosted strip. No photos: the type does the work.
+ * a frosted strip.
  */
 const MATCHA: MenuPreset = {
   id: 'matcha',
   name: 'Matcha',
   blurb: {
-    es: 'Tarjetas sin foto a dos columnas, verde profundo y tipografía mono.',
-    en: 'Photo-less two-column cards, deep green and a monospace face.',
+    es: 'Tarjetas a dos columnas con la foto arriba, verde profundo y tipografía mono.',
+    en: 'Two-column cards with the photo on top, deep green and a monospace face.',
   },
   swatch: ['#163a24', '#e8f0e5'],
   theme: {
@@ -228,9 +228,9 @@ const MATCHA: MenuPreset = {
   },
   settings: {
     cardStyle: 'grid',
-    imagePosition: 'none', // grid gives the two columns; the photos stay out
-    imageSize: 'auto',
-    imageRatio: 'auto',
+    imagePosition: 'top', // grid gives the two columns; the photo crowns each card
+    imageSize: 'full',
+    imageRatio: 'square',
     itemAlign: 'left',
     priceStyle: 'footer',
     cardDivider: true,
