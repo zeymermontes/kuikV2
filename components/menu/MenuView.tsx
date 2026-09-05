@@ -500,7 +500,10 @@ export function MenuView({
     if (!t) return {};
     const s: React.CSSProperties = { ...categoryThemeVars(t) };
     if (t.text_color) s.color = t.text_color;
-    if (t.background_color) {
+    // A colour alone paints the section as a tinted box. With a backdrop the
+    // colour already sits under the image on the fixed layer, and a box here
+    // would hide the very pattern the owner chose — so the section stays clear.
+    if (t.background_color && !t.background_image) {
       s.backgroundColor = t.background_color;
       s.marginInline = '-1rem';
       s.paddingInline = '1rem';
