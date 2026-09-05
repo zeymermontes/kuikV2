@@ -74,6 +74,9 @@ services:
         sync: false
       - key: RENDER_SERVICE_ID
         sync: false
+      # Download folder for the POS print agent binaries (print-agent/build.sh).
+      - key: NEXT_PUBLIC_PRINT_AGENT_URL
+        value: https://drive.google.com/drive/folders/1sHQck1nZch8xO52dsdpF1jcIzjrJoHwz?usp=drive_link
 
   # Daily trial/subscription reconciliation.
   - type: cron

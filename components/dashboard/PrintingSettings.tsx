@@ -18,9 +18,42 @@ import {
 } from '@/app/(dashboard)/printing-actions';
 
 const ROLES: PrinterRole[] = ['receipt', 'kitchen', 'report'];
+
+// The install steps differ per OS: file name, how to run a downloaded binary,
+// and the warning each OS shows for an unsigned program. Detected from the
+// browser, but the manager may be reading this on a phone about a Windows PC.
+type Platform = 'windows' | 'mac' | 'linux' | 'pi';
+const PLATFORMS: Platform[] = ['windows', 'mac', 'linux', 'pi'];
+const FILES: Record<Platform, string[]> = {
+  windows: ['kuik-print-agent-windows-amd64.exe'],
+  mac: ['kuik-print-agent-darwin-arm64', 'kuik-print-agent-darwin-amd64'],
+  linux: ['kuik-print-agent-linux-amd64'],
+  pi: ['kuik-print-agent-linux-arm64', 'kuik-print-agent-linux-arm'],
+};
+
+function detectPlatform(): Platform {
+  const ua = navigator.userAgent;
+  if (/Windows/i.test(ua)) return 'windows';
+  if (/Mac OS X|Macintosh/i.test(ua)) return 'mac';
+  if (/Linux|X11/i.test(ua)) return 'linux';
+  return 'windows';
+}
+
+function runCommand(platform: Platform, token: string): string {
+  const f = FILES[platform][0];
+  switch (platform) {
+    case 'windows':
+      return `.\\${f} --token ${token}`;
+    case 'mac':
+      return `chmod +x ${f} && xattr -d com.apple.quarantine ${f}\n./${f} --token ${token}`;
+    default:
+      return `chmod +x ${f} && ./${f} --token ${token}`;
+  }
+}
 const WIDTHS: PrinterWidth[] = [32, 48];
 const ONLINE_MS = 90_000;
-const DOWNLOAD_URL = process.env.NEXT_PUBLIC_PRINT_AGENT_URL;
+// Where the built binaries are published (print-agent/build.sh → Google Drive).
+const DOWNLOAD_URL = process.env.NEXT_PUBLIC_PRINT_AGENT_URL || 'https://drive.google.com/drive/folders/1sHQck1nZch8xO52dsdpF1jcIzjrJoHwz?usp=drive_link';
 
 const empty = (agentId: string | null): PrinterInput => ({
   name: '',
@@ -63,10 +96,15 @@ export function PrintingSettings({
   const [saving, setSaving] = useState(false);
   const [test, setTest] = useState<{ printerId: string; state: 'sending' | 'queued' | 'done' | 'failed'; error?: string | null } | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [platform, setPlatform] = useState<Platform>('windows');
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 15_000);
     return () => clearInterval(id);
+  }, []);
+  useEffect(() => {
+    const id = setTimeout(() => setPlatform(detectPlatform()), 0);
+    return () => clearTimeout(id);
   }, []);
 
   function set<K extends keyof TenantOrdering>(key: K, value: TenantOrdering[K]) {
@@ -182,9 +220,26 @@ export function PrintingSettings({
                 {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               </Button>
             </div>
-            <ol className="list-decimal space-y-1 pl-5 text-amber-900">
+            <div>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-amber-700">{t('platform')}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {PLATFORMS.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPlatform(p)}
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                      platform === p ? 'border-amber-900 bg-amber-900 text-white' : 'border-amber-300 bg-white text-amber-900'
+                    }`}
+                  >
+                    {t(`platform_${p}`)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <ol className="list-decimal space-y-2 pl-5 text-amber-900">
               <li>
-                {t('step1')}
+                {t(`step1_${platform}`)}
                 {DOWNLOAD_URL && (
                   <>
                     {' '}
@@ -193,13 +248,23 @@ export function PrintingSettings({
                     </a>
                   </>
                 )}
+                <ul className="mt-1 list-none space-y-0.5 pl-0 font-mono text-xs">
+                  {FILES[platform].map((f, i) => (
+                    <li key={f}>
+                      {f}
+                      <span className="ml-1 font-sans text-amber-700">{t(`file_${platform}_${i}`)}</span>
+                    </li>
+                  ))}
+                </ul>
               </li>
               <li>
-                {t('step2')}
-                <pre className="mt-1 overflow-x-auto rounded-lg bg-white px-2 py-1.5 font-mono text-xs">
-                  kuik-print-agent --token {newAgent.token}
+                {t(`step2_${platform}`)}
+                <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-all rounded-lg bg-white px-2 py-1.5 font-mono text-xs">
+                  {runCommand(platform, newAgent.token)}
                 </pre>
+                <p className="mt-1 rounded-lg bg-white/60 px-2 py-1.5 text-xs">{t(`warning_${platform}`)}</p>
               </li>
+              <li>{t(`step3_${platform}`)}</li>
               <li>{t('step3')}</li>
             </ol>
             <Button variant="ghost" onClick={() => setNewAgent(null)} className="px-2 py-1 text-xs">

@@ -19,8 +19,9 @@ down. The POS picks the path by itself.
 
 1. In Kuik go to **Pedidos → Impresión → Agregar agente**. Copy the token; it
    is shown once.
-2. Download the binary for the machine (`build.sh` produces them; publish them
-   at the URL in `NEXT_PUBLIC_PRINT_AGENT_URL`):
+2. Download the binary for the machine. `build.sh` produces them; the published
+   copies live in a Google Drive folder (https://drive.google.com/drive/folders/1sHQck1nZch8xO52dsdpF1jcIzjrJoHwz?usp=drive_link),
+   which the dashboard links to (override with `NEXT_PUBLIC_PRINT_AGENT_URL`):
 
    | Machine | File |
    |---|---|
@@ -38,6 +39,21 @@ down. The POS picks the path by itself.
 
    The token is saved (`%APPDATA%\Kuik\print-agent.json` on Windows,
    `~/.kuik/print-agent.json` elsewhere) and is not needed again.
+
+   The binaries are not code-signed yet, so each OS warns once:
+
+   - **Windows** shows "Windows protected your PC" (SmartScreen). Click
+     *More info → Run anyway*. Avoiding this needs an Authenticode certificate
+     and signing the `.exe` in `build.sh`.
+   - **macOS** refuses to open a downloaded binary that is not notarized.
+     Clear the quarantine flag before running it:
+     ```
+     chmod +x kuik-print-agent-darwin-arm64
+     xattr -d com.apple.quarantine kuik-print-agent-darwin-arm64
+     ```
+     or allow it in *System Settings → Privacy & Security → Open Anyway*.
+     Avoiding this needs an Apple Developer account and `notarytool`.
+   - **Linux / Raspberry Pi** only needs `chmod +x`.
 4. Back in Kuik, add the printers and pick this agent on each one. Press
    **Probar**: a test page should come out within a couple of seconds.
 
