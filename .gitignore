@@ -49,3 +49,6 @@ next-env.d.ts
 !/menus/.tools/
 /menus/.tools/.venv/
 /menus/.tools/__pycache__/
+
+# print agent binaries: built with print-agent/build.sh, published outside git
+/print-agent/dist/
