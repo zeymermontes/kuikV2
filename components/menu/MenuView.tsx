@@ -526,11 +526,15 @@ export function MenuView({
   const EntryList = ({ entries }: { entries: MenuCategory['entries'] }) =>
     entries.length === 0 ? null : (
       <div
-        // Two-up only while each card keeps ~14rem: two fit the "narrow" column
-        // on a desktop (512px) but not a phone, where the price-and-button row
-        // would no longer fit, so there the grid drops to one column.
-        className={gridContainer ? 'grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))]' : 'flex flex-col'}
-        style={{ gap: layout.gap }}
+        // Two-up only while each card keeps ~13rem: two fit the "narrow" column
+        // on a desktop (512px minus the page and section padding) but not a
+        // phone, where the price-and-button row would no longer fit, so there
+        // the grid drops to one column.
+        className={gridContainer ? 'grid' : 'flex flex-col'}
+        style={{
+          gap: layout.gap,
+          gridTemplateColumns: gridContainer ? 'repeat(auto-fit, minmax(min(100%, 13rem), 1fr))' : undefined,
+        }}
       >
         {entries.map((entry) =>
           entry.kind === 'separator' ? (
