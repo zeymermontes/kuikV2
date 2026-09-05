@@ -47,24 +47,33 @@ import { HandoffBadge } from './HandoffBadge';
 // These `roles` lists and the requireRole() guards in lib/auth.ts must agree.
 // The nav only hides a link; the guard is what actually stops someone typing
 // the URL. Change one, change the other.
+// Grouped by how often a restaurant opens each screen: the daily desk first,
+// what shapes the menu next, growth tools, and one-time setup last. A group
+// with nothing visible for this role or plan simply is not drawn.
+const NAV_GROUPS = ['ops', 'brand', 'growth', 'settings'] as const;
 const NAV = [
-  { href: '/dashboard', icon: LayoutDashboard, key: 'dashboard', roles: ['owner', 'manager'] },
-  { href: '/menu', icon: UtensilsCrossed, key: 'menu', roles: ['owner', 'manager', 'cashier', 'waiter', 'host'] },
-  { href: '/orders', icon: ClipboardList, key: 'orders', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true },
-  { href: '/pos', icon: Calculator, key: 'pos', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true, feature: 'pos' },
-  { href: '/kds', icon: Monitor, key: 'kds', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true },
-  { href: '/reservations', icon: CalendarCheck, key: 'reservations', roles: ['owner', 'manager', 'cashier', 'waiter', 'host'] },
-  { href: '/whatsapp', icon: MessageCircle, key: 'whatsapp', roles: ['owner', 'manager'] },
-  { href: '/loyalty', icon: Gift, key: 'loyalty', roles: ['owner', 'manager', 'waiter'], feature: 'loyalty' },
-  { href: '/reports', icon: BarChart3, key: 'reports', roles: ['owner', 'manager'], feature: 'pro_reports' },
-  { href: '/branches', icon: Store, key: 'branches', roles: ['owner', 'manager'], feature: 'branches' },
-  { href: '/landing', icon: Home, key: 'landing', roles: ['owner'] },
-  { href: '/design', icon: Palette, key: 'design', roles: ['owner'] },
-  { href: '/ordering', icon: ShoppingBag, key: 'ordering', roles: ['owner'] },
-  { href: '/contact', icon: Phone, key: 'contact', roles: ['owner'] },
-  { href: '/staff', icon: Users, key: 'staff', roles: ['owner'] },
-  { href: '/domain', icon: Globe, key: 'domain', roles: ['owner'], feature: 'custom_domain' },
-  { href: '/billing', icon: CreditCard, key: 'billing', roles: ['owner'] },
+  // Operación
+  { group: 'ops', href: '/dashboard', icon: LayoutDashboard, key: 'dashboard', roles: ['owner', 'manager'] },
+  { group: 'ops', href: '/reservations', icon: CalendarCheck, key: 'reservations', roles: ['owner', 'manager', 'cashier', 'waiter', 'host'] },
+  { group: 'ops', href: '/orders', icon: ClipboardList, key: 'orders', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true },
+  { group: 'ops', href: '/whatsapp', icon: MessageCircle, key: 'whatsapp', roles: ['owner', 'manager'] },
+  { group: 'ops', href: '/pos', icon: Calculator, key: 'pos', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true, feature: 'pos' },
+  { group: 'ops', href: '/kds', icon: Monitor, key: 'kds', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true },
+  // Menú y marca
+  { group: 'brand', href: '/menu', icon: UtensilsCrossed, key: 'menu', roles: ['owner', 'manager', 'cashier', 'waiter', 'host'] },
+  { group: 'brand', href: '/design', icon: Palette, key: 'design', roles: ['owner'] },
+  { group: 'brand', href: '/landing', icon: Home, key: 'landing', roles: ['owner'] },
+  { group: 'brand', href: '/branches', icon: Store, key: 'branches', roles: ['owner', 'manager'], feature: 'branches' },
+  // Crecimiento
+  { group: 'growth', href: '/loyalty', icon: Gift, key: 'loyalty', roles: ['owner', 'manager', 'waiter'], feature: 'loyalty' },
+  { group: 'growth', href: '/reports', icon: BarChart3, key: 'reports', roles: ['owner', 'manager'], feature: 'pro_reports' },
+  // Configuración
+  { group: 'settings', href: '/ordering', icon: ShoppingBag, key: 'ordering', roles: ['owner'] },
+  { group: 'settings', href: '/contact', icon: Phone, key: 'contact', roles: ['owner'] },
+  { group: 'settings', href: '/staff', icon: Users, key: 'staff', roles: ['owner'] },
+  { group: 'settings', href: '/domain', icon: Globe, key: 'domain', roles: ['owner'], feature: 'custom_domain' },
+  { group: 'settings', href: '/billing', icon: CreditCard, key: 'billing', roles: ['owner'] },
+
 ] as const;
 
 export function Sidebar({
@@ -105,35 +114,44 @@ export function Sidebar({
     <RestaurantSwitcher tenants={tenants} activeId={activeTenantId} newLabel={t('newRestaurant')} />
   );
 
+  const visible = NAV.filter(
+    (item) =>
+      (item.roles as readonly string[]).includes(role) &&
+      (!('dev' in item && item.dev) || showDevFeatures) &&
+      (!('feature' in item && item.feature) || !enforcePlan || canUse(plan, item.feature as Feature)),
+  );
+
   const nav = (
     <nav className="-mx-1 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-1">
-      {NAV.filter(
-        (item) =>
-          (item.roles as readonly string[]).includes(role) &&
-          (!('dev' in item && item.dev) || showDevFeatures) &&
-          (!('feature' in item && item.feature) ||
-            !enforcePlan ||
-            canUse(plan, item.feature as Feature)),
-      ).map(
-        ({ href, icon: Icon, key }) => (
-          <NavLink
-            key={href}
-            href={href}
-            // /whatsapp has subroutes (flows, inbox); the item stays lit there.
-            active={pathname === href || (href === '/whatsapp' && pathname.startsWith('/whatsapp/'))}
-            icon={Icon}
-            onClick={() => setOpen(false)}
-          >
-            {t(key)}
-            {key === 'reservations' && (
-              <PendingReservationsBadge tenantId={activeTenantId} initial={pendingReservations} />
-            )}
-            {key === 'whatsapp' && (
-              <HandoffBadge tenantId={activeTenantId} initial={pendingHandoffs} />
-            )}
-          </NavLink>
-        ),
-      )}
+      {NAV_GROUPS.map((group) => {
+        const items = visible.filter((item) => item.group === group);
+        if (items.length === 0) return null;
+        return (
+          <div key={group} className="flex flex-col gap-1 [&+&]:mt-3">
+            <p className="px-3 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
+              {t(`group_${group}`)}
+            </p>
+            {items.map(({ href, icon: Icon, key }) => (
+              <NavLink
+                key={href}
+                href={href}
+                // /whatsapp has subroutes (flows, inbox); the item stays lit there.
+                active={pathname === href || (href === '/whatsapp' && pathname.startsWith('/whatsapp/'))}
+                icon={Icon}
+                onClick={() => setOpen(false)}
+              >
+                {t(key)}
+                {key === 'reservations' && (
+                  <PendingReservationsBadge tenantId={activeTenantId} initial={pendingReservations} />
+                )}
+                {key === 'whatsapp' && (
+                  <HandoffBadge tenantId={activeTenantId} initial={pendingHandoffs} />
+                )}
+              </NavLink>
+            ))}
+          </div>
+        );
+      })}
       {isSuperAdmin && (
         <NavLink href="/admin" active={pathname.startsWith('/admin')} icon={Shield} onClick={() => setOpen(false)}>
           {t('superAdmin')}

@@ -46,6 +46,10 @@
     "needPro": "You need a Pro restaurant to add another."
   },
   "nav": {
+    "group_ops": "Operations",
+    "group_brand": "Menu & brand",
+    "group_growth": "Growth",
+    "group_settings": "Settings",
     "dashboard": "Dashboard",
     "menu": "Menu",
     "orders": "Orders",
@@ -54,7 +58,7 @@
     "reservations": "Reservations",
     "landing": "Home",
     "design": "Design",
-    "ordering": "Ordering",
+    "ordering": "Ordering setup",
     "loyalty": "Loyalty",
     "reports": "Reports",
     "branches": "Branches",

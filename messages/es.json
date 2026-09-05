@@ -46,6 +46,10 @@
     "needPro": "Necesitas un restaurante en plan Pro para agregar otro."
   },
   "nav": {
+    "group_ops": "Operación",
+    "group_brand": "Menú y marca",
+    "group_growth": "Crecimiento",
+    "group_settings": "Configuración",
     "dashboard": "Panel",
     "menu": "Menú",
     "orders": "Pedidos",
@@ -54,7 +58,7 @@
     "reservations": "Reservaciones",
     "landing": "Inicio",
     "design": "Diseño",
-    "ordering": "Pedidos",
+    "ordering": "Cómo se ordena",
     "loyalty": "Lealtad",
     "reports": "Reportes",
     "branches": "Sucursales",
