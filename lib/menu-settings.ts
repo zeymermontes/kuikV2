@@ -20,7 +20,8 @@ export type ImagePosition = 'auto' | 'top' | 'bottom' | 'left' | 'right' | 'none
 export type ImageSize = 'auto' | 'thumb' | 'medium' | 'full';
 export type ImageRatio = 'auto' | 'natural' | 'square' | 'video' | 'wide';
 export type TextAlign = 'auto' | 'left' | 'center' | 'right';
-export type PriceStyle = 'auto' | 'right' | 'inline' | 'dots' | 'below';
+/** 'footer' — the price shares the bottom row with the add button. */
+export type PriceStyle = 'auto' | 'right' | 'inline' | 'dots' | 'below' | 'footer';
 export type Surface = 'auto' | 'on' | 'off';
 export type ItemSpacing = 'auto' | 'none' | 'tight' | 'normal' | 'loose' | 'roomy';
 
@@ -66,6 +67,8 @@ export interface MenuSettings {
   cornerRadius: CornerRadius;
   cardBorder: boolean;
   cardShadow: boolean;
+  /** A hairline between the item's text and its price/button row. */
+  cardDivider: boolean;
   density: Density;
   animations: boolean;
   navMode: NavMode;
@@ -156,6 +159,7 @@ export const DEFAULT_MENU_SETTINGS: MenuSettings = {
   cornerRadius: 'lg',
   cardBorder: false,
   cardShadow: true,
+  cardDivider: false,
   density: 'comfortable',
   animations: true,
   navMode: 'scroll',
@@ -227,6 +231,19 @@ export const RADIUS_CLASS: Record<CornerRadius, string> = {
   md: 'rounded-xl',
   lg: 'rounded-2xl',
   xl: 'rounded-3xl',
+};
+
+/**
+ * Corner radius of the cart and product sheets, keyed off the same knob as the
+ * cards. The middle steps keep the value the sheets always had, so only a
+ * tenant on the extremes sees a change.
+ */
+export const SHEET_RADIUS: Record<CornerRadius, string> = {
+  none: '0.75rem',
+  sm: '1rem',
+  md: '1.25rem',
+  lg: '1.5rem',
+  xl: '2.5rem',
 };
 
 export const IMAGE_SHAPE_CLASS: Record<ImageShape, string> = {

@@ -48,6 +48,9 @@ export const MENU_FONTS = [
   'Lora',
   'Montserrat',
   'Roboto Slab',
+  // Geometric display + monospace pair; the Matcha preset leans on both.
+  'Outfit',
+  'Space Mono',
 ] as const;
 export type MenuFont = (typeof MENU_FONTS)[number];
 

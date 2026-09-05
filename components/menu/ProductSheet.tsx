@@ -98,31 +98,38 @@ export function ProductSheet({
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div className="animate-fade absolute inset-0 bg-black/50" onClick={onClose} />
 
-      <div className="animate-slide-up relative flex max-h-[88dvh] w-full max-w-lg flex-col rounded-t-3xl bg-white text-neutral-900 sm:rounded-3xl">
+      <div className="animate-slide-up relative flex max-h-[88dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-[var(--sheet-radius)] sm:rounded-[var(--sheet-radius)]"
+        style={{ backgroundColor: 'var(--brand-surface)', color: 'var(--brand-text)', fontFamily: 'var(--brand-font)' }}>
         <button
           onClick={onClose}
           aria-label="close"
-          className="absolute right-3 top-3 z-10 rounded-full bg-white/90 p-1.5 text-neutral-600 shadow"
+          className="absolute right-3 top-3 z-10 rounded-full p-1.5 shadow"
+          style={{ backgroundColor: 'var(--brand-surface)', color: 'var(--brand-text-secondary)' }}
         >
           <X className="h-5 w-5" />
         </button>
 
         <div className="flex-1 overflow-y-auto">
           {product.image_url && (
-            <div className="relative aspect-video w-full overflow-hidden rounded-t-3xl">
+            <div className="relative aspect-video w-full overflow-hidden rounded-t-[var(--sheet-radius)]">
               <Image src={product.image_url} alt={product.name} fill className="object-cover" />
             </div>
           )}
 
           <div className="px-5 py-4">
-            <h2 className="text-xl font-bold">{product.name}</h2>
+            <h2 className="text-xl font-bold" style={{ fontFamily: 'var(--font-product)' }}>{product.name}</h2>
             {readOnly && showPrice && product.price != null && (
-              <p className="mt-1 text-lg font-semibold" style={{ color: 'var(--brand-primary)' }}>
+              <p className="mt-1 text-lg font-semibold" style={{ color: 'var(--brand-primary)', fontFamily: 'var(--font-price)' }}>
                 {formatPrice(product.price, currency, locale)}
               </p>
             )}
             {product.description && (
-              <p className="mt-1 whitespace-pre-line text-sm text-neutral-500">{product.description}</p>
+              <p
+                className="mt-1 whitespace-pre-line text-sm"
+                style={{ color: 'var(--brand-text-secondary)', fontFamily: 'var(--font-description)' }}
+              >
+                {product.description}
+              </p>
             )}
 
             {groups.map((g) => {
@@ -135,26 +142,30 @@ export function ProductSheet({
                       className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
                         optionKind(g) === 'takeaway'
                           ? 'bg-amber-100 text-amber-800'
-                          : 'bg-neutral-100 text-neutral-600'
+                          : 'bg-[var(--tab-unselected-bg)] text-[var(--brand-text-secondary)]'
                       }`}
                     >
                       {t(optionKind(g) === 'takeaway' ? 'optionsTakeaway' : 'optionsDish')}
                     </span>
                     {!readOnly && g.required && (
-                      <span className="rounded-full bg-neutral-900 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                      <span className="rounded-full bg-[var(--brand-button)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--brand-button-text)]">
                         {t('required')}
                       </span>
                     )}
                     {!readOnly && !g.required && (
-                      <span className="text-xs text-neutral-400">{t('optional')}</span>
+                      <span className="text-xs text-[var(--brand-text-secondary)]">{t('optional')}</span>
                     )}
                   </div>
-                  {g.description && <p className="-mt-1 mb-2 text-xs text-neutral-400">{g.description}</p>}
+                  {g.description && <p className="-mt-1 mb-2 text-xs text-[var(--brand-text-secondary)]">{g.description}</p>}
                   <div className="space-y-2">
                     {g.options.map((o, i) => (
                       <label
                         key={i}
-                        className={`flex items-center justify-between rounded-xl border border-neutral-200 px-3 py-2.5 ${
+                        className={`flex items-center justify-between rounded-xl border px-3 py-2.5 transition ${
+                          chosen.includes(i)
+                            ? 'border-[var(--brand-button)] bg-[var(--brand-button)] text-[var(--brand-button-text)]'
+                            : 'border-[var(--brand-border)]'
+                        } ${
                           readOnly ? '' : 'cursor-pointer'
                         }`}
                       >
@@ -184,7 +195,7 @@ export function ProductSheet({
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder={t('notePlaceholder')}
-                className="mt-5 w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm focus:border-neutral-400 focus:outline-none"
+                className="mt-5 w-full rounded-xl border border-[var(--brand-border)] bg-[var(--brand-surface)] px-3 py-2.5 text-sm focus:border-[var(--brand-primary)] focus:outline-none"
               />
             )}
           </div>
@@ -192,8 +203,8 @@ export function ProductSheet({
 
         {/* Footer: qty + add (hidden in showcase mode) */}
         {!readOnly && (
-        <div className="flex items-center gap-3 border-t border-neutral-100 px-5 py-4">
-          <div className="flex items-center gap-3 rounded-full bg-neutral-100 px-2 py-1">
+        <div className="flex items-center gap-3 border-t border-[var(--brand-border)] px-5 py-4">
+          <div className="flex items-center gap-3 rounded-full bg-[var(--tab-unselected-bg)] px-2 py-1">
             <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="−" className="p-1">
               <Minus className="h-4 w-4" />
             </button>

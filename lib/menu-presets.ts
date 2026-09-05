@@ -187,7 +187,110 @@ const OCEAN: MenuPreset = {
   },
 };
 
-export const MENU_PRESETS: MenuPreset[] = [KUIK, OCEAN];
+/**
+ * Matcha — a matcha-bar app screen: a narrow single column of white text-only
+ * cards in a two-up grid, deep-green display headings, a monospace face for
+ * descriptions and prices, a hairline across each card with the price on the
+ * left and a soft green "add" pill on the right, and light-green tab pills on
+ * a frosted strip. No photos: the type does the work.
+ */
+const MATCHA: MenuPreset = {
+  id: 'matcha',
+  name: 'Matcha',
+  blurb: {
+    es: 'Tarjetas sin foto a dos columnas, verde profundo y tipografía mono.',
+    en: 'Photo-less two-column cards, deep green and a monospace face.',
+  },
+  swatch: ['#163a24', '#e8f0e5'],
+  theme: {
+    primary_color: '#163a24', // prices, headings, the accent of everything
+    secondary_color: '#4a7c59', // softer green for secondary emphasis
+    background_color: '#fafafa',
+    text_color: '#163a24',
+    text_secondary_color: '#2d3748', // descriptions: slate, not green
+    card_color: '#ffffff',
+    border_color: '#eaf0e5', // the sage hairline on cards and dividers
+    separator_color: '#eaf0e5',
+    tab_bar_color: '#fafafa', // the frosted strip
+    tab_selected_color: '#163a24',
+    tab_unselected_color: '#e8f0e5',
+    tab_font_color: null, // white on the dark pill, green on the light ones
+    button_color: '#e8f0e5', // the "add +" pill
+    button_text_color: '#163a24',
+    search_bg_color: '#ffffff',
+    search_text_color: '#163a24',
+    search_border_color: '#eaf0e5',
+    font_family: 'Inter',
+    font_category: 'Outfit',
+    font_product: 'Outfit',
+    font_price: 'Space Mono',
+    font_description: 'Space Mono',
+  },
+  settings: {
+    cardStyle: 'grid',
+    imagePosition: 'none', // grid gives the two columns; the photos stay out
+    imageSize: 'auto',
+    imageRatio: 'auto',
+    itemAlign: 'left',
+    priceStyle: 'footer',
+    cardDivider: true,
+    cardSurface: 'on',
+    contentWidth: 'narrow',
+    itemSpacing: 'normal',
+    imageShape: 'rounded',
+    cornerRadius: 'lg',
+    cardBorder: true,
+    cardShadow: false, // the original's shadow is 3% — the border carries it
+    density: 'comfortable',
+    showAddButton: true,
+    categoryAlign: 'center',
+    categoryRule: 'none',
+    categoryCase: 'upper',
+    categoryIcons: false,
+    categoryTitle: 'always',
+    subcategoryRule: 'none',
+    subcategorySize: 0.72,
+    navIconPosition: 'none',
+    navIconSize: 18,
+    navTabShape: 'pill',
+    navIconShape: 'plain',
+    headerStyle: 'stacked', // the centred logo / name / slogan hero
+    logoWideHeight: 44,
+    fullWidthHeader: false,
+    productCase: 'none',
+    descriptionCase: 'none',
+    showInlineOptions: false,
+    inlineOptionColumns: 2,
+    inlineOptionBullet: '•',
+    navMode: 'scroll',
+    stickyTabs: true,
+    collapsibleCategories: false,
+    showSearch: false,
+    showFilters: false,
+    showBadges: false,
+    showSocial: true,
+    showHours: true,
+    showDirections: true,
+    whatsappBubble: false,
+    soldOutStyle: 'gray',
+    darkMode: 'off',
+    animations: true,
+    categoryBold: true,
+    categoryItalic: false,
+    categorySize: 1.2,
+    productBold: true,
+    productItalic: false,
+    productSize: 1,
+    priceBold: true,
+    priceItalic: false,
+    priceSize: 1,
+    descriptionBold: false,
+    descriptionItalic: false,
+    descriptionSize: 0.8, // the original runs 9px mono; this keeps it legible
+  },
+};
+
+export const MENU_PRESETS: MenuPreset[] = [KUIK, OCEAN, MATCHA];
 
 export function getPreset(id: string): MenuPreset | undefined {
   return MENU_PRESETS.find((p) => p.id === id);

@@ -416,6 +416,7 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
               ['inline', t('priceInline')],
               ['dots', t('priceDots')],
               ['below', t('priceBelow')],
+              ['footer', t('priceFooter')],
             ]}
           />
           <SelectRow
@@ -519,6 +520,7 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
           />
           <ToggleRow label={t('cardBorder')} checked={settings.cardBorder} onChange={(v) => setS('cardBorder', v)} />
           <ToggleRow label={t('cardShadow')} checked={settings.cardShadow} onChange={(v) => setS('cardShadow', v)} />
+          <ToggleRow label={t('cardDivider')} checked={settings.cardDivider} onChange={(v) => setS('cardDivider', v)} />
           <ToggleRow label={t('animations')} checked={settings.animations} onChange={(v) => setS('animations', v)} />
           <ToggleRow label={t('showAddButton')} checked={settings.showAddButton} onChange={(v) => setS('showAddButton', v)} />
           <SelectRow
@@ -901,6 +903,7 @@ function Preview({
     btnBg: local.button_color ?? p,
     btnText: local.button_text_color ?? '#ffffff',
     card,
+    border,
   };
   const searchBg = local.search_bg_color ?? local.card_color ?? '#ffffff';
   const searchText = local.search_text_color ?? text;
@@ -1124,7 +1127,7 @@ function PreviewItem({
   layout: ItemLayout;
   settings: MenuSettings;
   cardStyle: React.CSSProperties;
-  colors: { text: string; textSec: string; primary: string; btnBg: string; btnText: string; card: string };
+  colors: { text: string; textSec: string; primary: string; btnBg: string; btnText: string; card: string; border: string };
   styles: { product: React.CSSProperties; price: React.CSSProperties; description: React.CSSProperties };
   radius: number;
   name: string;
@@ -1227,11 +1230,19 @@ function PreviewItem({
           </div>
         </div>
       )}
-      {settings.showAddButton && (
-        <span className={`mt-2 flex ${JUSTIFY_CLASS[align]}`}>
-          <span className="rounded-full px-4 py-1.5 text-xs font-semibold" style={{ backgroundColor: colors.btnBg, color: colors.btnText }}>
-            Agregar
-          </span>
+      {(settings.showAddButton || layout.price === 'footer') && (
+        <span
+          className={`mt-2 flex items-center gap-2 ${
+            layout.price === 'footer' && settings.showAddButton ? 'justify-between' : JUSTIFY_CLASS[align]
+          } ${settings.cardDivider ? 'border-t pt-2' : ''}`}
+          style={settings.cardDivider ? { borderColor: colors.border } : undefined}
+        >
+          {layout.price === 'footer' && priceEl}
+          {settings.showAddButton && (
+            <span className="rounded-full px-4 py-1.5 text-xs font-semibold" style={{ backgroundColor: colors.btnBg, color: colors.btnText }}>
+              Agregar
+            </span>
+          )}
         </span>
       )}
     </div>

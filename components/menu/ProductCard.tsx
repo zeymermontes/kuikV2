@@ -172,7 +172,7 @@ export function ProductCard({
   );
 
   let titleRow: React.ReactNode;
-  if (layout.price === 'inline' || !priceValue) {
+  if (layout.price === 'inline' || layout.price === 'footer' || !priceValue) {
     titleRow = nameEl;
   } else if (layout.price === 'below') {
     titleRow = (
@@ -250,12 +250,18 @@ export function ProductCard({
     <span className="text-xs font-medium opacity-50">{t('unavailable')}</span>
   );
 
-  const footer = (soldOut || addControl) && (
+  // 'footer' moves the price down here, beside the add control — the printed
+  // "price left, action right" row a divider can sit above.
+  const footerPrice = layout.price === 'footer' ? priceValue : null;
+  const twoSided = Boolean(footerPrice || soldOut) && Boolean(addControl);
+  const footer = (soldOut || addControl || footerPrice) && (
     <div
-      className={`mt-auto flex items-center gap-2 pt-2 ${
-        soldOut && addControl ? 'justify-between' : JUSTIFY_CLASS[align]
-      }`}
+      className={`mt-auto flex items-center gap-2 ${
+        settings.cardDivider ? 'border-t pt-3' : 'pt-2'
+      } ${twoSided ? 'justify-between' : JUSTIFY_CLASS[align]}`}
+      style={settings.cardDivider ? { borderColor: 'var(--brand-border)' } : undefined}
     >
+      {footerPrice}
       {soldOut}
       {addControl}
     </div>

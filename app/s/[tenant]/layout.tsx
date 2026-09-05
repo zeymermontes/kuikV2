@@ -4,7 +4,7 @@ import { PublicIntlProvider } from '@/components/intl/PublicIntlProvider';
 import { HtmlLang } from '@/components/intl/HtmlLang';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES, type Locale } from '@/lib/config';
 import { getTenantByHostKey } from '@/lib/tenant';
-import { resolveMenuSettings, pickImage } from '@/lib/menu-settings';
+import { resolveMenuSettings, pickImage, SHEET_RADIUS } from '@/lib/menu-settings';
 import { CUSTOM_FONT } from '@/lib/config';
 import { BackgroundMusic } from '@/components/menu/BackgroundMusic';
 
@@ -174,6 +174,8 @@ export default async function TenantLayout({
     '--search-bg': theme.search_bg_color ?? 'var(--brand-surface)',
     '--search-text': theme.search_text_color ?? 'var(--brand-text)',
     '--search-border': theme.search_border_color ?? 'var(--brand-border)',
+    // Cart / product sheets follow the card radius (see SHEET_RADIUS).
+    '--sheet-radius': SHEET_RADIUS[settings.cornerRadius],
   } as React.CSSProperties;
 
   // background image is suppressed in forced-dark mode for legibility
