@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { Search } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import type { TenantTheme } from '@/lib/database.types';
 import { MENU_FONTS, CUSTOM_FONT } from '@/lib/config';
@@ -130,9 +131,74 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
     { key: 'search_border_color', label: t('searchBorder'), fallback: local.border_color },
   ];
 
+  // ── Find a setting ────────────────────────────────────────────────────────
+  // The form has grown past what anyone scans by eye. Matching rows and card
+  // headings get an outline (.setting-hit), the first scrolls into view, and
+  // Enter walks to the next. Plain DOM work: the rows are labelled already.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const cursor = useRef(0);
+  const [q, setQ] = useState('');
+  const [hits, setHits] = useState(0);
+  function runSearch(query: string, advance: boolean) {
+    const root = rootRef.current;
+    if (!root) return;
+    root.querySelectorAll('.setting-hit').forEach((el) => el.classList.remove('setting-hit'));
+    const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    const nq = norm(query.trim());
+    if (nq.length < 2) {
+      setHits(0);
+      return;
+    }
+    const targets: HTMLElement[] = [];
+    root.querySelectorAll<HTMLElement>('[data-setting], label, h2').forEach((el) => {
+      if (!norm(el.dataset.setting ?? el.textContent ?? '').includes(nq)) return;
+      // A toggle's <label> is the row; a field's <label> sits above its input,
+      // so the row is its parent; a heading stands for its whole card.
+      const target = el.matches('[data-setting]')
+        ? el
+        : el.tagName === 'H2' || !el.querySelector('input')
+          ? el.parentElement
+          : el;
+      if (target && !targets.includes(target)) targets.push(target);
+    });
+    targets.forEach((el) => el.classList.add('setting-hit'));
+    setHits(targets.length);
+    if (targets.length === 0) return;
+    cursor.current = advance ? (cursor.current + 1) % targets.length : 0;
+    targets[cursor.current].scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-      <div className="space-y-5">
+      <div ref={rootRef} className="space-y-5">
+        <div className="sticky top-0 z-10 -mx-1 rounded-xl bg-neutral-50/95 px-1 py-2 backdrop-blur">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+            <input
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                runSearch(e.target.value, false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  runSearch(q, true);
+                } else if (e.key === 'Escape') {
+                  setQ('');
+                  runSearch('', false);
+                }
+              }}
+              placeholder={t('searchSettings')}
+              className="w-full rounded-xl border border-neutral-300 bg-white py-2 pl-9 pr-40 text-sm focus:border-neutral-900 focus:outline-none"
+            />
+            {q.trim().length >= 2 && (
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-500">
+                {t('searchHits', { count: hits })}
+              </span>
+            )}
+          </div>
+        </div>
         {/* Presets */}
         <Card>
           <h2 className="font-semibold">{t('presets')}</h2>
@@ -523,6 +589,7 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
           <ToggleRow label={t('cardDivider')} checked={settings.cardDivider} onChange={(v) => setS('cardDivider', v)} />
           <ToggleRow label={t('animations')} checked={settings.animations} onChange={(v) => setS('animations', v)} />
           <ToggleRow label={t('showAddButton')} checked={settings.showAddButton} onChange={(v) => setS('showAddButton', v)} />
+          <ToggleRow label={t('showOptionKind')} checked={settings.showOptionKind} onChange={(v) => setS('showOptionKind', v)} />
           <SelectRow
             label={t('productCase')}
             value={settings.productCase}
@@ -1296,7 +1363,7 @@ function SelectRow({
   options: [string, string][];
 }) {
   return (
-    <div className="flex items-center justify-between gap-3">
+    <div data-setting={label} className="flex items-center justify-between gap-3">
       <span className="text-sm font-medium">{label}</span>
       <select
         value={value}
@@ -1323,7 +1390,7 @@ function ToggleRow({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-3">
+    <label data-setting={label} className="flex cursor-pointer items-center justify-between gap-3">
       <span className="text-sm font-medium">{label}</span>
       <input
         type="checkbox"
