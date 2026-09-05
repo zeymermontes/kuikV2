@@ -102,6 +102,9 @@ export interface TenantTheme {
 
 export type ServiceType = 'pickup' | 'delivery' | 'dinein';
 
+/** How a guest says they will pay; the restaurant picks which to offer. */
+export type PaymentMethod = 'cash' | 'transfer' | 'card';
+
 export interface TenantOrdering {
   tenant_id: string;
   /** Master switch. When off the menu is a showcase on every channel. */
@@ -122,6 +125,13 @@ export interface TenantOrdering {
   cash_count_mode: 'total' | 'denominations';
   cash_denominations: number[] | null;
   pos_tables: number;
+  /** Empty = the cart never asks (see 0060). */
+  payment_methods: PaymentMethod[];
+  transfer_bank: string | null;
+  transfer_holder: string | null;
+  /** CLABE or account number, shown to the guest who picks transfer. */
+  transfer_account: string | null;
+  transfer_note: string | null;
   updated_at: string;
 }
 
@@ -169,6 +179,33 @@ export interface Branch {
 
 export type BranchLite = Pick<Branch, 'id' | 'name' | 'slug' | 'menu_mode'>;
 
+/**
+ * A section's own design. Every key optional and named exactly like the
+ * tenant theme column it overrides, so the dashboard, the import file and the
+ * AI prompts speak one vocabulary. Absent = inherit.
+ */
+export interface CategoryTheme {
+  primary_color?: string;
+  secondary_color?: string;
+  background_color?: string;
+  text_color?: string;
+  text_secondary_color?: string;
+  card_color?: string;
+  border_color?: string;
+  separator_color?: string;
+  button_color?: string;
+  button_text_color?: string;
+  tab_bar_color?: string;
+  tab_selected_color?: string;
+  tab_unselected_color?: string;
+  tab_font_color?: string;
+  font_family?: string;
+  font_category?: string;
+  font_product?: string;
+  font_price?: string;
+  font_description?: string;
+}
+
 export interface Category {
   id: string;
   tenant_id: string;
@@ -181,6 +218,8 @@ export interface Category {
   icon_image_url: string | null;
   banner_image_url: string | null;
   banner_name: string | null;
+  /** The section's own design; null inherits the menu theme (see 0061). */
+  theme: CategoryTheme | null;
   is_visible: boolean;
   station: string | null;
   created_at: string;
@@ -332,6 +371,7 @@ export interface OrderRow {
   status: OrderStatus;
   service_type: string | null;
   table_label: string | null;
+  payment_method: string | null;
   created_at: string;
 }
 

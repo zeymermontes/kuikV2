@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import type { TenantOrdering, ServiceType } from '@/lib/database.types';
+import type { TenantOrdering, ServiceType, PaymentMethod } from '@/lib/database.types';
 import { Card, Label, Input, Textarea } from '@/components/ui';
 import { updateOrdering } from '@/app/(dashboard)/settings-actions';
 
 const SERVICE_TYPES: ServiceType[] = ['pickup', 'delivery', 'dinein'];
+const PAYMENT_METHODS: PaymentMethod[] = ['cash', 'transfer', 'card'];
 
 export function OrderingForm({
   ordering,
@@ -30,6 +31,12 @@ export function OrderingForm({
       : [...o.service_types, s];
     if (next.length === 0) return; // keep at least one
     set('service_types', next);
+  }
+
+  // Unlike service types, none is a valid answer: the cart simply doesn't ask.
+  function togglePayment(m: PaymentMethod) {
+    const cur = o.payment_methods ?? [];
+    set('payment_methods', cur.includes(m) ? cur.filter((x) => x !== m) : [...cur, m]);
   }
 
   return (
@@ -196,6 +203,65 @@ export function OrderingForm({
         <ToggleRow label={t('collectAddress')} checked={o.collect_address} onChange={(v) => set('collect_address', v)} />
         <ToggleRow label={t('collectPickupTime')} checked={o.collect_pickup_time} onChange={(v) => set('collect_pickup_time', v)} />
         <ToggleRow label={t('collectTable')} checked={o.collect_table} onChange={(v) => set('collect_table', v)} />
+      </Card>
+
+      {/* Payment: which methods the cart offers, and the transfer details it shows. */}
+      <Card className="space-y-3">
+        <div>
+          <h2 className="font-semibold">{t('paymentMethods')}</h2>
+          <p className="text-sm text-neutral-500">{t('paymentMethodsHint')}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {PAYMENT_METHODS.map((m) => {
+            const on = (o.payment_methods ?? []).includes(m);
+            return (
+              <button
+                key={m}
+                onClick={() => togglePayment(m)}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                  on
+                    ? 'bg-neutral-900 text-white'
+                    : 'border border-neutral-300 text-neutral-600 hover:bg-neutral-50'
+                }`}
+              >
+                {t(`payment_${m}`)}
+              </button>
+            );
+          })}
+        </div>
+        {(o.payment_methods ?? []).includes('transfer') && (
+          <div className="space-y-3 border-t border-neutral-100 pt-3">
+            <p className="text-sm font-medium">{t('transferDetails')}</p>
+            <p className="-mt-2 text-xs text-neutral-500">{t('transferDetailsHint')}</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label>{t('transferBank')}</Label>
+                <Input defaultValue={o.transfer_bank ?? ''} onBlur={(e) => set('transfer_bank', e.target.value.trim() || null)} />
+              </div>
+              <div>
+                <Label>{t('transferHolder')}</Label>
+                <Input defaultValue={o.transfer_holder ?? ''} onBlur={(e) => set('transfer_holder', e.target.value.trim() || null)} />
+              </div>
+            </div>
+            <div>
+              <Label>{t('transferAccount')}</Label>
+              <Input
+                inputMode="numeric"
+                defaultValue={o.transfer_account ?? ''}
+                placeholder={t('transferAccountHint')}
+                onBlur={(e) => set('transfer_account', e.target.value.trim() || null)}
+              />
+            </div>
+            <div>
+              <Label>{t('transferNote')}</Label>
+              <Input
+                defaultValue={o.transfer_note ?? ''}
+                placeholder={t('transferNoteHint')}
+                onBlur={(e) => set('transfer_note', e.target.value.trim() || null)}
+              />
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* POS cash count */}

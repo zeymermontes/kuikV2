@@ -30,6 +30,7 @@ export async function POST(
     customer_name?: string | null;
     service_type?: string | null;
     table_label?: string | null;
+    payment_method?: string | null;
   };
   try {
     body = await req.json();
@@ -49,6 +50,7 @@ export async function POST(
     customer_name: body.customer_name ?? null,
     service_type: body.service_type ?? null,
     table_label: body.table_label ?? null,
+    payment_method: typeof body.payment_method === 'string' ? body.payment_method.slice(0, 20) : null,
     channel: 'whatsapp',
   });
 

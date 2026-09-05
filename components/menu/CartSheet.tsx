@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Plus, Minus, Trash2 } from 'lucide-react';
+import { X, Plus, Minus, Trash2, Copy, Check } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import type { Tenant, TenantContact, TenantOrdering, ServiceType } from '@/lib/database.types';
+import type { Tenant, TenantContact, TenantOrdering, ServiceType, PaymentMethod } from '@/lib/database.types';
 import {
   buildOrderMessage,
   buildWhatsappUrl,
@@ -51,6 +51,32 @@ export function CartSheet({
   const [tip, setTip] = useState(0);
   const [customerName, setCustomerName] = useState('');
   const [address, setAddress] = useState('');
+
+  // Payment is only asked when the restaurant enabled at least one method, and
+  // even then it is optional — a guest may just say it on WhatsApp.
+  const paymentMethods: PaymentMethod[] = ordering.payment_methods ?? [];
+  const [payment, setPayment] = useState<PaymentMethod | null>(null);
+  const [copied, setCopied] = useState(false);
+  const transfer =
+    ordering.transfer_account || ordering.transfer_bank || ordering.transfer_holder
+      ? {
+          bank: ordering.transfer_bank,
+          holder: ordering.transfer_holder,
+          account: ordering.transfer_account,
+          note: ordering.transfer_note,
+        }
+      : null;
+  const paymentLabel = (m: PaymentMethod) => t(`payment_${m}`);
+  async function copyAccount() {
+    if (!transfer?.account) return;
+    try {
+      await navigator.clipboard.writeText(transfer.account);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard blocked: the number is on screen to copy by hand.
+    }
+  }
 
   // Remember the customer's name across visits (saved on this device).
   useEffect(() => {
@@ -117,6 +143,11 @@ export function CartSheet({
       address: service === 'delivery' ? address.trim() || undefined : undefined,
       pickupTime: service === 'pickup' ? pickupTime.trim() || undefined : undefined,
       table: service === 'dinein' ? table.trim() || undefined : undefined,
+      paymentLabel: payment
+        ? payment === 'transfer' && transfer
+          ? `${paymentLabel(payment)} — ${t('transferWillSend')}`
+          : paymentLabel(payment)
+        : undefined,
       tipPercent: tip || undefined,
       deliveryFee: deliveryFee || undefined,
     });
@@ -131,6 +162,7 @@ export function CartSheet({
           customer_name: customerName.trim() || null,
           service_type: serviceLabel(service),
           table_label: service === 'dinein' ? table.trim() || null : null,
+          payment_method: payment,
         }),
         keepalive: true,
       });
@@ -146,39 +178,47 @@ export function CartSheet({
     <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center">
       <div className="animate-fade absolute inset-0 bg-black/50" onClick={onClose} />
 
-      <div className="animate-slide-up pb-safe relative flex max-h-[88dvh] w-full max-w-2xl flex-col rounded-t-3xl bg-white text-neutral-900 sm:rounded-3xl">
-        <div className="flex items-center justify-between border-b border-neutral-100 px-5 py-4">
-          <h2 className="text-lg font-bold">{t('yourOrder')}</h2>
-          <button onClick={onClose} aria-label="close" className="p-1 text-neutral-500">
+      <div className="animate-slide-up pb-safe relative flex max-h-[88dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[var(--sheet-radius)] sm:rounded-[var(--sheet-radius)]"
+        style={{ backgroundColor: 'var(--brand-bg)', color: 'var(--brand-text)', fontFamily: 'var(--brand-font)' }}>
+        <div
+          className="flex items-center justify-between border-b border-[var(--brand-border)] px-5 py-4"
+          style={{ backgroundColor: 'var(--brand-surface)' }}
+        >
+          <h2 className="text-lg font-bold" style={{ fontFamily: 'var(--font-product)' }}>{t('yourOrder')}</h2>
+          <button onClick={onClose} aria-label="close" className="p-1 text-[var(--brand-text-secondary)]">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {lines.length === 0 ? (
-            <p className="py-10 text-center text-neutral-400">{t('emptyCart')}</p>
+            <p className="py-10 text-center text-[var(--brand-text-secondary)]">{t('emptyCart')}</p>
           ) : (
-            <ul className="space-y-4">
+            <ul className="space-y-3">
               {lines.map((l) => (
-                <li key={l.key} className="border-b border-neutral-100 pb-4">
+                <li
+                  key={l.key}
+                  className="rounded-2xl border border-[var(--brand-border)] p-4"
+                  style={{ backgroundColor: 'var(--brand-surface)' }}
+                >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <span className="font-medium">{l.name}</span>
+                      <span className="font-semibold" style={{ fontFamily: 'var(--font-product)' }}>{l.name}</span>
                       {(l.selections ?? []).length > 0 && (
-                        <p className="text-xs text-neutral-400">
+                        <p className="text-xs text-[var(--brand-text-secondary)]">
                           {(l.selections ?? []).map((o) => o.name).join(' · ')}
                         </p>
                       )}
                     </div>
                     {showPrices && l.basePrice != null && (
-                      <span className="shrink-0 text-sm text-neutral-600">
+                      <span className="shrink-0 text-sm font-semibold" style={{ color: 'var(--brand-primary)', fontFamily: 'var(--font-price)' }}>
                         {money(lineUnitPrice(l) * l.qty)}
                       </span>
                     )}
                   </div>
 
                   <div className="mt-2 flex items-center gap-3">
-                    <div className="flex items-center gap-3 rounded-full bg-neutral-100 px-2 py-1">
+                    <div className="flex items-center gap-3 rounded-full bg-[var(--tab-unselected-bg)] px-2 py-1">
                       <button onClick={() => onDec(l.key)} aria-label="−" className="p-1">
                         <Minus className="h-4 w-4" />
                       </button>
@@ -189,7 +229,7 @@ export function CartSheet({
                     </div>
                     <button
                       onClick={() => onRemove(l.key)}
-                      className="ml-auto flex items-center gap-1 text-sm text-neutral-400 hover:text-red-500"
+                      className="ml-auto flex items-center gap-1 text-sm text-[var(--brand-text-secondary)] hover:text-red-500"
                     >
                       <Trash2 className="h-4 w-4" />
                       {t('remove')}
@@ -200,7 +240,7 @@ export function CartSheet({
                     value={l.note ?? ''}
                     onChange={(e) => onNote(l.key, e.target.value)}
                     placeholder={t('notePlaceholder')}
-                    className="mt-2 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none"
+                    className="mt-2 w-full rounded-xl border border-[var(--brand-border)] bg-[var(--brand-surface)] px-3 py-2 text-sm focus:border-[var(--brand-primary)] focus:outline-none"
                   />
                 </li>
               ))}
@@ -219,7 +259,7 @@ export function CartSheet({
                         key={s}
                         onClick={() => setService(s)}
                         className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                          service === s ? 'bg-neutral-900 text-white' : 'border border-neutral-300 text-neutral-600'
+                          service === s ? 'bg-[var(--brand-button)] text-[var(--brand-button-text)]' : 'border border-[var(--brand-border)] text-[var(--brand-text-secondary)]'
                         }`}
                       >
                         {serviceLabel(s)}
@@ -239,7 +279,7 @@ export function CartSheet({
                         key={p}
                         onClick={() => setTip(p)}
                         className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                          tip === p ? 'bg-neutral-900 text-white' : 'border border-neutral-300 text-neutral-600'
+                          tip === p ? 'bg-[var(--brand-button)] text-[var(--brand-button-text)]' : 'border border-[var(--brand-border)] text-[var(--brand-text-secondary)]'
                         }`}
                       >
                         {p === 0 ? t('noTip') : `${p}%`}
@@ -249,19 +289,82 @@ export function CartSheet({
                 </div>
               )}
 
+              {/* Payment method, with the transfer details when that is the pick */}
+              {paymentMethods.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-sm font-semibold">{t('paymentMethod')}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {paymentMethods.map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => setPayment(payment === m ? null : m)}
+                        className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                          payment === m
+                            ? 'bg-[var(--brand-button)] text-[var(--brand-button-text)]'
+                            : 'border border-[var(--brand-border)] text-[var(--brand-text-secondary)]'
+                        }`}
+                      >
+                        {paymentLabel(m)}
+                      </button>
+                    ))}
+                  </div>
+                  {payment === 'transfer' && transfer && (
+                    <div className="mt-3 rounded-xl border border-[var(--brand-border)] bg-[var(--brand-surface)] p-3 text-sm">
+                      <p className="font-semibold">{t('transferTitle')}</p>
+                      <dl className="mt-1.5 space-y-1">
+                        {transfer.bank && (
+                          <div className="flex justify-between gap-3">
+                            <dt className="text-[var(--brand-text-secondary)]">{t('transferBank')}</dt>
+                            <dd className="text-right font-medium">{transfer.bank}</dd>
+                          </div>
+                        )}
+                        {transfer.holder && (
+                          <div className="flex justify-between gap-3">
+                            <dt className="text-[var(--brand-text-secondary)]">{t('transferHolder')}</dt>
+                            <dd className="text-right font-medium">{transfer.holder}</dd>
+                          </div>
+                        )}
+                        {transfer.account && (
+                          <div className="flex items-center justify-between gap-3">
+                            <dt className="text-[var(--brand-text-secondary)]">{t('transferAccount')}</dt>
+                            <dd className="flex items-center gap-1.5 font-mono font-medium">
+                              <span className="break-all text-right">{transfer.account}</span>
+                              <button
+                                type="button"
+                                onClick={copyAccount}
+                                aria-label={t('copy')}
+                                className="shrink-0 rounded-md p-1 text-[var(--brand-text-secondary)]"
+                              >
+                                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                              </button>
+                            </dd>
+                          </div>
+                        )}
+                      </dl>
+                      {transfer.note && (
+                        <p className="mt-2 text-xs text-[var(--brand-text-secondary)]">{transfer.note}</p>
+                      )}
+                      <p className="mt-2 rounded-lg bg-[var(--tab-unselected-bg)] px-2.5 py-2 text-xs font-medium">
+                        {t('transferSendProof')}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Customer fields */}
               <input
                 value={customerName}
                 onChange={(e) => onName(e.target.value)}
                 placeholder={t('yourName')}
-                className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm focus:border-neutral-400 focus:outline-none"
+                className="w-full rounded-xl border border-[var(--brand-border)] bg-[var(--brand-surface)] px-3 py-2.5 text-sm focus:border-[var(--brand-primary)] focus:outline-none"
               />
               {ordering.collect_address && service === 'delivery' && (
                 <input
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder={t('address')}
-                  className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm focus:border-neutral-400 focus:outline-none"
+                  className="w-full rounded-xl border border-[var(--brand-border)] bg-[var(--brand-surface)] px-3 py-2.5 text-sm focus:border-[var(--brand-primary)] focus:outline-none"
                 />
               )}
               {ordering.collect_pickup_time && service === 'pickup' && (
@@ -269,7 +372,7 @@ export function CartSheet({
                   value={pickupTime}
                   onChange={(e) => setPickupTime(e.target.value)}
                   placeholder={t('pickupTime')}
-                  className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm focus:border-neutral-400 focus:outline-none"
+                  className="w-full rounded-xl border border-[var(--brand-border)] bg-[var(--brand-surface)] px-3 py-2.5 text-sm focus:border-[var(--brand-primary)] focus:outline-none"
                 />
               )}
               {ordering.collect_table && service === 'dinein' && (
@@ -277,7 +380,7 @@ export function CartSheet({
                   value={table}
                   onChange={(e) => setTable(e.target.value)}
                   placeholder={t('table')}
-                  className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm focus:border-neutral-400 focus:outline-none"
+                  className="w-full rounded-xl border border-[var(--brand-border)] bg-[var(--brand-surface)] px-3 py-2.5 text-sm focus:border-[var(--brand-primary)] focus:outline-none"
                 />
               )}
             </div>
@@ -285,7 +388,7 @@ export function CartSheet({
         </div>
 
         {lines.length > 0 && (
-          <div className="border-t border-neutral-100 px-5 py-4">
+          <div className="border-t border-[var(--brand-border)] px-5 py-4" style={{ backgroundColor: 'var(--brand-surface)' }}>
             {showPrices && (
               <div className="mb-3 space-y-1 text-sm">
                 <Row label={t('subtotal')} value={money(subtotal)} />
@@ -295,7 +398,7 @@ export function CartSheet({
                 )}
                 <div className="flex items-center justify-between pt-1 text-base font-bold">
                   <span>{t('total')}</span>
-                  <span>{money(total)}</span>
+                  <span style={{ color: 'var(--brand-primary)', fontFamily: 'var(--font-price)' }}>{money(total)}</span>
                 </div>
               </div>
             )}
@@ -322,7 +425,7 @@ export function CartSheet({
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between text-neutral-600">
+    <div className="flex items-center justify-between text-[var(--brand-text-secondary)]">
       <span>{label}</span>
       <span>{value}</span>
     </div>

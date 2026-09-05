@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Clock, UtensilsCrossed, ShoppingBag, Check, RefreshCw } from 'lucide-react';
+import { Clock, UtensilsCrossed, ShoppingBag, Check, RefreshCw, CreditCard } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import type { OrderRow, OrderStatus } from '@/lib/database.types';
 import { formatPrice } from '@/lib/utils';
@@ -130,6 +130,12 @@ export function OrdersBoard({
                           {o.service_type === 'dinein' ? <UtensilsCrossed className="h-3 w-3" /> : <ShoppingBag className="h-3 w-3" />}
                           {o.service_type}
                           {o.table_label ? ` · ${t('table')} ${o.table_label}` : ''}
+                        </span>
+                      )}
+                      {o.payment_method && (
+                        <span className="flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
+                          <CreditCard className="h-3 w-3" />
+                          {t.has(`payment_${o.payment_method}`) ? t(`payment_${o.payment_method}`) : o.payment_method}
                         </span>
                       )}
                     </div>

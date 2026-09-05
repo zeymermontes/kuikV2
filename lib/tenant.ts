@@ -89,6 +89,11 @@ export const getTenantByHostKey = cache(
       cash_count_mode: 'total',
       cash_denominations: null,
       pos_tables: 0,
+      payment_methods: [],
+      transfer_bank: null,
+      transfer_holder: null,
+      transfer_account: null,
+      transfer_note: null,
       updated_at: tenant.created_at,
     };
 

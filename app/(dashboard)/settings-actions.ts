@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { revalidateTenant } from '@/lib/revalidate';
 import { createClient } from '@/lib/supabase/server';
 import { requireTenant } from '@/lib/auth';
-import type { ServiceType, LoyaltyType } from '@/lib/database.types';
+import type { ServiceType, LoyaltyType, PaymentMethod } from '@/lib/database.types';
 import type { MenuSettings } from '@/lib/menu-settings';
 import { getPreset, presetSettings } from '@/lib/menu-presets';
 
@@ -175,6 +175,11 @@ export async function updateOrdering(
     cash_count_mode: 'total' | 'denominations';
     cash_denominations: number[] | null;
     pos_tables: number;
+    payment_methods: PaymentMethod[];
+    transfer_bank: string | null;
+    transfer_holder: string | null;
+    transfer_account: string | null;
+    transfer_note: string | null;
   }>,
 ) {
   const { tenant } = await requireTenant();

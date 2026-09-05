@@ -35,6 +35,8 @@ export interface BuildMessageOptions {
   address?: string;
   pickupTime?: string;
   table?: string;
+  /** Localized payment method, e.g. "Transferencia — envío comprobante". */
+  paymentLabel?: string;
   tipPercent?: number;
   deliveryFee?: number;
 }
@@ -56,6 +58,7 @@ export function buildOrderMessage(opts: BuildMessageOptions): string {
     address,
     pickupTime,
     table,
+    paymentLabel,
     tipPercent,
     deliveryFee,
   } = opts;
@@ -72,7 +75,8 @@ export function buildOrderMessage(opts: BuildMessageOptions): string {
   if (address) out.push(`Dirección: ${address}`);
   if (pickupTime) out.push(`Hora: ${pickupTime}`);
   if (table) out.push(`Mesa: ${table}`);
-  if (serviceLabel || customerName || address || pickupTime || table) out.push('');
+  if (paymentLabel) out.push(`Pago: ${paymentLabel}`);
+  if (serviceLabel || customerName || address || pickupTime || table || paymentLabel) out.push('');
 
   // Group the items by their section (category), preserving first-seen order.
   const groups: { name?: string; lines: CartLine[] }[] = [];
