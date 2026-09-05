@@ -228,6 +228,7 @@ const MATCHA: MenuPreset = {
   },
   settings: {
     cardStyle: 'grid',
+    forceTwoColumns: true, // the original is two-up on a phone; cards shrink rather than stack
     imagePosition: 'top', // grid gives the two columns; the photo crowns each card
     imageSize: 'full',
     imageRatio: 'square',

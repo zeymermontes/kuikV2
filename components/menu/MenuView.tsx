@@ -533,16 +533,38 @@ export function MenuView({
         // on a desktop (512px minus the page and section padding) but not a
         // phone, where the price-and-button row would no longer fit, so there
         // the grid drops to one column.
-        className={gridContainer ? 'grid' : 'flex flex-col'}
+        // "Always two": the cells stay two-up down to ~21rem viewports and the
+        // card zooms down to fit its cell instead (see .kuik-grid-2 in
+        // globals.css).
+        className={gridContainer ? `grid ${settings.forceTwoColumns ? 'kuik-grid-2' : ''}` : 'flex flex-col'}
         style={{
           gap: layout.gap,
-          gridTemplateColumns: gridContainer ? 'repeat(auto-fit, minmax(min(100%, 13rem), 1fr))' : undefined,
+          gridTemplateColumns:
+            gridContainer && !settings.forceTwoColumns ? 'repeat(auto-fit, minmax(min(100%, 13rem), 1fr))' : undefined,
         }}
       >
         {entries.map((entry) =>
           entry.kind === 'separator' ? (
             <div key={`s-${entry.id}`} className={gridContainer ? 'col-span-full' : ''}>
               <SeparatorRow separator={entry} />
+            </div>
+          ) : gridContainer ? (
+            // The cell is a size container so the card can scale to it.
+            <div key={`p-${entry.id}`} className="kuik-cell flex">
+              <ProductCard
+                product={entry}
+                showPrice={theme.show_prices && entry.show_price}
+                currency={currency}
+                locale={locale}
+                qty={qtyByProduct[entry.id] ?? 0}
+                orderingEnabled={orderingEnabled}
+                openable={orderingEnabled || hasDetail(entry)}
+                layout={layout}
+                settings={settings}
+                radiusClass={radiusClass}
+                onOpen={() => openProduct(entry)}
+                id={`prod-${entry.id}`}
+              />
             </div>
           ) : (
             <ProductCard

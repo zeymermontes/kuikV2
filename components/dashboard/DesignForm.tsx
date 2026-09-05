@@ -474,6 +474,9 @@ export function DesignForm({
               ['classic', t('cardClassic')],
             ]}
           />
+          {settings.cardStyle === 'grid' && (
+            <ToggleRow label={t('forceTwoColumns')} checked={settings.forceTwoColumns} onChange={(v) => setS('forceTwoColumns', v)} />
+          )}
           <SelectRow
             label={t('contentWidth')}
             value={settings.contentWidth}

@@ -266,6 +266,7 @@
     "inheritFont": "Predeterminada",
     "layout": "Diseño de tarjetas",
     "cardStyle": "Estilo de tarjeta",
+    "forceTwoColumns": "Siempre dos columnas (la tarjeta se compacta en pantallas chicas)",
     "cardList": "Lista",
     "cardGrid": "Cuadrícula",
     "cardLarge": "Grande",

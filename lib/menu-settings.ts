@@ -63,6 +63,8 @@ export interface MenuSettings {
   coverVariant: ImageVariant;
   darkMode: DarkMode;
   cardStyle: CardStyle;
+  /** Grid: keep two columns on phones too, shrinking the card (zoom) to fit instead of dropping to one. */
+  forceTwoColumns: boolean;
   imageShape: ImageShape;
   cornerRadius: CornerRadius;
   cardBorder: boolean;
@@ -162,6 +164,7 @@ export const DEFAULT_MENU_SETTINGS: MenuSettings = {
   cardBorder: false,
   cardShadow: true,
   cardDivider: false,
+  forceTwoColumns: false,
   density: 'comfortable',
   animations: true,
   navMode: 'scroll',
