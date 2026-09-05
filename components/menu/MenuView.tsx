@@ -257,6 +257,17 @@ export function MenuView({
     for (const c of menu) for (const e of c.entries) if (e.kind === 'product') m[e.id] = c.name;
     return m;
   }, [menu]);
+  // The section design a product belongs to (a subcategory inherits its
+  // parent's), so its sheet opens in the same colours as the card it came from
+  // rather than in whichever section happens to be in view.
+  const catThemeByProduct = useMemo(() => {
+    const m: Record<string, MenuCategory['theme']> = {};
+    for (const c of menu) {
+      for (const e of c.entries) if (e.kind === 'product') m[e.id] = c.theme;
+      for (const sub of c.subcategories) for (const e of sub.entries) if (e.kind === 'product') m[e.id] = sub.theme ?? c.theme;
+    }
+    return m;
+  }, [menu]);
 
   // Persist the cart in the browser, per restaurant, so it survives reloads.
   const cartStoreKey = `kuik:cart:${tenant.id}`;
@@ -920,7 +931,7 @@ export function MenuView({
                       ? (unselText ?? 'var(--tab-selected-text)')
                       : (selText ?? 'var(--tab-selected-text)')
                     : (unselText ?? 'var(--tab-unselected-text)'),
-                  opacity: plainNav && !active ? 0.7 : 1,
+                  opacity: active ? 1 : settings.navInactiveOpacity,
                   fontFamily: ct?.font_category ? `'${ct.font_category}'` : 'var(--font-category)',
                 }}
               >
@@ -1068,6 +1079,7 @@ export function MenuView({
           readOnly={!orderingEnabled}
           notePlaceholder={ordering.note_placeholder}
           showOptionKind={settings.showOptionKind}
+          themeStyle={categoryThemeVars(catThemeByProduct[activeProduct.id])}
           onClose={() => setActiveProduct(null)}
           onConfirm={(line) =>
             dispatch({

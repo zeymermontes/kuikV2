@@ -121,6 +121,8 @@ export interface MenuSettings {
   navIconPosition: NavIconPosition;
   navIconSize: number;
   navTabShape: NavTabShape;
+  /** Opacity of the chips that are not selected (0.2–1). */
+  navInactiveOpacity: number;
   navIconShape: NavIconShape;
   headerStyle: HeaderStyle;
   /** Height of the wordmark in the bar header, in px. */
@@ -200,6 +202,7 @@ export const DEFAULT_MENU_SETTINGS: MenuSettings = {
   navIconPosition: 'left',
   navIconSize: 18,
   navTabShape: 'pill',
+  navInactiveOpacity: 1,
   navIconShape: 'plain',
   headerStyle: 'stacked',
   logoWideHeight: 44,

@@ -807,6 +807,51 @@ export function DesignForm({
               ['plain', t('navShapePlain')],
             ]}
           />
+          <div data-setting={t('navInactiveOpacity')} className="flex items-center justify-between gap-3">
+            <span className="text-sm font-medium">{t('navInactiveOpacity')}</span>
+            <div className="flex flex-1 items-center gap-2">
+              <input
+                type="range"
+                min={0.2}
+                max={1}
+                step={0.05}
+                value={settings.navInactiveOpacity}
+                onChange={(e) => setS('navInactiveOpacity', Number(e.target.value))}
+                className="h-1 flex-1 cursor-pointer accent-neutral-900"
+              />
+              <span className="w-10 text-right text-[10px] text-neutral-400">{Math.round(settings.navInactiveOpacity * 100)}%</span>
+            </div>
+          </div>
+          {/* The same four theme colours the Colours card edits, repeated here
+              because this is where owners look for them. */}
+          <div className="grid grid-cols-2 gap-2">
+            {(
+              [
+                ['tab_selected_color', t('tabSelected'), local.primary_color],
+                ['tab_unselected_color', t('tabUnselected'), '#eeeeee'],
+                ['tab_font_color', t('tabFont'), local.text_color],
+                ['tab_bar_color', t('tabBar'), '#ffffff'],
+              ] as const
+            ).map(([key, label, fallback]) => (
+              <label key={key} data-setting={label} className="flex items-center gap-2 rounded-lg border border-neutral-200 px-2 py-1.5">
+                <input
+                  type="color"
+                  value={(local[key] ?? fallback).slice(0, 7)}
+                  onChange={(e) => set(key, e.target.value)}
+                  className="h-7 w-8 shrink-0 cursor-pointer rounded border border-neutral-200 p-0"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[11px] font-medium">{label}</span>
+                  <span className="block font-mono text-[10px] text-neutral-400">{local[key] ?? t('optAuto')}</span>
+                </span>
+                {local[key] && (
+                  <button type="button" onClick={() => set(key, null)} className="px-1 text-neutral-300 hover:text-neutral-600" aria-label={t('clearColor')}>
+                    ×
+                  </button>
+                )}
+              </label>
+            ))}
+          </div>
         </Card>
 
         {/* Options printed in the menu */}

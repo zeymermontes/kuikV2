@@ -387,6 +387,8 @@
     "navIconNone": "No icon",
     "navIconSize": "Icon size",
     "navTabShape": "Tab shape",
+    "navInactiveOpacity": "Opacity of unselected categories",
+    "clearColor": "Clear colour",
     "navShapePill": "Pill with background",
     "navShapePlain": "No background",
     "categoryTitle": "Section title in the page",

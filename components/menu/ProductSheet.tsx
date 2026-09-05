@@ -11,6 +11,7 @@ import { formatPrice } from '@/lib/utils';
 
 export function ProductSheet({
   product,
+  themeStyle,
   showPrice,
   currency,
   locale,
@@ -22,6 +23,8 @@ export function ProductSheet({
   showOptionKind = true,
 }: {
   product: Product;
+  /** The product's section design (CSS variables), so the sheet matches its card. */
+  themeStyle?: React.CSSProperties;
   showPrice: boolean;
   currency: string;
   locale: string;
@@ -101,7 +104,7 @@ export function ProductSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" style={themeStyle}>
       <div className="animate-fade absolute inset-0 bg-black/50" onClick={onClose} />
 
       <div className="animate-slide-up relative flex max-h-[88dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-[var(--sheet-radius)] sm:rounded-[var(--sheet-radius)]"

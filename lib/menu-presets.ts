@@ -152,6 +152,7 @@ const OCEAN: MenuPreset = {
     navIconPosition: 'top',
     navIconSize: 44,
     navTabShape: 'plain',
+    navInactiveOpacity: 0.7, // the unselected tan badges sit back a little
     navIconShape: 'circle',
     logoWideVariant: 'dark', // the bar is navy even on a light menu
     headerStyle: 'bar',

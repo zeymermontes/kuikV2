@@ -387,6 +387,8 @@
     "navIconNone": "Sin icono",
     "navIconSize": "Tamaño del icono",
     "navTabShape": "Forma de la pestaña",
+    "navInactiveOpacity": "Opacidad de las categorías no seleccionadas",
+    "clearColor": "Quitar color",
     "navShapePill": "Píldora con fondo",
     "navShapePlain": "Sin fondo",
     "categoryTitle": "Título de sección en la página",
