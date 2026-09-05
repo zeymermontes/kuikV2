@@ -3,7 +3,7 @@
 import { useMemo, useReducer, useState, useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Search, Globe, MapPin, ChevronDown, ChevronLeft, X, CalendarCheck } from 'lucide-react';
+import { Search, Globe, MapPin, ChevronDown, ChevronLeft, X, CalendarCheck, ImageIcon, ImageOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type {
   Tenant,
@@ -27,6 +27,7 @@ import {
   showCategoryTitle,
   pickImage,
 } from '@/lib/menu-settings';
+import { useLocalFlag } from '@/lib/use-local-flag';
 import { categoryThemeVars, categoryPageVars, categoryThemeFonts, googleFontsHref } from '@/lib/category-theme';
 import { mapHref } from '@/lib/hours';
 import { digitsOnly, slugify } from '@/lib/utils';
@@ -175,6 +176,10 @@ export function MenuView({
     ordering.ordering_enabled && channelOrdering && Boolean(contact.whatsapp_phone);
   const radiusClass = RADIUS_CLASS[settings.cornerRadius];
   const layout = useMemo(() => resolveItemLayout(settings), [settings]);
+  // The visitor may switch the photos off (a slow connection, or they just
+  // want the list); remembered on their device. Only offered when it matters.
+  const [hideImages, setHideImages] = useLocalFlag('kuik:hideImages');
+  const itemLayout = hideImages ? { ...layout, image: 'none' as const } : layout;
 
   // Readable anchors: #desayunos rather than #cat-<uuid>. A subcategory is
   // prefixed with its parent so two "Extras" under different sections stay
@@ -504,6 +509,13 @@ export function MenuView({
   // The page chrome follows whichever section is in view and fades between
   // schemes (see .menu-fade in globals.css) instead of snapping.
   const activeTheme = filteredMenu.find((c) => c.id === effectiveActive)?.theme ?? null;
+  const menuHasImages =
+    layout.image !== 'none' &&
+    filteredMenu.some((c) =>
+      [...c.entries, ...c.subcategories.flatMap((sub) => sub.entries)].some(
+        (e) => e.kind === 'product' && Boolean(e.image_url),
+      ),
+    );
   const sectionFonts = categoryThemeFonts(filteredMenu.map((c) => c.theme));
 
   // One run of products/separators, shared by a section and its subcategories.
@@ -528,7 +540,7 @@ export function MenuView({
               qty={qtyByProduct[entry.id] ?? 0}
               orderingEnabled={orderingEnabled}
               openable={orderingEnabled || hasDetail(entry)}
-              layout={layout}
+              layout={itemLayout}
               settings={settings}
               radiusClass={radiusClass}
               onOpen={() => openProduct(entry)}
@@ -866,6 +878,22 @@ export function MenuView({
 
       {/* Sections */}
       <div className={`mx-auto w-full space-y-8 px-4 pt-6 ${CONTENT_WIDTH_CLASS[settings.contentWidth]}`}>
+        {menuHasImages && (
+          <div className="-mb-4 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setHideImages(!hideImages)}
+              className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
+              style={{
+                backgroundColor: 'var(--tab-unselected-bg)',
+                color: 'var(--tab-unselected-text)',
+              }}
+            >
+              {hideImages ? <ImageIcon className="h-3.5 w-3.5" /> : <ImageOff className="h-3.5 w-3.5" />}
+              {hideImages ? t('showImages') : t('hideImages')}
+            </button>
+          </div>
+        )}
         {visibleCats.map((cat) => {
           // Collapsing only applies in scroll mode (tabs mode shows one category).
           const collapsible = settings.collapsibleCategories && !tabsMode;

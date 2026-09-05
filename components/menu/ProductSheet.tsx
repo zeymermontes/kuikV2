@@ -111,8 +111,19 @@ export function ProductSheet({
 
         <div className="flex-1 overflow-y-auto">
           {product.image_url && (
-            <div className="relative aspect-video w-full overflow-hidden rounded-t-[var(--sheet-radius)]">
-              <Image src={product.image_url} alt={product.name} fill className="object-cover" />
+            <div
+              className="flex w-full justify-center overflow-hidden rounded-t-[var(--sheet-radius)] p-4"
+              style={{ backgroundColor: 'var(--brand-bg)' }}
+            >
+              {/* The whole photo, uncropped: a tall cup or a wide platter both fit. */}
+              <Image
+                src={product.image_url}
+                alt={product.name}
+                width={1200}
+                height={1200}
+                sizes="(max-width: 640px) 100vw, 512px"
+                className="h-auto max-h-[50dvh] w-auto max-w-full object-contain"
+              />
             </div>
           )}
 

@@ -1055,7 +1055,9 @@
     "minOrder": "Pedido mínimo de {amount}",
     "optionsDish": "del platillo",
     "optionsTakeaway": "para llevar",
-    "whatsappBubble": "Escríbenos por WhatsApp"
+    "whatsappBubble": "Escríbenos por WhatsApp",
+    "hideImages": "Ocultar fotos",
+    "showImages": "Mostrar fotos"
   },
   "pwa": {
     "install": "Instalar",

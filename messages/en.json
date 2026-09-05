@@ -1055,7 +1055,9 @@
     "minOrder": "Minimum order of {amount}",
     "optionsDish": "for the dish",
     "optionsTakeaway": "to take away",
-    "whatsappBubble": "Message us on WhatsApp"
+    "whatsappBubble": "Message us on WhatsApp",
+    "hideImages": "Hide photos",
+    "showImages": "Show photos"
   },
   "pwa": {
     "install": "Install",
