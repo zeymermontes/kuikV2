@@ -65,6 +65,7 @@ body {
 /* Section designs: the page chrome fades to the section in view (MenuView). */
 .menu-fade,
 .menu-fade nav,
+.menu-fade [data-fade],
 .menu-fade section,
 .menu-fade h2,
 .menu-fade h3 {
@@ -76,6 +77,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .menu-fade,
   .menu-fade nav,
+  .menu-fade [data-fade],
   .menu-fade section,
   .menu-fade h2,
   .menu-fade h3 {

@@ -33,6 +33,7 @@ export default async function OrderingPage() {
     collect_address: false,
     collect_pickup_time: false,
     collect_table: false,
+    collect_name: true,
     cash_count_mode: 'total',
     cash_denominations: null,
     pos_tables: 0,

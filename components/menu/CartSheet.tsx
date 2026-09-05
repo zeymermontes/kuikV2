@@ -138,7 +138,7 @@ export function CartSheet({
       currency,
       locale,
       header: ordering.order_header,
-      customerName: customerName.trim() || undefined,
+      customerName: ordering.collect_name !== false ? customerName.trim() || undefined : undefined,
       serviceLabel: serviceLabel(service),
       address: service === 'delivery' ? address.trim() || undefined : undefined,
       pickupTime: service === 'pickup' ? pickupTime.trim() || undefined : undefined,
@@ -159,7 +159,7 @@ export function CartSheet({
         body: JSON.stringify({
           items: lines,
           total: showPrices ? total : null,
-          customer_name: customerName.trim() || null,
+          customer_name: ordering.collect_name !== false ? customerName.trim() || null : null,
           service_type: serviceLabel(service),
           table_label: service === 'dinein' ? table.trim() || null : null,
           payment_method: payment,
@@ -353,12 +353,14 @@ export function CartSheet({
               )}
 
               {/* Customer fields */}
-              <input
-                value={customerName}
-                onChange={(e) => onName(e.target.value)}
-                placeholder={t('yourName')}
-                className="w-full rounded-xl border border-[var(--brand-border)] bg-[var(--brand-surface)] px-3 py-2.5 text-sm focus:border-[var(--brand-primary)] focus:outline-none"
-              />
+              {ordering.collect_name !== false && (
+                <input
+                  value={customerName}
+                  onChange={(e) => onName(e.target.value)}
+                  placeholder={t('yourName')}
+                  className="w-full rounded-xl border border-[var(--brand-border)] bg-[var(--brand-surface)] px-3 py-2.5 text-sm focus:border-[var(--brand-primary)] focus:outline-none"
+                />
+              )}
               {ordering.collect_address && service === 'delivery' && (
                 <input
                   value={address}

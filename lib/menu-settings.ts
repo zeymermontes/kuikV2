@@ -79,8 +79,8 @@ export interface MenuSettings {
   showBadges: boolean;
   /** The small "dish / drink / to go" tag beside each option group in the product sheet. */
   showOptionKind: boolean;
-  /** The "hide photos" pill diners can tap above the sections (shown only when the menu has photos). */
-  imageToggle: boolean;
+  /** Product photos on the menu at all. Off = a text menu, whatever the card layout says. */
+  showImages: boolean;
   soldOutStyle: SoldOutStyle;
   showSocial: boolean;
   /** The "Open now · 12:00–23:00" badge under the header. */
@@ -173,7 +173,7 @@ export const DEFAULT_MENU_SETTINGS: MenuSettings = {
   showFilters: false,
   showBadges: true,
   showOptionKind: true,
-  imageToggle: true,
+  showImages: true,
   soldOutStyle: 'gray',
   showSocial: true,
   // Both default to true so nothing changes for a menu that predates them.

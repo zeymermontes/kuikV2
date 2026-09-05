@@ -3,7 +3,7 @@
 import { useMemo, useReducer, useState, useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Search, Globe, MapPin, ChevronDown, ChevronLeft, X, CalendarCheck, ImageIcon, ImageOff } from 'lucide-react';
+import { Search, Globe, MapPin, ChevronDown, ChevronLeft, X, CalendarCheck } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type {
   Tenant,
@@ -27,7 +27,6 @@ import {
   showCategoryTitle,
   pickImage,
 } from '@/lib/menu-settings';
-import { useLocalFlag } from '@/lib/use-local-flag';
 import { categoryThemeVars, categoryPageVars, categoryThemeFonts, googleFontsHref } from '@/lib/category-theme';
 import { mapHref } from '@/lib/hours';
 import { digitsOnly, slugify } from '@/lib/utils';
@@ -176,10 +175,8 @@ export function MenuView({
     ordering.ordering_enabled && channelOrdering && Boolean(contact.whatsapp_phone);
   const radiusClass = RADIUS_CLASS[settings.cornerRadius];
   const layout = useMemo(() => resolveItemLayout(settings), [settings]);
-  // The visitor may switch the photos off (a slow connection, or they just
-  // want the list); remembered on their device. Only offered when it matters.
-  const [hideImages, setHideImages] = useLocalFlag('kuik:hideImages');
-  const itemLayout = hideImages ? { ...layout, image: 'none' as const } : layout;
+  // The owner may switch photos off outright (Design → "Show product photos").
+  const itemLayout = settings.showImages ? layout : { ...layout, image: 'none' as const };
 
   // Readable anchors: #desayunos rather than #cat-<uuid>. A subcategory is
   // prefixed with its parent so two "Extras" under different sections stay
@@ -461,9 +458,13 @@ export function MenuView({
   // top — this stays pixel-perfect aligned without `background-attachment: fixed`
   // (which jitters on Android when the URL bar hides and the viewport resizes).
   const navBgImage = settings.darkMode === 'on' ? null : theme.background_image_url;
+  // Without a background image the bar's tint sits on a solid brand layer, so
+  // a translucent tab colour never lets the page show through. The tint is a
+  // child layer rather than a gradient because a gradient cannot transition,
+  // and the bar must fade with the rest of the chrome when the section changes.
   const navStyle: React.CSSProperties = navBgImage
     ? { backgroundColor: 'var(--tab-bar-bg)' }
-    : { backgroundColor: 'var(--brand-bg)', backgroundImage: 'linear-gradient(var(--tab-bar-bg), var(--tab-bar-bg))' };
+    : { backgroundColor: 'var(--brand-bg)' };
 
   // Track when the bar is stuck to the top so the occluding strip only shows then.
   useEffect(() => {
@@ -509,14 +510,6 @@ export function MenuView({
   // The page chrome follows whichever section is in view and fades between
   // schemes (see .menu-fade in globals.css) instead of snapping.
   const activeTheme = filteredMenu.find((c) => c.id === effectiveActive)?.theme ?? null;
-  const menuHasImages =
-    settings.imageToggle &&
-    layout.image !== 'none' &&
-    filteredMenu.some((c) =>
-      [...c.entries, ...c.subcategories.flatMap((sub) => sub.entries)].some(
-        (e) => e.kind === 'product' && Boolean(e.image_url),
-      ),
-    );
   const sectionFonts = categoryThemeFonts(filteredMenu.map((c) => c.theme));
 
   // One run of products/separators, shared by a section and its subcategories.
@@ -801,6 +794,9 @@ export function MenuView({
             header bar and the category strip when both are coloured. */}
         <div ref={stickyRef} aria-hidden className="h-0" />
         <nav ref={navRef} className="sticky top-0 z-20" style={navStyle}>
+          {!navBgImage && (
+            <div aria-hidden data-fade className="absolute inset-0 -z-10" style={{ backgroundColor: 'var(--tab-bar-bg)' }} />
+          )}
           {/* The sticky element is deliberately NOT the scroll container:
               Chrome on Android tears a sticky box that also scrolls while the
               URL bar collapses. The clipping still happens on the constrained
@@ -879,22 +875,6 @@ export function MenuView({
 
       {/* Sections */}
       <div className={`mx-auto w-full space-y-8 px-4 pt-6 ${CONTENT_WIDTH_CLASS[settings.contentWidth]}`}>
-        {menuHasImages && (
-          <div className="-mb-4 flex justify-end">
-            <button
-              type="button"
-              onClick={() => setHideImages(!hideImages)}
-              className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
-              style={{
-                backgroundColor: 'var(--tab-unselected-bg)',
-                color: 'var(--tab-unselected-text)',
-              }}
-            >
-              {hideImages ? <ImageIcon className="h-3.5 w-3.5" /> : <ImageOff className="h-3.5 w-3.5" />}
-              {hideImages ? t('showImages') : t('hideImages')}
-            </button>
-          </div>
-        )}
         {visibleCats.map((cat) => {
           // Collapsing only applies in scroll mode (tabs mode shows one category).
           const collapsible = settings.collapsibleCategories && !tabsMode;

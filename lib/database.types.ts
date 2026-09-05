@@ -103,7 +103,8 @@ export interface TenantTheme {
 export type ServiceType = 'pickup' | 'delivery' | 'dinein';
 
 /** How a guest says they will pay; the restaurant picks which to offer. */
-export type PaymentMethod = 'cash' | 'transfer' | 'card';
+/** 'onsite' = the guest settles at the counter when they pick up / are served. */
+export type PaymentMethod = 'cash' | 'transfer' | 'card' | 'onsite';
 
 export interface TenantOrdering {
   tenant_id: string;
@@ -122,6 +123,8 @@ export interface TenantOrdering {
   collect_address: boolean;
   collect_pickup_time: boolean;
   collect_table: boolean;
+  /** Ask the guest's name at checkout (see 0063). */
+  collect_name: boolean;
   cash_count_mode: 'total' | 'denominations';
   cash_denominations: number[] | null;
   pos_tables: number;

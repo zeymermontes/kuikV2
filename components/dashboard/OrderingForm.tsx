@@ -7,7 +7,7 @@ import { Card, Label, Input, Textarea } from '@/components/ui';
 import { updateOrdering } from '@/app/(dashboard)/settings-actions';
 
 const SERVICE_TYPES: ServiceType[] = ['pickup', 'delivery', 'dinein'];
-const PAYMENT_METHODS: PaymentMethod[] = ['cash', 'transfer', 'card'];
+const PAYMENT_METHODS: PaymentMethod[] = ['cash', 'transfer', 'card', 'onsite'];
 
 export function OrderingForm({
   ordering,
@@ -200,6 +200,7 @@ export function OrderingForm({
       {/* Customer fields */}
       <Card className="space-y-3">
         <h2 className="font-semibold">{t('customerFields')}</h2>
+        <ToggleRow label={t('collectName')} checked={o.collect_name} onChange={(v) => set('collect_name', v)} />
         <ToggleRow label={t('collectAddress')} checked={o.collect_address} onChange={(v) => set('collect_address', v)} />
         <ToggleRow label={t('collectPickupTime')} checked={o.collect_pickup_time} onChange={(v) => set('collect_pickup_time', v)} />
         <ToggleRow label={t('collectTable')} checked={o.collect_table} onChange={(v) => set('collect_table', v)} />

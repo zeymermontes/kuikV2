@@ -622,7 +622,7 @@ export function DesignForm({ theme }: { theme: TenantTheme }) {
           <ToggleRow label={t('animations')} checked={settings.animations} onChange={(v) => setS('animations', v)} />
           <ToggleRow label={t('showAddButton')} checked={settings.showAddButton} onChange={(v) => setS('showAddButton', v)} />
           <ToggleRow label={t('showOptionKind')} checked={settings.showOptionKind} onChange={(v) => setS('showOptionKind', v)} />
-          <ToggleRow label={t('imageToggle')} checked={settings.imageToggle} onChange={(v) => setS('imageToggle', v)} />
+          <ToggleRow label={t('showImages')} checked={settings.showImages} onChange={(v) => setS('showImages', v)} />
           <SelectRow
             label={t('productCase')}
             value={settings.productCase}
