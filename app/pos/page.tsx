@@ -5,7 +5,7 @@ import { resolveMenuSettings } from '@/lib/menu-settings';
 import { isPro } from '@/lib/plan';
 import { posThemeVars } from '@/lib/pos/theme';
 import { themeVars } from '@/lib/theme-vars';
-import type { Category, Product } from '@/lib/database.types';
+import type { Category, FloorTable, Product } from '@/lib/database.types';
 import { PosTerminal } from '@/components/pos/PosTerminal';
 import { PosLocked } from '@/components/pos/PosLocked';
 import { demoAreas, demoTables } from '@/lib/host/demo';
@@ -33,20 +33,23 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
     supabase.from('products').select('*').eq('tenant_id', tenant.id).eq('is_hidden', false).order('position'),
     supabase.from('tenant_ordering').select('cash_count_mode, cash_denominations, pos_tables').eq('tenant_id', tenant.id).maybeSingle(),
     // The host stand's plan, when the restaurant drew one: the POS floor map uses its tables.
-    supabase.from('floor_tables').select('label, seats, area_id, position').eq('tenant_id', tenant.id).order('position'),
+    supabase.from('floor_tables').select('*').eq('tenant_id', tenant.id).order('position'),
     supabase.from('reservation_areas').select('id, name').eq('tenant_id', tenant.id).order('position'),
   ]);
   const areaName = new Map(((areas ?? []) as { id: string; name: string }[]).map((a) => [a.id, a.name]));
-  let floorTables = ((floor ?? []) as { label: string; seats: number; area_id: string | null }[]).map((x) => ({
+  let planTables = (floor ?? []) as FloorTable[];
+  let planAreas = ((areas ?? []) as { id: string; name: string }[]).map((a) => ({ id: a.id, name: a.name }));
+  // The demo shows the floor bridge even before the restaurant draws a plan.
+  if (demo && planTables.length === 0) {
+    planTables = demoTables(tenant.id);
+    planAreas = demoAreas(tenant.id).map((a) => ({ id: a.id, name: a.name }));
+    for (const a of planAreas) areaName.set(a.id, a.name);
+  }
+  const floorTables = planTables.map((x) => ({
     label: x.label,
     seats: x.seats,
     area: x.area_id ? (areaName.get(x.area_id) ?? null) : null,
   }));
-  // The demo shows the floor bridge even before the restaurant draws a plan.
-  if (demo && floorTables.length === 0) {
-    const names = new Map(demoAreas(tenant.id).map((a) => [a.id, a.name]));
-    floorTables = demoTables(tenant.id).map((x) => ({ label: x.label, seats: x.seats, area: x.area_id ? (names.get(x.area_id) ?? null) : null }));
-  }
 
   const settings = resolveMenuSettings(theme.settings);
   const currency = settings.currency;
@@ -64,6 +67,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       cashDenominations={cash?.cash_denominations ?? null}
       posTables={cash?.pos_tables ?? 0}
       floorTables={floorTables}
+      floorPlan={{ tables: planTables, areas: planAreas }}
       menu={{ categories: (categories ?? []) as Category[], products: (products ?? []) as Product[] }}
       // The menu's own variables too: the product sheet (options, notes) is the
       // public menu's and paints itself with `--brand-*`.

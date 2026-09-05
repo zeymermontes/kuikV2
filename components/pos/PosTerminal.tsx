@@ -43,6 +43,7 @@ import {
   type DisplayState,
 } from '@/lib/pos/customer-screen';
 import { demoScope, type PosTab, type PosMenu, type RegisterShift, type TabItem } from '@/lib/pos/types';
+import type { FloorTable } from '@/lib/database.types';
 import { formatPrice } from '@/lib/utils';
 import { SaleScreen, type PayPhase } from './SaleScreen';
 import { PosModal } from './PosModal';
@@ -68,6 +69,7 @@ export function PosTerminal({
   cashDenominations,
   posTables,
   floorTables = [],
+  floorPlan,
   menu: initialMenu,
   themeStyle,
   demo = false,
@@ -84,6 +86,8 @@ export function PosTerminal({
   posTables: number;
   /** Tables from the host stand's floor plan; when present they replace the numbered grid. */
   floorTables?: { label: string; seats: number; area: string | null }[];
+  /** The same plan with positions and shapes, for the map tab of the table picker. */
+  floorPlan?: { tables: FloorTable[]; areas: { id: string; name: string }[] };
   menu: PosMenu;
   /** Brand colours as CSS variables (lib/pos/theme.ts). */
   themeStyle?: React.CSSProperties;
@@ -556,6 +560,7 @@ export function PosTerminal({
               onVoided={() => select(null)}
               posTables={posTables}
               floorTables={floorTables}
+              floorPlan={floorPlan}
             />
           )}
 

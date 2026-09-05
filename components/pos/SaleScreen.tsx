@@ -35,7 +35,9 @@ import { fireToKitchen } from '@/lib/pos/kitchen';
 import { hasOptions } from '@/lib/menu-options';
 import { PosModal } from './PosModal';
 import { formatPrice } from '@/lib/utils';
-import type { Product } from '@/lib/database.types';
+import type { FloorTable, Product } from '@/lib/database.types';
+import { FloorPlan } from '@/components/host/FloorPlan';
+import { FREE_TABLE_COLOR, type TableView } from '@/lib/host/model';
 import { ProductSheet } from '@/components/menu/ProductSheet';
 import { PaymentSheet } from './PaymentSheet';
 
@@ -78,6 +80,7 @@ export function SaleScreen({
   onVoided,
   posTables,
   floorTables = [],
+  floorPlan,
 }: {
   db: PosDexie;
   /** The sale being built; null until the first product is tapped. */
@@ -104,6 +107,7 @@ export function SaleScreen({
   posTables: number;
   /** Host-stand floor plan, when the restaurant drew one. */
   floorTables?: { label: string; seats: number; area: string | null }[];
+  floorPlan?: { tables: FloorTable[]; areas: { id: string; name: string }[] };
 }) {
   const t = useTranslations('pos');
   const money = (n: number) => formatPrice(n, currency, locale);
@@ -116,6 +120,8 @@ export function SaleScreen({
   const [modal, setModal] = useState<'discount' | 'guests' | 'void' | 'customer' | 'table' | null>(null);
   const [field, setField] = useState('');
   const [pctMode, setPctMode] = useState(false);
+  const [tableMode, setTableMode] = useState<'list' | 'map'>('map');
+  const [mapArea, setMapArea] = useState<string | null>(null);
 
   const live = items;
   const subtotal = live.reduce((s, i) => s + i.line_total, 0);
@@ -656,8 +662,51 @@ export function SaleScreen({
       )}
 
       {modal === 'table' && tab && (
-        <PosModal title={t('table')} onClose={() => setModal(null)}>
-          {(posTables > 0 || floorTables.length > 0) && (
+        <PosModal title={t('table')} onClose={() => setModal(null)} wide={!!floorPlan?.tables.length && tableMode === 'map'}>
+          {!!floorPlan?.tables.length && (
+            <div className="mb-3 flex items-center gap-2">
+              <div className="flex overflow-hidden rounded-xl border border-neutral-200 text-sm">
+                <button onClick={() => setTableMode('map')} className={`px-3 py-1.5 font-medium ${tableMode === 'map' ? 'bg-neutral-900 text-white' : 'text-neutral-600'}`}>{t('map')}</button>
+                <button onClick={() => setTableMode('list')} className={`px-3 py-1.5 font-medium ${tableMode === 'list' ? 'bg-neutral-900 text-white' : 'text-neutral-600'}`}>{t('list')}</button>
+              </div>
+              {tableMode === 'map' && floorPlan.areas.length > 0 && (
+                <div className="no-scrollbar flex gap-1 overflow-x-auto">
+                  {floorPlan.areas.map((a) => (
+                    <button key={a.id} onClick={() => setMapArea(a.id)} className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${(mapArea ?? floorPlan.areas[0]?.id) === a.id ? 'bg-pos-accent text-pos-accent-text' : 'bg-neutral-100 text-neutral-600'}`}>
+                      {a.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {!!floorPlan?.tables.length && tableMode === 'map' && (() => {
+            const area = mapArea ?? floorPlan.areas[0]?.id ?? null;
+            const views: TableView[] = floorPlan.tables
+              .filter((x) => (area ? x.area_id === area : !x.area_id))
+              .map((x) => {
+                const taken = openTabs.find((o) => o.table_label === x.label && o.id !== tab.id);
+                return { table: x, seated: null, upcoming: [], blocked: !!taken, color: taken ? 'var(--pos-accent)' : FREE_TABLE_COLOR };
+              });
+            return (
+              <div className="mb-3 h-72 overflow-hidden rounded-2xl bg-neutral-900">
+                <FloorPlan
+                  views={views}
+                  now={0}
+                  selectedIds={new Set(floorPlan.tables.filter((x) => x.label === tab.table_label).map((x) => x.id))}
+                  suggestedIds={new Set()}
+                  editMode={false}
+                  overTurnIds={new Set()}
+                  onTap={(id) => {
+                    const v = views.find((x) => x.table.id === id);
+                    if (v && !v.blocked) applyTable(v.table.label);
+                  }}
+                  onMove={() => {}}
+                />
+              </div>
+            );
+          })()}
+          {(posTables > 0 || floorTables.length > 0) && (tableMode === 'list' || !floorPlan?.tables.length) && (
             <div className="mb-3 max-h-64 space-y-3 overflow-y-auto">
               {(floorTables.length > 0
                 ? [...new Set(floorTables.map((x) => x.area ?? ''))].map((area) => ({

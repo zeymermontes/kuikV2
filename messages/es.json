@@ -892,7 +892,9 @@
     "tableTaken": "Ocupada por otra cuenta",
     "clearTable": "Quitar mesa",
     "void": "Anular",
-    "noArea": "Sin área"
+    "noArea": "Sin área",
+    "map": "Mapa",
+    "list": "Lista"
   },
   "orders": {
     "payment_cash": "Efectivo",

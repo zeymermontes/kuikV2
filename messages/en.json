@@ -892,7 +892,9 @@
     "tableTaken": "Taken by another tab",
     "clearTable": "Clear table",
     "void": "Void",
-    "noArea": "No area"
+    "noArea": "No area",
+    "map": "Map",
+    "list": "List"
   },
   "orders": {
     "payment_cash": "Cash",
