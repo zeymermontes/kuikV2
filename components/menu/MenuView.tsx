@@ -153,6 +153,9 @@ export function MenuView({
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [navStuck, setNavStuck] = useState(false);
   const [barH, setBarH] = useState(52);
+  // Zoom for cards in a forced two-column grid; 1 until the column is measured.
+  const [cardZoom, setCardZoom] = useState(1);
+  const columnRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const tabRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
   const navRef = useRef<HTMLElement | null>(null);
@@ -488,6 +491,22 @@ export function MenuView({
     io.observe(el);
     return () => io.disconnect();
   }, [showNav]);
+
+  // "Always two columns": size the card to its cell. A card needs ~13rem to lay
+  // out at full size; narrower cells get a proportional zoom (see .kuik-grid-2).
+  // Measured here rather than with a container query — see globals.css for why.
+  useEffect(() => {
+    const el = columnRef.current;
+    if (!el || !settings.forceTwoColumns || layout.columns !== 2) return;
+    const gapPx = parseFloat(layout.gap) * (layout.gap.endsWith('rem') ? 16 : 1);
+    const ro = new ResizeObserver(() => {
+      const inner = el.clientWidth - 32; // the column's own px-4
+      const cell = (inner - gapPx) / 2;
+      setCardZoom(Math.max(0.6, Math.min(1, Math.round((cell / 208) * 100) / 100)));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [settings.forceTwoColumns, layout.columns, layout.gap]);
 
   // Keep the occluding strip's height in sync with the bar.
   useEffect(() => {
@@ -950,7 +969,11 @@ export function MenuView({
       )}
 
       {/* Sections */}
-      <div className={`mx-auto w-full space-y-8 px-4 pt-6 ${CONTENT_WIDTH_CLASS[settings.contentWidth]}`}>
+      <div
+        ref={columnRef}
+        className={`mx-auto w-full space-y-8 px-4 pt-6 ${CONTENT_WIDTH_CLASS[settings.contentWidth]}`}
+        style={{ '--card-zoom': cardZoom } as React.CSSProperties}
+      >
         {visibleCats.map((cat) => {
           // Collapsing only applies in scroll mode (tabs mode shows one category).
           const collapsible = settings.collapsibleCategories && !tabsMode;

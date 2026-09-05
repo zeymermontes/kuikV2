@@ -87,13 +87,14 @@ body {
 
 /* Grid cells that may scale their card. `zoom` shrinks text, padding, photo
    and button together, and a zoomed card lays out in more (zoomed) pixels, so
-   the price-and-button row fits where it would otherwise overflow. */
-.kuik-cell { container-type: inline-size; }
+   the price-and-button row fits where it would otherwise overflow.
+   --card-zoom is measured in MenuView (ResizeObserver on the column). It was a
+   container query first, but `container-type: inline-size` on these cells makes
+   WebKit snap the page back to the top on every scroll — reproduced in
+   Playwright's WebKit, gone the moment the containment is removed. */
 .kuik-cell > * { flex: 1 1 auto; min-width: 0; }
 .kuik-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-@container (max-width: 13rem) { .kuik-grid-2 .kuik-cell > * { zoom: 0.9; } }
-@container (max-width: 11.75rem) { .kuik-grid-2 .kuik-cell > * { zoom: 0.8; } }
-@container (max-width: 10.5rem) { .kuik-grid-2 .kuik-cell > * { zoom: 0.72; } }
+.kuik-grid-2 .kuik-cell > * { zoom: var(--card-zoom, 1); }
 /* Below ~336px there is no sensible two-up; fall back to one column. */
 @media (max-width: 21rem) { .kuik-grid-2 { grid-template-columns: minmax(0, 1fr); } }
 
