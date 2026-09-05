@@ -1708,7 +1708,8 @@
     "host_finish_t": "Finish and free the table",
     "host_finish_b": "“Finish” frees the table and moves the visit to Finished. In settings (gear) you define shifts, turn times by party size and the grace minutes.",
     "openTab": "Open tutorial in a new tab",
-    "fullscreen": "Full screen"
+    "fullscreen": "Full screen",
+    "exitFullscreen": "Exit full screen"
   },
   "help": {
     "modeOn": "Explain mode: tap anything",

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ExternalLink, MonitorSmartphone, Maximize2 } from 'lucide-react';
+import { ExternalLink, MonitorSmartphone, Maximize2, X } from 'lucide-react';
 
 // The POS preview: the real terminal and the real customer screen in two
 // device frames, running in demo mode (`?demo=1`) against a throwaway local
@@ -44,6 +44,7 @@ export function DeviceFrame({
   openLabel,
   tabLabel,
   fullLabel,
+  closeLabel = 'Esc',
 }: {
   title: string;
   src: string;
@@ -53,6 +54,8 @@ export function DeviceFrame({
   tabLabel?: string;
   /** When set, offers a full-screen button for the frame. */
   fullLabel?: string;
+  /** Label of the button that leaves full screen. */
+  closeLabel?: string;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const shell = useRef<HTMLDivElement>(null);
@@ -100,8 +103,17 @@ export function DeviceFrame({
       </div>
       <div
         ref={shell}
-        className={full ? 'flex h-screen w-screen items-center justify-center bg-black p-3' : 'rounded-[1.4rem] border-[8px] border-neutral-900 bg-neutral-900 shadow-xl'}
+        className={full ? 'relative flex h-screen w-screen items-center justify-center bg-black p-3' : 'rounded-[1.4rem] border-[8px] border-neutral-900 bg-neutral-900 shadow-xl'}
       >
+        {full && (
+          // Tablets have no Esc key: give full screen an explicit way out.
+          <button
+            onClick={() => document.exitFullscreen?.().catch(() => {})}
+            className="absolute right-4 top-4 z-10 flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold text-neutral-900 shadow-lg hover:bg-white"
+          >
+            <X className="h-4 w-4" /> {closeLabel}
+          </button>
+        )}
         <div
           ref={box}
           className={`relative overflow-hidden bg-white ${full ? 'h-full w-full rounded-xl' : 'w-full rounded-[0.9rem]'}`}

@@ -53,7 +53,7 @@ export function Tutorial({ showPos }: { showPos: boolean }) {
                   ))}
                 </ol>
                 <div className="min-w-0">
-                  <DeviceFrame title={t('tryIt')} src={src} openHref={href} openLabel={t('openReal')} tabLabel={t('openTab')} fullLabel={t('fullscreen')} />
+                  <DeviceFrame title={t('tryIt')} src={src} openHref={href} openLabel={t('openReal')} tabLabel={t('openTab')} fullLabel={t('fullscreen')} closeLabel={t('exitFullscreen')} />
                   <p className="mt-2 text-xs text-neutral-500">{t('demoNote')}</p>
                 </div>
               </div>

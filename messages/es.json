@@ -1708,7 +1708,8 @@
     "host_finish_t": "Termina y libera",
     "host_finish_b": "«Terminar» libera la mesa y manda la visita a Terminadas. Desde ajustes (engrane) defines turnos, tiempos de mesa por tamaño y minutos de gracia.",
     "openTab": "Abrir tutorial en otra pestaña",
-    "fullscreen": "Pantalla completa"
+    "fullscreen": "Pantalla completa",
+    "exitFullscreen": "Salir de pantalla completa"
   },
   "help": {
     "modeOn": "Modo explicar: toca algo",
