@@ -545,8 +545,8 @@
     "pointsReward": "{points} pts = {reward}"
   },
   "ordering": {
-    "title": "Pedidos",
-    "subtitle": "Configura cómo recibes los pedidos por WhatsApp",
+    "title": "Cómo se ordena",
+    "subtitle": "Configura cómo piden tus clientes y cómo recibes los pedidos",
     "mode": "Modo del menú",
     "modeHint": "¿Tus clientes pueden ordenar o solo ven los productos?",
     "modeOrder": "Pedidos en línea",

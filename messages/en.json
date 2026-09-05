@@ -545,8 +545,8 @@
     "pointsReward": "{points} pts = {reward}"
   },
   "ordering": {
-    "title": "Ordering",
-    "subtitle": "Configure how you receive WhatsApp orders",
+    "title": "Ordering setup",
+    "subtitle": "Set up how customers order and how you receive the orders",
     "mode": "Menu mode",
     "modeHint": "Can customers order, or just browse the products?",
     "modeOrder": "Online ordering",
