@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Calculator, LayoutGrid, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calculator, LayoutGrid, ChefHat, ChevronDown, ChevronUp } from 'lucide-react';
 import { DeviceFrame } from './PosPreview';
 
 // Two guided chapters. Each is a numbered walk-through next to the real
@@ -11,16 +11,18 @@ import { DeviceFrame } from './PosPreview';
 
 const POS_STEPS = ['open', 'sell', 'options', 'table', 'charge', 'customer', 'kitchen', 'close'] as const;
 const HOST_STEPS = ['plan', 'lists', 'book', 'arrive', 'seat', 'status', 'waitlist', 'finish'] as const;
+const KDS_STEPS = ['arrive', 'read', 'start', 'ready', 'station', 'allday'] as const;
 
 export function Tutorial({ showPos }: { showPos: boolean }) {
   const t = useTranslations('tutorial');
-  const [open, setOpen] = useState<'pos' | 'host'>(showPos ? 'pos' : 'host');
+  const [open, setOpen] = useState<'pos' | 'host' | 'kds'>(showPos ? 'pos' : 'host');
 
   const chapters = [
     ...(showPos
       ? [{ key: 'pos' as const, icon: Calculator, steps: POS_STEPS, src: '/pos?demo=1&explain=1', href: '/pos' }]
       : []),
     { key: 'host' as const, icon: LayoutGrid, steps: HOST_STEPS, src: '/host?demo=1&explain=1', href: '/host' },
+    ...(showPos ? [{ key: 'kds' as const, icon: ChefHat, steps: KDS_STEPS, src: '/kds?demo=1&explain=1', href: '/kds' }] : []),
   ];
 
   return (
