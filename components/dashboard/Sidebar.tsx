@@ -251,7 +251,11 @@ function RestaurantSwitcher({
           {tenants.map((tn) => (
             <button
               key={tn.id}
-              onClick={() => startTransition(() => setActiveTenant(tn.id))}
+              onClick={() =>
+                startTransition(async () => {
+                  if (await setActiveTenant(tn.id)) window.location.assign('/dashboard');
+                })
+              }
               className={cn(
                 'block w-full truncate px-3 py-2 text-left text-sm hover:bg-neutral-100',
                 tn.id === activeId && 'font-semibold',

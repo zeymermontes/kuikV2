@@ -9,7 +9,7 @@
 // so /pos pages keep their own worker. This file still bails out of /pos
 // requests explicitly, to cover the window before that worker activates.
 
-const CACHE = 'kuik-app-v1';
+const CACHE = 'kuik-app-v2';
 // Only ever evict our own caches — see the matching note in sw-pos.js.
 const OWNED_PREFIX = 'kuik-app-';
 
@@ -42,16 +42,28 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/pos')) return;     // sw-pos.js owns those
   if (url.pathname.startsWith('/api/')) return;    // never serve stale data
 
-  // Navigations: network-first, so a fresh deploy always wins.
+  // Navigations: network-first, so a fresh deploy always wins. Only a plain
+  // 200 page is kept: a redirect (a server action switching restaurants, a
+  // sign-out) must reach the browser untouched, and replaying a redirected or
+  // error response to a navigation is itself a network error in Chrome — the
+  // "This page couldn't load" screen.
   if (req.mode === 'navigate') {
     event.respondWith(
       fetch(req)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy));
+          if (res.ok && res.type === 'basic' && !res.redirected) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(req, copy));
+          }
           return res;
         })
-        .catch(async () => (await caches.match(req)) || (await caches.match('/reservations')) || Response.error()),
+        .catch(async () => {
+          const usable = (r) => r && r.ok && !r.redirected;
+          const hit = await caches.match(req);
+          if (usable(hit)) return hit;
+          const shell = await caches.match('/reservations');
+          return usable(shell) ? shell : Response.error();
+        }),
     );
     return;
   }
