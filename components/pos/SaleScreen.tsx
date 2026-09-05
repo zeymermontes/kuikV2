@@ -689,7 +689,7 @@ export function SaleScreen({
                 return { table: x, seated: null, upcoming: [], blocked: !!taken, color: taken ? 'var(--pos-accent)' : FREE_TABLE_COLOR };
               });
             return (
-              <div className="mb-3 h-72 overflow-hidden rounded-2xl bg-neutral-900">
+              <div className="mb-3 h-80 overflow-hidden rounded-2xl bg-neutral-900">
                 <FloorPlan
                   views={views}
                   now={0}
@@ -702,6 +702,7 @@ export function SaleScreen({
                     if (v && !v.blocked) applyTable(v.table.label);
                   }}
                   onMove={() => {}}
+                  fitWidth
                 />
               </div>
             );

@@ -30,6 +30,7 @@ export function FloorPlan({
   onMove,
   onAddAt,
   addLabel,
+  fitWidth = false,
 }: {
   views: TableView[];
   now: number;
@@ -44,6 +45,8 @@ export function FloorPlan({
   onMove: (id: string, x: number, y: number) => void;
   onAddAt?: (x: number, y: number) => void;
   addLabel?: string;
+  /** Scale to the width only and scroll vertically (the POS picker); default fits both ways. */
+  fitWidth?: boolean;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -58,12 +61,14 @@ export function FloorPlan({
     const el = box.current;
     if (!el) return;
     const ro = new ResizeObserver(([e]) => {
-      const s = Math.min(1.25, e.contentRect.width / (cols * CELL), e.contentRect.height / (rows * CELL));
+      const s = fitWidth
+        ? Math.min(1.25, e.contentRect.width / (cols * CELL))
+        : Math.min(1.25, e.contentRect.width / (cols * CELL), e.contentRect.height / (rows * CELL));
       setScale(Math.max(0.35, s));
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, [cols, rows]);
+  }, [cols, rows, fitWidth]);
 
   function onPointerDown(e: React.PointerEvent, id: string) {
     if (!editMode) return;
@@ -94,13 +99,14 @@ export function FloorPlan({
   return (
     <div
       ref={box}
-      className="relative h-full w-full overflow-hidden"
+      className={`relative h-full w-full ${fitWidth ? 'overflow-y-auto overflow-x-hidden' : 'overflow-hidden'}`}
       onDoubleClick={(e) => {
         if (!editMode || !onAddAt || e.target !== e.currentTarget) return;
         const r = e.currentTarget.getBoundingClientRect();
         onAddAt(Math.floor((e.clientX - r.left) / (CELL * scale)), Math.floor((e.clientY - r.top) / (CELL * scale)));
       }}
     >
+      {fitWidth && <div style={{ height: rows * CELL * scale }} />}
       <div
         className="absolute left-0 top-0 origin-top-left"
         style={{
