@@ -12,12 +12,14 @@ import { PosLocked } from '@/components/pos/PosLocked';
 export const dynamic = 'force-dynamic';
 
 /** The terminal. `?demo=1` runs it against a throwaway local store for the dashboard preview. */
-export default async function PosPage({ searchParams }: { searchParams: Promise<{ demo?: string }> }) {
+export default async function PosPage({ searchParams }: { searchParams: Promise<{ demo?: string; explain?: string }> }) {
   const { tenant, user, theme, subscription } = await requireTenant();
   if (!isPro(subscription)) return <PosLocked title="POS" />;
   const supabase = await createClient();
   const locale = await getLocale();
-  const demo = !!(await searchParams).demo;
+  const params = await searchParams;
+  const demo = !!params.demo;
+  const explain = demo && !!params.explain;
 
   const [{ data: categories }, { data: products }, { data: ordering }, { data: floor }, { data: areas }] = await Promise.all([
     supabase
@@ -61,6 +63,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       // public menu's and paints itself with `--brand-*`.
       themeStyle={{ ...themeVars(theme, settings), ...posThemeVars(theme) }}
       demo={demo}
+      explain={explain}
     />
   );
 }

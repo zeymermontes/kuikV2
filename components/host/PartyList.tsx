@@ -73,7 +73,7 @@ export function PartyList({
         const open = !collapsed.has(s);
         return (
           <section key={s} className="border-b border-white/10">
-            <header className="flex items-center gap-2 px-3 py-2">
+            <header className="flex items-center gap-2 px-3 py-2" data-help={`host_section_${s}`}>
               <button onClick={() => onToggle(s)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
                 <span className="truncate text-sm font-bold">{t(`section_${s}`)}</span>
                 {(s === 'reservations' || s === 'seated') && (
@@ -86,7 +86,7 @@ export function PartyList({
                 <span title={t('covers')}>{covers} 👤</span>
               </span>
               {s === 'waitlist' && (
-                <button onClick={() => onWalkIn()} className="rounded-lg bg-white/10 p-1.5 hover:bg-white/20" title={t('addWalkIn')}>
+                <button data-help="host_addWalkIn" onClick={() => onWalkIn()} className="rounded-lg bg-white/10 p-1.5 hover:bg-white/20" title={t('addWalkIn')}>
                   <Plus className="h-4 w-4" />
                 </button>
               )}
@@ -100,6 +100,7 @@ export function PartyList({
                 {quotes.map((q) => (
                   <button
                     key={q.party}
+                    data-help="host_quote"
                     onClick={() => onWalkIn({ party: q.party, quote: q.minutes })}
                     className="flex shrink-0 flex-col items-center rounded-lg bg-white/10 px-2.5 py-1 leading-tight hover:bg-white/20"
                     title={t('quoteFor', { n: q.party })}
@@ -127,7 +128,7 @@ export function PartyList({
                 const seatedOrNext = r.status === 'seated' || r.table_ids.length > 0;
                 return (
                   <div key={r.id} className="flex items-stretch border-t border-white/5">
-                    <button onClick={() => onSelect(r.id)} className="flex min-w-0 flex-1 items-stretch text-left hover:bg-white/5">
+                    <button data-help="host_row" onClick={() => onSelect(r.id)} className="flex min-w-0 flex-1 items-stretch text-left hover:bg-white/5">
                       <span className="w-1.5 shrink-0" style={{ backgroundColor: color }} />
                       <span className="flex w-9 shrink-0 flex-col items-center justify-center gap-0.5 text-white/60">
                         <Icon className="h-4 w-4" style={{ color }} />
@@ -171,6 +172,7 @@ export function PartyList({
                     </button>
                     {seatedOrNext ? (
                       <button
+                        data-help="host_tableBadge"
                         onClick={() => onSelect(r.id)}
                         className="m-1.5 flex w-11 shrink-0 flex-col items-center justify-center rounded-lg text-xs font-bold text-white"
                         style={{ backgroundColor: r.status === 'seated' ? TABLE_STATUS_COLOR[r.table_status] : '#4b4b5c' }}
@@ -181,6 +183,7 @@ export function PartyList({
                       </button>
                     ) : s !== 'finished' && s !== 'removed' ? (
                       <button
+                        data-help="host_assign"
                         onClick={() => onSeat(r.id)}
                         className="m-1.5 flex w-11 shrink-0 items-center justify-center rounded-lg border border-white/15 text-white/70 hover:bg-white/10"
                         title={t('assignTable')}

@@ -14,13 +14,14 @@ export const dynamic = 'force-dynamic';
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** `?demo=1` shows a sample floor and day in memory: the dashboard preview, and a first look before a plan exists. */
-export default async function HostPage({ searchParams }: { searchParams: Promise<{ d?: string; demo?: string }> }) {
+export default async function HostPage({ searchParams }: { searchParams: Promise<{ d?: string; demo?: string; explain?: string }> }) {
   const ctx = await requireReservations();
   const { tenant, theme, role, support } = ctx;
   const supabase = await createClient();
   const locale = await getLocale();
-  const { d, demo: demoParam } = await searchParams;
+  const { d, demo: demoParam, explain: explainParam } = await searchParams;
   const demo = !!demoParam;
+  const explain = demo && !!explainParam;
 
   // "Today" at the restaurant, not on the server (see app/(dashboard)/reservations).
   const today = todayInTz(tenant.timezone);
@@ -60,6 +61,7 @@ export default async function HostPage({ searchParams }: { searchParams: Promise
       pendingTotal={pending.total}
       canEdit={support || role === 'owner' || role === 'manager'}
       demo={demo}
+      explain={explain}
       themeStyle={posThemeVars(theme)}
     />
   );

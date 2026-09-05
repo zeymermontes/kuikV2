@@ -49,6 +49,7 @@ import { PosModal } from './PosModal';
 import { ZReport } from './ZReport';
 import { HistoryScreen } from './HistoryScreen';
 import { DenomCount } from './DenomCount';
+import { ExplainLayer } from '@/components/ExplainLayer';
 
 type View = 'sale' | 'tables' | 'orders' | 'history' | 'register';
 type Modal = 'newTab' | 'openReg' | 'closeReg' | 'server' | null;
@@ -70,6 +71,7 @@ export function PosTerminal({
   menu: initialMenu,
   themeStyle,
   demo = false,
+  explain = false,
 }: {
   tenantId: string;
   userId: string;
@@ -87,6 +89,8 @@ export function PosTerminal({
   themeStyle?: React.CSSProperties;
   /** Dashboard preview: throwaway local store, no sync, seeded sale. */
   demo?: boolean;
+  /** Tutorials: start in explain mode (taps describe instead of act). */
+  explain?: boolean;
 }) {
   const t = useTranslations('pos');
   const money = (n: number) => formatPrice(n, currency, locale);
@@ -326,6 +330,7 @@ export function PosTerminal({
     return (
       <button
         key={item.key}
+        data-help={`pos_nav_${item.key}`}
         onClick={() => setView(item.key)}
         className={
           mobile
@@ -367,6 +372,7 @@ export function PosTerminal({
         </div>
         <div className="mt-4 flex flex-col gap-1 border-t border-white/10 pt-4">
           <button
+            data-help="pos_customerScreen"
             onClick={launchCustomerScreen}
             className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-neutral-300 hover:bg-white/5 hover:text-white xl:px-4"
             title={t('customerScreen')}
@@ -377,6 +383,7 @@ export function PosTerminal({
           <Link
             href="/kds"
             target="_blank"
+            data-help="pos_kitchen"
             className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-neutral-300 hover:bg-white/5 hover:text-white xl:px-4"
             title={t('kitchen')}
           >
@@ -386,6 +393,7 @@ export function PosTerminal({
           <Link
             href="/ordering"
             target="_blank"
+            data-help="pos_settings"
             className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-neutral-300 hover:bg-white/5 hover:text-white xl:px-4"
             title={t('settings')}
           >
@@ -398,6 +406,7 @@ export function PosTerminal({
             setField(serverName);
             setModal('server');
           }}
+          data-help="pos_server"
           className="mt-auto flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-2 text-left hover:bg-white/10 xl:p-3"
           title={t('selectServer')}
         >
@@ -415,7 +424,7 @@ export function PosTerminal({
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-2 px-3 pt-3 pb-2 md:px-4">
-          <div className="relative min-w-0 flex-1">
+          <div className="relative min-w-0 flex-1" data-help="pos_search">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
             <input
               ref={searchRef}
@@ -435,6 +444,7 @@ export function PosTerminal({
 
           {selected && selected.status !== 'paid' && (
             <button
+              data-help="pos_hold"
               onClick={holdSale}
               className="hidden h-11 items-center gap-2 rounded-2xl border border-neutral-200 bg-white px-3.5 text-sm font-semibold text-neutral-700 shadow-sm hover:bg-neutral-50 sm:flex"
             >
@@ -442,6 +452,7 @@ export function PosTerminal({
             </button>
           )}
           <button
+            data-help="pos_newSale"
             onClick={newSale}
             className="flex h-11 items-center gap-2 rounded-2xl bg-pos-accent px-3.5 text-sm font-semibold text-white shadow-sm shadow-pos-accent/30 hover:bg-pos-accent-hover"
           >
@@ -449,6 +460,7 @@ export function PosTerminal({
           </button>
 
           <button
+            data-help="pos_registerChip"
             onClick={() => setView('register')}
             className={`hidden h-11 items-center gap-2 rounded-2xl border bg-white px-3 text-xs font-semibold shadow-sm md:flex ${
               shift ? 'border-green-200 text-green-700' : 'border-amber-200 text-amber-700'
@@ -461,6 +473,7 @@ export function PosTerminal({
 
           <div className="relative">
             <button
+              data-help="pos_bell"
               onClick={() => setBell((v) => !v)}
               className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-neutral-200 bg-white text-neutral-600 shadow-sm hover:bg-neutral-50"
               title={t('notifications')}
@@ -509,6 +522,7 @@ export function PosTerminal({
           </div>
 
           <button
+            data-help="pos_fullscreen"
             onClick={toggleFullscreen}
             className="hidden h-11 w-11 items-center justify-center rounded-2xl border border-neutral-200 bg-white text-neutral-600 shadow-sm hover:bg-neutral-50 sm:flex"
             title={t('fullscreen')}
@@ -562,6 +576,7 @@ export function PosTerminal({
                       return (
                         <button
                           key={label}
+                          data-help="pos_tableCard"
                           onClick={() => tapTable(label)}
                           className={`flex aspect-square flex-col items-center justify-center rounded-2xl p-2 text-center shadow-sm ring-1 transition active:scale-[0.97] ${
                             tab ? 'bg-pos-accent text-pos-accent-text ring-pos-accent' : 'bg-white text-neutral-900 ring-black/5 hover:shadow-md'
@@ -592,6 +607,7 @@ export function PosTerminal({
                   {t('accounts')} <span className="text-sm font-normal text-neutral-400">{t('openTabsCount', { n: openCount })}</span>
                 </h2>
                 <button
+                  data-help="pos_newTab"
                   onClick={() => openModal('newTab')}
                   className="flex items-center gap-1.5 rounded-xl bg-neutral-900 px-3 py-2 text-sm font-semibold text-white"
                 >
@@ -605,6 +621,7 @@ export function PosTerminal({
                   {(tabs ?? []).map((tab) => (
                     <button
                       key={tab.id}
+                      data-help="pos_tabCard"
                       onClick={() => select(tab.id)}
                       className={`rounded-2xl bg-white p-4 text-left shadow-sm ring-1 transition hover:shadow-md ${
                         tab.id === selectedId ? 'ring-2 ring-pos-accent' : 'ring-black/5'
@@ -662,6 +679,7 @@ export function PosTerminal({
                     </div>
                   </div>
                   <button
+                    data-help="pos_registerButton"
                     onClick={() => openModal(shift ? 'closeReg' : 'openReg')}
                     className={shift ? 'w-full rounded-xl border border-amber-300 py-3 font-semibold text-amber-700 hover:bg-amber-50' : PRIMARY}
                   >
@@ -686,7 +704,7 @@ export function PosTerminal({
                     </div>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <button onClick={launchCustomerScreen} className={PRIMARY}>
+                    <button data-help="pos_openCustomer" onClick={launchCustomerScreen} className={PRIMARY}>
                       {t('openCustomerScreen')}
                     </button>
                     {canPresent() && (
@@ -801,6 +819,7 @@ export function PosTerminal({
       )}
 
       {zShift && <ZReport db={db} shift={zShift} currency={currency} locale={locale} onClose={() => setZShift(null)} />}
+      {demo && <ExplainLayer initialOn={explain} />}
     </div>
   );
 }

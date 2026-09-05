@@ -18,9 +18,9 @@ export function Tutorial({ showPos }: { showPos: boolean }) {
 
   const chapters = [
     ...(showPos
-      ? [{ key: 'pos' as const, icon: Calculator, steps: POS_STEPS, src: '/pos?demo=1', href: '/pos' }]
+      ? [{ key: 'pos' as const, icon: Calculator, steps: POS_STEPS, src: '/pos?demo=1&explain=1', href: '/pos' }]
       : []),
-    { key: 'host' as const, icon: LayoutGrid, steps: HOST_STEPS, src: '/host?demo=1', href: '/host' },
+    { key: 'host' as const, icon: LayoutGrid, steps: HOST_STEPS, src: '/host?demo=1&explain=1', href: '/host' },
   ];
 
   return (

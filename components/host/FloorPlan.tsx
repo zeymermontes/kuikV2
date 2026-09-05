@@ -123,6 +123,7 @@ export function FloorPlan({
           return (
             <button
               key={table.id}
+              data-help="host_table"
               onPointerDown={(e) => onPointerDown(e, table.id)}
               onPointerMove={onPointerMove}
               onPointerUp={(e) => onPointerUp(e, table)}
@@ -182,6 +183,7 @@ export function FloorPlan({
       </div>
       {editMode && onAddAt && (
         <button
+          data-help="host_addTable"
           onClick={() => onAddAt(1, 1)}
           className="absolute bottom-4 left-4 flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-neutral-900 shadow-lg"
         >

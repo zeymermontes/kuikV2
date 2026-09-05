@@ -31,6 +31,7 @@ import { WalkInSheet } from './WalkInSheet';
 import { TableSheet } from './TableSheet';
 import { HostSettingsSheet } from './HostSettingsSheet';
 import { PRIMARY } from './ui';
+import { ExplainLayer } from '@/components/ExplainLayer';
 
 type View = 'floor' | 'timeline' | 'list';
 type Sheet =
@@ -61,6 +62,7 @@ export function HostApp({
   canEdit,
   themeStyle,
   demo = false,
+  explain = false,
 }: {
   tenantId: string;
   tenantName: string;
@@ -77,6 +79,8 @@ export function HostApp({
   themeStyle?: React.CSSProperties;
   /** In-memory sample data: every write stays local, nothing syncs. */
   demo?: boolean;
+  /** Tutorials: start in explain mode (taps describe instead of act). */
+  explain?: boolean;
 }) {
   const t = useTranslations('host');
   const router = useRouter();
@@ -342,7 +346,7 @@ export function HostApp({
           ['list', List, t('list')],
         ] as const
       ).map(([key, Icon, label]) => (
-        <button key={key} onClick={() => setView(key)} className={`p-2 ${view === key ? 'bg-white text-neutral-900' : 'text-white/70'}`} title={label} aria-label={label}>
+        <button key={key} data-help={`host_view_${key}`} onClick={() => setView(key)} className={`p-2 ${view === key ? 'bg-white text-neutral-900' : 'text-white/70'}`} title={label} aria-label={label}>
           <Icon className="h-4 w-4" />
         </button>
       ))}
@@ -350,7 +354,7 @@ export function HostApp({
   );
 
   const search = (
-    <div className="relative min-w-0 flex-1">
+    <div className="relative min-w-0 flex-1" data-help="host_search">
       <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
       <input
         value={query}
@@ -365,7 +369,7 @@ export function HostApp({
     <div className="relative flex h-full flex-col">
       {/* Seating / moving bar with suggestions */}
       {seating && seatingParty && (
-        <div className="absolute inset-x-2 top-2 z-20 rounded-2xl bg-white p-2.5 text-neutral-900 shadow-xl md:inset-x-3 md:top-3">
+        <div className="absolute inset-x-2 top-2 z-20 rounded-2xl bg-white p-2.5 text-neutral-900 shadow-xl md:inset-x-3 md:top-3" data-help="host_seatingBar">
           <div className="flex items-center gap-2">
             <span className="min-w-0 flex-1 text-sm">
               <span className="font-bold">{seating.move ? t('movingBar', { name: seatingParty.customer_name }) : t('seatingBar', { name: seatingParty.customer_name, n: seatingParty.party_size })}</span>
@@ -470,7 +474,7 @@ export function HostApp({
       {/* Rooms + edit, bottom right like the plan's floor tabs */}
       <div className="absolute bottom-2 right-2 z-10 flex max-w-full flex-wrap items-center justify-end gap-1.5 md:bottom-3 md:right-3">
         {areas.length > 0 && (
-          <div className="flex overflow-hidden rounded-xl bg-black/50 backdrop-blur">
+          <div className="flex overflow-hidden rounded-xl bg-black/50 backdrop-blur" data-help="host_rooms">
             {areas.map((a) => (
               <button key={a.id} onClick={() => setAreaId(a.id)} className={`px-3 py-1.5 text-xs font-semibold ${areaId === a.id ? 'bg-white text-neutral-900' : 'text-white/70'}`}>
                 {a.name}
@@ -483,6 +487,7 @@ export function HostApp({
         )}
         {canEdit && (
           <button
+            data-help="host_editPlan"
             onClick={() => {
               setEditMode((v) => !v);
               setComboPick(null);
@@ -516,10 +521,10 @@ export function HostApp({
             )}
             <span className="hidden max-w-[140px] truncate text-sm font-bold lg:block">{tenantName}</span>
           </div>
-          <span className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1.5 text-sm" title={t('covers')}>
+          <span className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1.5 text-sm" title={t('covers')} data-help="host_covers">
             <Users className="h-4 w-4 text-white/60" /> <b>{seatedNow}</b><span className="text-white/40">/{covers}</span>
           </span>
-          <div className="flex items-center rounded-lg bg-white/5">
+          <div className="flex items-center rounded-lg bg-white/5" data-help="host_date">
             <Link href={href(addDays(day, -1))} className="p-2 text-white/70 hover:text-white" aria-label={t('prevDay')}><ChevronLeft className="h-4 w-4" /></Link>
             <input
               type="date"
@@ -532,27 +537,27 @@ export function HostApp({
           {day !== today && (
             <Link href={href(today)} className="rounded-lg px-2 py-1.5 text-xs font-semibold text-white/70 underline">{t('today')}</Link>
           )}
-          <span className="hidden items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs font-semibold md:flex">
+          <span className="hidden items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs font-semibold md:flex" data-help="host_shift">
             <span className="h-2 w-2 rounded-full bg-green-400" /> {shift?.name ?? t('shiftAll')}
           </span>
           <div className="ml-auto hidden min-w-0 flex-1 md:block md:max-w-xs">{search}</div>
           <div className="hidden md:block">{viewSwitch}</div>
           <div className="ml-auto flex items-center gap-1.5 md:ml-0">
             {pendingTotal > 0 && (
-              <Link href="/reservations" className="relative rounded-lg bg-white/5 p-2 text-white/70" title={t('pendingOther', { n: pendingTotal })}>
+              <Link href="/reservations" className="relative rounded-lg bg-white/5 p-2 text-white/70" title={t('pendingOther', { n: pendingTotal })} data-help="host_pending">
                 <Bell className="h-4 w-4" />
                 <span className="absolute -right-1 -top-1 min-w-[16px] rounded-full bg-amber-500 px-1 text-center text-[10px] font-bold text-white">{pendingTotal}</span>
               </Link>
             )}
-            <button onClick={() => setSheet({ kind: 'booking' })} className={`${PRIMARY} !px-3 !py-2`} title={t('newBooking')}>
+            <button data-help="host_book" onClick={() => setSheet({ kind: 'booking' })} className={`${PRIMARY} !px-3 !py-2`} title={t('newBooking')}>
               <CalendarClock className="h-4 w-4" /> <span className="hidden lg:inline">{t('newBooking')}</span>
             </button>
             {canEdit && (
-              <button onClick={() => setSheet({ kind: 'settings' })} className="rounded-lg bg-white/5 p-2 text-white/70 hover:text-white" title={t('settings')}>
+              <button data-help="host_settings" onClick={() => setSheet({ kind: 'settings' })} className="rounded-lg bg-white/5 p-2 text-white/70 hover:text-white" title={t('settings')}>
                 <Settings className="h-4 w-4" />
               </button>
             )}
-            <Link href="/reservations" className="rounded-lg bg-white/5 p-2 text-white/70 hover:text-white" title={t('openDashboard')}>
+            <Link href="/reservations" className="rounded-lg bg-white/5 p-2 text-white/70 hover:text-white" title={t('openDashboard')} data-help="host_dashboard">
               <ExternalLink className="h-4 w-4" />
             </Link>
           </div>
@@ -585,7 +590,7 @@ export function HostApp({
             ['timeline', Clock, t('timeline')],
           ] as const
         ).map(([key, Icon, label]) => (
-          <button key={key} onClick={() => setMobileTab(key)} className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${mobileTab === key ? 'text-white' : 'text-white/40'}`}>
+          <button key={key} data-help={`host_view_${key}`} onClick={() => setMobileTab(key)} className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${mobileTab === key ? 'text-white' : 'text-white/40'}`}>
             <Icon className="h-5 w-5" /> {label}
           </button>
         ))}
@@ -745,6 +750,7 @@ export function HostApp({
           onCreated={refresh}
         />
       )}
+      {demo && <ExplainLayer initialOn={explain} />}
     </div>
   );
 }

@@ -268,7 +268,7 @@ export function SaleScreen({
         </div>
         {tab && !paid && (
           <div className="relative">
-            <button onClick={() => setMenuOpen((v) => !v)} className="rounded-xl p-2 text-neutral-500 hover:bg-neutral-100" title={t('more')}>
+            <button data-help="pos_saleMenu" onClick={() => setMenuOpen((v) => !v)} className="rounded-xl p-2 text-neutral-500 hover:bg-neutral-100" title={t('more')}>
               <MoreHorizontal className="h-5 w-5" />
             </button>
             {menuOpen && (
@@ -301,6 +301,7 @@ export function SaleScreen({
           {otherTabs.map((x) => (
             <button
               key={x.id}
+              data-help="pos_switchTab"
               onClick={() => {
                 setCartOpen(false);
                 onSelectTab(x.id);
@@ -330,7 +331,7 @@ export function SaleScreen({
           live.map((it) => {
             const prod = menu.products.find((p) => p.id === it.product_id);
             return (
-              <div key={it.id} className="flex gap-3 border-b border-neutral-100 py-3">
+              <div key={it.id} className="flex gap-3 border-b border-neutral-100 py-3" data-help="pos_line">
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-neutral-100">
                   {prod?.image_url ? (
                     <Image src={prod.image_url} alt={it.name} fill sizes="56px" className="object-cover" />
@@ -344,7 +345,7 @@ export function SaleScreen({
                   <div className="flex items-start justify-between gap-2">
                     <p className="truncate text-sm font-semibold">{it.name}</p>
                     {!paid && (
-                      <button onClick={() => voidItem(db, it)} className="shrink-0 p-0.5 text-neutral-300 hover:text-red-500" title={t('remove')}>
+                      <button data-help="pos_remove" onClick={() => voidItem(db, it)} className="shrink-0 p-0.5 text-neutral-300 hover:text-red-500" title={t('remove')}>
                         <Trash2 className="h-4 w-4" />
                       </button>
                     )}
@@ -353,7 +354,7 @@ export function SaleScreen({
                     <p className="truncate text-xs text-neutral-400">{[...it.selections.map((s) => s.name), it.note].filter(Boolean).join(', ')}</p>
                   )}
                   <div className="mt-1.5 flex items-center justify-between">
-                    <div className="flex items-center gap-1 rounded-full border border-neutral-200 px-1 py-0.5">
+                    <div className="flex items-center gap-1 rounded-full border border-neutral-200 px-1 py-0.5" data-help="pos_qty">
                       <button onClick={() => !paid && setItemQty(db, it, it.qty - 1)} className="rounded-full p-1 hover:bg-neutral-100" disabled={paid}>
                         <Minus className="h-3.5 w-3.5" />
                       </button>
@@ -380,7 +381,7 @@ export function SaleScreen({
       </div>
 
       <footer className="border-t border-neutral-100 px-4 py-3">
-        <div className="space-y-1 text-sm text-neutral-500">
+        <div className="space-y-1 text-sm text-neutral-500" data-help="pos_totals">
           <div className="flex justify-between">
             <span>{t('subtotal')}</span>
             <span className="tabular-nums">{money(subtotal)}</span>
@@ -405,6 +406,7 @@ export function SaleScreen({
 
         {unfired.length > 0 && !paid && (
           <button
+            data-help="pos_fire"
             onClick={fire}
             className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-200 py-2.5 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
           >
@@ -413,6 +415,7 @@ export function SaleScreen({
         )}
 
         <button
+          data-help="pos_checkout"
           onClick={() => startPay('cash')}
           disabled={!canCharge}
           className="mt-3 flex w-full items-center justify-between rounded-2xl bg-pos-accent px-5 py-3.5 font-semibold text-white shadow-lg shadow-pos-accent/30 transition hover:bg-pos-accent-hover disabled:opacity-40 disabled:shadow-none"
@@ -437,16 +440,16 @@ export function SaleScreen({
       {/* Products */}
       <section className="relative flex min-w-0 flex-1 flex-col">
         <div className={`no-scrollbar flex items-center gap-2 overflow-x-auto px-3 pb-2 pt-1 md:px-4 ${query ? 'invisible h-0 overflow-hidden py-0' : ''}`}>
-          <Chip active={activeCat === ALL} onClick={() => setActiveCat(ALL)}>
+          <Chip active={activeCat === ALL} onClick={() => setActiveCat(ALL)} help="pos_category">
             {t('all')}
           </Chip>
           {popular.length > 0 && (
-            <Chip active={activeCat === POPULAR} onClick={() => setActiveCat(POPULAR)}>
+            <Chip active={activeCat === POPULAR} onClick={() => setActiveCat(POPULAR)} help="pos_popular">
               <Star className="h-3.5 w-3.5" /> {t('popular')}
             </Chip>
           )}
           {menu.categories.map((c) => (
-            <Chip key={c.id} active={activeCat === c.id} onClick={() => setActiveCat(c.id)}>
+            <Chip key={c.id} active={activeCat === c.id} onClick={() => setActiveCat(c.id)} help="pos_category">
               {c.name}
             </Chip>
           ))}
@@ -457,6 +460,7 @@ export function SaleScreen({
             {products.map((p) => (
               <button
                 key={p.id}
+                data-help="pos_product"
                 onClick={() => tapProduct(p)}
                 disabled={!p.is_available || paid}
                 className="group flex flex-col rounded-2xl bg-white p-2.5 text-left shadow-sm ring-1 ring-black/5 transition hover:shadow-md active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
@@ -492,17 +496,18 @@ export function SaleScreen({
 
         {/* Desktop quick actions */}
         <div className="hidden gap-2 px-4 pb-4 lg:flex">
-          <Action icon={ScanBarcode} label={t('scan')} onClick={onFocusSearch} accent />
-          <Action icon={Percent} label={t('discount')} onClick={() => openTabModal('discount')} disabled={!tab || paid} />
-          <Action icon={UserRound} label={t('customer')} onClick={() => openTabModal('customer')} disabled={!tab || paid} />
-          <Action icon={LayoutGrid} label={t('table')} onClick={() => openTabModal('table')} disabled={!tab || paid} />
-          <Action icon={Users} label={t('guests')} onClick={() => openTabModal('guests')} disabled={!tab || paid} />
-          <Action icon={Ban} label={t('void')} onClick={() => openTabModal('void')} disabled={!tab || paid} />
+          <Action icon={ScanBarcode} label={t('scan')} onClick={onFocusSearch} accent help="pos_scan" />
+          <Action icon={Percent} label={t('discount')} onClick={() => openTabModal('discount')} disabled={!tab || paid} help="pos_discount" />
+          <Action icon={UserRound} label={t('customer')} onClick={() => openTabModal('customer')} disabled={!tab || paid} help="pos_customer" />
+          <Action icon={LayoutGrid} label={t('table')} onClick={() => openTabModal('table')} disabled={!tab || paid} help="pos_table" />
+          <Action icon={Users} label={t('guests')} onClick={() => openTabModal('guests')} disabled={!tab || paid} help="pos_guests" />
+          <Action icon={Ban} label={t('void')} onClick={() => openTabModal('void')} disabled={!tab || paid} help="pos_void" />
         </div>
 
         {/* Mobile / tablet: floating sale bar */}
         <div className="pointer-events-none absolute inset-x-0 bottom-3 z-20 flex justify-center px-3 lg:hidden">
           <button
+            data-help="pos_cartBar"
             onClick={() => setCartOpen(true)}
             className="pointer-events-auto flex w-full max-w-md items-center justify-between rounded-2xl bg-pos-accent px-4 py-3 text-white shadow-xl shadow-pos-accent/40"
           >
@@ -728,9 +733,10 @@ export function SaleScreen({
   );
 }
 
-function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function Chip({ active, onClick, children, help }: { active: boolean; onClick: () => void; children: React.ReactNode; help?: string }) {
   return (
     <button
+      data-help={help}
       onClick={onClick}
       className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold transition ${
         active ? 'bg-pos-accent text-pos-accent-text shadow-sm shadow-pos-accent/30' : 'bg-white text-neutral-600 ring-1 ring-black/5 hover:bg-neutral-50'
@@ -747,15 +753,18 @@ function Action({
   onClick,
   accent,
   disabled,
+  help,
 }: {
   icon: typeof Percent;
   label: string;
   onClick: () => void;
   accent?: boolean;
   disabled?: boolean;
+  help?: string;
 }) {
   return (
     <button
+      data-help={help}
       onClick={onClick}
       disabled={disabled}
       className={`flex flex-1 items-center justify-center gap-2 rounded-2xl px-3 py-3 text-sm font-semibold transition disabled:opacity-40 ${
@@ -770,6 +779,7 @@ function Action({
 function PayButton({ icon: Icon, label, onClick, disabled }: { icon: typeof Percent; label: string; onClick: () => void; disabled?: boolean }) {
   return (
     <button
+      data-help="pos_payMethod"
       onClick={onClick}
       disabled={disabled}
       className="flex flex-col items-center gap-1 rounded-xl border border-neutral-200 py-2 text-[11px] font-medium text-neutral-600 hover:border-pos-accent hover:bg-pos-accent-soft hover:text-pos-accent disabled:opacity-40 disabled:hover:border-neutral-200 disabled:hover:bg-transparent disabled:hover:text-neutral-600"
