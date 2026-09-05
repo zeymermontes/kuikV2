@@ -35,6 +35,7 @@ import type { MemberRole } from '@/lib/database.types';
 import { signOut } from '@/app/(auth)/actions';
 import { setActiveTenant } from '@/app/(dashboard)/tenant-actions';
 import { LocaleSwitch } from './LocaleSwitch';
+import { GlobalSearch } from '@/components/dashboard/GlobalSearch';
 import { InstallPrompt } from './InstallPrompt';
 import { PendingReservationsBadge } from './PendingReservationsBadge';
 import { HandoffBadge } from './HandoffBadge';
@@ -121,6 +122,8 @@ export function Sidebar({
       (!('feature' in item && item.feature) || !enforcePlan || canUse(plan, item.feature as Feature)),
   );
 
+  const searchPages = visible.map(({ href, key }) => ({ href, label: t(key) }));
+
   const nav = (
     <nav className="-mx-1 flex flex-col gap-1 px-1">
       {NAV_GROUPS.map((group) => {
@@ -185,6 +188,7 @@ export function Sidebar({
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-neutral-200 bg-white p-4 md:flex">
         <div className="mb-4 px-2 text-xl font-bold tracking-tight">Kuik</div>
+        <GlobalSearch pages={searchPages} />
         {switcher}
         <ScrollableNav>{nav}</ScrollableNav>
         {footer}
@@ -195,7 +199,8 @@ export function Sidebar({
         <button onClick={() => setOpen(true)} aria-label="menu" className="-ml-1 p-1.5 text-neutral-700">
           <MenuIcon className="h-6 w-6" />
         </button>
-        <span className="text-lg font-bold tracking-tight">Kuik</span>
+        <span className="flex-1 text-lg font-bold tracking-tight">Kuik</span>
+        <GlobalSearch pages={searchPages} compact />
       </header>
 
       {/* Mobile drawer */}

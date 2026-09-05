@@ -230,6 +230,12 @@
     "inherit": "Usar el color general",
     "done": "Listo"
   },
+  "search": {
+    "open": "Buscar en el admin",
+    "placeholder": "Página o ajuste… (p. ej. horario, precios, WhatsApp)",
+    "pages": "Páginas",
+    "noResults": "Sin resultados"
+  },
   "design": {
     "title": "Diseño",
     "brand": "Marca",
@@ -323,6 +329,11 @@
     "volume": "Volumen",
     "listenMusic": "Escuchar",
     "showPricesGlobal": "Mostrar precios en el menú",
+    "mainFont": "Fuente principal",
+    "photos": "Fotos de los productos",
+    "discovery": "Extras del menú",
+    "ambience": "Fondo y música",
+    "headerExtras": "Botones bajo el nombre",
     "preview": "Vista previa",
     "previewUnpublished": "Publica el menú para ver la vista previa en vivo.",
     "previewHint": "Es tu menú real: cada cambio se ve aquí antes de guardarse.",

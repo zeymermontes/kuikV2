@@ -16,7 +16,7 @@ export function ColorWheel({
   fallback = '#000000',
   onChange,
   onClear,
-  alpha = false,
+  alpha = true,
   label,
   size = 'md',
 }: {
@@ -25,6 +25,7 @@ export function ColorWheel({
   onChange: (hex: string) => void;
   /** Offered as a "use the general colour" button when given. */
   onClear?: () => void;
+  /** Offer the opacity slider (on by default; off for fields that must stay opaque). */
   alpha?: boolean;
   label?: string;
   size?: 'sm' | 'md';

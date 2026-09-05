@@ -230,6 +230,12 @@
     "inherit": "Use the general colour",
     "done": "Done"
   },
+  "search": {
+    "open": "Search the admin",
+    "placeholder": "Page or setting… (e.g. hours, prices, WhatsApp)",
+    "pages": "Pages",
+    "noResults": "No results"
+  },
   "design": {
     "title": "Design",
     "brand": "Brand",
@@ -323,6 +329,11 @@
     "volume": "Volume",
     "listenMusic": "Listen",
     "showPricesGlobal": "Show prices on the menu",
+    "mainFont": "Main font",
+    "photos": "Product photos",
+    "discovery": "Menu extras",
+    "ambience": "Background & music",
+    "headerExtras": "Buttons under the name",
     "preview": "Preview",
     "previewUnpublished": "Publish the menu to see the live preview.",
     "previewHint": "This is your real menu: every change shows here as you make it.",

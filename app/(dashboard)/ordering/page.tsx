@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { tenantUrl } from '@/lib/config';
 import type { TenantOrdering } from '@/lib/database.types';
 import { OrderingForm } from '@/components/dashboard/OrderingForm';
+import { JumpToSetting } from '@/components/dashboard/JumpToSetting';
 import { TableQRs } from '@/components/dashboard/TableQRs';
 
 export default async function OrderingPage() {
@@ -51,6 +52,7 @@ export default async function OrderingPage() {
       <h1 className="mb-1 text-2xl font-bold">{t('title')}</h1>
       <p className="mb-6 text-sm text-neutral-500">{t('subtitle')}</p>
       <OrderingForm ordering={ordering} showPosSettings={showDevFeatures(ctx)} />
+      <JumpToSetting />
 
       {ordering.service_types.includes('dinein') && (
         <div className="mt-6">

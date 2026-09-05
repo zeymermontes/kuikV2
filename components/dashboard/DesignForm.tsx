@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import type { TenantTheme, CategoryTheme } from '@/lib/database.types';
@@ -15,6 +15,7 @@ import { CustomFontUploader } from '@/components/dashboard/CustomFontUploader';
 import { MusicUploader } from '@/components/dashboard/MusicUploader';
 import { LivePreview } from '@/components/dashboard/LivePreview';
 import { ColorWheel } from '@/components/dashboard/ColorWheel';
+import { findSettings, revealSetting, type SettingHit } from '@/lib/settings-search';
 
 // Accept 3/4/6/8-digit hex (the 4/8 forms carry alpha).
 const HEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
@@ -172,12 +173,29 @@ export function DesignForm({
   }
 
   function goTo(hit: SettingHit) {
-    const root = rootRef.current;
-    root?.querySelectorAll('.setting-hit').forEach((el) => el.classList.remove('setting-hit'));
-    hit.el.classList.add('setting-hit');
-    hit.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (rootRef.current) revealSetting(rootRef.current, hit);
     setOpen(false);
   }
+
+  // Arriving from the admin-wide search (/design?q=<label>): run that query
+  // and land on its first hit once the form is on screen.
+  useEffect(() => {
+    const jump = (q: string | null) => {
+      const root = rootRef.current;
+      if (!q || !root) return;
+      const found = findSettings(root, q);
+      setQ(q);
+      setHits(found);
+      if (found[0]) revealSetting(root, found[0]);
+    };
+    const id = setTimeout(() => jump(new URLSearchParams(window.location.search).get('q')), 50);
+    const onJump = (e: Event) => jump((e as CustomEvent<string>).detail);
+    window.addEventListener('kuik:jump', onJump);
+    return () => {
+      clearTimeout(id);
+      window.removeEventListener('kuik:jump', onJump);
+    };
+  }, []);
 
   function clearSearch() {
     setQ('');
@@ -413,7 +431,8 @@ export function DesignForm({
 
         {/* Typography */}
         <Card>
-          <Label>{t('font')}</Label>
+          <h2 className="mb-4 font-semibold">{t('font')}</h2>
+          <Label>{t('mainFont')}</Label>
           <FontPicker
             value={local.font_family}
             onChange={(f) => set('font_family', f)}
@@ -480,263 +499,6 @@ export function DesignForm({
           </div>
         </Card>
 
-        {/* Layout & cards */}
-        <Card className="space-y-4">
-          <h2 className="font-semibold">{t('layout')}</h2>
-          <SelectRow
-            label={t('cardStyle')}
-            value={settings.cardStyle}
-            onChange={(v) => setS('cardStyle', v as MenuSettings['cardStyle'])}
-            options={[
-              ['list', t('cardList')],
-              ['grid', t('cardGrid')],
-              ['large', t('cardLarge')],
-              ['text', t('cardText')],
-              ['classic', t('cardClassic')],
-            ]}
-          />
-          {settings.cardStyle === 'grid' && (
-            <ToggleRow label={t('forceTwoColumns')} checked={settings.forceTwoColumns} onChange={(v) => setS('forceTwoColumns', v)} />
-          )}
-          <SelectRow
-            label={t('contentWidth')}
-            value={settings.contentWidth}
-            onChange={(v) => setS('contentWidth', v as MenuSettings['contentWidth'])}
-            options={[
-              ['narrow', t('widthNarrow')],
-              ['normal', t('widthNormal')],
-              ['wide', t('widthWide')],
-              ['full', t('widthFull')],
-            ]}
-          />
-          <SelectRow
-            label={t('cardSurface')}
-            value={settings.cardSurface}
-            onChange={(v) => setS('cardSurface', v as MenuSettings['cardSurface'])}
-            options={[
-              ['auto', t('optAuto')],
-              ['on', t('surfaceOn')],
-              ['off', t('surfaceOff')],
-            ]}
-          />
-          <SelectRow
-            label={t('itemAlign')}
-            value={settings.itemAlign}
-            onChange={(v) => setS('itemAlign', v as MenuSettings['itemAlign'])}
-            options={[
-              ['auto', t('optAuto')],
-              ['left', t('alignLeft')],
-              ['center', t('alignCenter')],
-              ['right', t('alignRight')],
-            ]}
-          />
-          <SelectRow
-            label={t('priceStyle')}
-            value={settings.priceStyle}
-            onChange={(v) => setS('priceStyle', v as MenuSettings['priceStyle'])}
-            options={[
-              ['auto', t('optAuto')],
-              ['right', t('priceRight')],
-              ['inline', t('priceInline')],
-              ['dots', t('priceDots')],
-              ['below', t('priceBelow')],
-              ['footer', t('priceFooter')],
-            ]}
-          />
-          <SelectRow
-            label={t('imagePosition')}
-            value={settings.imagePosition}
-            onChange={(v) => setS('imagePosition', v as MenuSettings['imagePosition'])}
-            options={[
-              ['auto', t('optAuto')],
-              ['top', t('posTop')],
-              ['bottom', t('posBottom')],
-              ['left', t('posLeft')],
-              ['right', t('posRight')],
-              ['none', t('posNone')],
-            ]}
-          />
-          <SelectRow
-            label={t('imageSize')}
-            value={settings.imageSize}
-            onChange={(v) => setS('imageSize', v as MenuSettings['imageSize'])}
-            options={[
-              ['auto', t('optAuto')],
-              ['thumb', t('sizeThumb')],
-              ['medium', t('sizeMedium')],
-              ['full', t('sizeFull')],
-            ]}
-          />
-          <SelectRow
-            label={t('imageRatio')}
-            value={settings.imageRatio}
-            onChange={(v) => setS('imageRatio', v as MenuSettings['imageRatio'])}
-            options={[
-              ['auto', t('optAuto')],
-              ['natural', t('ratioNatural')],
-              ['square', t('ratioSquare')],
-              ['video', t('ratioVideo')],
-              ['wide', t('ratioWide')],
-            ]}
-          />
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-sm font-medium">{t('imageMaxHeight')}</span>
-            <div className="flex flex-1 items-center gap-2">
-              <input
-                type="range"
-                min={120}
-                max={900}
-                step={20}
-                value={settings.imageMaxHeight}
-                onChange={(e) => setS('imageMaxHeight', Number(e.target.value))}
-                className="h-1 flex-1 cursor-pointer accent-neutral-900"
-              />
-              <span className="w-12 text-right text-[10px] text-neutral-400">
-                {settings.imageMaxHeight}px
-              </span>
-            </div>
-          </div>
-          <p className="-mt-2 text-xs text-neutral-500">{t('imageMaxHeightHint')}</p>
-          <SelectRow
-            label={t('itemSpacing')}
-            value={settings.itemSpacing}
-            onChange={(v) => setS('itemSpacing', v as MenuSettings['itemSpacing'])}
-            options={[
-              ['auto', t('optAuto')],
-              ['none', t('spacingNone')],
-              ['tight', t('spacingTight')],
-              ['normal', t('spacingNormal')],
-              ['loose', t('spacingLoose')],
-              ['roomy', t('spacingRoomy')],
-            ]}
-          />
-          <SelectRow
-            label={t('imageShape')}
-            value={settings.imageShape}
-            onChange={(v) => setS('imageShape', v as MenuSettings['imageShape'])}
-            options={[
-              ['rounded', t('shapeRounded')],
-              ['square', t('shapeSquare')],
-              ['circle', t('shapeCircle')],
-              ['full', t('shapeFull')],
-            ]}
-          />
-          <SelectRow
-            label={t('cornerRadius')}
-            value={settings.cornerRadius}
-            onChange={(v) => setS('cornerRadius', v as MenuSettings['cornerRadius'])}
-            options={[
-              ['none', t('radNone')],
-              ['sm', t('radSm')],
-              ['md', t('radMd')],
-              ['lg', t('radLg')],
-              ['xl', t('radXl')],
-            ]}
-          />
-          <SelectRow
-            label={t('density')}
-            value={settings.density}
-            onChange={(v) => setS('density', v as MenuSettings['density'])}
-            options={[
-              ['comfortable', t('densityComfort')],
-              ['compact', t('densityCompact')],
-            ]}
-          />
-          <ToggleRow label={t('cardBorder')} checked={settings.cardBorder} onChange={(v) => setS('cardBorder', v)} />
-          <ToggleRow label={t('cardShadow')} checked={settings.cardShadow} onChange={(v) => setS('cardShadow', v)} />
-          <ToggleRow label={t('cardDivider')} checked={settings.cardDivider} onChange={(v) => setS('cardDivider', v)} />
-          <ToggleRow label={t('animations')} checked={settings.animations} onChange={(v) => setS('animations', v)} />
-          <ToggleRow label={t('showAddButton')} checked={settings.showAddButton} onChange={(v) => setS('showAddButton', v)} />
-          <ToggleRow label={t('showOptionKind')} checked={settings.showOptionKind} onChange={(v) => setS('showOptionKind', v)} />
-          {/* The same knob as "photo position: none", worded as the question owners ask. */}
-          <ToggleRow
-            label={t('showImages')}
-            checked={settings.imagePosition !== 'none'}
-            onChange={(v) => setS('imagePosition', v ? 'auto' : 'none')}
-          />
-          <SelectRow
-            label={t('productCase')}
-            value={settings.productCase}
-            onChange={(v) => setS('productCase', v as MenuSettings['productCase'])}
-            options={[['none', t('caseNone')], ['upper', t('caseUpper')]]}
-          />
-          <SelectRow
-            label={t('descriptionCase')}
-            value={settings.descriptionCase}
-            onChange={(v) => setS('descriptionCase', v as MenuSettings['descriptionCase'])}
-            options={[['none', t('caseNone')], ['upper', t('caseUpper')]]}
-          />
-        </Card>
-
-        {/* Section headings */}
-        <Card className="space-y-4">
-          <h2 className="font-semibold">{t('sections')}</h2>
-          <SelectRow
-            label={t('categoryAlign')}
-            value={settings.categoryAlign}
-            onChange={(v) => setS('categoryAlign', v as MenuSettings['categoryAlign'])}
-            options={[
-              ['left', t('alignLeft')],
-              ['center', t('alignCenter')],
-              ['right', t('alignRight')],
-            ]}
-          />
-          <SelectRow
-            label={t('categoryRule')}
-            value={settings.categoryRule}
-            onChange={(v) => setS('categoryRule', v as MenuSettings['categoryRule'])}
-            options={[
-              ['none', t('ruleNone')],
-              ['under', t('ruleUnder')],
-              ['both', t('ruleBoth')],
-            ]}
-          />
-          <SelectRow
-            label={t('categoryCase')}
-            value={settings.categoryCase}
-            onChange={(v) => setS('categoryCase', v as MenuSettings['categoryCase'])}
-            options={[['none', t('caseNone')], ['upper', t('caseUpper')]]}
-          />
-          <ToggleRow label={t('categoryIcons')} checked={settings.categoryIcons} onChange={(v) => setS('categoryIcons', v)} />
-          <SelectRow
-            label={t('categoryTitle')}
-            value={settings.categoryTitle}
-            onChange={(v) => setS('categoryTitle', v as MenuSettings['categoryTitle'])}
-            options={[
-              ['always', t('titleAlways')],
-              ['auto', t('titleAuto')],
-              ['never', t('titleNever')],
-            ]}
-          />
-          <SelectRow
-            label={t('subcategoryRule')}
-            value={settings.subcategoryRule}
-            onChange={(v) => setS('subcategoryRule', v as MenuSettings['subcategoryRule'])}
-            options={[
-              ['none', t('ruleNone')],
-              ['under', t('ruleUnder')],
-              ['both', t('ruleBoth')],
-            ]}
-          />
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-sm font-medium">{t('subcategorySize')}</span>
-            <div className="flex flex-1 items-center gap-2">
-              <input
-                type="range"
-                min={0.4}
-                max={1}
-                step={0.02}
-                value={settings.subcategorySize}
-                onChange={(e) => setS('subcategorySize', Number(e.target.value))}
-                className="h-1 flex-1 cursor-pointer accent-neutral-900"
-              />
-              <span className="w-10 text-right text-[10px] text-neutral-400">
-                {Math.round(settings.subcategorySize * 100)}%
-              </span>
-            </div>
-          </div>
-        </Card>
-
         {/* Header */}
         <Card className="space-y-4">
           <h2 className="font-semibold">{t('header')}</h2>
@@ -778,12 +540,31 @@ export function DesignForm({
               />
             </>
           )}
+          <div className="border-t border-neutral-100 pt-3">
+            <p className="mb-2 text-xs font-medium text-neutral-500">{t('headerExtras')}</p>
+            <div className="space-y-3">
+              <ToggleRow label={t('showHours')} checked={settings.showHours} onChange={(v) => setS('showHours', v)} />
+              <ToggleRow label={t('showDirections')} checked={settings.showDirections} onChange={(v) => setS('showDirections', v)} />
+              <ToggleRow label={t('showSocial')} checked={settings.showSocial} onChange={(v) => setS('showSocial', v)} />
+            </div>
+          </div>
         </Card>
 
         {/* Category tab bar */}
         <Card className="space-y-4">
           <h2 className="font-semibold">{t('navBar')}</h2>
           <p className="-mt-2 text-xs text-neutral-500">{t('navBarHint')}</p>
+          <SelectRow
+            label={t('navMode')}
+            value={settings.navMode}
+            onChange={(v) => setS('navMode', v as MenuSettings['navMode'])}
+            options={[
+              ['scroll', t('navScroll')],
+              ['tabs', t('navTabs')],
+            ]}
+          />
+          <ToggleRow label={t('stickyTabs')} checked={settings.stickyTabs} onChange={(v) => setS('stickyTabs', v)} />
+          <ToggleRow label={t('collapsible')} checked={settings.collapsibleCategories} onChange={(v) => setS('collapsibleCategories', v)} />
           <SelectRow
             label={t('navIconPosition')}
             value={settings.navIconPosition}
@@ -933,6 +714,268 @@ export function DesignForm({
           )}
         </Card>
 
+        {/* Section headings */}
+        <Card className="space-y-4">
+          <h2 className="font-semibold">{t('sections')}</h2>
+          <SelectRow
+            label={t('categoryAlign')}
+            value={settings.categoryAlign}
+            onChange={(v) => setS('categoryAlign', v as MenuSettings['categoryAlign'])}
+            options={[
+              ['left', t('alignLeft')],
+              ['center', t('alignCenter')],
+              ['right', t('alignRight')],
+            ]}
+          />
+          <SelectRow
+            label={t('categoryRule')}
+            value={settings.categoryRule}
+            onChange={(v) => setS('categoryRule', v as MenuSettings['categoryRule'])}
+            options={[
+              ['none', t('ruleNone')],
+              ['under', t('ruleUnder')],
+              ['both', t('ruleBoth')],
+            ]}
+          />
+          <SelectRow
+            label={t('categoryCase')}
+            value={settings.categoryCase}
+            onChange={(v) => setS('categoryCase', v as MenuSettings['categoryCase'])}
+            options={[['none', t('caseNone')], ['upper', t('caseUpper')]]}
+          />
+          <ToggleRow label={t('categoryIcons')} checked={settings.categoryIcons} onChange={(v) => setS('categoryIcons', v)} />
+          <SelectRow
+            label={t('categoryTitle')}
+            value={settings.categoryTitle}
+            onChange={(v) => setS('categoryTitle', v as MenuSettings['categoryTitle'])}
+            options={[
+              ['always', t('titleAlways')],
+              ['auto', t('titleAuto')],
+              ['never', t('titleNever')],
+            ]}
+          />
+          <SelectRow
+            label={t('subcategoryRule')}
+            value={settings.subcategoryRule}
+            onChange={(v) => setS('subcategoryRule', v as MenuSettings['subcategoryRule'])}
+            options={[
+              ['none', t('ruleNone')],
+              ['under', t('ruleUnder')],
+              ['both', t('ruleBoth')],
+            ]}
+          />
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-medium">{t('subcategorySize')}</span>
+            <div className="flex flex-1 items-center gap-2">
+              <input
+                type="range"
+                min={0.4}
+                max={1}
+                step={0.02}
+                value={settings.subcategorySize}
+                onChange={(e) => setS('subcategorySize', Number(e.target.value))}
+                className="h-1 flex-1 cursor-pointer accent-neutral-900"
+              />
+              <span className="w-10 text-right text-[10px] text-neutral-400">
+                {Math.round(settings.subcategorySize * 100)}%
+              </span>
+            </div>
+          </div>
+        </Card>
+
+        {/* Layout & cards */}
+        <Card className="space-y-4">
+          <h2 className="font-semibold">{t('layout')}</h2>
+          <SelectRow
+            label={t('cardStyle')}
+            value={settings.cardStyle}
+            onChange={(v) => setS('cardStyle', v as MenuSettings['cardStyle'])}
+            options={[
+              ['list', t('cardList')],
+              ['grid', t('cardGrid')],
+              ['large', t('cardLarge')],
+              ['text', t('cardText')],
+              ['classic', t('cardClassic')],
+            ]}
+          />
+          {settings.cardStyle === 'grid' && (
+            <ToggleRow label={t('forceTwoColumns')} checked={settings.forceTwoColumns} onChange={(v) => setS('forceTwoColumns', v)} />
+          )}
+          <SelectRow
+            label={t('contentWidth')}
+            value={settings.contentWidth}
+            onChange={(v) => setS('contentWidth', v as MenuSettings['contentWidth'])}
+            options={[
+              ['narrow', t('widthNarrow')],
+              ['normal', t('widthNormal')],
+              ['wide', t('widthWide')],
+              ['full', t('widthFull')],
+            ]}
+          />
+          <SelectRow
+            label={t('cardSurface')}
+            value={settings.cardSurface}
+            onChange={(v) => setS('cardSurface', v as MenuSettings['cardSurface'])}
+            options={[
+              ['auto', t('optAuto')],
+              ['on', t('surfaceOn')],
+              ['off', t('surfaceOff')],
+            ]}
+          />
+          <SelectRow
+            label={t('itemAlign')}
+            value={settings.itemAlign}
+            onChange={(v) => setS('itemAlign', v as MenuSettings['itemAlign'])}
+            options={[
+              ['auto', t('optAuto')],
+              ['left', t('alignLeft')],
+              ['center', t('alignCenter')],
+              ['right', t('alignRight')],
+            ]}
+          />
+          <SelectRow
+            label={t('priceStyle')}
+            value={settings.priceStyle}
+            onChange={(v) => setS('priceStyle', v as MenuSettings['priceStyle'])}
+            options={[
+              ['auto', t('optAuto')],
+              ['right', t('priceRight')],
+              ['inline', t('priceInline')],
+              ['dots', t('priceDots')],
+              ['below', t('priceBelow')],
+              ['footer', t('priceFooter')],
+            ]}
+          />
+          <SelectRow
+            label={t('itemSpacing')}
+            value={settings.itemSpacing}
+            onChange={(v) => setS('itemSpacing', v as MenuSettings['itemSpacing'])}
+            options={[
+              ['auto', t('optAuto')],
+              ['none', t('spacingNone')],
+              ['tight', t('spacingTight')],
+              ['normal', t('spacingNormal')],
+              ['loose', t('spacingLoose')],
+              ['roomy', t('spacingRoomy')],
+            ]}
+          />
+          <SelectRow
+            label={t('cornerRadius')}
+            value={settings.cornerRadius}
+            onChange={(v) => setS('cornerRadius', v as MenuSettings['cornerRadius'])}
+            options={[
+              ['none', t('radNone')],
+              ['sm', t('radSm')],
+              ['md', t('radMd')],
+              ['lg', t('radLg')],
+              ['xl', t('radXl')],
+            ]}
+          />
+          <SelectRow
+            label={t('density')}
+            value={settings.density}
+            onChange={(v) => setS('density', v as MenuSettings['density'])}
+            options={[
+              ['comfortable', t('densityComfort')],
+              ['compact', t('densityCompact')],
+            ]}
+          />
+          <ToggleRow label={t('cardBorder')} checked={settings.cardBorder} onChange={(v) => setS('cardBorder', v)} />
+          <ToggleRow label={t('cardShadow')} checked={settings.cardShadow} onChange={(v) => setS('cardShadow', v)} />
+          <ToggleRow label={t('cardDivider')} checked={settings.cardDivider} onChange={(v) => setS('cardDivider', v)} />
+          <ToggleRow label={t('animations')} checked={settings.animations} onChange={(v) => setS('animations', v)} />
+          <ToggleRow label={t('showAddButton')} checked={settings.showAddButton} onChange={(v) => setS('showAddButton', v)} />
+          <ToggleRow label={t('showOptionKind')} checked={settings.showOptionKind} onChange={(v) => setS('showOptionKind', v)} />
+          <SelectRow
+            label={t('productCase')}
+            value={settings.productCase}
+            onChange={(v) => setS('productCase', v as MenuSettings['productCase'])}
+            options={[['none', t('caseNone')], ['upper', t('caseUpper')]]}
+          />
+          <SelectRow
+            label={t('descriptionCase')}
+            value={settings.descriptionCase}
+            onChange={(v) => setS('descriptionCase', v as MenuSettings['descriptionCase'])}
+            options={[['none', t('caseNone')], ['upper', t('caseUpper')]]}
+          />
+        </Card>
+
+        {/* Photos */}
+        <Card className="space-y-4">
+          <h2 className="font-semibold">{t('photos')}</h2>
+          {/* The same knob as "photo position: none", worded as the question owners ask. */}
+          <ToggleRow
+            label={t('showImages')}
+            checked={settings.imagePosition !== 'none'}
+            onChange={(v) => setS('imagePosition', v ? 'auto' : 'none')}
+          />
+          <SelectRow
+            label={t('imagePosition')}
+            value={settings.imagePosition}
+            onChange={(v) => setS('imagePosition', v as MenuSettings['imagePosition'])}
+            options={[
+              ['auto', t('optAuto')],
+              ['top', t('posTop')],
+              ['bottom', t('posBottom')],
+              ['left', t('posLeft')],
+              ['right', t('posRight')],
+              ['none', t('posNone')],
+            ]}
+          />
+          <SelectRow
+            label={t('imageSize')}
+            value={settings.imageSize}
+            onChange={(v) => setS('imageSize', v as MenuSettings['imageSize'])}
+            options={[
+              ['auto', t('optAuto')],
+              ['thumb', t('sizeThumb')],
+              ['medium', t('sizeMedium')],
+              ['full', t('sizeFull')],
+            ]}
+          />
+          <SelectRow
+            label={t('imageRatio')}
+            value={settings.imageRatio}
+            onChange={(v) => setS('imageRatio', v as MenuSettings['imageRatio'])}
+            options={[
+              ['auto', t('optAuto')],
+              ['natural', t('ratioNatural')],
+              ['square', t('ratioSquare')],
+              ['video', t('ratioVideo')],
+              ['wide', t('ratioWide')],
+            ]}
+          />
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-medium">{t('imageMaxHeight')}</span>
+            <div className="flex flex-1 items-center gap-2">
+              <input
+                type="range"
+                min={120}
+                max={900}
+                step={20}
+                value={settings.imageMaxHeight}
+                onChange={(e) => setS('imageMaxHeight', Number(e.target.value))}
+                className="h-1 flex-1 cursor-pointer accent-neutral-900"
+              />
+              <span className="w-12 text-right text-[10px] text-neutral-400">
+                {settings.imageMaxHeight}px
+              </span>
+            </div>
+          </div>
+          <p className="-mt-2 text-xs text-neutral-500">{t('imageMaxHeightHint')}</p>
+          <SelectRow
+            label={t('imageShape')}
+            value={settings.imageShape}
+            onChange={(v) => setS('imageShape', v as MenuSettings['imageShape'])}
+            options={[
+              ['rounded', t('shapeRounded')],
+              ['square', t('shapeSquare')],
+              ['circle', t('shapeCircle')],
+              ['full', t('shapeFull')],
+            ]}
+          />
+        </Card>
+
         {/* Options printed in the menu */}
         <Card className="space-y-4">
           <h2 className="font-semibold">{t('inlineOptions')}</h2>
@@ -955,26 +998,13 @@ export function DesignForm({
           </div>
         </Card>
 
-        {/* Navigation & discovery */}
+        {/* Menu extras: prices, search, filters, badges, sold-out, WhatsApp */}
         <Card className="space-y-4">
-          <h2 className="font-semibold">{t('navigation')}</h2>
-          <SelectRow
-            label={t('navMode')}
-            value={settings.navMode}
-            onChange={(v) => setS('navMode', v as MenuSettings['navMode'])}
-            options={[
-              ['scroll', t('navScroll')],
-              ['tabs', t('navTabs')],
-            ]}
-          />
-          <ToggleRow label={t('stickyTabs')} checked={settings.stickyTabs} onChange={(v) => setS('stickyTabs', v)} />
-          <ToggleRow label={t('collapsible')} checked={settings.collapsibleCategories} onChange={(v) => setS('collapsibleCategories', v)} />
+          <h2 className="font-semibold">{t('discovery')}</h2>
+          <ToggleRow label={t('showPricesGlobal')} checked={local.show_prices} onChange={(v) => set('show_prices', v)} />
           <ToggleRow label={t('showSearch')} checked={settings.showSearch} onChange={(v) => setS('showSearch', v)} />
           <ToggleRow label={t('showBadges')} checked={settings.showBadges} onChange={(v) => setS('showBadges', v)} />
           <ToggleRow label={t('showFilters')} checked={settings.showFilters} onChange={(v) => setS('showFilters', v)} />
-          <ToggleRow label={t('showHours')} checked={settings.showHours} onChange={(v) => setS('showHours', v)} />
-          <ToggleRow label={t('showDirections')} checked={settings.showDirections} onChange={(v) => setS('showDirections', v)} />
-          <ToggleRow label={t('showSocial')} checked={settings.showSocial} onChange={(v) => setS('showSocial', v)} />
           <ToggleRow
             label={t('whatsappBubble')}
             checked={settings.whatsappBubble}
@@ -992,18 +1022,9 @@ export function DesignForm({
           />
         </Card>
 
-        {/* Prices & media */}
-        <Card className="flex items-center justify-between">
-          <span className="text-sm font-medium">{t('showPricesGlobal')}</span>
-          <input
-            type="checkbox"
-            checked={local.show_prices}
-            onChange={(e) => set('show_prices', e.target.checked)}
-            className="h-5 w-5 rounded border-neutral-300"
-          />
-        </Card>
-
+        {/* Ambience */}
         <Card>
+          <h2 className="mb-4 font-semibold">{t('ambience')}</h2>
           <Label>{t('backgroundImage')}</Label>
           <ImageUploader
             value={local.background_image_url}
@@ -1012,9 +1033,7 @@ export function DesignForm({
             shape="wide"
             onChange={(url) => set('background_image_url', url)}
           />
-        </Card>
-
-        <Card>
+          <div className="mt-4 border-t border-neutral-100 pt-4">
           <Label>{t('backgroundMusic')}</Label>
           <MusicUploader
             value={local.background_music_url}
@@ -1023,6 +1042,7 @@ export function DesignForm({
             onChange={(url) => set('background_music_url', url)}
             onVolume={(v) => set('background_music_volume', v)}
           />
+          </div>
         </Card>
       </div>
 
@@ -1118,50 +1138,6 @@ function StyleToggle({
       {children}
     </button>
   );
-}
-
-interface SettingHit {
-  /** The row (or whole card) to scroll to and outline. */
-  el: HTMLElement;
-  label: string;
-  /** Heading of the card the row sits in; null when the hit is the card itself. */
-  section: string | null;
-  /** The select option that matched, when the label itself did not. */
-  option: string | null;
-}
-
-const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-
-/** Every labelled row, card heading or select option under `root` matching `query`. */
-function findSettings(root: HTMLElement, query: string): SettingHit[] {
-  const nq = norm(query.trim());
-  if (nq.length < 2) return [];
-  const out: SettingHit[] = [];
-  const sectionOf = (el: HTMLElement): string | null => {
-    let card: HTMLElement = el;
-    while (card.parentElement && card.parentElement !== root) card = card.parentElement;
-    const h = card.querySelector('h2');
-    return h && h !== el ? (h.textContent ?? '').trim() : null;
-  };
-  root.querySelectorAll<HTMLElement>('[data-setting], label, h2').forEach((el) => {
-    // A toggle's <label> is the row; a field's <label> sits above its input,
-    // so the row is its parent; a heading stands for its whole card.
-    const target = el.matches('[data-setting]')
-      ? el
-      : el.tagName === 'H2' || !el.querySelector('input')
-        ? el.parentElement
-        : el;
-    if (!target || out.some((h) => h.el === target)) return;
-    const label = (el.dataset.setting ?? (el.tagName === 'H2' ? el.textContent : el.querySelector('span')?.textContent ?? el.textContent) ?? '').trim();
-    let option: string | null = null;
-    if (!norm(label).includes(nq)) {
-      const opt = Array.from(target.querySelectorAll('option')).find((o) => norm(o.textContent ?? '').includes(nq));
-      if (!opt) return;
-      option = (opt.textContent ?? '').trim();
-    }
-    out.push({ el: target, label, section: el.tagName === 'H2' ? null : sectionOf(target), option });
-  });
-  return out;
 }
 
 function SelectRow({
