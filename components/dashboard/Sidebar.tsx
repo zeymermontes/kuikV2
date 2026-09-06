@@ -31,6 +31,7 @@ import {
   GraduationCap,
   Tag,
   FileText,
+  Package,
 } from 'lucide-react';
 import { ChevronsUpDown, ChevronDown, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -67,6 +68,7 @@ const NAV = [
   { group: 'ops', href: '/kds', icon: Monitor, key: 'kds', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true },
   // Menú y marca
   { group: 'brand', href: '/menu', icon: UtensilsCrossed, key: 'menu', roles: ['owner', 'manager', 'cashier', 'waiter', 'host'] },
+  { group: 'brand', href: '/inventory', icon: Package, key: 'inventory', roles: ['owner', 'manager'] },
   { group: 'brand', href: '/design', icon: Palette, key: 'design', roles: ['owner'] },
   { group: 'brand', href: '/landing', icon: Home, key: 'landing', roles: ['owner'] },
   { group: 'brand', href: '/branches', icon: Store, key: 'branches', roles: ['owner', 'manager'], feature: 'branches' },

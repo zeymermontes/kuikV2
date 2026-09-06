@@ -115,6 +115,66 @@ export interface Invoice {
   cancelled_at: string | null;
 }
 
+/** A thing the kitchen keeps in stock (0077). */
+export interface Ingredient {
+  id: string;
+  tenant_id: string;
+  name: string;
+  unit: string;
+  stock: number;
+  min_stock: number | null;
+  cost_per_unit: number;
+  supplier: string | null;
+  auto_86: boolean;
+  active: boolean;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One line of a product's recipe: this much of that ingredient per unit sold. */
+export interface RecipeLine {
+  product_id: string;
+  ingredient_id: string;
+  tenant_id: string;
+  qty: number;
+}
+
+export type StockMovementKind = 'sale' | 'purchase' | 'waste' | 'count' | 'adjust';
+
+export interface StockMovement {
+  id: string;
+  tenant_id: string;
+  ingredient_id: string;
+  kind: StockMovementKind;
+  qty: number;
+  ref_id: string | null;
+  note: string | null;
+  employee_id: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface PurchaseLine {
+  ingredient_id: string;
+  name: string;
+  qty: number;
+  cost: number;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  tenant_id: string;
+  supplier: string | null;
+  status: 'draft' | 'sent' | 'received' | 'cancelled';
+  items: PurchaseLine[];
+  total: number;
+  note: string | null;
+  created_at: string;
+  received_at: string | null;
+  updated_at: string;
+}
+
 /** One stretch of work on the clock. */
 export interface TimeEntry {
   id: string;

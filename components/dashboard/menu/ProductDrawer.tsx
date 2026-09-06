@@ -10,6 +10,7 @@ import { Input, Textarea, Label, Button } from '@/components/ui';
 import { ImageUploader } from '@/components/dashboard/ImageUploader';
 import { Drawer } from './Drawer';
 import { OptionGroupsEditor } from './OptionGroupsEditor';
+import { RecipeEditor } from './RecipeEditor';
 import { updateProduct, deleteProduct } from '@/app/(dashboard)/menu/actions';
 
 export function ProductDrawer({
@@ -123,6 +124,9 @@ export function ProductDrawer({
             />
           </div>
         </div>
+
+        {/* Ingredients per unit sold; stock comes off when the sale closes (0077). */}
+        <RecipeEditor productId={product.id} productName={product.name} currency="MXN" />
 
         <div>
           <Label>{t('sku')}</Label>
