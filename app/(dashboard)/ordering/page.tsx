@@ -66,6 +66,7 @@ export default async function OrderingPage({ searchParams }: { searchParams: Pro
     print_kitchen_auto: true,
     print_drawer_cash: true,
     receipt_footer: null,
+    order_alerts: null,
     updated_at: new Date(0).toISOString(),
   };
 

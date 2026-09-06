@@ -172,6 +172,46 @@ export function zReportDoc(
   return { title: labels.title, lines };
 }
 
+export interface OnlineOrderSlip {
+  code: string;
+  restaurant: string;
+  customerName: string | null;
+  customerPhone: string | null;
+  service: string | null;
+  table: string | null;
+  when: string;
+  items: { name?: string; qty?: number; selections?: { name?: string }[]; note?: string | null }[];
+  total: string | null;
+  /** "PAGADO EN LÍNEA" or its translation. */
+  paidLabel: string;
+  title: string;
+}
+
+/** The slip the receipt printer spits out when an online order is paid: who, what, already paid. */
+export function onlineOrderDoc(o: OnlineOrderSlip): PrintDoc {
+  const lines: PrintLine[] = [
+    { t: 'text', v: o.restaurant, align: 'center', bold: true },
+    { t: 'text', v: o.title, align: 'center', bold: true, size: 2 },
+    { t: 'text', v: `#${o.code}`, align: 'center', bold: true, size: 2 },
+    { t: 'text', v: o.when, align: 'center' },
+    { t: 'hr' },
+  ];
+  if (o.customerName) lines.push({ t: 'row', l: 'Cliente', r: o.customerName });
+  if (o.customerPhone) lines.push({ t: 'row', l: 'Tel', r: o.customerPhone });
+  if (o.service) lines.push({ t: 'row', l: 'Servicio', r: o.table ? `${o.service} · ${o.table}` : o.service });
+  lines.push({ t: 'hr' });
+  for (const it of o.items) {
+    lines.push({ t: 'text', v: `${it.qty ?? 1}x ${it.name ?? ''}`, bold: true });
+    const opts = (it.selections ?? []).map((s) => s.name).filter((x): x is string => !!x);
+    if (opts.length) lines.push({ t: 'text', v: `   ${opts.join(', ')}` });
+    if (it.note) lines.push({ t: 'text', v: `   * ${it.note}`, bold: true });
+  }
+  lines.push({ t: 'hr' });
+  if (o.total) lines.push({ t: 'row', l: 'Total', r: o.total, bold: true, size: 2 });
+  lines.push({ t: 'text', v: o.paidLabel, align: 'center', bold: true }, { t: 'feed', n: 1 });
+  return { title: o.title, lines };
+}
+
 /** What "Probar" prints: enough to see alignment, width and accents at a glance. */
 export function testDoc(printerName: string, restaurant: string): PrintDoc {
   return {

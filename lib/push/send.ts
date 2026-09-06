@@ -37,6 +37,8 @@ export interface PushPayload {
   /** Android shows up to two; Safari/iOS reports maxActions 0 and ignores them. */
   actions?: { action: string; title: string }[];
   data?: Record<string, unknown>;
+  /** Keep the notification on screen until the person acts on it (Android/desktop). */
+  requireInteraction?: boolean;
 }
 
 type Row = { id: string; endpoint: string; p256dh: string; auth: string; locale: string };

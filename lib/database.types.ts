@@ -146,6 +146,8 @@ export interface TenantOrdering {
   print_drawer_cash: boolean;
   /** Extra lines under the receipt total: RFC, address, a thank-you. */
   receipt_footer: string | null;
+  /** How the restaurant is told about orders (lib/orders/alerts.ts, 0068). */
+  order_alerts: Record<string, unknown> | null;
   updated_at: string;
 }
 
@@ -548,6 +550,10 @@ export interface OrderRow {
   paid_at: string | null;
   amount_paid: number | null;
   currency: string | null;
+  /** First time staff advanced the order; stops the unaccepted-order escalation (0068). */
+  accepted_at: string | null;
+  /** 0 none, 1 nudged, 2 escalated — the cron never repeats a step. */
+  alert_level: number;
   created_at: string;
 }
 

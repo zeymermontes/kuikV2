@@ -2,6 +2,8 @@ import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { stripeGateway, stripeConfigured } from './stripe';
 import type { PaymentAccount, PaymentEvent, PaymentGateway, PaymentProvider } from './types';
+import { notifyPaidOrder } from '@/lib/orders/notify';
+import type { KitchenTicket } from '@/lib/pos/types';
 
 export type { PaymentAccount, PaymentEvent, PaymentGateway, PaymentProvider } from './types';
 
@@ -59,11 +61,28 @@ export async function applyPaymentEvent(event: PaymentEvent, provider: PaymentPr
   }
 
   // Find the order by its id when the gateway echoed it, else by the checkout ref.
-  let q = supabase.from('orders').select('id, tenant_id, payment_status, items, customer_name, table_label, service_type').eq('payment_provider', provider);
+  let q = supabase
+    .from('orders')
+    .select('id, tenant_id, payment_status, items, total, amount_paid, currency, customer_name, customer_phone, table_label, service_type, created_at, paid_at')
+    .eq('payment_provider', provider);
   q = event.orderId ? q.eq('id', event.orderId) : q.eq('payment_ref', event.ref);
   const { data: order } = await q.maybeSingle();
   if (!order) return null;
-  const o = order as { id: string; tenant_id: string; payment_status: string; items: unknown; customer_name: string | null; table_label: string | null; service_type: string | null };
+  const o = order as {
+    id: string;
+    tenant_id: string;
+    payment_status: string;
+    items: unknown;
+    total: number | null;
+    amount_paid: number | null;
+    currency: string | null;
+    customer_name: string | null;
+    customer_phone: string | null;
+    table_label: string | null;
+    service_type: string | null;
+    created_at: string;
+    paid_at: string | null;
+  };
   const now = new Date().toISOString();
 
   switch (event.type) {
@@ -73,7 +92,9 @@ export async function applyPaymentEvent(event: PaymentEvent, provider: PaymentPr
         .from('orders')
         .update({ payment_status: 'paid', paid_at: now, amount_paid: event.amount, currency: event.currency, payment_ref: event.ref || undefined, updated_at: now })
         .eq('id', o.id);
-      await fireKitchenTickets(o);
+      const tickets = await fireKitchenTickets(o);
+      // The order is real now: tell the team, print it, confirm to the guest.
+      await notifyPaidOrder({ ...o, amount_paid: event.amount, currency: event.currency, paid_at: now }, tickets);
       return o.id;
     }
     case 'failed':
@@ -93,10 +114,10 @@ export async function applyPaymentEvent(event: PaymentEvent, provider: PaymentPr
  * name — the same rule as lib/pos). Orders paid at the counter are not fired
  * from here; the restaurant confirms those on WhatsApp first.
  */
-async function fireKitchenTickets(o: { id: string; tenant_id: string; items: unknown; customer_name: string | null; table_label: string | null }): Promise<void> {
+async function fireKitchenTickets(o: { id: string; tenant_id: string; items: unknown; customer_name: string | null; table_label: string | null }): Promise<KitchenTicket[]> {
   const supabase = createAdminClient();
   const lines = (Array.isArray(o.items) ? o.items : []) as { productId?: string; name?: string; qty?: number; selections?: { name?: string }[]; note?: string }[];
-  if (lines.length === 0) return;
+  if (lines.length === 0) return [];
 
   const ids = [...new Set(lines.map((l) => l.productId).filter((x): x is string => !!x))];
   const { data: products } = ids.length
@@ -128,5 +149,6 @@ async function fireKitchenTickets(o: { id: string; tenant_id: string; items: unk
     created_at: now,
     updated_at: now,
   }));
-  await supabase.from('kitchen_tickets').insert(rows);
+  const { data } = await supabase.from('kitchen_tickets').insert(rows).select('*');
+  return (data ?? []) as KitchenTicket[];
 }

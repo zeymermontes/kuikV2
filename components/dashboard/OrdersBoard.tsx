@@ -1,14 +1,39 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Clock, UtensilsCrossed, ShoppingBag, Check, RefreshCw, CreditCard, BadgeCheck, Hourglass, AlertTriangle, Phone } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Clock, UtensilsCrossed, ShoppingBag, Check, RefreshCw, CreditCard, BadgeCheck, Hourglass, AlertTriangle, Phone, MessageCircle } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import type { OrderRow, OrderStatus } from '@/lib/database.types';
 import { formatPrice, orderCode } from '@/lib/utils';
 import { createClient, channelName } from '@/lib/supabase/client';
 import { listOrders, setOrderStatus } from '@/app/(dashboard)/orders/actions';
+import { buildWhatsappUrl } from '@/lib/whatsapp';
+import type { OrderAlerts } from '@/lib/orders/alerts';
 
 type Line = { name?: string; qty?: number; selections?: { name?: string }[] };
+
+/** Two rising notes, like the kitchen screen's. Audio may be blocked until the first tap; that is fine. */
+function chime() {
+  try {
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new Ctx();
+    [880, 1174].forEach((f, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.frequency.value = f;
+      const at = ctx.currentTime + i * 0.16;
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.exponentialRampToValueAtTime(0.25, at + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + 0.14);
+      o.start(at);
+      o.stop(at + 0.15);
+    });
+  } catch {
+    // no audio: the highlight and the title badge still say it
+  }
+}
 
 const COLUMNS: { status: OrderStatus; next: OrderStatus; tone: string }[] = [
   { status: 'new', next: 'preparing', tone: 'border-blue-200 bg-blue-50' },
@@ -20,16 +45,57 @@ export function OrdersBoard({
   initial,
   currency,
   tenantId,
+  restaurantName,
+  alerts,
+  botConnected = false,
 }: {
   initial: OrderRow[];
   currency: string;
   tenantId: string;
+  restaurantName: string;
+  alerts: OrderAlerts;
+  /** A linked WhatsApp bot confirms the guest by itself; without one the card offers a one-tap link. */
+  botConnected?: boolean;
 }) {
   const t = useTranslations('orders');
   const locale = useLocale();
   const [orders, setOrders] = useState<OrderRow[]>(initial);
   const [refreshing, setRefreshing] = useState(false);
   const [live, setLive] = useState(false);
+  // Orders that just arrived, highlighted for a minute.
+  const [fresh, setFresh] = useState<Set<string>>(() => new Set());
+  // What we last saw of each order's payment, to tell a real arrival from a
+  // pending checkout turning paid (announce) or any other update (quiet).
+  const seenRef = useRef(new Map(initial.map((o) => [o.id, o.payment_status])));
+
+  // The tab title carries the count of orders waiting to be accepted.
+  useEffect(() => {
+    const base = document.title.replace(/^\(\d+\) /, '');
+    const n = orders.filter((o) => o.status === 'new').length;
+    document.title = n > 0 ? `(${n}) ${base}` : base;
+    return () => {
+      document.title = base;
+    };
+  }, [orders]);
+
+  function announce(row: OrderRow) {
+    if (alerts.sound) chime();
+    setFresh((cur) => new Set(cur).add(row.id));
+    setTimeout(() => setFresh((cur) => {
+      const next = new Set(cur);
+      next.delete(row.id);
+      return next;
+    }), 60_000);
+    // A push already covers the phone; this is for the screen left open on a hidden tab.
+    if (document.hidden && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      try {
+        const lines = ((row.items ?? []) as Line[]).map((l) => `${l.qty ?? 1}× ${l.name}`).join(', ');
+        new Notification(`${t('newOrder')} #${orderCode(row.id)}`, { body: [row.customer_name, lines].filter(Boolean).join(' · '), tag: `order-${row.id}` });
+      } catch {
+        // not available here
+      }
+    }
+  }
 
   async function refresh() {
     setRefreshing(true);
@@ -41,6 +107,13 @@ export function OrdersBoard({
       setRefreshing(false);
     }
   }
+
+  // The realtime handler below is subscribed once; it reaches the latest
+  // `announce` (and its settings) through a ref that each render refreshes.
+  const announceRef = useRef<(row: OrderRow) => void>(() => {});
+  useEffect(() => {
+    announceRef.current = announce;
+  });
 
   // Live updates over websockets (Supabase Realtime). RLS scopes rows to the tenant.
   useEffect(() => {
@@ -63,10 +136,20 @@ export function OrdersBoard({
         (payload) => {
           if (payload.eventType === 'DELETE') {
             const id = (payload.old as { id?: string }).id;
-            if (id) setOrders((cur) => cur.filter((o) => o.id !== id));
-          } else {
-            upsert(payload.new as OrderRow);
+            if (id) {
+              setOrders((cur) => cur.filter((o) => o.id !== id));
+              seenRef.current.delete(id);
+            }
+            return;
           }
+          const row = payload.new as OrderRow;
+          const prev = seenRef.current.get(row.id);
+          seenRef.current.set(row.id, row.payment_status);
+          upsert(row);
+          // A WhatsApp order arrives complete; an online one is real only once paid.
+          const arrived = prev === undefined && row.payment_status !== 'pending';
+          const paidNow = prev === 'pending' && row.payment_status === 'paid';
+          if ((arrived || paidNow) && row.status === 'new') announceRef.current(row);
         },
       )
       .subscribe((status) => {
@@ -116,7 +199,7 @@ export function OrdersBoard({
               <div className="space-y-3">
                 {items.length === 0 && <p className="py-6 text-center text-sm text-neutral-400">{t('emptyCol')}</p>}
                 {items.map((o) => (
-                  <div key={o.id} className="rounded-xl bg-white p-3 shadow-sm">
+                  <div key={o.id} className={`rounded-xl bg-white p-3 shadow-sm transition ${fresh.has(o.id) ? 'ring-2 ring-amber-400' : ''}`}>
                     <div className="mb-1 flex items-center justify-between text-xs text-neutral-400">
                       <span className="flex items-center gap-2">
                         <span className="font-mono font-semibold text-neutral-600">#{orderCode(o.id)}</span>
@@ -183,6 +266,19 @@ export function OrdersBoard({
                     >
                       <Check className="h-4 w-4" /> {t(`advance_${col.status}`)}
                     </button>
+                    {o.customer_phone && !botConnected && o.status !== 'new' && (
+                      <a
+                        href={buildWhatsappUrl(
+                          o.customer_phone,
+                          t(o.status === 'ready' ? 'customerMsgReady' : 'customerMsgAccepted', { name: o.customer_name ?? '', code: orderCode(o.id), restaurant: restaurantName }),
+                        )}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#25D366] py-1.5 text-xs font-semibold text-[#1a9e4b] hover:bg-green-50"
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" /> {t('notifyCustomer')}
+                      </a>
+                    )}
                   </div>
                 ))}
               </div>

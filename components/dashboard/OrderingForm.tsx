@@ -7,6 +7,7 @@ import type { TenantOrdering, ServiceType, PaymentMethod } from '@/lib/database.
 import type { PaymentAccount } from '@/lib/payments/types';
 import { Card, Label, Input, Textarea, Button } from '@/components/ui';
 import { updateOrdering } from '@/app/(dashboard)/settings-actions';
+import { resolveOrderAlerts, type OrderAlerts } from '@/lib/orders/alerts';
 import { connectStripe, disconnectStripe, syncStripeAccount } from '@/app/(dashboard)/payments-actions';
 
 const SERVICE_TYPES: ServiceType[] = ['pickup', 'delivery', 'dinein'];
@@ -43,6 +44,12 @@ export function OrderingForm({
   function set<K extends keyof TenantOrdering>(key: K, value: TenantOrdering[K]) {
     setO((s) => ({ ...s, [key]: value }));
     updateOrdering({ [key]: value });
+  }
+
+  // How the team is told about orders (lib/orders/alerts.ts). Stored whole.
+  const alerts = resolveOrderAlerts(o.order_alerts);
+  function setAlerts(patch: Partial<OrderAlerts>) {
+    set('order_alerts', { ...alerts, ...patch } as unknown as Record<string, unknown>);
   }
 
   function toggleService(s: ServiceType) {
@@ -232,6 +239,56 @@ export function OrderingForm({
             maxLength={120}
             onBlur={(e) => set('note_placeholder', e.target.value.trim() || null)}
           />
+        </div>
+      </Card>
+
+      {/* Order alerts: how the team hears about a paid order. */}
+      <Card className="space-y-3" data-setting="order-alerts">
+        <div>
+          <h2 className="font-semibold">{t('alertsTitle')}</h2>
+          <p className="text-sm text-neutral-500">{t('alertsHint')}</p>
+        </div>
+        <ToggleRow label={t('alertPush')} checked={alerts.push} onChange={(v) => setAlerts({ push: v })} />
+        <ToggleRow label={t('alertSound')} checked={alerts.sound} onChange={(v) => setAlerts({ sound: v })} />
+        <ToggleRow label={t('alertWhatsappOrders')} checked={alerts.whatsappOrders} onChange={(v) => setAlerts({ whatsappOrders: v })} />
+        {showPosSettings && (
+          <>
+            <ToggleRow label={t('alertPrintKitchen')} checked={alerts.printKitchen} onChange={(v) => setAlerts({ printKitchen: v })} />
+            <ToggleRow label={t('alertPrintReceipt')} checked={alerts.printReceipt} onChange={(v) => setAlerts({ printReceipt: v })} />
+          </>
+        )}
+        <div className="border-t border-neutral-100 pt-3">
+          <ToggleRow label={t('alertConfirmCustomer')} checked={alerts.confirmCustomer} onChange={(v) => setAlerts({ confirmCustomer: v })} />
+          <p className="mt-1 text-xs text-neutral-500">{t('alertConfirmCustomerHint')}</p>
+        </div>
+        <div className="border-t border-neutral-100 pt-3">
+          <Label>{t('alertTeamPhones')}</Label>
+          <Input
+            defaultValue={alerts.teamPhones.join(', ')}
+            placeholder="+52 55 1234 5678, +52 33 9876 5432"
+            onBlur={(e) =>
+              setAlerts({
+                teamPhones: e.target.value
+                  .split(/[,;\n]/)
+                  .map((x) => x.trim())
+                  .filter(Boolean)
+                  .slice(0, 5),
+              })
+            }
+          />
+          <p className="mt-1 text-xs text-neutral-500">{t('alertTeamPhonesHint')}</p>
+        </div>
+        <div className="border-t border-neutral-100 pt-3">
+          <Label>{t('alertEscalate')}</Label>
+          <Input
+            type="number"
+            min={0}
+            max={60}
+            defaultValue={alerts.escalateMinutes}
+            className="w-28"
+            onBlur={(e) => setAlerts({ escalateMinutes: Math.max(0, Math.min(60, Number(e.target.value) || 0)) })}
+          />
+          <p className="mt-1 text-xs text-neutral-500">{t('alertEscalateHint')}</p>
         </div>
       </Card>
 

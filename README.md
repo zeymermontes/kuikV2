@@ -273,10 +273,32 @@ payout. Kuik takes an application fee per payment, set by the super admin in
 ([lib/payments/pricing.ts](lib/payments/pricing.ts)); the cart's numbers are
 never charged. Option surcharges come from the cart but are floored at zero.
 
+**How the restaurant is told** ([lib/orders/notify.ts](lib/orders/notify.ts),
+settings in *Pedidos → Avisos de pedidos*, stored in `tenant_ordering.order_alerts`,
+migration 0068). A WhatsApp order announces itself: the guest's message lands
+on the restaurant's phone. A paid online order does not, so when the webhook
+marks it paid Kuik fans it out over what the restaurant enabled:
+
+| Channel | Needs | Default |
+| --- | --- | --- |
+| Web push to owner, manager, cashier (tap **Aceptar** right on it) | The app installed (`InstallPrompt`), VAPID keys | on |
+| Chime, highlight and `(n)` in the tab title on the open order board | Nothing | on |
+| Kitchen ticket(s) queued to the station printers | Printers + agent (Pro) | on |
+| "Pedido en línea" slip on the receipt printer | Printers + agent (Pro) | off |
+| WhatsApp to up to five team numbers | Linked-device bot (Pro) | numbers empty |
+| Confirmation to the guest: paid, preparing, ready | Linked-device bot; otherwise the board offers a one-tap `wa.me` link | on |
+| Escalation: push the whole team after N minutes unaccepted, WhatsApp the team at 2.5×N | `/api/cron/order-alerts` every 2 min (render.yaml) | 3 min |
+
+The push's **Aceptar** action posts to `/api/orders/<id>/status` from the
+service worker; the first status change stamps `orders.accepted_at`, which
+stops the escalation. WhatsApp orders can also push (`whatsappOrders`), off
+by default because the message already is the alert.
+
 **Setup**
 
 1. Apply [supabase/migrations/0066_online_payments.sql](supabase/migrations/0066_online_payments.sql)
-   and [0067_order_contact.sql](supabase/migrations/0067_order_contact.sql).
+   [0067_order_contact.sql](supabase/migrations/0067_order_contact.sql) and
+   [0068_order_alerts.sql](supabase/migrations/0068_order_alerts.sql).
 2. Stripe dashboard → Connect: enable Express accounts for Mexico. Copy the
    platform secret key to `STRIPE_SECRET_KEY`.
 3. Stripe dashboard → Webhooks → add `https://app.kuik.mx/api/webhooks/stripe`

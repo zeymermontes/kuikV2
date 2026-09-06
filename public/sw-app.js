@@ -121,6 +121,18 @@ self.addEventListener('notificationclick', (event) => {
     (async () => {
       // A service worker cannot invoke a Next server action — the action id is
       // a build artifact — so quick replies go through a real API route.
+      if (action === 'accept' && data.orderId) {
+        try {
+          await fetch(`/api/orders/${data.orderId}/status`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', 'x-kuik-client': 'sw' },
+            credentials: 'include',
+            body: JSON.stringify({ status: 'preparing' }),
+          });
+        } catch {
+          // Offline: fall through and just open the board.
+        }
+      }
       if (action && data.reservationId) {
         try {
           await fetch(`/api/reservations/${data.reservationId}/status`, {
@@ -135,11 +147,12 @@ self.addEventListener('notificationclick', (event) => {
       }
 
       const url = data.url || '/reservations';
+      const section = data.orderId ? '/orders' : '/reservations';
       const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      const open = clientList.find((c) => c.url.includes('/reservations'));
+      const open = clientList.find((c) => c.url.includes(section));
       if (open) {
         await open.focus();
-        open.postMessage({ type: 'kuik:reservation-updated', id: data.reservationId });
+        open.postMessage(data.orderId ? { type: 'kuik:order-updated', id: data.orderId } : { type: 'kuik:reservation-updated', id: data.reservationId });
         return;
       }
       await self.clients.openWindow(url);

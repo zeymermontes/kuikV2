@@ -186,6 +186,7 @@ export async function updateOrdering(
     print_kitchen_auto: boolean;
     print_drawer_cash: boolean;
     receipt_footer: string | null;
+    order_alerts: Record<string, unknown>;
   }>,
 ) {
   const { tenant } = await requireTenant();

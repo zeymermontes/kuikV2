@@ -114,6 +114,7 @@ export const getTenantByHostKey = cache(
       print_kitchen_auto: true,
       print_drawer_cash: true,
       receipt_footer: null,
+      order_alerts: null,
       updated_at: tenant.created_at,
     };
 

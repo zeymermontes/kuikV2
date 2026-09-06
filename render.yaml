@@ -146,6 +146,24 @@ services:
           type: web
           envVarKey: CRON_SECRET
 
+  # Paid orders nobody accepted: push the team after a few minutes, then
+  # WhatsApp them through the bot (lib/orders/notify.ts).
+  - type: cron
+    name: kuik-order-alerts
+    runtime: node
+    schedule: "*/2 * * * *"
+    plan: starter
+    buildCommand: "echo no build"
+    startCommand: >
+      curl -fsS -H "Authorization: Bearer $CRON_SECRET"
+      https://app.kuik.mx/api/cron/order-alerts
+    envVars:
+      - key: CRON_SECRET
+        fromService:
+          name: kuik
+          type: web
+          envVarKey: CRON_SECRET
+
   # whatsmeow bridge: one linked-device WhatsApp session per restaurant.
   # Stateful and long-running by nature, so it cannot live inside the web
   # service. Read whatsapp-bridge/README.md before enabling this in production.

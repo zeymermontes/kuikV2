@@ -7,6 +7,8 @@ import { getPlatformSettings } from '@/lib/platform';
 import { accountReady, getGateway, getPaymentAccount, paymentsConfigured } from '@/lib/payments';
 import { applicationFee, priceOrder } from '@/lib/payments/pricing';
 import { normalizePhone, safeReturnPath } from '@/lib/payments/return-path';
+import { notifyWhatsappOrder } from '@/lib/orders/notify';
+import type { OrderRow } from '@/lib/database.types';
 import type { CartLine } from '@/lib/whatsapp';
 
 export const runtime = 'nodejs';
@@ -75,7 +77,9 @@ export async function POST(
   };
 
   if (!paying) {
-    await supabase.from('orders').insert(row);
+    const { data: logged } = await supabase.from('orders').insert(row).select('*').maybeSingle();
+    // Off unless the restaurant asked for it: the guest's WhatsApp is the alert.
+    if (logged) await notifyWhatsappOrder(logged as OrderRow);
     return NextResponse.json({ ok: true });
   }
 

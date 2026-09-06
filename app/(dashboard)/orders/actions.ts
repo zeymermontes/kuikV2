@@ -3,6 +3,7 @@
 import { requireOrders } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import type { OrderRow, OrderStatus } from '@/lib/database.types';
+import { onOrderStatus } from '@/lib/orders/notify';
 
 /** Active orders (not yet delivered), oldest first (FIFO for the kitchen). */
 export async function listOrders(): Promise<OrderRow[]> {
@@ -22,4 +23,6 @@ export async function setOrderStatus(id: string, status: OrderStatus): Promise<v
   const { tenant } = await requireOrders();
   const supabase = await createClient();
   await supabase.from('orders').update({ status }).eq('id', id).eq('tenant_id', tenant.id);
+  // Stamp acceptance and, with a bot, tell the guest. Best-effort.
+  await onOrderStatus(id, tenant.id, status);
 }
