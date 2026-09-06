@@ -9,9 +9,9 @@ import { JumpToSetting } from '@/components/dashboard/JumpToSetting';
 import { TableQRs } from '@/components/dashboard/TableQRs';
 import { PosPreview } from '@/components/dashboard/PosPreview';
 import { PrintingSettings } from '@/components/dashboard/PrintingSettings';
-import { getPaymentAccount, paymentsConfigured, refreshAccount } from '@/lib/payments';
+import { configuredProviders, getPaymentAccount, publicAccount, refreshAccount } from '@/lib/payments';
 
-export default async function OrderingPage({ searchParams }: { searchParams: Promise<{ stripe?: string }> }) {
+export default async function OrderingPage({ searchParams }: { searchParams: Promise<{ stripe?: string; mp?: string }> }) {
   const ctx = await requireOwner();
   const { tenant } = ctx;
   const t = await getTranslations('ordering');
@@ -24,17 +24,18 @@ export default async function OrderingPage({ searchParams }: { searchParams: Pro
     dev ? supabase.from('printers').select('*').eq('tenant_id', tenant.id).order('position') : Promise.resolve({ data: [] }),
     dev ? supabase.from('categories').select('name, station').eq('tenant_id', tenant.id).is('branch_id', null).order('position') : Promise.resolve({ data: [] }),
   ]);
-  // Online payment: the connected gateway account. Coming back from Stripe's
-  // onboarding (?stripe=return) is the moment its flags change, so re-pull them.
+  // Online payment: the connected gateway account. Coming back from the
+  // gateway (?stripe=return, ?mp=return) is the moment its flags change, so re-pull them.
   let paymentAccount = await getPaymentAccount(tenant.id);
-  const { stripe } = await searchParams;
-  if (paymentAccount && (stripe === 'return' || stripe === 'refresh')) {
+  const { stripe, mp } = await searchParams;
+  if (paymentAccount && (stripe === 'return' || stripe === 'refresh' || mp === 'return')) {
     try {
       paymentAccount = await refreshAccount(paymentAccount);
     } catch {
-      /* Stripe unreachable: show what we have */
+      /* gateway unreachable: show what we have */
     }
   }
+  const gatewayError = mp === 'error';
   // The stations a kitchen printer can be routed to: the same rule the POS uses (category.station, else its name).
   const stations = [...new Set(((categories ?? []) as { name: string; station: string | null }[]).map((c) => c.station || c.name))];
 
@@ -74,7 +75,10 @@ export default async function OrderingPage({ searchParams }: { searchParams: Pro
     <div>
       <h1 className="mb-1 text-2xl font-bold">{t('title')}</h1>
       <p className="mb-6 text-sm text-neutral-500">{t('subtitle')}</p>
-      <OrderingForm ordering={ordering} showPosSettings={dev} paymentAccount={paymentAccount} paymentsConfigured={paymentsConfigured()} />
+      {gatewayError && (
+        <div className="mb-4 max-w-2xl rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{t('mpError')}</div>
+      )}
+      <OrderingForm ordering={ordering} showPosSettings={dev} paymentAccount={publicAccount(paymentAccount)} providers={configuredProviders()} />
       {dev && (
         <div className="mt-5">
           <PrintingSettings agents={(agents ?? []) as PrintAgent[]} printers={(printers ?? []) as Printer[]} stations={stations} ordering={ordering} />

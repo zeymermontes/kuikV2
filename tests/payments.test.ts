@@ -81,12 +81,13 @@ test('webhook signatures are verified before anything is parsed', async () => {
   process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test';
   const { stripeGateway } = await import('../lib/payments/stripe');
   const payload = JSON.stringify(ev('checkout.session.completed', session({})));
+  const req = (sig: string | null) => ({ rawBody: payload, headers: new Headers(sig ? { 'stripe-signature': sig } : {}), searchParams: new URLSearchParams() });
   const good = new Stripe('sk_test_x').webhooks.generateTestHeaderString({ payload, secret: 'whsec_test' });
-  const parsed = await stripeGateway.parseWebhook(payload, good);
+  const parsed = await stripeGateway.parseWebhook(req(good));
   assert.equal(parsed.type, 'paid');
   const bad = new Stripe('sk_test_x').webhooks.generateTestHeaderString({ payload, secret: 'whsec_other' });
-  await assert.rejects(stripeGateway.parseWebhook(payload, bad));
-  await assert.rejects(stripeGateway.parseWebhook(payload, null));
+  await assert.rejects(stripeGateway.parseWebhook(req(bad)));
+  await assert.rejects(stripeGateway.parseWebhook(req(null)));
 });
 
 import { normalizePhone, safeReturnPath } from '../lib/payments/return-path';

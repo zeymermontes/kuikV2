@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   const raw = await req.text();
   let event;
   try {
-    event = await getGateway('stripe').parseWebhook(raw, req.headers.get('stripe-signature'));
+    event = await getGateway('stripe').parseWebhook({ rawBody: raw, headers: req.headers, searchParams: req.nextUrl.searchParams });
   } catch (e) {
     console.error('[stripe-webhook] rejected:', e instanceof Error ? e.message : e);
     return NextResponse.json({ ok: false }, { status: 400 });

@@ -1,21 +1,42 @@
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { stripeGateway, stripeConfigured } from './stripe';
-import type { PaymentAccount, PaymentEvent, PaymentGateway, PaymentProvider } from './types';
+import { mercadopagoGateway, mercadopagoConfigured } from './mercadopago';
+import type { PaymentAccount, PaymentEvent, PaymentGateway, PaymentProvider, PublicPaymentAccount } from './types';
 import { notifyPaidOrder } from '@/lib/orders/notify';
 import type { KitchenTicket } from '@/lib/pos/types';
 
-export type { PaymentAccount, PaymentEvent, PaymentGateway, PaymentProvider } from './types';
+export type { PaymentAccount, PaymentEvent, PaymentGateway, PaymentProvider, PublicPaymentAccount, WebhookRequest } from './types';
 
-const gateways: Record<PaymentProvider, PaymentGateway> = { stripe: stripeGateway };
+const gateways: Record<PaymentProvider, PaymentGateway> = { stripe: stripeGateway, mercadopago: mercadopagoGateway };
 
 export function getGateway(id: PaymentProvider = 'stripe'): PaymentGateway {
   return gateways[id];
 }
 
-/** Whether Kuik itself is set up to take online payments (keys present). */
+export function isPaymentProvider(x: unknown): x is PaymentProvider {
+  return x === 'stripe' || x === 'mercadopago';
+}
+
+/** The gateways Kuik itself has keys for; a restaurant picks one of these. */
+export function configuredProviders(): PaymentProvider[] {
+  const out: PaymentProvider[] = [];
+  if (stripeConfigured()) out.push('stripe');
+  if (mercadopagoConfigured()) out.push('mercadopago');
+  return out;
+}
+
+/** Whether Kuik itself is set up to take online payments through at least one gateway. */
 export function paymentsConfigured(): boolean {
-  return stripeConfigured();
+  return configuredProviders().length > 0;
+}
+
+/** The account without its secrets — the only shape that may reach a client component. */
+export function publicAccount(a: PaymentAccount | null): PublicPaymentAccount | null {
+  if (!a) return null;
+  const { credentials: _credentials, ...rest } = a;
+  void _credentials;
+  return rest;
 }
 
 export async function getPaymentAccount(tenantId: string): Promise<PaymentAccount | null> {
@@ -34,7 +55,7 @@ export function accountReady(a: PaymentAccount | null | undefined): a is Payment
 
 /** Pull fresh flags from the gateway and store them. */
 export async function refreshAccount(account: PaymentAccount): Promise<PaymentAccount> {
-  const status = await getGateway(account.provider).accountStatus(account.account_id);
+  const status = await getGateway(account.provider).accountStatus(account);
   const next = { ...account, charges_enabled: status.chargesEnabled, details_submitted: status.detailsSubmitted, updated_at: new Date().toISOString() };
   await createAdminClient().from('payment_accounts').update({
     charges_enabled: next.charges_enabled,

@@ -258,12 +258,25 @@ counter and what the counter can scan.
 the four things a gateway must do: connect a restaurant's account, report its
 status, create a checkout for an order, and translate a webhook into a
 `PaymentEvent` (paid / failed / refunded / account). Everything else — the
-order route, the webhook handler, the board, the cart — works off that.
-[lib/payments/stripe.ts](lib/payments/stripe.ts) is the first implementation;
-Mercado Pago Checkout Pro or Clip would be another file registered in
-[lib/payments/index.ts](lib/payments/index.ts).
+order route, the webhook handler, the board, the cart — works off that. Two
+implementations are registered in [lib/payments/index.ts](lib/payments/index.ts):
+[stripe.ts](lib/payments/stripe.ts) and [mercadopago.ts](lib/payments/mercadopago.ts).
+A restaurant connects one of them from *Pedidos → Formas de pago → Pagar con
+tarjeta*; Clip would be another file.
 
-**Money flow (Stripe Connect, Express accounts, direct charges).** The
+**Mercado Pago (marketplace shape).** The restaurant signs in with its own
+Mercado Pago account (OAuth, callback `/api/payments/mercadopago/callback`,
+state = tenant id signed with the app secret); Kuik stores the seller's tokens
+in `payment_accounts.credentials` (server only, refreshed a week before they
+expire) and creates Checkout Pro preferences with them, with Kuik's cut as
+`marketplace_fee`. Payment notifications arrive at
+`/api/webhooks/mercadopago/payments?tenant=<id>`, are verified with the app's
+webhook secret (`x-signature`), and the payment is read with that tenant's
+token. Env: `MERCADOPAGO_CLIENT_ID`, `MERCADOPAGO_CLIENT_SECRET`,
+`MERCADOPAGO_WEBHOOK_SIGNING_SECRET`; the redirect URL and the webhook URL
+must be registered on the application (see `.env.example`).
+
+**Money flow (Stripe Connect, direct charges).** The
 restaurant is the merchant: it onboards on Stripe's hosted form from
 *Pedidos → Formas de pago → Pago en línea*, pays Stripe's fee and receives the
 payout. Kuik takes an application fee per payment, set by the super admin in

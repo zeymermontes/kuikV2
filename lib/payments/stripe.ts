@@ -1,6 +1,6 @@
 import 'server-only';
 import Stripe from 'stripe';
-import type { CheckoutInput, CheckoutResult, PaymentEvent, PaymentGateway } from './types';
+import type { CheckoutInput, CheckoutResult, PaymentEvent, PaymentGateway, WebhookRequest } from './types';
 
 // Stripe Connect, Accounts v2, "SaaS platform" shape: the restaurant is the
 // merchant of record with a full Stripe dashboard, pays Stripe's fee and
@@ -66,8 +66,8 @@ export const stripeGateway: PaymentGateway = {
     return { accountId, url: link.url };
   },
 
-  async accountStatus(accountId) {
-    const a = await stripe().v2.core.accounts.retrieve(accountId, { include: ['configuration.merchant', 'requirements'] });
+  async accountStatus(account) {
+    const a = await stripe().v2.core.accounts.retrieve(account.account_id, { include: ['configuration.merchant', 'requirements'] });
     // v2 readiness: the card capability is live, and Stripe is not waiting on
     // anything due now. (`charges_enabled` is the v1 field and is not used.)
     const cardStatus = a.configuration?.merchant?.capabilities?.card_payments?.status;
@@ -107,11 +107,12 @@ export const stripeGateway: PaymentGateway = {
     return { url: session.url, ref: session.id };
   },
 
-  async parseWebhook(rawBody, signature): Promise<PaymentEvent> {
+  async parseWebhook(req: WebhookRequest): Promise<PaymentEvent> {
     const secret = process.env.STRIPE_WEBHOOK_SECRET;
     if (!secret) throw new Error('stripe_not_configured');
+    const signature = req.headers.get('stripe-signature');
     if (!signature) throw new Error('missing_signature');
-    const event = stripe().webhooks.constructEvent(rawBody, signature, secret);
+    const event = stripe().webhooks.constructEvent(req.rawBody, signature, secret);
     return translate(event);
   },
 };

@@ -1,9 +1,9 @@
 // One shape for every payment gateway, so the cart, the order route and the
-// order board never learn a provider's vocabulary. Stripe is the first
-// implementation (lib/payments/stripe.ts); Mercado Pago Checkout Pro or Clip
-// would be another file exporting the same interface.
+// order board never learn a provider's vocabulary. Stripe (lib/payments/stripe.ts)
+// and Mercado Pago (lib/payments/mercadopago.ts) implement it; Clip would be
+// another file exporting the same interface.
 
-export type PaymentProvider = 'stripe';
+export type PaymentProvider = 'stripe' | 'mercadopago';
 
 export interface PaymentAccount {
   tenant_id: string;
@@ -11,9 +11,14 @@ export interface PaymentAccount {
   account_id: string;
   charges_enabled: boolean;
   details_submitted: boolean;
+  /** Gateway secrets the server needs to act for the restaurant (OAuth tokens). Never leaves the server. */
+  credentials: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
+
+/** What the dashboard may see of an account: the flags, never the secrets. */
+export type PublicPaymentAccount = Omit<PaymentAccount, 'credentials'>;
 
 export interface CheckoutInput {
   orderId: string;
@@ -48,9 +53,20 @@ export type PaymentEvent =
   | { type: 'account'; accountId: string }
   | { type: 'ignored'; reason: string };
 
+/** A webhook delivery as the gateway sent it: body, headers and query, since providers sign different parts. */
+export interface WebhookRequest {
+  rawBody: string;
+  headers: Headers;
+  searchParams: URLSearchParams;
+}
+
 export interface PaymentGateway {
   id: PaymentProvider;
-  /** Start onboarding (or resume it) for a tenant; returns where to send the manager. */
+  /**
+   * Start onboarding (or resume it) for a tenant; returns where to send the
+   * manager. `accountId` is empty when the gateway only reveals it at the end
+   * of the flow (OAuth): the callback route stores it then.
+   */
   connect(input: {
     tenantId: string;
     existingAccountId: string | null;
@@ -63,9 +79,9 @@ export interface PaymentGateway {
     url: string;
   }>;
   /** Fresh capability flags for an account. */
-  accountStatus(accountId: string): Promise<{ chargesEnabled: boolean; detailsSubmitted: boolean }>;
+  accountStatus(account: PaymentAccount): Promise<{ chargesEnabled: boolean; detailsSubmitted: boolean }>;
   /** A hosted checkout page for one order. */
   createCheckout(input: CheckoutInput): Promise<CheckoutResult>;
   /** Verify and translate a webhook delivery. Throws on a bad signature. */
-  parseWebhook(rawBody: string, signature: string | null): Promise<PaymentEvent>;
+  parseWebhook(req: WebhookRequest): Promise<PaymentEvent>;
 }

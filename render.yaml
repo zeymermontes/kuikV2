@@ -78,6 +78,13 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+      # Mercado Pago as a menu-payment gateway (OAuth app + payments webhook secret).
+      - key: MERCADOPAGO_CLIENT_ID
+        sync: false
+      - key: MERCADOPAGO_CLIENT_SECRET
+        sync: false
+      - key: MERCADOPAGO_WEBHOOK_SIGNING_SECRET
+        sync: false
       # Download folder for the POS print agent binaries (print-agent/build.sh).
       - key: NEXT_PUBLIC_PRINT_AGENT_URL
         value: https://drive.google.com/drive/folders/1sHQck1nZch8xO52dsdpF1jcIzjrJoHwz?usp=drive_link

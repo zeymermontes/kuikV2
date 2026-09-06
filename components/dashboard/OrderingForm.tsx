@@ -4,11 +4,11 @@ import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { CreditCard, ExternalLink, RefreshCw } from 'lucide-react';
 import type { TenantOrdering, ServiceType, PaymentMethod } from '@/lib/database.types';
-import type { PaymentAccount } from '@/lib/payments/types';
+import type { PaymentProvider, PublicPaymentAccount } from '@/lib/payments/types';
 import { Card, Label, Input, Textarea, Button } from '@/components/ui';
 import { updateOrdering } from '@/app/(dashboard)/settings-actions';
 import { resolveOrderAlerts, type OrderAlerts } from '@/lib/orders/alerts';
-import { connectStripe, disconnectStripe, syncStripeAccount } from '@/app/(dashboard)/payments-actions';
+import { connectGateway, disconnectGateway, syncPaymentAccount } from '@/app/(dashboard)/payments-actions';
 
 const SERVICE_TYPES: ServiceType[] = ['pickup', 'delivery', 'dinein'];
 // The three the cart offers: settle at the counter, transfer, or pay by card
@@ -20,15 +20,15 @@ export function OrderingForm({
   ordering,
   showPosSettings = false,
   paymentAccount = null,
-  paymentsConfigured = false,
+  providers = [],
 }: {
   ordering: TenantOrdering;
   /** POS/KDS are still in development — see lib/features.ts. */
   showPosSettings?: boolean;
-  /** The gateway account connected for online payment, if any. */
-  paymentAccount?: PaymentAccount | null;
-  /** False when Kuik itself has no gateway keys: the option is explained, not offered. */
-  paymentsConfigured?: boolean;
+  /** The gateway account connected for online payment, if any (flags only, never secrets). */
+  paymentAccount?: PublicPaymentAccount | null;
+  /** The gateways Kuik has keys for. Empty: the option is explained, not offered. */
+  providers?: PaymentProvider[];
 }) {
   const t = useTranslations('ordering');
   const [o, setO] = useState(ordering);
@@ -43,6 +43,10 @@ export function OrderingForm({
   const [busy, startBusy] = useTransition();
   const ready = !!account && account.charges_enabled;
   const actionNeeded = ready && !account.details_submitted;
+  const paymentsConfigured = providers.length > 0;
+  // Wording keyed by gateway: stripe* and mp* strings say the provider's name.
+  const gw = account?.provider === 'mercadopago' ? 'mp' : 'stripe';
+  const gwT = (key: string) => t(`${gw}${key}` as 'stripeReady');
 
   function set<K extends keyof TenantOrdering>(key: K, value: TenantOrdering[K]) {
     setO((s) => ({ ...s, [key]: value }));
@@ -332,50 +336,70 @@ export function OrderingForm({
             </div>
             {!paymentsConfigured ? (
               <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">{t('onlineNotConfigured')}</p>
+            ) : !account ? (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-neutral-600">{t('gatewayPick')}</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {providers.map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      disabled={busy}
+                      onClick={() => startBusy(() => connectGateway(p))}
+                      className="flex flex-col items-start gap-1 rounded-xl border border-neutral-200 p-3 text-left transition hover:border-neutral-900 disabled:opacity-60"
+                    >
+                      <span className="flex items-center gap-1.5 text-sm font-semibold">
+                        <ExternalLink className="h-3.5 w-3.5" /> {t(p === 'stripe' ? 'stripeConnect' : 'mpConnect')}
+                      </span>
+                      <span className="text-xs text-neutral-500">{t(p === 'stripe' ? 'gatewayStripeHint' : 'gatewayMpHint')}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-neutral-500">{t('gatewayOneHint')}</p>
+              </div>
             ) : (
               <div className="rounded-xl border border-neutral-200 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-sm">
-                    <span className={`h-2 w-2 rounded-full ${ready ? 'bg-green-500' : account ? 'bg-amber-400' : 'bg-neutral-300'}`} />
-                    <span className="font-medium">
-                      {ready ? t('stripeReady') : account ? t('stripePending') : t('stripeNotConnected')}
-                    </span>
+                    <span className={`h-2 w-2 rounded-full ${ready ? 'bg-green-500' : 'bg-amber-400'}`} />
+                    <span className="font-medium">{ready ? gwT('Ready') : gwT('Pending')}</span>
+                    <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] text-neutral-600">{account.provider === 'mercadopago' ? 'Mercado Pago' : 'Stripe'}</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {account && (!ready || actionNeeded) && (
+                    {(!ready || actionNeeded) && (
                       <Button
                         variant="secondary"
                         disabled={busy}
-                        onClick={() => startBusy(async () => setAccount(await syncStripeAccount()))}
+                        onClick={() => startBusy(async () => setAccount(await syncPaymentAccount()))}
                         className="px-3 py-1.5 text-xs"
                       >
                         <RefreshCw className={`h-3.5 w-3.5 ${busy ? 'animate-spin' : ''}`} /> {t('stripeCheck')}
                       </Button>
                     )}
-                    <Button disabled={busy} onClick={() => startBusy(() => connectStripe())} className="px-3 py-1.5 text-xs">
-                      <ExternalLink className="h-3.5 w-3.5" /> {account ? (ready ? t('stripeManage') : t('stripeContinue')) : t('stripeConnect')}
-                    </Button>
-                    {account && (
-                      <Button
-                        variant="ghost"
-                        disabled={busy}
-                        onClick={() => {
-                          if (!confirm(t('stripeDisconnectConfirm'))) return;
-                          startBusy(async () => {
-                            await disconnectStripe();
-                            setAccount(null);
-                            setO((s) => ({ ...s, payment_methods: (s.payment_methods ?? []).filter((m) => m !== 'online') }));
-                          });
-                        }}
-                        className="px-3 py-1.5 text-xs"
-                      >
-                        {t('stripeDisconnect')}
+                    {(account.provider === 'stripe' || !ready) && (
+                      <Button disabled={busy} onClick={() => startBusy(() => connectGateway(account.provider))} className="px-3 py-1.5 text-xs">
+                        <ExternalLink className="h-3.5 w-3.5" /> {ready ? gwT('Manage') : gwT('Continue')}
                       </Button>
                     )}
+                    <Button
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => {
+                        if (!confirm(gwT('DisconnectConfirm'))) return;
+                        startBusy(async () => {
+                          await disconnectGateway();
+                          setAccount(null);
+                          setO((s) => ({ ...s, payment_methods: (s.payment_methods ?? []).filter((m) => m !== 'online') }));
+                        });
+                      }}
+                      className="px-3 py-1.5 text-xs"
+                    >
+                      {t('stripeDisconnect')}
+                    </Button>
                   </div>
                 </div>
-                <p className="mt-2 text-xs text-neutral-500">{ready ? t('stripeReadyHint') : account ? t('stripePendingHint') : t('stripeConnectHint')}</p>
-                {actionNeeded && <p className="mt-1 rounded-lg bg-amber-50 px-2 py-1.5 text-xs text-amber-800">{t('stripeActionNeeded')}</p>}
+                <p className="mt-2 text-xs text-neutral-500">{ready ? gwT('ReadyHint') : gwT('PendingHint')}</p>
+                {actionNeeded && account.provider === 'stripe' && <p className="mt-1 rounded-lg bg-amber-50 px-2 py-1.5 text-xs text-amber-800">{t('stripeActionNeeded')}</p>}
               </div>
             )}
           </div>

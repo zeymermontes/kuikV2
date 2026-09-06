@@ -5,48 +5,66 @@ import { revalidatePath } from 'next/cache';
 import { requireManager } from '@/lib/auth';
 import { APP_URL } from '@/lib/config';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getGateway, getPaymentAccount, paymentsConfigured, refreshAccount, type PaymentAccount } from '@/lib/payments';
+import {
+  configuredProviders,
+  getGateway,
+  getPaymentAccount,
+  isPaymentProvider,
+  publicAccount,
+  refreshAccount,
+  type PaymentProvider,
+  type PublicPaymentAccount,
+} from '@/lib/payments';
 
 // Connecting a gateway is a manager's job. The rows in payment_accounts are
-// written here with the service role (the browser only reads them), and the
-// gateway's hosted onboarding does the rest.
+// written here with the service role (the browser only reads the flags), and
+// the gateway's hosted onboarding does the rest.
 
-export async function paymentAccountState(): Promise<{ configured: boolean; account: PaymentAccount | null }> {
+export async function paymentAccountState(): Promise<{ providers: PaymentProvider[]; account: PublicPaymentAccount | null }> {
   const { tenant } = await requireManager();
-  return { configured: paymentsConfigured(), account: await getPaymentAccount(tenant.id) };
+  return { providers: configuredProviders(), account: publicAccount(await getPaymentAccount(tenant.id)) };
 }
 
-/** Start (or resume) Stripe onboarding and send the manager there. */
-export async function connectStripe(): Promise<void> {
+/** Start (or resume) onboarding on one gateway and send the manager there. */
+export async function connectGateway(provider: PaymentProvider): Promise<void> {
   const { tenant, user } = await requireManager();
-  if (!paymentsConfigured()) throw new Error('payments_not_configured');
+  if (!isPaymentProvider(provider) || !configuredProviders().includes(provider)) throw new Error('payments_not_configured');
   const existing = await getPaymentAccount(tenant.id);
-  const { accountId, url } = await getGateway('stripe').connect({
+  // One gateway per restaurant: switching means disconnecting first.
+  if (existing && existing.provider !== provider) throw new Error('other_gateway_connected');
+  const tag = provider === 'stripe' ? 'stripe' : 'mp';
+  const { accountId, url } = await getGateway(provider).connect({
     tenantId: tenant.id,
     existingAccountId: existing?.account_id ?? null,
     email: user.email ?? null,
     displayName: tenant.name,
-    returnUrl: `${APP_URL}/ordering?stripe=return`,
-    refreshUrl: `${APP_URL}/ordering?stripe=refresh`,
+    returnUrl: `${APP_URL}/ordering?${tag}=return`,
+    refreshUrl: `${APP_URL}/ordering?${tag}=refresh`,
   });
-  if (!existing) {
-    await createAdminClient().from('payment_accounts').insert({ tenant_id: tenant.id, provider: 'stripe', account_id: accountId });
+  // OAuth gateways reveal the account only at the callback, which writes the row.
+  if (!existing && accountId) {
+    await createAdminClient().from('payment_accounts').insert({ tenant_id: tenant.id, provider, account_id: accountId });
   }
   redirect(url);
 }
 
-/** Back from onboarding: pull the flags Stripe now has for the account. */
-export async function syncStripeAccount(): Promise<PaymentAccount | null> {
+/** Kept for existing callers. */
+export async function connectStripe(): Promise<void> {
+  return connectGateway('stripe');
+}
+
+/** Back from onboarding: pull the flags the gateway now has for the account. */
+export async function syncPaymentAccount(): Promise<PublicPaymentAccount | null> {
   const { tenant } = await requireManager();
   const account = await getPaymentAccount(tenant.id);
   if (!account) return null;
   const next = await refreshAccount(account);
   revalidatePath('/ordering');
-  return next;
+  return publicAccount(next);
 }
 
-/** Forget the connection. The Stripe account itself stays with the restaurant. */
-export async function disconnectStripe(): Promise<void> {
+/** Forget the connection. The gateway account itself stays with the restaurant. */
+export async function disconnectGateway(): Promise<void> {
   const { tenant } = await requireManager();
   const supabase = createAdminClient();
   await supabase.from('payment_accounts').delete().eq('tenant_id', tenant.id);
