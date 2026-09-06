@@ -52,3 +52,6 @@ next-env.d.ts
 
 # print agent binaries: built with print-agent/build.sh, published outside git
 /print-agent/dist/
+
+# supabase CLI link state (created by `supabase link`; per machine)
+/supabase/.temp/

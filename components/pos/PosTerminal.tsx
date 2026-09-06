@@ -82,6 +82,7 @@ export function PosTerminal({
   notePlaceholder = null,
   menu: initialMenu,
   themeStyle,
+  customerPath = '/pos/customer',
   demo = false,
   explain = false,
 }: {
@@ -105,6 +106,8 @@ export function PosTerminal({
   menu: PosMenu;
   /** Brand colours as CSS variables (lib/pos/theme.ts). */
   themeStyle?: React.CSSProperties;
+  /** Where the customer screen lives; the public demo has its own copy. */
+  customerPath?: string;
   /** Dashboard preview: throwaway local store, no sync, seeded sale. */
   demo?: boolean;
   /** Tutorials: start in explain mode (taps describe instead of act). */
@@ -273,7 +276,7 @@ export function PosTerminal({
     publish(state);
   }, [publish, selected, live, payPhase, menu.products]);
 
-  const customerUrl = `/pos/customer${demo ? '?demo=1' : ''}`;
+  const customerUrl = `${customerPath}${demo ? '?demo=1' : ''}`;
   const remoteUrl = typeof window === 'undefined' ? '' : `${window.location.origin}/pos/customer?screen=${registerSlug(register)}`;
   async function copyRemoteUrl() {
     try {

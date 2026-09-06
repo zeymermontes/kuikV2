@@ -237,8 +237,22 @@ cart ──POST /api/order (pay) ──► order row (pending) + gateway checkou
 menu ◄── ?pedido=<id>&pago=ok ── success_url                    webhook ◄─────┘
   │                                                                │
   └── PaidSheet polls GET /api/order?id ──► "Pagado" + WhatsApp   └─► orders.payment_status = paid
-                                                                        kitchen_tickets (per station)
+        order #, lines, QR → /recibo/<id>                              kitchen_tickets (per station)
 ```
+
+**The guest comes back where they were.** The cart sends the path it is on
+(`/` or `/menu`, depending on whether the restaurant has a landing page) and
+the gateway redirects there; [lib/payments/return-path.ts](lib/payments/return-path.ts)
+only accepts a plain path on our host. Should an old link land on the landing
+page, it forwards the parameters to `/menu`.
+
+**A paid order carries a phone.** The WhatsApp message may never follow a
+paid order, so the cart requires the guest's number when paying online
+(`orders.customer_phone`, migration 0067) and the order board shows it as a
+`wa.me` link. The confirmation shows the **order number** (first six hex
+digits of the id, the same on the board), the lines, and a **QR** that opens
+the public receipt at `<menu>/recibo/<id>` — what the guest shows at the
+counter and what the counter can scan.
 
 **Gateway-agnostic.** [lib/payments/types.ts](lib/payments/types.ts) defines
 the four things a gateway must do: connect a restaurant's account, report its
@@ -261,7 +275,8 @@ never charged. Option surcharges come from the cart but are floored at zero.
 
 **Setup**
 
-1. Apply [supabase/migrations/0066_online_payments.sql](supabase/migrations/0066_online_payments.sql).
+1. Apply [supabase/migrations/0066_online_payments.sql](supabase/migrations/0066_online_payments.sql)
+   and [0067_order_contact.sql](supabase/migrations/0067_order_contact.sql).
 2. Stripe dashboard → Connect: enable Express accounts for Mexico. Copy the
    platform secret key to `STRIPE_SECRET_KEY`.
 3. Stripe dashboard → Webhooks → add `https://app.kuik.mx/api/webhooks/stripe`
@@ -280,6 +295,26 @@ never charged. Option surcharges come from the cart but are floored at zero.
 gives a `whsec_` for `.env.local`; test cards work against a test-mode
 platform key. `npm test` covers the pricing rules and the webhook translation
 and signature check without touching Stripe.
+
+## Landing page and live demos
+
+The marketing page ([app/page.tsx](app/page.tsx)) sells the whole platform
+and lets a visitor try it without an account:
+
+- **Live device frames** ([components/landing/DeviceFrame.tsx](components/landing/DeviceFrame.tsx))
+  embed real pages in a phone or tablet bezel, rendered at device size and
+  scaled to fit. They mount when scrolled near and stay mounted, so a demo
+  keeps its state when the visitor switches tabs.
+- **Public demos** under `/demo/pos`, `/demo/kds`, `/demo/host` and
+  `/demo/customer` run the real POS, kitchen and host screens in memory
+  against the fixed demo restaurant in [lib/demo-tenant.ts](lib/demo-tenant.ts)
+  (the same `demo` mode the dashboard tutorials use). No login, nothing is
+  written; the pages are `noindex`.
+- **Showcase restaurants** ([lib/showcase.ts](lib/showcase.ts)) are real
+  tenants whose public menus are embedded live. Edit `SHOWCASE_SUBDOMAINS` to
+  choose who appears; only list businesses that agreed to.
+- Prices come from `platform_settings` as before; the feature lists are in
+  the page.
 
 ## Helper skills
 
