@@ -609,6 +609,7 @@
     "stripeConnectHint": "We take you to Stripe to register the business (tax details and bank account). It takes a few minutes and brings you back here.",
     "stripePendingHint": "Stripe is still asking for information. Finish signup and press “Check status”.",
     "stripeReadyHint": "The cart now offers “Online payment”. Paid orders show up marked on Orders and reach the kitchen.",
+    "stripeActionNeeded": "Stripe still needs information (an identity document, for instance). You can charge meanwhile, but Stripe may pause payments if it is not provided. Press “Open Stripe” to complete it.",
     "transferDetails": "Transfer details",
     "transferDetailsHint": "Fill these in and they are shown to guests who pick transfer, who are asked to send a screenshot of the receipt over WhatsApp.",
     "transferBank": "Bank",

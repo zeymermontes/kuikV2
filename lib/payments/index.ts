@@ -21,9 +21,13 @@ export async function getPaymentAccount(tenantId: string): Promise<PaymentAccoun
   return (data as PaymentAccount | null) ?? null;
 }
 
-/** The account can actually take money: onboarding done and charges on. */
+/**
+ * The account can take money: the card capability is active. `details_submitted`
+ * being false alongside means Stripe still wants something (an identity
+ * document, say) — charges work meanwhile, and the dashboard shows the nudge.
+ */
 export function accountReady(a: PaymentAccount | null | undefined): a is PaymentAccount {
-  return !!a && a.charges_enabled && a.details_submitted;
+  return !!a && a.charges_enabled;
 }
 
 /** Pull fresh flags from the gateway and store them. */

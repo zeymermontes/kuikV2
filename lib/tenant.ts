@@ -80,7 +80,7 @@ export const getTenantByHostKey = cache(
         .select('charges_enabled, details_submitted')
         .eq('tenant_id', tenant.id)
         .maybeSingle<{ charges_enabled: boolean; details_submitted: boolean }>();
-      if (!acct?.charges_enabled || !acct.details_submitted) {
+      if (!acct?.charges_enabled) {
         ordering.payment_methods = ordering.payment_methods.filter((m) => m !== 'online');
       }
     }

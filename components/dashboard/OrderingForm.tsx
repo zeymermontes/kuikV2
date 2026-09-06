@@ -30,7 +30,8 @@ export function OrderingForm({
   const [o, setO] = useState(ordering);
   const [account, setAccount] = useState(paymentAccount);
   const [busy, startBusy] = useTransition();
-  const ready = !!account && account.charges_enabled && account.details_submitted;
+  const ready = !!account && account.charges_enabled;
+  const actionNeeded = ready && !account.details_submitted;
 
   function set<K extends keyof TenantOrdering>(key: K, value: TenantOrdering[K]) {
     setO((s) => ({ ...s, [key]: value }));
@@ -307,6 +308,7 @@ export function OrderingForm({
                   </div>
                 </div>
                 <p className="mt-2 text-xs text-neutral-500">{ready ? t('stripeReadyHint') : account ? t('stripePendingHint') : t('stripeConnectHint')}</p>
+                {actionNeeded && <p className="mt-1 rounded-lg bg-amber-50 px-2 py-1.5 text-xs text-amber-800">{t('stripeActionNeeded')}</p>}
               </div>
             )}
           </div>

@@ -609,6 +609,7 @@
     "stripeConnectHint": "Te llevamos a Stripe a dar de alta el negocio (datos fiscales y cuenta bancaria). Tarda unos minutos y regresas aquí.",
     "stripePendingHint": "Stripe todavía pide información. Termina el registro y pulsa «Revisar estado».",
     "stripeReadyHint": "El carrito ya ofrece «Pago en línea». Los pedidos pagados aparecen marcados en Pedidos y llegan a la cocina.",
+    "stripeActionNeeded": "Stripe todavía pide información (por ejemplo, un documento de identidad). Puedes cobrar mientras tanto, pero si no la entregas Stripe puede pausar los pagos. Pulsa «Abrir Stripe» para completarla.",
     "transferDetails": "Datos para transferir",
     "transferDetailsHint": "Si los llenas, se le muestran al cliente cuando elige transferencia y se le pide mandar la captura del comprobante por WhatsApp.",
     "transferBank": "Banco",
