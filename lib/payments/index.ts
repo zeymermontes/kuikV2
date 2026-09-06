@@ -49,11 +49,8 @@ export async function applyPaymentEvent(event: PaymentEvent, provider: PaymentPr
   if (event.type === 'ignored') return null;
 
   if (event.type === 'account') {
-    await supabase
-      .from('payment_accounts')
-      .update({ charges_enabled: event.chargesEnabled, details_submitted: event.detailsSubmitted, updated_at: new Date().toISOString() })
-      .eq('provider', provider)
-      .eq('account_id', event.accountId);
+    const { data } = await supabase.from('payment_accounts').select('*').eq('provider', provider).eq('account_id', event.accountId).maybeSingle();
+    if (data) await refreshAccount(data as PaymentAccount);
     return null;
   }
 

@@ -25,6 +25,7 @@ export async function connectStripe(): Promise<void> {
     tenantId: tenant.id,
     existingAccountId: existing?.account_id ?? null,
     email: user.email ?? null,
+    displayName: tenant.name,
     returnUrl: `${APP_URL}/ordering?stripe=return`,
     refreshUrl: `${APP_URL}/ordering?stripe=refresh`,
   });

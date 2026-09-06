@@ -2,10 +2,11 @@ import 'server-only';
 import Stripe from 'stripe';
 import type { CheckoutInput, CheckoutResult, PaymentEvent, PaymentGateway } from './types';
 
-// Stripe Connect with Express accounts and direct charges: the restaurant is
-// the merchant of record, pays Stripe's fee, gets the payout; Kuik takes an
-// application fee per payment. Express keeps onboarding to a Stripe-hosted
-// form the restaurant finishes in minutes, and Stripe carries KYC and disputes.
+// Stripe Connect, Accounts v2, "SaaS platform" shape: the restaurant is the
+// merchant of record with a full Stripe dashboard, pays Stripe's fee and
+// absorbs its own losses; Kuik takes an application fee on each direct charge.
+// Onboarding is Stripe's hosted account link, so KYC and its remediation are
+// Stripe's job, not ours.
 
 let client: Stripe | null = null;
 
@@ -34,32 +35,44 @@ export function fromMinor(amount: number, currency: string): number {
 export const stripeGateway: PaymentGateway = {
   id: 'stripe',
 
-  async connect({ tenantId, existingAccountId, email, returnUrl, refreshUrl }) {
+  async connect({ tenantId, existingAccountId, email, returnUrl, refreshUrl, displayName }) {
     const s = stripe();
     let accountId = existingAccountId;
     if (!accountId) {
-      const account = await s.accounts.create({
-        type: 'express',
-        country: 'MX',
-        email: email ?? undefined,
-        business_type: 'company',
-        capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
+      const account = await s.v2.core.accounts.create({
+        display_name: displayName ?? undefined,
+        contact_email: email ?? undefined,
+        dashboard: 'full',
+        identity: { country: 'mx' },
+        defaults: {
+          currency: 'mxn',
+          locales: ['es-419'],
+          responsibilities: { fees_collector: 'stripe', losses_collector: 'stripe' },
+        },
+        // Merchant = merchant of record for direct charges. Card is requested
+        // here; OXXO and SPEI are enabled from the account's dashboard.
+        configuration: { merchant: { capabilities: { card_payments: { requested: true } } } },
         metadata: { tenant_id: tenantId },
       });
       accountId = account.id;
     }
-    const link = await s.accountLinks.create({
+    const link = await s.v2.core.accountLinks.create({
       account: accountId,
-      type: 'account_onboarding',
-      return_url: returnUrl,
-      refresh_url: refreshUrl,
+      use_case: {
+        type: 'account_onboarding',
+        account_onboarding: { configurations: ['merchant'], return_url: returnUrl, refresh_url: refreshUrl },
+      },
     });
     return { accountId, url: link.url };
   },
 
   async accountStatus(accountId) {
-    const a = await stripe().accounts.retrieve(accountId);
-    return { chargesEnabled: !!a.charges_enabled, detailsSubmitted: !!a.details_submitted };
+    const a = await stripe().v2.core.accounts.retrieve(accountId, { include: ['configuration.merchant', 'requirements'] });
+    // v2 readiness: the card capability is live, and Stripe is not waiting on
+    // anything due now. (`charges_enabled` is the v1 field and is not used.)
+    const cardStatus = a.configuration?.merchant?.capabilities?.card_payments?.status;
+    const dueNow = (a.requirements?.entries ?? []).some((e) => e.minimum_deadline?.status === 'currently_due' || e.minimum_deadline?.status === 'past_due');
+    return { chargesEnabled: cardStatus === 'active', detailsSubmitted: !dueNow };
   },
 
   async createCheckout(input: CheckoutInput): Promise<CheckoutResult> {
@@ -83,9 +96,9 @@ export const stripeGateway: PaymentGateway = {
         success_url: input.successUrl,
         cancel_url: input.cancelUrl,
         locale: input.locale.startsWith('es') ? 'es-419' : 'en',
-        // Whatever the connected account has enabled: card always, plus OXXO /
-        // SPEI once Stripe turns them on for the restaurant.
-        payment_method_types: undefined,
+        // No payment_method_types: Stripe offers whatever the restaurant's
+        // account has enabled (card always, OXXO / SPEI once turned on).
+        integration_identifier: 'kuik-menu-checkout-qtzrvmpk',
         expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
       },
       { stripeAccount: input.account.account_id },
@@ -136,8 +149,10 @@ export function translate(event: Stripe.Event): PaymentEvent {
       return orderId ? { type: 'refunded', ref: '', orderId } : { type: 'ignored', reason: 'refund without order_id' };
     }
     case 'account.updated': {
+      // The v1 event still fires for v2 accounts; its flags are v1's, so the
+      // handler re-reads the account through accountStatus instead.
       const a = event.data.object as Stripe.Account;
-      return { type: 'account', accountId: a.id, chargesEnabled: !!a.charges_enabled, detailsSubmitted: !!a.details_submitted };
+      return { type: 'account', accountId: a.id };
     }
     default:
       return { type: 'ignored', reason: event.type };

@@ -45,13 +45,20 @@ export type PaymentEvent =
   | { type: 'paid'; ref: string; amount: number; currency: string; orderId?: string }
   | { type: 'failed'; ref: string; orderId?: string }
   | { type: 'refunded'; ref: string; orderId?: string }
-  | { type: 'account'; accountId: string; chargesEnabled: boolean; detailsSubmitted: boolean }
+  | { type: 'account'; accountId: string }
   | { type: 'ignored'; reason: string };
 
 export interface PaymentGateway {
   id: PaymentProvider;
   /** Start onboarding (or resume it) for a tenant; returns where to send the manager. */
-  connect(input: { tenantId: string; existingAccountId: string | null; email: string | null; returnUrl: string; refreshUrl: string }): Promise<{
+  connect(input: {
+    tenantId: string;
+    existingAccountId: string | null;
+    email: string | null;
+    displayName?: string | null;
+    returnUrl: string;
+    refreshUrl: string;
+  }): Promise<{
     accountId: string;
     url: string;
   }>;
