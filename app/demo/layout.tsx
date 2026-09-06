@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { StaffIntlProvider } from '@/components/intl/StaffIntlProvider';
+import { EmbedStyles } from '@/components/EmbedStyles';
 
 export const metadata: Metadata = {
   title: 'Kuik — Demo en vivo',
@@ -15,6 +16,7 @@ export const metadata: Metadata = {
 export default function DemoLayout({ children }: { children: React.ReactNode }) {
   return (
     <StaffIntlProvider>
+      <EmbedStyles />
       <div className="min-h-dvh">{children}</div>
     </StaffIntlProvider>
   );
