@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Category, CategoryTheme } from '@/lib/database.types';
@@ -33,12 +34,26 @@ export function CategoryDrawer({
   const t = useTranslations('menuEditor');
   const tc = useTranslations('common');
 
-  // One key at a time; an empty theme is stored as null so "inherit" stays the default.
+  // The section's design, edited locally and saved a moment after the last
+  // change: a colour wheel or an opacity slider fires per pixel, and one
+  // server action per pixel tripped the rate limit. An empty theme is stored
+  // as null so "inherit" stays the default.
+  const [draft, setDraft] = useState<{ id: string; theme: CategoryTheme | null }>({ id: category.id, theme: category.theme ?? null });
+  // Reset only when the drawer shows another category; a refetch of the same
+  // one must not undo an edit still waiting to be saved.
+  if (draft.id !== category.id) setDraft({ id: category.id, theme: category.theme ?? null });
+  const theme = draft.id === category.id ? draft.theme : (category.theme ?? null);
+  const setThemeLocal = (t: CategoryTheme | null) => setDraft({ id: category.id, theme: t });
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(saveTimer.current), []);
   function setTheme(key: keyof CategoryTheme, value: string | null) {
-    const next: CategoryTheme = { ...(category.theme ?? {}) };
+    const next: CategoryTheme = { ...(theme ?? {}) };
     if (value) next[key] = value;
     else delete next[key];
-    updateCategory(category.id, { theme: Object.keys(next).length ? next : null });
+    const t = Object.keys(next).length ? next : null;
+    setThemeLocal(t);
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => updateCategory(category.id, { theme: t }), 450);
   }
 
   return (
@@ -142,7 +157,7 @@ export function CategoryDrawer({
               <p className="text-xs font-medium text-neutral-500">{t('sectionDesign')}</p>
               <p className="text-[10px] text-neutral-400">{t('sectionDesignHint')}</p>
             </div>
-            {category.theme && (
+            {theme && (
               <button
                 type="button"
                 onClick={() => updateCategory(category.id, { theme: null })}
@@ -154,7 +169,7 @@ export function CategoryDrawer({
           </div>
           <div className="grid grid-cols-2 gap-2">
             {CATEGORY_THEME_COLORS.map((key) => {
-              const val = category.theme?.[key];
+              const val = theme?.[key];
               // The bar's own colour gets a transparency control: over this
               // section's backdrop it decides how much shows through the bar.
               const bar = key === 'tab_bar_color' && val ? parseColor(val) : null;
@@ -205,7 +220,7 @@ export function CategoryDrawer({
               <div key={key}>
                 <Label>{t(`th_${key}`)}</Label>
                 <select
-                  value={category.theme?.[key] ?? ''}
+                  value={theme?.[key] ?? ''}
                   onChange={(e) => setTheme(key, e.target.value || null)}
                   className="w-full rounded-lg border border-neutral-300 px-2 py-2 text-sm"
                 >
@@ -220,7 +235,7 @@ export function CategoryDrawer({
           <div className="mt-3">
             <Label>{t('sectionBackground')}</Label>
             <ImageUploader
-              value={category.theme?.background_image ?? null}
+              value={theme?.background_image ?? null}
               tenantId={tenantId}
               folder="backgrounds"
               shape="wide"

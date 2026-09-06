@@ -62,14 +62,47 @@ export function DesignForm({
     void updateCategory(id, { theme }).then(() => setPreviewReload((n) => n + 1));
   }
 
+  // Saves are debounced: a slider fires a change per pixel, and each save is a
+  // server action plus a refetch of this page. Dragging an opacity slider
+  // sent dozens of those in a second, and Cloudflare's rate limit answered
+  // 429 to the lot, which is how a change could look applied and not be.
+  // The screen updates at once from local state; the server gets one merged
+  // patch once the hand has been still for a moment.
+  const pendingTheme = useRef<Partial<TenantTheme>>({});
+  const pendingSettings = useRef<Partial<MenuSettings>>({});
+  const saveTimers = useRef<{ theme?: ReturnType<typeof setTimeout>; settings?: ReturnType<typeof setTimeout> }>({});
+
+  function flushTheme() {
+    clearTimeout(saveTimers.current.theme);
+    const patch = pendingTheme.current;
+    pendingTheme.current = {};
+    if (Object.keys(patch).length) updateTheme(patch);
+  }
+  function flushSettings() {
+    clearTimeout(saveTimers.current.settings);
+    const patch = pendingSettings.current;
+    pendingSettings.current = {};
+    if (Object.keys(patch).length) updateMenuSettings(patch);
+  }
+  useEffect(() => {
+    return () => {
+      flushTheme();
+      flushSettings();
+    };
+  }, []);
+
   function set<K extends keyof TenantTheme>(key: K, value: TenantTheme[K]) {
     setLocal((s) => ({ ...s, [key]: value }));
-    updateTheme({ [key]: value } as Partial<TenantTheme>);
+    pendingTheme.current[key] = value;
+    clearTimeout(saveTimers.current.theme);
+    saveTimers.current.theme = setTimeout(flushTheme, 450);
   }
 
   function setS<K extends keyof MenuSettings>(key: K, value: MenuSettings[K]) {
     setSettings((s) => ({ ...s, [key]: value }));
-    updateMenuSettings({ [key]: value });
+    pendingSettings.current[key] = value;
+    clearTimeout(saveTimers.current.settings);
+    saveTimers.current.settings = setTimeout(flushSettings, 450);
   }
 
   // Apply a named look: writes every colour/font/layout knob the preset
@@ -77,6 +110,8 @@ export function DesignForm({
   function applyPreset(id: string) {
     const preset = getPreset(id);
     if (!preset) return;
+    flushTheme();
+    flushSettings();
     setLocal((s) => ({ ...s, ...preset.theme }));
     setSettings((s) => ({ ...s, ...presetSettings(preset) }));
     applyMenuPreset(id);
@@ -100,6 +135,7 @@ export function DesignForm({
         font_description: reset(local.font_description),
       };
     }
+    flushTheme();
     setLocal((s) => ({ ...s, ...patch }));
     updateTheme(patch);
   }
