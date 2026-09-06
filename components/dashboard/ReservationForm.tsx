@@ -69,7 +69,7 @@ export function ReservationForm({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-2xl">
+      <div className="relative max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-5 text-neutral-900 sm:rounded-2xl">
         <button onClick={onClose} aria-label={t('cancel')} className="absolute right-3 top-3 rounded-full p-1.5 text-neutral-500 hover:bg-neutral-100">
           <X className="h-5 w-5" />
         </button>

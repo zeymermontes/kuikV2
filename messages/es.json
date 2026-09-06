@@ -1004,6 +1004,8 @@
     "customer": "Cliente",
     "customerPh": "Nombre del cliente",
     "all": "Todo",
+    "categories": "Categorías",
+    "productCount": "{n, plural, =1 {1 producto} other {# productos}}",
     "soldOut": "Agotado",
     "noProducts": "Sin productos",
     "viewSale": "Ver venta",

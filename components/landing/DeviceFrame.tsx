@@ -94,7 +94,13 @@ export function DeviceFrame({
           aria-hidden
         />
       )}
-      <div className="relative overflow-hidden bg-neutral-100" style={{ height: h * scale || undefined, borderRadius: screenRadius * scale }}>
+      {/* clip-path as well as border-radius: some Android browsers do not clip a
+          transformed iframe to a rounded overflow:hidden box, and the screen
+          then bleeds square-cornered over the bezel. */}
+      <div
+        className="relative overflow-hidden bg-neutral-100"
+        style={{ height: h * scale || undefined, borderRadius: screenRadius * scale, clipPath: `inset(0 round ${screenRadius * scale}px)` }}
+      >
         {!loaded && (
           <div className="absolute inset-0 flex items-center justify-center" aria-hidden>
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-700" />

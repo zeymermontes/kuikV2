@@ -123,7 +123,7 @@ export function SaleScreen({
   const [pay, setPay] = useState<PaymentMethod | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [modal, setModal] = useState<'discount' | 'guests' | 'void' | 'customer' | 'table' | null>(null);
+  const [modal, setModal] = useState<'discount' | 'guests' | 'void' | 'customer' | 'table' | 'categories' | null>(null);
   const [field, setField] = useState('');
   const [pctMode, setPctMode] = useState(false);
   const [tableMode, setTableMode] = useState<'list' | 'map'>('map');
@@ -455,6 +455,10 @@ export function SaleScreen({
       {/* Products */}
       <section className="relative flex min-w-0 flex-1 flex-col">
         <div className={`no-scrollbar flex items-center gap-2 overflow-x-auto px-3 pb-2 pt-1 md:px-4 ${query ? 'invisible h-0 overflow-hidden py-0' : ''}`}>
+          {/* Every category at once, as big tiles: the chip strip scrolls sideways and hides most of them on a touch screen. */}
+          <Chip active={false} onClick={() => setModal('categories')} help="pos_categoryGrid">
+            <LayoutGrid className="h-4 w-4" />
+          </Chip>
           <Chip active={activeCat === ALL} onClick={() => setActiveCat(ALL)} help="pos_category">
             {t('all')}
           </Chip>
@@ -604,6 +608,48 @@ export function SaleScreen({
           }}
           onFire={fire}
         />
+      )}
+
+      {modal === 'categories' && (
+        <PosModal title={t('categories')} onClose={() => setModal(null)} wide>
+          <div className="grid max-h-[70dvh] grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 md:grid-cols-4">
+            {[
+              { id: ALL, name: t('all'), icon: null as string | null, image: null as string | null, count: menu.products.length },
+              ...(popular.length > 0 ? [{ id: POPULAR, name: t('popular'), icon: '⭐', image: null, count: popular.length }] : []),
+              ...menu.categories.map((c) => ({
+                id: c.id,
+                name: c.name,
+                icon: c.icon,
+                image: c.icon_image_url,
+                count: menu.products.filter((p) => p.category_id === c.id).length,
+              })),
+            ].map((c) => (
+              <button
+                key={c.id}
+                onClick={() => {
+                  setActiveCat(c.id);
+                  setModal(null);
+                }}
+                className={`flex min-h-24 flex-col items-start justify-between rounded-2xl p-3 text-left transition ${
+                  activeCat === c.id ? 'bg-pos-accent text-pos-accent-text' : 'bg-neutral-100 text-neutral-800 active:bg-neutral-200'
+                }`}
+              >
+                <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-white/60 text-lg">
+                  {c.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={c.image} alt="" className="h-8 w-8 object-cover" />
+                  ) : (
+                    <span aria-hidden>{c.icon || c.name.charAt(0).toUpperCase()}</span>
+                  )}
+                </span>
+                <span className="mt-2 w-full">
+                  <span className="block truncate text-sm font-semibold">{c.name}</span>
+                  <span className="block text-xs opacity-70">{t('productCount', { n: c.count })}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </PosModal>
       )}
 
       {modal === 'discount' && tab && (
