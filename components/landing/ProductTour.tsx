@@ -107,7 +107,7 @@ export function ProductTour({ menuUrl, menuName }: { menuUrl: string | null; men
 
   return (
     <div>
-      <div role="tablist" aria-label="Pantallas de Kuik" className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 sm:mx-0 sm:justify-center sm:px-0">
+      <div role="tablist" aria-label="Pantallas de Kuik" className="flex flex-wrap justify-center gap-2">
         {tabs.map((tab) => {
           const on = tab.id === active;
           const Icon = tab.icon;

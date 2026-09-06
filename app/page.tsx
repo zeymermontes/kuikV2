@@ -187,16 +187,14 @@ export default async function MarketingPage() {
             <p className="mt-5 text-sm text-neutral-500">{t('freeTrial')} · Cancela cuando quieras · Soporte en español</p>
           </div>
 
-          <div className="relative mx-auto w-full max-w-[720px] lg:mx-0">
-            <div className="hidden sm:block">
-              <DeviceFrame src="/demo/pos" kind="tablet" title="Punto de venta Kuik, demo en vivo" eager />
-            </div>
+          <div className="relative mx-auto mb-10 w-full max-w-[720px] sm:mb-12 lg:mx-0">
+            <DeviceFrame src="/demo/pos" kind="tablet" title="Punto de venta Kuik, demo en vivo" eager />
             {hero && (
-              <div className="w-full max-w-[260px] sm:absolute sm:-bottom-10 sm:-left-8 sm:w-[34%] sm:min-w-[190px] sm:max-w-none lg:-left-14">
+              <div className="absolute -bottom-8 -left-2 w-[34%] min-w-[120px] sm:-bottom-10 sm:-left-8 sm:min-w-[190px] lg:-left-14">
                 <DeviceFrame src={hero.url} kind="phone" title={`Menú de ${hero.name}`} eager />
               </div>
             )}
-            <p className="mt-4 text-center text-xs text-neutral-500 sm:hidden">Menú real de {hero?.name ?? 'un restaurante'} · tócalo</p>
+            <p className="mt-4 pl-[38%] text-left text-xs text-neutral-500 sm:mt-14 sm:pl-0 sm:text-center">Demos en vivo: el POS y el menú real de {hero?.name ?? 'un restaurante'} · tócalos</p>
           </div>
         </div>
       </section>
