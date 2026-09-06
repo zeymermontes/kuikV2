@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Logo } from './Logo';
+import { MobileMenu } from './MobileMenu';
 
 const LINKS = [
   ['/#producto', 'Producto'],
@@ -7,8 +8,10 @@ const LINKS = [
   ['/#ejemplos', 'Ejemplos'],
   ['/#precios', 'Precios'],
   ['/#faq', 'Preguntas'],
-  ['/apps', 'Apps'],
 ] as const;
+
+/** The desktop bar adds the apps page as a plain link; the phone menu gives it a button. */
+const DESKTOP_LINKS = [...LINKS, ['/apps', 'Apps']] as const;
 
 export function Nav({ loginLabel, ctaLabel }: { loginLabel: string; ctaLabel: string }) {
   return (
@@ -19,7 +22,7 @@ export function Nav({ loginLabel, ctaLabel }: { loginLabel: string; ctaLabel: st
           <span className="text-lg font-bold tracking-tight">Kuik</span>
         </Link>
         <nav className="hidden items-center gap-7 text-sm font-medium text-neutral-600 md:flex" aria-label="Secciones">
-          {LINKS.map(([href, label]) => (
+          {DESKTOP_LINKS.map(([href, label]) => (
             <a key={href} href={href} className="transition hover:text-neutral-900">
               {label}
             </a>
@@ -32,6 +35,7 @@ export function Nav({ loginLabel, ctaLabel }: { loginLabel: string; ctaLabel: st
           <Link href="/signup" className="rounded-full bg-neutral-900 px-4 py-2 font-semibold text-white shadow-sm transition hover:bg-neutral-700">
             {ctaLabel}
           </Link>
+          <MobileMenu links={LINKS} appsLabel="Descargar la app (Android)" loginLabel={loginLabel} ctaLabel={ctaLabel} />
         </div>
       </div>
     </header>
