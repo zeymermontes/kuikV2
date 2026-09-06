@@ -39,6 +39,9 @@ export interface BuildMessageOptions {
   paymentLabel?: string;
   tipPercent?: number;
   deliveryFee?: number;
+  /** Promotions taken off, already figured by the cart. */
+  discount?: number;
+  discountLabel?: string;
 }
 
 /**
@@ -124,15 +127,18 @@ export function buildOrderMessage(opts: BuildMessageOptions): string {
 
   if (showPrices) {
     const subtotal = cartSubtotal(lines);
-    const tip = tipPercent ? (subtotal * tipPercent) / 100 : 0;
+    const off = Math.min(subtotal, opts.discount ?? 0);
+    const net = subtotal - off;
+    const tip = tipPercent ? (net * tipPercent) / 100 : 0;
     const fee = deliveryFee ?? 0;
     out.push('');
-    if (tip || fee) {
+    if (tip || fee || off) {
       out.push(`Subtotal: ${money(subtotal)}`);
+      if (off) out.push(`${opts.discountLabel ?? 'Descuento'}: -${money(off)}`);
       if (tip) out.push(`Propina (${tipPercent}%): ${money(tip)}`);
       if (fee) out.push(`Envío: ${money(fee)}`);
     }
-    out.push(`*Total: ${money(subtotal + tip + fee)}*`);
+    out.push(`*Total: ${money(net + tip + fee)}*`);
   }
 
   return out.join('\n');

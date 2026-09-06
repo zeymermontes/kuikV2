@@ -18,6 +18,7 @@ import type {
   MenuCategory,
   MenuEntry,
   FullTenant,
+  Promotion,
 } from '@/lib/database.types';
 
 /**
@@ -59,6 +60,14 @@ export const getTenantByHostKey = cache(
       supabase.from('loyalty_program').select('*').eq('tenant_id', tenant.id).maybeSingle<LoyaltyProgram>(),
       supabase.from('subscriptions').select('status, plan').eq('tenant_id', tenant.id).maybeSingle<{ status: SubscriptionStatus; plan: 'basic' | 'pro' }>(),
     ]);
+
+    const { data: promoRows } = await supabase
+      .from('promotions')
+      .select('*')
+      .eq('tenant_id', tenant.id)
+      .eq('active', true)
+      .contains('channels', ['menu'])
+      .order('position');
 
     const { data: branchRows } = await supabase
       .from('branches')
@@ -153,6 +162,7 @@ export const getTenantByHostKey = cache(
 
     return {
       tenant,
+      promotions: (promoRows ?? []) as Promotion[],
       theme,
       contact,
       ordering: orderingRow,

@@ -5,11 +5,11 @@ import { tenantBaseUrl } from '@/lib/config';
 import { resolveMenuSettings } from '@/lib/menu-settings';
 import { getPlatformSettings } from '@/lib/platform';
 import { accountReady, getGateway, getPaymentAccount, paymentsConfigured } from '@/lib/payments';
-import { applicationFee, priceOrder } from '@/lib/payments/pricing';
+import { applicationFee, priceOrder, discountedLines } from '@/lib/payments/pricing';
 import { normalizePhone, safeReturnPath } from '@/lib/payments/return-path';
 import { notifyWhatsappOrder } from '@/lib/orders/notify';
 import { effectivePlan, feePercentFor } from '@/lib/plan';
-import type { OrderRow } from '@/lib/database.types';
+import type { OrderRow, Promotion } from '@/lib/database.types';
 import type { CartLine } from '@/lib/whatsapp';
 
 export const runtime = 'nodejs';
@@ -51,6 +51,8 @@ export async function POST(
     table_label?: string | null;
     payment_method?: string | null;
     pay?: { service?: string; tipPercent?: number; locale?: string; returnPath?: string } | null;
+    promo_code?: string | null;
+    discount?: number | null;
   };
   try {
     body = await req.json();
@@ -75,6 +77,9 @@ export async function POST(
     table_label: body.table_label ?? null,
     payment_method: typeof body.payment_method === 'string' ? body.payment_method.slice(0, 20) : null,
     channel: 'whatsapp',
+    promo_code: typeof body.promo_code === 'string' ? body.promo_code.trim().toUpperCase().slice(0, 40) || null : null,
+    // For a WhatsApp order the cart's own figure is kept as a record; a paid one is re-priced below.
+    discount: typeof body.discount === 'number' && body.discount > 0 ? body.discount : null,
   };
 
   if (!paying) {
@@ -90,16 +95,17 @@ export async function POST(
   // restaurant's only way to reach the guest about it.
   if (!row.customer_phone) return NextResponse.json({ ok: false, error: 'phone_required' }, { status: 400 });
 
-  const [{ data: tenant }, { data: theme }, { data: ordering }, account, platform, { data: sub }] = await Promise.all([
-    supabase.from('tenants').select('id, name, subdomain, custom_domain').eq('id', tenantId).maybeSingle(),
+  const [{ data: tenant }, { data: theme }, { data: ordering }, account, platform, { data: sub }, { data: promoRows }] = await Promise.all([
+    supabase.from('tenants').select('id, name, subdomain, custom_domain, timezone').eq('id', tenantId).maybeSingle(),
     supabase.from('tenant_theme').select('settings').eq('tenant_id', tenantId).maybeSingle(),
     supabase.from('tenant_ordering').select('payment_methods, delivery_fee, free_delivery_over, ordering_enabled').eq('tenant_id', tenantId).maybeSingle(),
     getPaymentAccount(tenantId),
     getPlatformSettings(),
     supabase.from('subscriptions').select('status, plan').eq('tenant_id', tenantId).maybeSingle(),
+    supabase.from('promotions').select('*').eq('tenant_id', tenantId).eq('active', true).contains('channels', ['menu']),
   ]);
   const tier = effectivePlan((sub as { status: 'trialing' | 'active' | 'past_due' | 'canceled'; plan: 'basic' | 'pro' } | null) ?? { status: 'trialing', plan: 'basic' });
-  const t = tenant as { id: string; name: string; subdomain: string; custom_domain: string | null } | null;
+  const t = tenant as { id: string; name: string; subdomain: string; custom_domain: string | null; timezone: string | null } | null;
   const ord = ordering as { payment_methods: string[]; delivery_fee: number | null; free_delivery_over: number | null; ordering_enabled: boolean } | null;
   if (!t || !ord || !ord.ordering_enabled || !ord.payment_methods?.includes('online') || !accountReady(account)) {
     return NextResponse.json({ ok: false, error: 'online_unavailable' }, { status: 409 });
@@ -108,20 +114,28 @@ export async function POST(
   // Price from the menu, not from the cart.
   const lines = body.items as CartLine[];
   const ids = [...new Set(lines.map((l) => l.productId).filter(Boolean))];
-  const { data: products } = await supabase.from('products').select('id, price, is_available').eq('tenant_id', tenantId).in('id', ids);
-  const priceOf = new Map(((products ?? []) as { id: string; price: number | null; is_available: boolean }[]).map((p) => [p.id, p.is_available ? p.price : null]));
+  const { data: products } = await supabase.from('products').select('id, price, is_available, category_id').eq('tenant_id', tenantId).in('id', ids);
+  const priceOf = new Map(
+    ((products ?? []) as { id: string; price: number | null; is_available: boolean; category_id: string | null }[]).map((p) => [
+      p.id,
+      { price: p.is_available ? p.price : null, categoryId: p.category_id },
+    ]),
+  );
   const amount = priceOrder(lines, (id) => priceOf.get(id) ?? null, {
     tipPercent: body.pay?.tipPercent,
     deliveryFee: ord.delivery_fee,
     freeDeliveryOver: ord.free_delivery_over,
     delivery: body.pay?.service === 'delivery',
+    promotions: (promoRows ?? []) as Promotion[],
+    promoCode: row.promo_code,
+    tz: t.timezone,
   });
   if (!amount) return NextResponse.json({ ok: false, error: 'unpriced' }, { status: 409 });
 
   const currency = resolveMenuSettings((theme as { settings: Record<string, unknown> | null } | null)?.settings ?? null).currency;
   const { data: inserted, error } = await supabase
     .from('orders')
-    .insert({ ...row, total: amount.total, currency, payment_status: 'pending', payment_provider: account.provider })
+    .insert({ ...row, total: amount.total, discount: amount.discount || null, promos: amount.promos.length ? amount.promos : null, currency, payment_status: 'pending', payment_provider: account.provider })
     .select('id')
     .single();
   if (error || !inserted) return NextResponse.json({ ok: false }, { status: 500 });
@@ -138,8 +152,9 @@ export async function POST(
       amount: amount.total,
       currency,
       applicationFee: applicationFee(amount.total, feePercentFor(platform, tier)),
+      // Gateways take positive lines only: the discount is spread across the lines in proportion.
       lines: [
-        ...amount.lines,
+        ...discountedLines(amount.lines, amount.discount),
         ...(amount.deliveryFee > 0 ? [{ name: 'Envío', qty: 1, unitAmount: amount.deliveryFee }] : []),
         ...(amount.tip > 0 ? [{ name: 'Propina', qty: 1, unitAmount: amount.tip }] : []),
       ],

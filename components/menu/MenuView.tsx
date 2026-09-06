@@ -14,6 +14,7 @@ import type {
   BranchLite,
   MenuCategory,
   Product,
+  Promotion,
 } from '@/lib/database.types';
 import type { CartLine } from '@/lib/whatsapp';
 import {
@@ -122,6 +123,7 @@ export function MenuView({
   channel = 'online',
   preview = false,
   menu,
+  promotions = [],
 }: {
   tenant: Tenant;
   theme: TenantTheme;
@@ -141,6 +143,8 @@ export function MenuView({
   /** Inside the dashboard's live preview: never count views. */
   preview?: boolean;
   menu: MenuCategory[];
+  /** Active promotions for the cart (lib/promotions.ts). */
+  promotions?: Promotion[];
 }) {
   const t = useTranslations('menu');
   const settings = useMemo(() => resolveMenuSettings(theme.settings), [theme.settings]);
@@ -259,6 +263,17 @@ export function MenuView({
   }, [lines]);
 
   // Map each product to its section name (for grouping the WhatsApp ticket).
+  const catIdByProduct = useMemo(() => {
+    const m: Record<string, string> = {};
+    const walk = (cats: MenuCategory[]) => {
+      for (const c of cats) {
+        for (const e of c.entries) if (e.kind === 'product') m[e.id] = c.parent_id ?? c.id;
+        walk(c.subcategories);
+      }
+    };
+    walk(menu);
+    return m;
+  }, [menu]);
   const catNameByProduct = useMemo(() => {
     const m: Record<string, string> = {};
     for (const c of menu) for (const e of c.entries) if (e.kind === 'product') m[e.id] = c.name;
@@ -1168,6 +1183,8 @@ export function MenuView({
           locale={locale}
           lines={lines}
           presetTable={presetTable}
+          promotions={promotions}
+          categoryOf={(id) => catIdByProduct[id] ?? null}
           onClose={() => setSheetOpen(false)}
           onInc={(key) => dispatch({ type: 'inc', key })}
           onDec={(key) => dispatch({ type: 'dec', key })}

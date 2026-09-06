@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import type { PosDexie } from '@/lib/pos/db';
 import type { PosTab, PosMenu, TabItem, PaymentMethod } from '@/lib/pos/types';
-import { addLineToTab, setItemQty, voidItem, setDiscount, setGuests, voidTab } from '@/lib/pos/tabs';
+import { addLineToTab, setItemQty, voidItem, setDiscount, setGuests, voidTab, setPromoCode } from '@/lib/pos/tabs';
 import { enqueueUpsert } from '@/lib/pos/sync';
 import { fireToKitchen } from '@/lib/pos/kitchen';
 import { printKitchenTicket } from '@/lib/pos/printing';
@@ -140,7 +140,7 @@ export function SaleScreen({
   const subtotal = live.reduce((s, i) => s + i.line_total, 0);
   const unfired = live.filter((i) => !i.fired_at);
   const count = live.reduce((s, i) => s + i.qty, 0);
-  const total = tab ? Math.max(0, subtotal - tab.discount) : 0;
+  const total = tab ? Math.max(0, subtotal - tab.discount - (tab.promo_discount ?? 0)) : 0;
 
   // A paid sale keeps its lines on screen until the cashier dismisses the receipt.
   const paid = tab?.status === 'paid';
@@ -218,6 +218,14 @@ export function SaleScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, products]);
 
+  const [coupon, setCoupon] = useState('');
+  const [couponBad, setCouponBad] = useState(false);
+  async function applyCoupon() {
+    if (!tab) return;
+    const ok = await setPromoCode(db, tab, coupon || null);
+    setCouponBad(!ok);
+    if (ok) setModal(null);
+  }
   async function applyDiscount() {
     if (!tab) return;
     const v = Number(field) || 0;
@@ -416,6 +424,12 @@ export function SaleScreen({
               <span className="tabular-nums">− {money(tab.discount)}</span>
             </div>
           )}
+          {tab?.promos?.map((p) => (
+            <div key={p.id} className="flex justify-between text-pos-accent">
+              <span className="truncate pr-2">{p.name}</span>
+              <span className="tabular-nums">− {money(p.amount)}</span>
+            </div>
+          ))}
           {tab && tab.tip > 0 && (
             <div className="flex justify-between">
               <span>{t('tip')}</span>
@@ -709,6 +723,35 @@ export function SaleScreen({
           <button onClick={applyDiscount} className={PRIMARY}>
             {t('apply')}
           </button>
+
+          {/* A coupon: the promotion applies by its code. */}
+          <div className="mt-5 border-t border-neutral-100 pt-4">
+            <label className="mb-1 block text-xs text-neutral-500">{t('coupon')}</label>
+            <div className="flex gap-2">
+              <input
+                value={coupon}
+                onChange={(e) => {
+                  setCoupon(e.target.value.toUpperCase());
+                  setCouponBad(false);
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && applyCoupon()}
+                placeholder={t('couponPh')}
+                className={`${INPUT} flex-1 uppercase`}
+              />
+              <button onClick={applyCoupon} className="rounded-xl border border-neutral-200 px-4 text-sm font-semibold hover:bg-neutral-50">
+                {t('apply')}
+              </button>
+            </div>
+            {couponBad && <p className="mt-1 text-xs text-red-600">{t('couponInvalid')}</p>}
+            {tab.promo_code && !couponBad && (
+              <p className="mt-1 text-xs text-neutral-500">
+                {t('couponActive', { x: tab.promo_code })}{' '}
+                <button onClick={() => setPromoCode(db, tab, null).then(() => setCoupon(''))} className="underline">
+                  {t('couponRemove')}
+                </button>
+              </p>
+            )}
+          </div>
         </PosModal>
       )}
 

@@ -72,7 +72,7 @@ export function PaymentSheet({
   // The tip is figured on the sale itself, never on `tab.total`: once the tab
   // closes, its total already carries the tip, and a percentage of that would
   // stack a second tip on the thank-you screen.
-  const base = Math.max(0, tab.subtotal - (tab.discount ?? 0));
+  const base = Math.max(0, tab.subtotal - (tab.discount ?? 0) - (tab.promo_discount ?? 0));
   const tip =
     tab.status === 'paid'
       ? tab.tip

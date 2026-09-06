@@ -24,6 +24,38 @@ export interface Employee {
   updated_at: string;
 }
 
+export type PromotionKind = 'percent' | 'amount' | 'bogo';
+export type PromotionScope = 'order' | 'category' | 'product';
+export type PromotionChannel = 'pos' | 'menu';
+
+/** A discount rule the register and the menu apply by themselves (lib/promotions.ts). */
+export interface Promotion {
+  id: string;
+  tenant_id: string;
+  name: string;
+  kind: PromotionKind;
+  value: number;
+  scope: PromotionScope;
+  category_ids: string[];
+  product_ids: string[];
+  /** A coupon code; null = automatic. */
+  code: string | null;
+  min_subtotal: number | null;
+  /** 0 = Monday … 6 = Sunday; empty = every day. */
+  days: number[];
+  /** "HH:MM" (Postgres time comes back as "HH:MM:SS"). */
+  start_time: string | null;
+  end_time: string | null;
+  starts_on: string | null;
+  ends_on: string | null;
+  channels: PromotionChannel[];
+  stackable: boolean;
+  active: boolean;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
 /** One stretch of work on the clock. */
 export interface TimeEntry {
   id: string;
@@ -587,6 +619,10 @@ export interface OrderRow {
   accepted_at: string | null;
   /** 0 none, 1 nudged, 2 escalated — the cron never repeats a step. */
   alert_level: number;
+  /** Promotions taken off (0075). */
+  discount: number | null;
+  promos: { id: string; name: string; amount: number }[] | null;
+  promo_code: string | null;
   /** The gateway's refund, when the restaurant returned the money (0074). */
   refund_ref: string | null;
   refunded_at: string | null;
@@ -678,6 +714,8 @@ export interface MenuCategory extends Category {
 
 export interface FullTenant {
   tenant: Tenant;
+  /** Active promotions that apply on the menu (0075). */
+  promotions: Promotion[];
   theme: TenantTheme;
   contact: TenantContact;
   ordering: TenantOrdering;

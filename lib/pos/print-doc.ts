@@ -100,8 +100,10 @@ export function receiptDoc(tab: PosTab, items: TabItem[], payments: Payment[], o
   lines.push({ t: 'hr' });
 
   const discount = tab.discount ?? 0;
-  if (discount > 0 || tab.tip > 0) lines.push({ t: 'row', l: labels.subtotal, r: money(tab.subtotal) });
+  const promos = tab.promos ?? [];
+  if (discount > 0 || promos.length > 0 || tab.tip > 0) lines.push({ t: 'row', l: labels.subtotal, r: money(tab.subtotal) });
   if (discount > 0) lines.push({ t: 'row', l: labels.discount, r: `-${money(discount)}` });
+  for (const p of promos) lines.push({ t: 'row', l: p.name, r: `-${money(p.amount)}` });
   if (tab.tip > 0) lines.push({ t: 'row', l: labels.tip, r: money(tab.tip) });
   lines.push({ t: 'row', l: labels.total, r: money(tab.total), bold: true, size: 2 });
 

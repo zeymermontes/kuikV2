@@ -24,6 +24,7 @@ function tenant(over: Partial<FullTenant['tenant']> = {}, contact: Partial<FullT
     loyalty: {} as FullTenant['loyalty'],
     plan: 'basic',
     branches: [],
+    promotions: [],
   };
 }
 

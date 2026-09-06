@@ -3,6 +3,8 @@
 import type { PosDexie } from './db';
 import { enqueueUpsert, newId, nowISO } from './sync';
 import type { PosTab, TabItem } from './types';
+import type { PosMenu } from './types';
+import { applyPromotions } from '@/lib/promotions';
 import type { CartLine } from '@/lib/whatsapp';
 
 const unitPrice = (base: number, selections: { price?: number }[]) =>
@@ -38,6 +40,9 @@ export async function openTab(
     tip: 0,
     total: 0,
     refunded: 0,
+    promo_discount: 0,
+    promos: null,
+    promo_code: null,
     guests: 1,
     void_reason: null,
     shift_id: shiftId,
@@ -49,7 +54,15 @@ export async function openTab(
 
 export async function setDiscount(db: PosDexie, tab: PosTab, discount: number): Promise<void> {
   const d = Math.max(0, Math.min(discount, tab.subtotal));
-  await enqueueUpsert(db, 'tabs', { ...tab, discount: d, total: Math.max(0, tab.subtotal - d + tab.tip) });
+  await enqueueUpsert(db, 'tabs', { ...tab, discount: d });
+  await recomputeTab(db, tab.id);
+}
+
+/** Type (or clear) a coupon on the sale; the promotions are re-figured. Returns false when the code matches nothing live. */
+export async function setPromoCode(db: PosDexie, tab: PosTab, code: string | null): Promise<boolean> {
+  const c = code?.trim().toUpperCase() || null;
+  await enqueueUpsert(db, 'tabs', { ...tab, promo_code: c });
+  return recomputeTab(db, tab.id);
 }
 
 export async function setGuests(db: PosDexie, tab: PosTab, guests: number): Promise<void> {
@@ -102,12 +115,36 @@ export async function voidItem(db: PosDexie, item: TabItem): Promise<void> {
   await recomputeTab(db, item.tab_id);
 }
 
-/** Recompute and persist the tab's subtotal/total from its live (non-voided) items. */
-export async function recomputeTab(db: PosDexie, tabId: string): Promise<void> {
+/**
+ * Recompute and persist the tab's subtotal, promotions and total from its
+ * live (non-voided) items. Promotions come from the offline store and the
+ * cached menu (for categories); the device's own clock decides happy hour.
+ * Returns false when the sale's coupon matches no live promotion.
+ */
+export async function recomputeTab(db: PosDexie, tabId: string): Promise<boolean> {
   const items = await db.tab_items.where('tab_id').equals(tabId).toArray();
-  const subtotal = items.filter((i) => !i.voided_at).reduce((s, i) => s + i.line_total, 0);
+  const live = items.filter((i) => !i.voided_at);
+  const subtotal = live.reduce((s, i) => s + i.line_total, 0);
   const tab = await db.tabs.get(tabId);
-  if (!tab) return;
+  if (!tab) return true;
   const discount = Math.min(tab.discount ?? 0, subtotal);
-  await enqueueUpsert(db, 'tabs', { ...tab, subtotal, discount, total: Math.max(0, subtotal - discount + tab.tip) });
+
+  const [promos, cached] = await Promise.all([db.promotions.toArray(), db.menu_cache.get('menu')]);
+  const menu = (cached?.data ?? null) as PosMenu | null;
+  const categoryOf = new Map((menu?.products ?? []).map((p) => [p.id, p.category_id]));
+  const result = applyPromotions(
+    promos,
+    live.map((i) => ({ productId: i.product_id, categoryId: i.product_id ? (categoryOf.get(i.product_id) ?? null) : null, unitPrice: i.qty ? i.line_total / i.qty : 0, qty: i.qty })),
+    { channel: 'pos', code: tab.promo_code },
+  );
+  const promoDiscount = Math.min(result.discount, Math.max(0, subtotal - discount));
+  await enqueueUpsert(db, 'tabs', {
+    ...tab,
+    subtotal,
+    discount,
+    promo_discount: promoDiscount,
+    promos: result.applied.length ? result.applied : null,
+    total: Math.max(0, subtotal - discount - promoDiscount + tab.tip),
+  });
+  return !result.badCode;
 }

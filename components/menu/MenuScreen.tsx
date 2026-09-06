@@ -61,6 +61,7 @@ export async function MenuScreen({
       contact={contact}
       ordering={data.ordering}
       loyalty={data.loyalty}
+      promotions={data.promotions}
       plan={data.plan}
       branches={data.branches}
       currentBranch={branch?.slug ?? null}

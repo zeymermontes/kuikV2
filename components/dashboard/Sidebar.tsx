@@ -29,6 +29,7 @@ import {
   X,
   LayoutGrid,
   GraduationCap,
+  Tag,
 } from 'lucide-react';
 import { ChevronsUpDown, ChevronDown, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -70,6 +71,7 @@ const NAV = [
   { group: 'brand', href: '/branches', icon: Store, key: 'branches', roles: ['owner', 'manager'], feature: 'branches' },
   // Crecimiento
   { group: 'growth', href: '/loyalty', icon: Gift, key: 'loyalty', roles: ['owner', 'manager', 'waiter'], feature: 'loyalty' },
+  { group: 'growth', href: '/promotions', icon: Tag, key: 'promotions', roles: ['owner', 'manager'] },
   { group: 'growth', href: '/reports', icon: BarChart3, key: 'reports', roles: ['owner', 'manager'], feature: 'pro_reports' },
   // Configuración
   { group: 'settings', href: '/ordering', icon: ShoppingBag, key: 'ordering', roles: ['owner'] },

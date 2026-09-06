@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { X, Plus, Minus, Trash2, Copy, Check } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Tenant, TenantContact, TenantOrdering, ServiceType, PaymentMethod } from '@/lib/database.types';
@@ -12,6 +12,8 @@ import {
   type CartLine,
 } from '@/lib/whatsapp';
 import { formatPrice } from '@/lib/utils';
+import { applyPromotions, hasCoupons } from '@/lib/promotions';
+import type { Promotion } from '@/lib/database.types';
 
 export function CartSheet({
   tenant,
@@ -22,6 +24,8 @@ export function CartSheet({
   locale,
   lines,
   presetTable,
+  promotions = [],
+  categoryOf = () => null,
   onClose,
   onInc,
   onDec,
@@ -36,6 +40,9 @@ export function CartSheet({
   locale: string;
   lines: CartLine[];
   presetTable?: string | null;
+  promotions?: Promotion[];
+  /** The section a product sits in, for category promotions. */
+  categoryOf?: (productId: string) => string | null;
   onClose: () => void;
   onInc: (key: string) => void;
   onDec: (key: string) => void;
@@ -139,14 +146,29 @@ export function CartSheet({
 
   const money = (n: number) => formatPrice(n, currency, locale);
   const subtotal = cartSubtotal(lines);
+  // Promotions, figured here for the guest and again on the server for a paid order.
+  const [coupon, setCoupon] = useState('');
+  const [couponTyped, setCouponTyped] = useState<string | null>(null);
+  const promo = useMemo(
+    () =>
+      applyPromotions(
+        promotions,
+        lines.map((l) => ({ productId: l.productId, categoryId: categoryOf(l.productId), unitPrice: lineUnitPrice(l), qty: l.qty })),
+        { channel: 'menu', code: couponTyped, tz: tenant.timezone },
+      ),
+    [promotions, lines, categoryOf, couponTyped, tenant.timezone],
+  );
+  const discount = Math.min(subtotal, promo.discount);
+  const net = subtotal - discount;
+  const showCoupon = hasCoupons(promotions, 'menu', { tz: tenant.timezone });
   const deliveryFee =
     service === 'delivery'
       ? ordering.free_delivery_over != null && subtotal >= ordering.free_delivery_over
         ? 0
         : ordering.delivery_fee ?? 0
       : 0;
-  const tipAmount = (subtotal * tip) / 100;
-  const total = subtotal + tipAmount + deliveryFee;
+  const tipAmount = (net * tip) / 100;
+  const total = net + tipAmount + deliveryFee;
   const belowMin = ordering.min_order != null && subtotal < ordering.min_order;
 
   const serviceLabel = (s: ServiceType) => t(`service_${s}`);
@@ -182,11 +204,15 @@ export function CartSheet({
         : undefined,
       tipPercent: tip || undefined,
       deliveryFee: deliveryFee || undefined,
+      discount: discount || undefined,
+      discountLabel: promo.applied.map((p) => p.name).join(' + ') || undefined,
     });
 
     const payload = {
       items: lines,
       total: showPrices ? total : null,
+      discount: discount || null,
+      promo_code: couponTyped,
       customer_name: ordering.collect_name !== false ? customerName.trim() || null : null,
       customer_phone: payingOnline ? phone.trim() : null,
       service_type: serviceLabel(service),
@@ -482,6 +508,9 @@ export function CartSheet({
             {showPrices && (
               <div className="mb-3 space-y-1 text-sm">
                 <Row label={t('subtotal')} value={money(subtotal)} />
+                {promo.applied.map((p) => (
+                  <Row key={p.id} label={p.name} value={`-${money(p.amount)}`} />
+                ))}
                 {tipAmount > 0 && <Row label={`${t('tip')} ${tip}%`} value={money(tipAmount)} />}
                 {service === 'delivery' && (
                   <Row label={t('delivery')} value={deliveryFee === 0 ? t('free') : money(deliveryFee)} />
@@ -493,6 +522,23 @@ export function CartSheet({
               </div>
             )}
 
+            {showCoupon && (
+              <div className="mb-3">
+                <div className="flex gap-2">
+                  <input
+                    value={coupon}
+                    onChange={(e) => setCoupon(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => e.key === 'Enter' && setCouponTyped(coupon || null)}
+                    placeholder={t('couponPh')}
+                    className="min-w-0 flex-1 rounded-xl border border-[var(--brand-border)] bg-transparent px-3 py-2 text-sm uppercase focus:outline-none"
+                  />
+                  <button onClick={() => setCouponTyped(coupon || null)} className="rounded-xl px-3 py-2 text-sm font-semibold" style={{ backgroundColor: 'var(--brand-surface)', color: 'var(--brand-primary)' }}>
+                    {t('couponApply')}
+                  </button>
+                </div>
+                {promo.badCode && <p className="mt-1 text-xs text-red-500">{t('couponInvalid')}</p>}
+              </div>
+            )}
             {belowMin && (
               <p className="mb-2 text-center text-sm text-red-500">
                 {t('minOrder', { amount: money(ordering.min_order!) })}

@@ -39,6 +39,10 @@ export interface PosTab {
   total: number;
   /** Money returned on this sale after it was paid (sum of its refunds). */
   refunded: number;
+  /** What promotions took off, beside the cashier's manual `discount`. */
+  promo_discount: number;
+  promos: { id: string; name: string; amount: number }[] | null;
+  promo_code: string | null;
   guests: number;
   void_reason: string | null;
   shift_id: string | null;
@@ -122,15 +126,15 @@ export interface KitchenTicket {
   updated_at: string;
 }
 
-export type { PrintJob, PrintJobKind, PrintJobStatus, Printer, Employee, TimeEntry } from '@/lib/database.types';
+export type { PrintJob, PrintJobKind, PrintJobStatus, Printer, Employee, TimeEntry, Promotion } from '@/lib/database.types';
 
 // Tables that participate in offline sync (local table name === Postgres table name).
 // print_jobs goes UP through the outbox like the rest but is not pulled down in
 // full: the queue is the agent's, the terminal only hears status changes live.
 // employees only flow DOWN (the dashboard edits them; RLS rejects a POS write);
 // time_entries go both ways like the sales tables.
-export type SyncEntity = 'tabs' | 'tab_items' | 'payments' | 'register_shifts' | 'kitchen_tickets' | 'print_jobs' | 'employees' | 'time_entries';
-export const SYNC_ENTITIES: Exclude<SyncEntity, 'print_jobs'>[] = ['tabs', 'tab_items', 'payments', 'register_shifts', 'kitchen_tickets', 'employees', 'time_entries'];
+export type SyncEntity = 'tabs' | 'tab_items' | 'payments' | 'register_shifts' | 'kitchen_tickets' | 'print_jobs' | 'employees' | 'time_entries' | 'promotions';
+export const SYNC_ENTITIES: Exclude<SyncEntity, 'print_jobs'>[] = ['tabs', 'tab_items', 'payments', 'register_shifts', 'kitchen_tickets', 'employees', 'time_entries', 'promotions'];
 
 /** Channel scope for the dashboard demo pair (`/pos?demo=1` ↔ `/pos/customer?demo=1`); server-safe. */
 export const demoScope = (tenantId: string) => `demo:${tenantId}`;
