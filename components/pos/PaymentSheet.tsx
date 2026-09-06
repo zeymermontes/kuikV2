@@ -85,8 +85,15 @@ export function PaymentSheet({
   const unfired = (items ?? []).filter((i) => !i.voided_at && !i.fired_at);
 
   const [method, setMethod] = useState<PaymentMethod>(initialMethod);
-  const [amount, setAmount] = useState<number>(grandTotal);
+  // Both money fields are typed with the app's own keypad, never the phone's:
+  // the keypad writes into whichever field was tapped last. Cash starts on
+  // "received" (what the cashier is handed); the amount is still editable for
+  // a partial or split payment.
+  const [amountText, setAmountText] = useState<string>(String(grandTotal));
+  const amount = Number(amountText) || 0;
+  const setAmount = (n: number) => setAmountText(n ? String(n) : '');
   const [tendered, setTendered] = useState<string>('');
+  const [focus, setFocus] = useState<'amount' | 'tendered'>(initialMethod === 'cash' ? 'tendered' : 'amount');
   const [done, setDone] = useState(false);
   const [lastChange, setLastChange] = useState(0);
 
@@ -196,7 +203,7 @@ export function PaymentSheet({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div className="animate-fade absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="animate-slide-up relative max-h-[88dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-5 text-neutral-900 sm:rounded-3xl">
+      <div className="animate-slide-up relative max-h-[95dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-5 text-neutral-900 sm:rounded-3xl">
         <button onClick={onClose} aria-label="close" className="absolute right-3 top-3 rounded-full bg-white/90 p-1.5 text-neutral-600 shadow">
           <X className="h-5 w-5" />
         </button>
@@ -290,7 +297,10 @@ export function PaymentSheet({
               {METHODS.map((m) => (
                 <button
                   key={m}
-                  onClick={() => setMethod(m)}
+                  onClick={() => {
+                    setMethod(m);
+                    setFocus(m === 'cash' ? 'tendered' : 'amount');
+                  }}
                   className={`rounded-xl py-2.5 text-xs font-semibold ${
                     method === m ? 'bg-pos-accent text-pos-accent-text' : 'border border-neutral-300 text-neutral-600'
                   }`}
@@ -312,19 +322,31 @@ export function PaymentSheet({
               )}
             </div>
             <input
-              type="number"
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => setAmount(Number(e.target.value) || 0)}
-              className={`${field} mb-2`}
+              type="text"
+              inputMode="none"
+              readOnly
+              value={amountText}
+              onFocus={() => setFocus('amount')}
+              onClick={() => setFocus('amount')}
+              aria-label={t('amount')}
+              className={`${field} mb-2 ${focus === 'amount' ? 'border-pos-accent ring-2 ring-pos-accent/20' : ''}`}
             />
-            <div className="mb-3">
-              <NumPad value={amount ? String(amount) : ''} onChange={(v) => setAmount(Number(v) || 0)} />
-            </div>
 
             {method === 'cash' && (
               <>
-                <div className="mb-2 flex flex-wrap gap-2">
+                <label className="mb-1 block text-xs text-neutral-500">{t('received')}</label>
+                <input
+                  type="text"
+                  inputMode="none"
+                  readOnly
+                  value={tendered}
+                  onFocus={() => setFocus('tendered')}
+                  onClick={() => setFocus('tendered')}
+                  placeholder={String(amount)}
+                  aria-label={t('received')}
+                  className={`${field} mb-2 ${focus === 'tendered' ? 'border-pos-accent ring-2 ring-pos-accent/20' : ''}`}
+                />
+                <div className="mb-3 flex flex-wrap gap-2">
                   <button onClick={() => setTendered(String(amount))} className="rounded-full bg-neutral-100 px-3 py-1.5 text-sm font-medium">
                     {t('exact')}
                   </button>
@@ -336,20 +358,17 @@ export function PaymentSheet({
                       </button>
                     ))}
                 </div>
-                <label className="mb-1 block text-xs text-neutral-500">{t('received')}</label>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  value={tendered}
-                  onChange={(e) => setTendered(e.target.value)}
-                  placeholder={String(amount)}
-                  className={`${field} mb-2`}
-                />
-                {change > 0 && (
-                  <p className="mb-2 text-center text-lg font-bold text-green-600">{t('change', { x: money(change) })}</p>
-                )}
               </>
             )}
+
+            <div className="mb-3">
+              <NumPad
+                value={focus === 'tendered' && method === 'cash' ? tendered : amountText}
+                onChange={(v) => (focus === 'tendered' && method === 'cash' ? setTendered(v) : setAmountText(v))}
+              />
+            </div>
+
+            {change > 0 && <p className="mb-2 text-center text-lg font-bold text-green-600">{t('change', { x: money(change) })}</p>}
 
             <button onClick={record} className="mt-2 w-full rounded-full bg-pos-accent py-3.5 font-semibold text-white">
               {amount >= due ? t('chargeClose') : t('recordPayment')}
