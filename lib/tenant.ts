@@ -74,6 +74,11 @@ export const getTenantByHostKey = cache(
     // "Pagar en línea" is only offered once the gateway account can take
     // money; until then the method is dropped here so the cart never shows a
     // button that would fail at checkout.
+    // Only the three methods still offered reach the cart; a tenant that picked
+    // cash or "card" back when they existed simply has them dropped here.
+    if (ordering?.payment_methods) {
+      ordering.payment_methods = ordering.payment_methods.filter((m) => m === 'onsite' || m === 'transfer' || m === 'online');
+    }
     if (ordering?.payment_methods?.includes('online')) {
       const { data: acct } = await supabase
         .from('payment_accounts')

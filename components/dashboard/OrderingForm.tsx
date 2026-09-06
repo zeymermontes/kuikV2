@@ -11,7 +11,10 @@ import { resolveOrderAlerts, type OrderAlerts } from '@/lib/orders/alerts';
 import { connectStripe, disconnectStripe, syncStripeAccount } from '@/app/(dashboard)/payments-actions';
 
 const SERVICE_TYPES: ServiceType[] = ['pickup', 'delivery', 'dinein'];
-const PAYMENT_METHODS: PaymentMethod[] = ['cash', 'transfer', 'card', 'onsite', 'online'];
+// The three the cart offers: settle at the counter, transfer, or pay by card
+// online through the connected gateway. Cash and "card at the counter" are
+// what "at the counter" already means, so they are no longer offered apart.
+const PAYMENT_METHODS: PaymentMethod[] = ['onsite', 'transfer', 'online'];
 
 export function OrderingForm({
   ordering,
