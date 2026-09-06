@@ -206,7 +206,11 @@ export function DesignForm({
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-      <div ref={rootRef} className="space-y-5">
+      {/* min-w-0: a grid item otherwise refuses to shrink below its content's
+          minimum width, so the section-colour table (a scroller with a 22rem
+          minimum) pushed the whole page wider than a phone and the browser
+          opened it zoomed out. With it, the table scrolls inside its card. */}
+      <div ref={rootRef} className="min-w-0 space-y-5">
         <div className="sticky top-0 z-10 -mx-1 rounded-xl bg-neutral-50/95 px-1 py-2 backdrop-blur">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
@@ -1076,7 +1080,7 @@ export function DesignForm({
       </div>
 
       {/* Live preview */}
-      <div className="lg:sticky lg:top-6 lg:self-start">
+      <div className="min-w-0 lg:sticky lg:top-6 lg:self-start">
         <Label>{t('preview')}</Label>
         <LivePreview url={previewUrl} published={published} theme={previewTheme} reloadKey={previewReload} />
       </div>

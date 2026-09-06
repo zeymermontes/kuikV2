@@ -61,7 +61,7 @@ export function LivePreview({
 
   return (
     <div>
-      <div className="mx-auto w-[320px] overflow-hidden rounded-[2.2rem] border-[10px] border-neutral-900 bg-neutral-900 shadow-xl">
+      <div className="mx-auto w-full max-w-[320px] overflow-hidden rounded-[2.2rem] border-[10px] border-neutral-900 bg-neutral-900 shadow-xl">
         <iframe
           ref={frame}
           src={`${url}/menu`}
