@@ -17,30 +17,7 @@ import { LivePreview } from '@/components/dashboard/LivePreview';
 import { ColorWheel } from '@/components/dashboard/ColorWheel';
 import { findSettings, revealSetting, type SettingHit } from '@/lib/settings-search';
 
-// Accept 3/4/6/8-digit hex (the 4/8 forms carry alpha).
-const HEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
-
-function normHex(v: string): string | null {
-  let s = v.trim();
-  if (s && !s.startsWith('#')) s = `#${s}`;
-  return HEX.test(s) ? s : null;
-}
-
-/** Split a hex color into its solid #rrggbb part and an alpha 0–255. */
-function parseColor(hex: string): { rgb: string; alpha: number } {
-  const m = /^#([0-9a-fA-F]+)$/.exec((hex ?? '').trim());
-  let h = m?.[1] ?? '';
-  if (h.length === 3 || h.length === 4) h = h.split('').map((c) => c + c).join('');
-  if (h.length === 6) return { rgb: `#${h}`, alpha: 255 };
-  if (h.length === 8) return { rgb: `#${h.slice(0, 6)}`, alpha: parseInt(h.slice(6, 8), 16) };
-  return { rgb: '#000000', alpha: 255 };
-}
-
-/** Combine #rrggbb + alpha into #rrggbb or #rrggbbaa. */
-function toHex(rgb: string, alpha: number): string {
-  if (alpha >= 255) return rgb;
-  return `${rgb}${Math.round(alpha).toString(16).padStart(2, '0')}`;
-}
+import { normHex, parseColor, toHex } from '@/lib/color-hex';
 import {
   updateTheme,
   updateMenuSettings,
@@ -675,6 +652,28 @@ export function DesignForm({
               </label>
             ))}
           </div>
+          {/* The bar's transparency: over a background image this is what
+              decides how much of it shows through the stuck bar. */}
+          {(() => {
+            const { rgb, alpha } = parseColor(local.tab_bar_color ?? '#ffffff');
+            const pct = Math.round((alpha / 255) * 100);
+            return (
+              <div data-setting={t('tabBarOpacity')} className="flex items-center justify-between gap-3">
+                <span className="text-sm font-medium">{t('tabBarOpacity')}</span>
+                <div className="flex flex-1 items-center gap-2">
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={pct}
+                    onChange={(e) => set('tab_bar_color', toHex(rgb, Math.round((Number(e.target.value) / 100) * 255)))}
+                    className="h-1 flex-1 cursor-pointer accent-neutral-900"
+                  />
+                  <span className="w-10 text-right text-[10px] text-neutral-400">{pct}%</span>
+                </div>
+              </div>
+            );
+          })()}
           {categories.length > 0 && (
             <div data-setting={t('navPerCategory')} className="rounded-xl bg-neutral-50 p-3">
               <p className="text-xs font-medium text-neutral-500">{t('navPerCategory')}</p>

@@ -238,7 +238,8 @@
     "th_font_category": "Fuente de títulos",
     "th_font_product": "Fuente de productos",
     "th_font_price": "Fuente de precios",
-    "th_font_description": "Fuente de descripciones"
+    "th_font_description": "Fuente de descripciones",
+    "th_tab_bar_opacity": "Opacidad de la barra de pestañas"
   },
   "colorPicker": {
     "brightness": "Brillo",
@@ -474,7 +475,8 @@
     "imageMaxHeight": "Alto máximo de la foto",
     "imageMaxHeightHint": "Evita que una foto vertical (una botella, por ejemplo) ocupe pantallas enteras.",
     "showHours": "Mostrar horario",
-    "showDirections": "Mostrar cómo llegar"
+    "showDirections": "Mostrar cómo llegar",
+    "tabBarOpacity": "Opacidad de la barra"
   },
   "landing": {
     "title": "Pantalla de inicio",

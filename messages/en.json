@@ -238,7 +238,8 @@
     "th_font_category": "Headings font",
     "th_font_product": "Product font",
     "th_font_price": "Price font",
-    "th_font_description": "Description font"
+    "th_font_description": "Description font",
+    "th_tab_bar_opacity": "Tab bar opacity"
   },
   "colorPicker": {
     "brightness": "Brightness",
@@ -474,7 +475,8 @@
     "imageMaxHeight": "Maximum photo height",
     "imageMaxHeightHint": "Stops a portrait shot — a bottle, say — from taking over whole screens.",
     "showHours": "Show hours",
-    "showDirections": "Show directions"
+    "showDirections": "Show directions",
+    "tabBarOpacity": "Bar opacity"
   },
   "landing": {
     "title": "Home screen",

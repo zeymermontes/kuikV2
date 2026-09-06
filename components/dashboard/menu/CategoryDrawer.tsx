@@ -8,6 +8,7 @@ import { CATEGORY_THEME_COLORS, CATEGORY_THEME_FONTS } from '@/lib/category-them
 import { Input, Label, Button } from '@/components/ui';
 import { ImageUploader } from '@/components/dashboard/ImageUploader';
 import { ColorWheel } from '@/components/dashboard/ColorWheel';
+import { parseColor, toHex } from '@/lib/color-hex';
 import { Drawer } from './Drawer';
 import { updateCategory, deleteCategory, setCategoryParent } from '@/app/(dashboard)/menu/actions';
 
@@ -154,8 +155,11 @@ export function CategoryDrawer({
           <div className="grid grid-cols-2 gap-2">
             {CATEGORY_THEME_COLORS.map((key) => {
               const val = category.theme?.[key];
+              // The bar's own colour gets a transparency control: over this
+              // section's backdrop it decides how much shows through the bar.
+              const bar = key === 'tab_bar_color' && val ? parseColor(val) : null;
               return (
-                <div key={key} className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-2 py-1.5">
+                <div key={key} className="flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 bg-white px-2 py-1.5">
                   <ColorWheel
                     value={val}
                     fallback="#ffffff"
@@ -177,6 +181,20 @@ export function CategoryDrawer({
                     >
                       ×
                     </button>
+                  )}
+                  {bar && (
+                    <label className="flex w-full items-center gap-2 pt-0.5" title={t('th_tab_bar_opacity')}>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={Math.round((bar.alpha / 255) * 100)}
+                        onChange={(e) => setTheme(key, toHex(bar.rgb, Math.round((Number(e.target.value) / 100) * 255)))}
+                        className="h-1 flex-1 cursor-pointer accent-neutral-900"
+                        aria-label={t('th_tab_bar_opacity')}
+                      />
+                      <span className="w-8 text-right text-[10px] text-neutral-400">{Math.round((bar.alpha / 255) * 100)}%</span>
+                    </label>
                   )}
                 </div>
               );
