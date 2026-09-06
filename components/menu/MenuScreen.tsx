@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { getTenantByHostKey, getMenu, getBranch } from '@/lib/tenant';
 import { LiveMenu } from './LiveMenu';
 import { PdfMenu } from './PdfMenu';
+import { RestaurantJsonLd } from './RestaurantJsonLd';
 
 /**
  * Renders a tenant's menu (interactive or PDF), optionally for a specific branch.
@@ -30,7 +31,10 @@ export async function MenuScreen({
   // PDF mode applies to the main menu only.
   if (!branch && data.theme.menu_mode === 'pdf' && data.theme.menu_pdf_url) {
     return (
-      <PdfMenu tenant={data.tenant} theme={data.theme} contact={data.contact} pdfUrl={data.theme.menu_pdf_url} />
+      <>
+        <RestaurantJsonLd data={data} />
+        <PdfMenu tenant={data.tenant} theme={data.theme} contact={data.contact} pdfUrl={data.theme.menu_pdf_url} />
+      </>
     );
   }
 
@@ -49,7 +53,9 @@ export async function MenuScreen({
     : data.contact;
 
   return (
-    <LiveMenu
+    <>
+      <RestaurantJsonLd data={data} menu={menu} />
+      <LiveMenu
       tenant={data.tenant}
       theme={data.theme}
       contact={contact}
@@ -65,6 +71,7 @@ export async function MenuScreen({
       landingEnabled={data.landing.enabled}
       channel={channel}
       menu={menu}
-    />
+      />
+    </>
   );
 }

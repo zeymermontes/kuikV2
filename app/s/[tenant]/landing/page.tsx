@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getTenantByHostKey } from '@/lib/tenant';
 import { CustomLandingFrame } from '@/components/menu/CustomLandingFrame';
@@ -6,6 +7,8 @@ type Params = { tenant: string };
 
 // Revalidate periodically; admin edits also trigger on-demand revalidation.
 export const revalidate = 60;
+
+export const metadata: Metadata = { alternates: { canonical: '/landing' } };
 
 /**
  * Clean public URL for a tenant's custom landing, e.g. laseisdos.kuik.mx/landing.

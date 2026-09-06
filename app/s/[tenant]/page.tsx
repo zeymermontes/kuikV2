@@ -1,5 +1,7 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getTenantByHostKey, getProductsByIds } from '@/lib/tenant';
+import { getTenantByHostKey, getProductsByIds, getMenu } from '@/lib/tenant';
+import { RestaurantJsonLd } from '@/components/menu/RestaurantJsonLd';
 import { MenuScreen } from '@/components/menu/MenuScreen';
 import { Landing } from '@/components/menu/Landing';
 import { CustomLandingFrame } from '@/components/menu/CustomLandingFrame';
@@ -8,6 +10,9 @@ type Params = { tenant: string };
 
 // Revalidate periodically; admin edits also trigger on-demand revalidation.
 export const revalidate = 60;
+
+// The layout sets metadataBase to the restaurant's canonical origin.
+export const metadata: Metadata = { alternates: { canonical: '/' } };
 
 export default async function TenantHome({
   params,
@@ -30,11 +35,12 @@ export default async function TenantHome({
   // tenant's JS runs in an opaque origin and can't touch our session, cookies,
   // or ordering APIs.
   if (landing.landing_mode === 'custom' && landing.custom_entry) {
-    return <CustomLandingFrame
-        tenant={data.tenant}
-        entryPath={landing.custom_entry}
-        contact={data.contact}
-      />;
+    return (
+      <>
+        <RestaurantJsonLd data={data} />
+        <CustomLandingFrame tenant={data.tenant} entryPath={landing.custom_entry} contact={data.contact} />
+      </>
+    );
   }
 
   // Template landing as the home screen (unless the super-admin forced 'none').
@@ -43,15 +49,19 @@ export default async function TenantHome({
       data.tenant.id,
       landing.featured_product_ids,
     );
+    const menu = await getMenu(data.tenant.id);
     return (
-      <Landing
+      <>
+        <RestaurantJsonLd data={data} menu={menu} />
+        <Landing
         tenant={data.tenant}
         theme={data.theme}
         contact={data.contact}
         ordering={data.ordering}
         landing={landing}
         featured={featured}
-      />
+        />
+      </>
     );
   }
 

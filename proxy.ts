@@ -44,7 +44,14 @@ export async function proxy(request: NextRequest) {
   // the behaviour from when the matcher excluded /api entirely.
   if (url.pathname.startsWith('/api')) return NextResponse.next();
 
-  const isRoot = host === ROOT_HOST || host === `www.${ROOT_HOST}`;
+  // One address for the marketing site: www.kuik.mx is the apex, not a twin
+  // of it that splits search ranking between two hosts.
+  if (host === `www.${ROOT_HOST}`) {
+    const to = new URL(url.pathname + url.search, `${url.protocol}//${ROOT_HOST}${url.port ? `:${url.port}` : ''}`);
+    return NextResponse.redirect(to, 308);
+  }
+
+  const isRoot = host === ROOT_HOST;
   const isApp = host === `${APP_SUBDOMAIN}.${ROOT_HOST}`;
 
   // Dashboard / marketing host → just refresh the auth session.

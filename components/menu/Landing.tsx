@@ -28,6 +28,7 @@ import type {
 import { resolveMenuSettings } from '@/lib/menu-settings';
 import { formatPrice } from '@/lib/utils';
 import { ReservationSheet } from './ReservationSheet';
+import { MadeWithKuik } from './MadeWithKuik';
 
 export function Landing({
   tenant,
@@ -270,6 +271,8 @@ export function Landing({
           <ChevronRight className="h-5 w-5" />
         </Link>
       </div>
+
+      <MadeWithKuik subdomain={tenant.subdomain} />
 
       {showReserve && (
         <ReservationSheet tenantId={tenant.id} required={contact.reservation_required} onClose={() => setShowReserve(false)} />

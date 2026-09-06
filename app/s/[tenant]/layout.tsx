@@ -8,6 +8,7 @@ import { resolveMenuSettings, pickImage } from '@/lib/menu-settings';
 import { themeVars as buildThemeVars, DARK } from '@/lib/theme-vars';
 import { CUSTOM_FONT } from '@/lib/config';
 import { BackgroundMusic } from '@/components/menu/BackgroundMusic';
+import { tenantDescription, tenantOrigin } from '@/lib/seo';
 
 type Params = { tenant: string };
 
@@ -54,11 +55,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { tenant: hostKey } = await params;
   const data = await getTenantByHostKey(decodeURIComponent(hostKey));
-  if (!data) return { title: 'Menú' };
+  if (!data) return { title: 'Menú', robots: { index: false } };
 
   const { tenant, theme } = data;
   const settings = resolveMenuSettings(theme.settings);
   const dark = settings.darkMode === 'on';
+  const locale = tenantLocale(tenant.locale);
   // A dedicated favicon when the restaurant uploaded one, else the round logo.
   const icon =
     pickImage(
@@ -68,18 +70,36 @@ export async function generateMetadata({
       dark,
     ) ??
     pickImage(theme.logo_url, theme.logo_dark_url, settings.logoVariant, dark);
-  const ogImage = pickImage(
-    theme.logo_url,
-    theme.logo_dark_url,
-    settings.logoVariant,
-    dark,
-  );
+  const logo = pickImage(theme.logo_url, theme.logo_dark_url, settings.logoVariant, dark);
+  // The share card: the cover photo when there is one (a wide image reads as a
+  // place), else the logo.
+  const cover = pickImage(theme.cover_image_url, theme.cover_image_dark_url, settings.coverVariant, dark);
+  const ogImage = cover ?? logo;
+  const description = tenantDescription(data, locale);
+  const suffix = locale === 'en' ? 'Menu' : 'Menú';
+  const title = `${tenant.name} · ${suffix}`;
+
   return {
-    title: tenant.name,
-    description: `Menú de ${tenant.name}`,
+    // Every relative URL below (canonicals set by the pages, images) resolves
+    // against the restaurant's own origin: its verified domain, else the
+    // subdomain. A tenant served under both hosts is thereby one site to Google.
+    metadataBase: new URL(tenantOrigin(data)),
+    title: { default: title, template: `%s · ${tenant.name}` },
+    description,
+    applicationName: tenant.name,
+    robots: tenant.is_published ? undefined : { index: false, follow: false },
     openGraph: {
-      title: tenant.name,
-      description: `Menú de ${tenant.name}`,
+      type: 'website',
+      siteName: tenant.name,
+      title,
+      description,
+      locale: locale === 'en' ? 'en_US' : 'es_MX',
+      images: ogImage ? [{ url: ogImage, alt: tenant.name }] : undefined,
+    },
+    twitter: {
+      card: cover ? 'summary_large_image' : 'summary',
+      title,
+      description,
       images: ogImage ? [ogImage] : undefined,
     },
     icons: icon ? { icon, shortcut: icon, apple: icon } : undefined,

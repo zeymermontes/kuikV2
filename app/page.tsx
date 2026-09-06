@@ -20,15 +20,20 @@ import { getPlatformSettings } from '@/lib/platform';
 import { getShowcase } from '@/lib/showcase';
 import { formatPrice } from '@/lib/utils';
 import { Nav } from '@/components/landing/Nav';
-import { Logo } from '@/components/landing/Logo';
 import { DeviceFrame } from '@/components/landing/DeviceFrame';
 import { ProductTour } from '@/components/landing/ProductTour';
 import { Faq } from '@/components/landing/Faq';
+import { Footer } from '@/components/landing/Footer';
+import { JsonLd } from '@/components/seo/JsonLd';
+import { FEATURE_PAGES } from '@/lib/landing/features';
+import { faqJsonLd, organizationJsonLd, softwareJsonLd, websiteJsonLd } from '@/lib/seo';
 
 export const metadata: Metadata = {
   title: 'Kuik — Menú digital, pedidos, punto de venta y reservaciones para restaurantes',
   description:
     'Menú digital con pedidos por WhatsApp y pago con tarjeta, punto de venta con pantalla de cocina e impresión automática, y reservaciones con anfitrión. Pruébalo en vivo.',
+  // The same page also answers on app.kuik.mx; search engines must count it once.
+  alternates: { canonical: '/' },
   openGraph: {
     title: 'Kuik — Tu restaurante completo, en una sola plataforma',
     description: 'Menú digital, pedidos por WhatsApp, pago con tarjeta, punto de venta, cocina y reservaciones. Un mes gratis.',
@@ -154,8 +159,15 @@ export default async function MarketingPage() {
     ['Comparte y opera', 'Pon el QR en las mesas, comparte tu enlace y, si lo necesitas, enciende el punto de venta y la cocina.'],
   ];
 
+  const offers = [
+    { name: plan.plan_name, amount: plan.plan_amount, currency: plan.plan_currency },
+    { name: plan.pro_name, amount: plan.pro_amount, currency: plan.plan_currency },
+    { name: plan.pos_addon_name, amount: plan.pos_addon_amount, currency: plan.plan_currency },
+  ];
+
   return (
     <main className="min-h-full bg-white text-neutral-900 antialiased">
+      <JsonLd data={[organizationJsonLd(), websiteJsonLd(), softwareJsonLd(offers), faqJsonLd(faq)]} />
       <Nav loginLabel={t('login')} ctaLabel={t('cta')} />
 
       {/* Hero */}
@@ -253,6 +265,13 @@ export default async function MarketingPage() {
             <p className="mt-4 text-neutral-400">
               Cada módulo se enciende desde el panel cuando lo necesitas. Empieza con el menú y crece hasta el punto de venta sin cambiar de sistema.
             </p>
+            <div className="mt-6 flex flex-wrap gap-2">
+              {FEATURE_PAGES.map((f) => (
+                <Link key={f.slug} href={`/${f.slug}`} className="rounded-full border border-white/15 px-3.5 py-1.5 text-sm text-neutral-300 transition hover:border-amber-400 hover:text-white">
+                  {f.name} →
+                </Link>
+              ))}
+            </div>
           </div>
           <div className="mt-14 grid gap-px overflow-hidden rounded-3xl border border-white/10 bg-white/10 sm:grid-cols-2 lg:grid-cols-3">
             {features.map(({ icon: Icon, title, body }) => (
@@ -447,44 +466,7 @@ export default async function MarketingPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-neutral-100">
-        <div className="mx-auto flex max-w-6xl flex-col gap-8 px-5 py-12 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <Logo className="h-7 w-7" />
-              <span className="font-bold tracking-tight">Kuik</span>
-            </div>
-            <p className="mt-3 max-w-xs text-sm text-neutral-500">Menú digital, pedidos, punto de venta y reservaciones para restaurantes.</p>
-          </div>
-          <div className="grid grid-cols-2 gap-10 text-sm sm:grid-cols-3">
-            <div>
-              <p className="font-semibold">Producto</p>
-              <ul className="mt-3 space-y-2 text-neutral-500">
-                <li><a href="#producto" className="hover:text-neutral-900">Pantallas</a></li>
-                <li><a href="#funciones" className="hover:text-neutral-900">Funciones</a></li>
-                <li><a href="#precios" className="hover:text-neutral-900">Precios</a></li>
-              </ul>
-            </div>
-            <div>
-              <p className="font-semibold">Demos</p>
-              <ul className="mt-3 space-y-2 text-neutral-500">
-                <li><a href="/demo/pos" target="_blank" rel="noreferrer" className="hover:text-neutral-900">Punto de venta</a></li>
-                <li><a href="/demo/kds" target="_blank" rel="noreferrer" className="hover:text-neutral-900">Cocina</a></li>
-                <li><a href="/demo/host" target="_blank" rel="noreferrer" className="hover:text-neutral-900">Anfitrión</a></li>
-              </ul>
-            </div>
-            <div>
-              <p className="font-semibold">Cuenta</p>
-              <ul className="mt-3 space-y-2 text-neutral-500">
-                <li><Link href="/login" className="hover:text-neutral-900">{t('login')}</Link></li>
-                <li><Link href="/signup" className="hover:text-neutral-900">{t('cta')}</Link></li>
-              </ul>
-            </div>
-          </div>
-        </div>
-        <div className="border-t border-neutral-100 py-6 text-center text-xs text-neutral-400">© {new Date().getFullYear()} Kuik · Hecho en México</div>
-      </footer>
+      <Footer loginLabel={t('login')} ctaLabel={t('cta')} />
     </main>
   );
 }

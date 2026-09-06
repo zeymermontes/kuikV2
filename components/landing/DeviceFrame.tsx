@@ -12,10 +12,16 @@ import { cn } from '@/lib/utils';
 
 type Kind = 'phone' | 'tablet';
 
-const SIZE: Record<Kind, { w: number; h: number }> = {
-  phone: { w: 390, h: 800 },
-  tablet: { w: 1120, h: 760 },
+// Screen size plus the bezel, in device pixels. Everything about the frame
+// (bezel, corner radii, the notch) is drawn in those same units and scaled
+// with the screen, so a phone that is 120px wide on a small display keeps the
+// proportions of one that is 300px wide, instead of a fixed 7rem notch
+// swallowing a tiny screen.
+const SIZE: Record<Kind, { w: number; h: number; bezel: number; radius: number; screenRadius: number }> = {
+  phone: { w: 390, h: 800, bezel: 10, radius: 44, screenRadius: 34 },
+  tablet: { w: 1120, h: 760, bezel: 12, radius: 28, screenRadius: 18 },
 };
+const NOTCH = { w: 112, h: 24, radius: 16 };
 
 export function DeviceFrame({
   src,
@@ -62,22 +68,33 @@ export function DeviceFrame({
     };
   }, []);
 
-  const { w, h } = SIZE[kind];
-  const scale = width > 0 ? width / w : 0;
+  const { w, h, bezel, radius, screenRadius } = SIZE[kind];
+  // The observed width is the whole frame, bezel included.
+  const scale = width > 0 ? width / (w + 2 * bezel) : 0;
   // Once the frame is near and has a size the iframe mounts, and stays mounted.
   if (near && scale > 0 && !mounted) setMounted(true);
 
   const phone = kind === 'phone';
   return (
     <div
-      className={cn(
-        'relative bg-neutral-900 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)] ring-1 ring-black/20',
-        phone ? 'rounded-[2.75rem] p-2.5' : 'rounded-[1.75rem] p-3',
-        className,
-      )}
+      ref={ref}
+      className={cn('relative bg-neutral-900 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)] ring-1 ring-black/20', className)}
+      style={{ padding: bezel * scale, borderRadius: radius * scale, aspectRatio: scale ? undefined : `${w + 2 * bezel} / ${h + 2 * bezel}` }}
     >
-      {phone && <div className="absolute top-2.5 left-1/2 z-10 h-6 w-28 -translate-x-1/2 rounded-b-2xl bg-neutral-900" aria-hidden />}
-      <div ref={ref} className={cn('relative overflow-hidden bg-neutral-100', phone ? 'rounded-[2.1rem]' : 'rounded-[1.1rem]')} style={{ height: h * scale || undefined, aspectRatio: scale ? undefined : `${w} / ${h}` }}>
+      {phone && scale > 0 && (
+        <div
+          className="absolute left-1/2 z-10 -translate-x-1/2 bg-neutral-900"
+          style={{
+            top: bezel * scale,
+            width: NOTCH.w * scale,
+            height: NOTCH.h * scale,
+            borderBottomLeftRadius: NOTCH.radius * scale,
+            borderBottomRightRadius: NOTCH.radius * scale,
+          }}
+          aria-hidden
+        />
+      )}
+      <div className="relative overflow-hidden bg-neutral-100" style={{ height: h * scale || undefined, borderRadius: screenRadius * scale }}>
         {!loaded && (
           <div className="absolute inset-0 flex items-center justify-center" aria-hidden>
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-700" />

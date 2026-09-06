@@ -44,6 +44,7 @@ import { PaidSheet } from './PaidSheet';
 import { OpenStatus } from './OpenStatus';
 import { ReservationSheet } from './ReservationSheet';
 import { WhatsAppBubble } from './WhatsAppBubble';
+import { MadeWithKuik } from './MadeWithKuik';
 
 // The bar header's side actions. On a narrow phone the wordmark needs the
 // room, so they collapse to round icon buttons and the label returns at `sm`.
@@ -1102,6 +1103,8 @@ export function MenuView({
           );
         })}
       </div>
+
+      <MadeWithKuik subdomain={tenant.subdomain} />
 
       {orderingEnabled && itemCount > 0 && (
         <CartBar count={itemCount} onOpen={() => setSheetOpen(true)} label={t('yourOrder')} />

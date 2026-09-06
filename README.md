@@ -384,6 +384,41 @@ and lets a visitor try it without an account:
   choose who appears; only list businesses that agreed to.
 - Prices come from `platform_settings` as before; the feature lists are in
   the page.
+- **Feature pages** `/menu-digital`, `/punto-de-venta`, `/reservaciones` and
+  `/pedidos-whatsapp` ([lib/landing/features.ts](lib/landing/features.ts),
+  rendered by [components/landing/FeaturePage.tsx](components/landing/FeaturePage.tsx))
+  target what owners actually search for. Add a page by adding an entry and a
+  thin `app/<slug>/page.tsx`; the footer and sitemap pick it up.
+
+## Search engines (SEO)
+
+Everything is in [lib/seo.ts](lib/seo.ts) (pure, tested in
+[tests/seo.test.ts](tests/seo.test.ts)) plus two host-aware metadata routes:
+
+- **robots.txt and sitemap.xml** ([app/robots.ts](app/robots.ts),
+  [app/sitemap.ts](app/sitemap.ts)) read the `Host` header (the proxy leaves
+  dotted paths alone). `kuik.mx` lists the landing and feature pages and
+  blocks the dashboard, demos and auth screens; `app.kuik.mx` is closed to
+  crawlers (its `/` duplicates the landing, canonicals point at `kuik.mx`);
+  a restaurant host lists its home, `/menu` (only when a landing sits on `/`)
+  and branches, blocks `/qr` and receipts, and is closed while unpublished.
+- **www.kuik.mx** 308-redirects to the apex in `proxy.ts`.
+- **JSON-LD**: the landing declares `Organization`, `WebSite`,
+  `SoftwareApplication` (plans as monthly offers) and `FAQPage`; feature pages
+  add `BreadcrumbList` and their own FAQ; every restaurant page carries a
+  `Restaurant` with address, phone, hours, social links and the menu as
+  `Menu → MenuSection → MenuItem` with prices (capped at 150 items).
+- **Restaurant metadata** ([app/s/[tenant]/layout.tsx](app/s/[tenant]/layout.tsx)):
+  `metadataBase` is the tenant's canonical origin (verified custom domain,
+  else the subdomain), so a tenant on two hosts is one site to Google; title
+  `Name · Menú`, a description built from tagline, address and what the
+  visitor can do, cover photo as the share card. Pages set their canonical;
+  `/qr` is `noindex` pointing at the menu, receipts are `noindex`.
+- **"Menú creado con Kuik"** ([components/menu/MadeWithKuik.tsx](components/menu/MadeWithKuik.tsx))
+  at the foot of every public menu and landing links to `/menu-digital` with
+  UTM tags: one backlink per restaurant host.
+- Set `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` to verify Search Console by meta
+  tag (DNS verification needs nothing).
 
 ## Helper skills
 

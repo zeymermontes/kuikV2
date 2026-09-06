@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getTenantByHostKey } from '@/lib/tenant';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -10,6 +11,8 @@ type Params = { tenant: string; id: string };
 
 // A receipt changes when the webhook lands; never serve a stale one.
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 /** The receipt of one order, reachable by anyone holding its id (a UUID) — the guest's QR, the counter's scan. */
 export default async function ReceiptPage({ params }: { params: Promise<Params> }) {

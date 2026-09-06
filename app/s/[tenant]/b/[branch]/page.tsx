@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { MenuScreen } from '@/components/menu/MenuScreen';
 
 type Params = { tenant: string; branch: string };
@@ -10,6 +11,11 @@ export const revalidate = 60;
 export const dynamicParams = true;
 export async function generateStaticParams(): Promise<Params[]> {
   return [];
+}
+
+export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
+  const { branch } = await params;
+  return { alternates: { canonical: `/b/${encodeURIComponent(decodeURIComponent(branch))}` } };
 }
 
 // A specific branch's menu (e.g. tacos.kuik.mx/b/centro).

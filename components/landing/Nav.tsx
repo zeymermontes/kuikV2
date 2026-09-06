@@ -2,11 +2,11 @@ import Link from 'next/link';
 import { Logo } from './Logo';
 
 const LINKS = [
-  ['#producto', 'Producto'],
-  ['#funciones', 'Funciones'],
-  ['#ejemplos', 'Ejemplos'],
-  ['#precios', 'Precios'],
-  ['#faq', 'Preguntas'],
+  ['/#producto', 'Producto'],
+  ['/#funciones', 'Funciones'],
+  ['/#ejemplos', 'Ejemplos'],
+  ['/#precios', 'Precios'],
+  ['/#faq', 'Preguntas'],
 ] as const;
 
 export function Nav({ loginLabel, ctaLabel }: { loginLabel: string; ctaLabel: string }) {

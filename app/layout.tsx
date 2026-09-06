@@ -16,6 +16,8 @@ export const metadata: Metadata = {
   // The card a shared kuik.mx link shows: the POS on a tablet and a real menu on a phone (public/og.png).
   openGraph: { images: [{ url: '/og.png', width: 1200, height: 630, alt: 'Kuik: menú digital, pedidos, punto de venta, cocina y reservaciones' }] },
   twitter: { card: 'summary_large_image', images: ['/og.png'] },
+  // Google Search Console ownership, when verified by meta tag (DNS works without this).
+  verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } : undefined,
 };
 
 /**
