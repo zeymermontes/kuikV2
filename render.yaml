@@ -79,6 +79,13 @@ services:
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
       # Mercado Pago as a menu-payment gateway (OAuth app + payments webhook secret).
+      # Facturación CFDI a través de Facturama (API multiemisor).
+      - key: FACTURAMA_USER
+        sync: false
+      - key: FACTURAMA_PASSWORD
+        sync: false
+      - key: FACTURAMA_SANDBOX
+        sync: false
       - key: MERCADOPAGO_CLIENT_ID
         sync: false
       - key: MERCADOPAGO_CLIENT_SECRET

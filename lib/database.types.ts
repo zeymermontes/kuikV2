@@ -56,6 +56,65 @@ export interface Promotion {
   updated_at: string;
 }
 
+/** The restaurant's fiscal identity and CFDI defaults (0076). */
+export interface TenantCfdi {
+  tenant_id: string;
+  enabled: boolean;
+  rfc: string | null;
+  legal_name: string | null;
+  fiscal_regime: string | null;
+  zip_code: string | null;
+  iva_percent: number;
+  serie: string;
+  next_folio: number;
+  product_code: string;
+  unit_code: string;
+  self_invoice: boolean;
+  global_daily: boolean;
+  csd_registered_at: string | null;
+  csd_expires_at: string | null;
+  csd_serial: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type InvoiceStatus = 'pending' | 'stamped' | 'cancelled' | 'error';
+
+export interface InvoiceReceiver {
+  rfc: string;
+  name: string;
+  regime: string;
+  use: string;
+  zip: string;
+}
+
+export interface Invoice {
+  id: string;
+  tenant_id: string;
+  order_id: string | null;
+  tab_id: string | null;
+  kind: 'ingreso' | 'global';
+  period_date: string | null;
+  status: InvoiceStatus;
+  serie: string | null;
+  folio: number | null;
+  uuid: string | null;
+  provider: string;
+  provider_id: string | null;
+  receiver: InvoiceReceiver;
+  items: unknown;
+  payment_form: string;
+  subtotal: number;
+  tax: number;
+  total: number;
+  email: string | null;
+  error: string | null;
+  requested_by: 'guest' | 'staff';
+  created_at: string;
+  stamped_at: string | null;
+  cancelled_at: string | null;
+}
+
 /** One stretch of work on the clock. */
 export interface TimeEntry {
   id: string;
@@ -367,6 +426,9 @@ export interface Product {
   modifiers: PricedOption[];
   removables: string[];
   option_groups: OptionGroup[];
+  /** SAT codes for invoices when the restaurant's defaults do not fit (0076). */
+  sat_product_code?: string | null;
+  sat_unit_code?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -623,6 +685,8 @@ export interface OrderRow {
   discount: number | null;
   promos: { id: string; name: string; amount: number }[] | null;
   promo_code: string | null;
+  /** The CFDI this order is on, its own or the day's global (0076). */
+  invoice_id: string | null;
   /** The gateway's refund, when the restaurant returned the money (0074). */
   refund_ref: string | null;
   refunded_at: string | null;

@@ -9,6 +9,8 @@ import type { Category, FloorTable, LoyaltyProgram, Printer, Product, TenantOrde
 import { PosTerminal } from '@/components/pos/PosTerminal';
 import { PosLocked } from '@/components/pos/PosLocked';
 import { demoAreas, demoTables } from '@/lib/host/demo';
+import { getCfdiSettings, cfdiReady } from '@/lib/cfdi';
+import { tenantBaseUrl } from '@/lib/config';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,6 +42,9 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
     supabase.from('printers').select('*').eq('tenant_id', tenant.id).eq('enabled', true).order('position'),
     supabase.from('loyalty_program').select('*').eq('tenant_id', tenant.id).maybeSingle(),
   ]);
+  // Receipts print the self-invoice link once the restaurant can stamp CFDIs.
+  const cfdi = demo ? null : await getCfdiSettings(tenant.id);
+  const invoiceUrl = cfdiReady(cfdi) && cfdi.self_invoice ? `${tenantBaseUrl(tenant.subdomain, tenant.custom_domain)}/factura` : null;
   // Members can be put on a sale only where the plan includes loyalty.
   const program = isPro(subscription) && (loyalty as LoyaltyProgram | null)?.enabled ? (loyalty as LoyaltyProgram) : null;
   const areaName = new Map(((areas ?? []) as { id: string; name: string }[]).map((a) => [a.id, a.name]));
@@ -84,6 +89,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
         kitchenAuto: cash?.print_kitchen_auto ?? true,
         drawerCash: cash?.print_drawer_cash ?? true,
         footer: cash?.receipt_footer ?? null,
+        invoiceUrl,
       }}
       notePlaceholder={cash?.note_placeholder ?? null}
       lockAfterSale={cash?.pos_lock_after_sale ?? false}

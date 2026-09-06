@@ -70,9 +70,11 @@ export interface PrintSettings {
   kitchenAuto: boolean;
   drawerCash: boolean;
   footer: string | null;
+  /** Where a guest requests their CFDI; the receipt prints it with the sale's id. Null = no invoicing. */
+  invoiceUrl?: string | null;
 }
 
-export const DEFAULT_PRINT_SETTINGS: PrintSettings = { receiptMode: 'ask', kitchenAuto: true, drawerCash: true, footer: null };
+export const DEFAULT_PRINT_SETTINGS: PrintSettings = { receiptMode: 'ask', kitchenAuto: true, drawerCash: true, footer: null, invoiceUrl: null };
 
 export interface PrintContext {
   /** The terminal's store: jobs travel through its outbox. Null (KDS) writes straight to Supabase. */
@@ -190,7 +192,7 @@ export function printReceipt(
   payments: Payment[],
   o: Omit<ReceiptOptions, 'footer' | 'drawer'> & { drawer?: boolean; fallback?: boolean },
 ): Promise<PrintOutcome> {
-  const doc = receiptDoc(tab, items, payments, { ...o, footer: ctx.settings.footer });
+  const doc = receiptDoc(tab, items, payments, { ...o, footer: ctx.settings.footer, invoiceUrl: ctx.settings.invoiceUrl ?? null });
   return printTo(ctx, 'receipt', doc, { kind: 'receipt', refId: tab.id, drawer: o.drawer, fallback: o.fallback, copies: true });
 }
 

@@ -64,6 +64,8 @@ export interface ReceiptLabels {
   /** Refund slip wording. */
   refund: string;
   reason: string;
+  /** "Factura" line on the receipt. */
+  invoice: string;
 }
 
 export interface ReceiptOptions {
@@ -75,6 +77,8 @@ export interface ReceiptOptions {
   footer?: string | null;
   /** Pulse the drawer with this print (cash sale). */
   drawer?: boolean;
+  /** The self-invoice page; printed with the sale's id so the guest can request a CFDI. */
+  invoiceUrl?: string | null;
 }
 
 export function receiptDoc(tab: PosTab, items: TabItem[], payments: Payment[], o: ReceiptOptions): PrintDoc {
@@ -118,6 +122,9 @@ export function receiptDoc(tab: PosTab, items: TabItem[], payments: Payment[], o
   lines.push({ t: 'hr' });
   for (const f of (o.footer ?? '').split('\n').map((s) => s.trim()).filter(Boolean)) {
     lines.push({ t: 'text', v: f, align: 'center' });
+  }
+  if (o.invoiceUrl) {
+    lines.push({ t: 'text', v: `${labels.invoice}:`, align: 'center' }, { t: 'text', v: `${o.invoiceUrl}?t=${tab.id}`, align: 'center' });
   }
   lines.push({ t: 'text', v: labels.thanks, align: 'center', bold: true }, { t: 'feed', n: 1 });
   return { title: 'Recibo', lines, drawer: o.drawer };

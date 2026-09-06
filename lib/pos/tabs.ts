@@ -43,6 +43,7 @@ export async function openTab(
     promo_discount: 0,
     promos: null,
     promo_code: null,
+    invoice_id: null,
     guests: 1,
     void_reason: null,
     shift_id: shiftId,

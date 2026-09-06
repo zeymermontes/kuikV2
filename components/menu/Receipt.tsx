@@ -22,6 +22,7 @@ export function Receipt({
   currency,
   locale,
   url,
+  invoicing = false,
 }: {
   restaurant: string;
   logoUrl: string | null;
@@ -29,6 +30,8 @@ export function Receipt({
   currency: string;
   locale: string;
   url: string;
+  /** The restaurant issues CFDIs and lets guests request their own. */
+  invoicing?: boolean;
 }) {
   const t = useTranslations('menu');
   const items = (order.items ?? []) as Line[];
@@ -97,6 +100,11 @@ export function Receipt({
           <p className="text-center text-xs text-[var(--brand-text-secondary)]">{t('receiptQrHint')}</p>
         </div>
       </div>
+      {invoicing && (
+        <Link href={`/factura?o=${order.id}`} className="mt-6 block rounded-full border border-[var(--brand-border)] py-3 text-center text-sm font-semibold">
+          {t('receiptInvoice')}
+        </Link>
+      )}
       <Link href="/menu" className="mt-6 block text-center text-sm font-semibold underline-offset-4 hover:underline">
         {t('receiptBackToMenu')}
       </Link>

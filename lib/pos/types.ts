@@ -43,6 +43,8 @@ export interface PosTab {
   promo_discount: number;
   promos: { id: string; name: string; amount: number }[] | null;
   promo_code: string | null;
+  /** The CFDI this sale is on (0076); set by the server, read by the register. */
+  invoice_id: string | null;
   guests: number;
   void_reason: string | null;
   shift_id: string | null;

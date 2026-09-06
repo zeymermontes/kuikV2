@@ -43,7 +43,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
   }
   const proto = host === 'localhost' || host.endsWith('.localhost') ? 'http' : 'https';
   return {
-    rules: { userAgent: '*', allow: '/', disallow: ['/qr', '/recibo/', '/api/'] },
+    rules: { userAgent: '*', allow: '/', disallow: ['/qr', '/recibo/', '/factura', '/api/'] },
     sitemap: `${proto}://${host}/sitemap.xml`,
   };
 }

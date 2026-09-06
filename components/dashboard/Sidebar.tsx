@@ -30,6 +30,7 @@ import {
   LayoutGrid,
   GraduationCap,
   Tag,
+  FileText,
 } from 'lucide-react';
 import { ChevronsUpDown, ChevronDown, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -78,6 +79,7 @@ const NAV = [
   { group: 'settings', href: '/contact', icon: Phone, key: 'contact', roles: ['owner'] },
   { group: 'settings', href: '/staff', icon: Users, key: 'staff', roles: ['owner'] },
   { group: 'settings', href: '/domain', icon: Globe, key: 'domain', roles: ['owner'], feature: 'custom_domain' },
+  { group: 'settings', href: '/invoicing', icon: FileText, key: 'invoicing', roles: ['owner', 'manager'] },
   { group: 'settings', href: '/billing', icon: CreditCard, key: 'billing', roles: ['owner'] },
   { group: 'settings', href: '/tutorial', icon: GraduationCap, key: 'tutorial', roles: ['owner', 'manager', 'cashier', 'waiter', 'host'] },
 

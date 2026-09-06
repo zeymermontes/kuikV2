@@ -57,6 +57,7 @@ export function useReceiptLabels(): ReceiptLabels {
       method: (m: string) => t(`method_${m}` as 'method_cash'),
       refund: t('refund'),
       reason: t('refundReason'),
+      invoice: t('invoiceLine'),
     }),
     [t],
   );

@@ -14,6 +14,7 @@ const labels = {
   method: (m: string) => ({ cash: 'Efectivo', card: 'Tarjeta' })[m] ?? m,
   refund: 'Devolución',
   reason: 'Motivo',
+  invoice: 'Factura',
 };
 const zLabels = {
   title: 'Corte Z',
@@ -103,6 +104,7 @@ test('the receipt shows the tip once, the payment and the change, and hides void
     promo_discount: 0,
     promos: null,
     promo_code: null,
+    invoice_id: null,
     total: 494.5,
     guests: 1,
     void_reason: null,
@@ -178,7 +180,7 @@ test('a refund slip shows what came back and the Z report nets refunds out', () 
   const tab: PosTab = {
     id: 't2', tenant_id: 'x', branch_id: null, table_label: 'Mesa 3', customer_name: null, customer_phone: null, loyalty_customer_id: null, loyalty_awarded_at: null,
     server_name: null, employee_id: null, status: 'paid', opened_by: null, opened_at: '2026-09-06T12:00:00Z', closed_at: '2026-09-06T12:30:00Z',
-    subtotal: 300, discount: 0, tip: 0, total: 300, refunded: 150, promo_discount: 0, promos: null, promo_code: null, guests: 1, void_reason: null, shift_id: 's1', created_at: '', updated_at: '',
+    subtotal: 300, discount: 0, tip: 0, total: 300, refunded: 150, promo_discount: 0, promos: null, promo_code: null, invoice_id: null, guests: 1, void_reason: null, shift_id: 's1', created_at: '', updated_at: '',
   };
   const refund: Payment = {
     id: 'r1', tenant_id: 'x', tab_id: 't2', method: 'cash', amount: -150, tip: 0, tendered: null, change: null, shift_id: 's1', taken_by: null, employee_id: null,

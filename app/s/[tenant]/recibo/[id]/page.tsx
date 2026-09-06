@@ -6,6 +6,7 @@ import { resolveMenuSettings } from '@/lib/menu-settings';
 import { tenantBaseUrl } from '@/lib/config';
 import type { OrderRow } from '@/lib/database.types';
 import { Receipt } from '@/components/menu/Receipt';
+import { getCfdiSettings, cfdiReady } from '@/lib/cfdi';
 
 type Params = { tenant: string; id: string };
 
@@ -22,6 +23,7 @@ export default async function ReceiptPage({ params }: { params: Promise<Params> 
   if (!data) notFound();
   const { data: order } = await createAdminClient().from('orders').select('*').eq('id', id).eq('tenant_id', data.tenant.id).maybeSingle();
   if (!order) notFound();
+  const cfdi = await getCfdiSettings(data.tenant.id);
   const locale = data.tenant.locale === 'en' ? 'en-US' : 'es-MX';
   return (
     <Receipt
@@ -31,6 +33,7 @@ export default async function ReceiptPage({ params }: { params: Promise<Params> 
       currency={resolveMenuSettings(data.theme.settings).currency}
       locale={locale}
       url={`${tenantBaseUrl(data.tenant.subdomain, data.tenant.custom_domain)}/recibo/${id}`}
+      invoicing={cfdiReady(cfdi) && cfdi.self_invoice}
     />
   );
 }
