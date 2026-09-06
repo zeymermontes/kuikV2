@@ -1732,7 +1732,8 @@
     "installIosStep3": "Abre Kuik desde el ícono nuevo.",
     "installIosSignIn": "La app instalada guarda su sesión aparte, así que la primera vez tendrás que iniciar sesión de nuevo.",
     "later": "Ahora no",
-    "gotIt": "Entendido"
+    "gotIt": "Entendido",
+    "downloadApk": "O descarga la app para Android"
   },
   "whatsapp": {
     "title": "WhatsApp",
@@ -2471,5 +2472,23 @@
     "bump_served": "Entregado",
     "print": "Imprimir comanda",
     "recall": "Recuperar"
+  },
+  "terminal": {
+    "title": "¿Qué hace esta pantalla?",
+    "subtitle": "Elige el modo de este dispositivo. Se recuerda la próxima vez; puedes cambiarlo desde el botón de modo.",
+    "pos": "Caja",
+    "posDesc": "Cobrar, cuentas y mesas.",
+    "kds": "Cocina",
+    "kdsDesc": "Comandas por estación.",
+    "host": "Anfitrión",
+    "hostDesc": "Reservaciones y plano del salón.",
+    "customer": "Pantalla del cliente",
+    "customerDesc": "Mirror de la cuenta para quien paga.",
+    "customerRegister": "¿A qué caja sigue esta pantalla?",
+    "customerRegisterHint": "El nombre de la caja, como aparece en Caja → Esta caja.",
+    "go": "Abrir",
+    "changeMode": "Cambiar modo",
+    "signOut": "Cerrar sesión",
+    "remembered": "Abriendo {mode}…"
   }
 }

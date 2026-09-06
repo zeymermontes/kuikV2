@@ -4,6 +4,7 @@ import { useState, useSyncExternalStore } from 'react';
 import { Download, Share, Plus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { usePwa } from './PwaProvider';
+import { SITE_URL } from '@/lib/seo';
 
 const DISMISSED = 'kuik.installPrompt.dismissed';
 
@@ -68,6 +69,11 @@ export function InstallPrompt() {
         >
           <Download className="h-4 w-4" /> {t('install')}
         </button>
+        {!isIos && (
+          <a href={`${SITE_URL}/apps`} className="mt-2 block text-center text-xs text-neutral-500 underline">
+            {t('downloadApk')}
+          </a>
+        )}
       </div>
 
       {showIosSheet && (

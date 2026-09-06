@@ -7,10 +7,16 @@ import type { PrintJob, PrintJobKind, PrintReceiptMode, Printer, PrinterRole } f
 import { printersFor } from './print-route';
 import { drawerDoc, kitchenDoc, receiptDoc, type PrintDoc, type ReceiptOptions } from './print-doc';
 import { printDocInBrowser } from './print';
+import { renderEscPos, splitPrinterAddress } from './escpos';
+import { bytesToBase64, nativePrinter } from '@/lib/native/shell';
 import type { KitchenTicket, Payment, PosTab, TabItem } from './types';
 
 // How a document reaches paper, in order of preference:
 //
+//   0. The Terminal app's own socket (native/terminal). A tablet on the
+//      restaurant's Wi-Fi reaches a network printer directly: the WebView
+//      renders ESC/POS and the native side writes it to host:9100. No agent,
+//      and it works with the internet down.
 //   1. The print agent on THIS machine, over loopback. Zero latency and it
 //      keeps working with the internet down — the all-in-one register case.
 //   2. The cloud queue (print_jobs), drained by whichever agent owns the
@@ -63,6 +69,22 @@ async function postLocal(printerId: string, kind: PrintJobKind, doc: PrintDoc): 
     signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) throw new Error((await res.text()).slice(0, 200) || `agent ${res.status}`);
+}
+
+/**
+ * Print straight from this device over TCP. Only the Terminal app can (a
+ * browser has no sockets), and only to network printers; a USB printer on
+ * some PC still needs that PC's agent. Resolves false when this path does not
+ * apply, rejects when the printer could not be reached.
+ */
+async function printDirect(printer: Printer, doc: PrintDoc): Promise<boolean> {
+  const native = nativePrinter();
+  if (!native || printer.kind !== 'network') return false;
+  const addr = splitPrinterAddress(printer.address);
+  if (!addr) return false;
+  const data = renderEscPos(doc, printer.width, printer.cut);
+  await native.sendTcp({ host: addr.host, port: addr.port, data: bytesToBase64(data), timeoutMs: 8000 });
+  return true;
 }
 
 export interface PrintSettings {
@@ -124,6 +146,15 @@ export async function submitJob(
     created_at: t,
     updated_at: t,
   };
+  try {
+    if (await printDirect(printer, doc)) {
+      await record(ctx, { ...job, status: 'done', attempts: 1, claimed_at: t, printed_at: nowISO() });
+      return 'local';
+    }
+  } catch {
+    // The tablet could not reach the printer (off, other network): let the
+    // agent that owns it try through the queue, if there is one.
+  }
   if (printer.agent_id) {
     const agent = await localAgent();
     if (agent && agent.id === printer.agent_id) {

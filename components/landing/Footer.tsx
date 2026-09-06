@@ -24,6 +24,7 @@ export function Footer({ loginLabel, ctaLabel }: { loginLabel: string; ctaLabel:
                 </li>
               ))}
               <li><Link href="/#precios" className="hover:text-neutral-900">Precios</Link></li>
+              <li><Link href="/apps" className="hover:text-neutral-900">Apps para Android e iOS</Link></li>
             </ul>
           </div>
           <div>

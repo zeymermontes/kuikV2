@@ -1732,7 +1732,8 @@
     "installIosStep3": "Open Kuik from the new icon.",
     "installIosSignIn": "The installed app keeps its own session, so you'll need to sign in once more the first time.",
     "later": "Not now",
-    "gotIt": "Got it"
+    "gotIt": "Got it",
+    "downloadApk": "Or download the Android app"
   },
   "whatsapp": {
     "title": "WhatsApp",
@@ -2471,5 +2472,23 @@
     "bump_served": "Served",
     "print": "Print ticket",
     "recall": "Recall"
+  },
+  "terminal": {
+    "title": "What does this screen do?",
+    "subtitle": "Pick this device’s mode. It is remembered next time; change it from the mode button.",
+    "pos": "Register",
+    "posDesc": "Charge, tabs and tables.",
+    "kds": "Kitchen",
+    "kdsDesc": "Tickets by station.",
+    "host": "Host stand",
+    "hostDesc": "Reservations and the floor plan.",
+    "customer": "Customer screen",
+    "customerDesc": "Mirrors the sale for the guest paying.",
+    "customerRegister": "Which register does this screen follow?",
+    "customerRegisterHint": "The register’s name, as set under Register → This register.",
+    "go": "Open",
+    "changeMode": "Change mode",
+    "signOut": "Sign out",
+    "remembered": "Opening {mode}…"
   }
 }

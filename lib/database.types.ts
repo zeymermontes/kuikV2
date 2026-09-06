@@ -703,6 +703,19 @@ export interface PushSubscriptionRow {
   failed_at: string | null;
 }
 
+/** An FCM token from the native phone app (migration 0079). */
+export interface DevicePushToken {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  token: string;
+  platform: 'ios' | 'android';
+  app: 'kuik' | 'terminal';
+  locale: string;
+  created_at: string;
+  last_seen_at: string;
+}
+
 /** A bookable space: "Salón", "Terraza", "Salón privado". */
 export interface ReservationArea {
   id: string;

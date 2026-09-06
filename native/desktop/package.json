@@ -1,0 +1,21 @@
+{
+  "name": "kuik-desktop",
+  "productName": "Kuik Caja",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The register PC's app: app.kuik.mx with the print agent inside",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "smoke": "electron . --smoke",
+    "agent": "sh scripts/build-agent.sh",
+    "dist": "sh scripts/build-agent.sh && electron-builder",
+    "dist:mac": "sh scripts/build-agent.sh && electron-builder --mac",
+    "dist:win": "sh scripts/build-agent.sh && electron-builder --win",
+    "dist:linux": "sh scripts/build-agent.sh && electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^44.2.0",
+    "electron-builder": "^26.15.3"
+  }
+}

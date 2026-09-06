@@ -1,6 +1,8 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useState, useSyncExternalStore } from 'react';
+import { isNativeShell } from '@/lib/native/shell';
+import { NativePush } from './NativePush';
 
 /**
  * Registers the dashboard service worker and tracks whether the app can be
@@ -48,6 +50,9 @@ const standaloneStore = {
   },
   get() {
     return (
+      // The native shells (native/) are the installed app by definition: no
+      // install card, and push there goes through NativePush.
+      isNativeShell() ||
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as unknown as { standalone?: boolean }).standalone === true
     );
@@ -119,6 +124,7 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <Ctx.Provider value={{ canInstall: Boolean(deferred), installed, isIos, install }}>
+      <NativePush />
       {children}
     </Ctx.Provider>
   );

@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
 import { requireReservations } from '@/lib/auth';
 import { StaffIntlProvider } from '@/components/intl/StaffIntlProvider';
+import { TerminalModeButton } from '@/components/pos/TerminalModeButton';
+import { ShellUpdateBanner } from '@/components/ShellUpdateBanner';
+import { SITE_URL } from '@/lib/seo';
 
 export const metadata: Metadata = {
   title: 'Kuik — Anfitrión',
@@ -13,6 +16,8 @@ export default async function HostLayout({ children }: { children: React.ReactNo
   return (
     <StaffIntlProvider>
       <div className="min-h-dvh">{children}</div>
+      <TerminalModeButton />
+      <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />
     </StaffIntlProvider>
   );
 }

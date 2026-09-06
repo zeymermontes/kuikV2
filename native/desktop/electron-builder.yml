@@ -1,0 +1,36 @@
+appId: mx.kuik.desktop
+productName: Kuik Caja
+copyright: Kuik
+directories:
+  output: dist
+files:
+  - main.js
+  - preload.js
+  - setup.html
+  - package.json
+# The print agent binaries (print-agent/build.sh via scripts/build-agent.sh).
+# Each installer carries only its own platform's.
+mac:
+  category: public.app-category.business
+  target: [dmg, zip]
+  extraResources:
+    - from: agent/
+      to: agent/
+      filter: ["kuik-print-agent-darwin-*"]
+win:
+  target: nsis
+  extraResources:
+    - from: agent/
+      to: agent/
+      filter: ["kuik-print-agent-windows-*"]
+linux:
+  target: [AppImage, deb]
+  category: Office
+  extraResources:
+    - from: agent/
+      to: agent/
+      filter: ["kuik-print-agent-linux-*"]
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true

@@ -3,6 +3,9 @@ import { redirect } from 'next/navigation';
 import { requireTenant } from '@/lib/auth';
 import { showDevFeatures } from '@/lib/features';
 import { StaffIntlProvider } from '@/components/intl/StaffIntlProvider';
+import { TerminalModeButton } from '@/components/pos/TerminalModeButton';
+import { ShellUpdateBanner } from '@/components/ShellUpdateBanner';
+import { SITE_URL } from '@/lib/seo';
 
 export const metadata: Metadata = {
   title: 'Kuik — Cocina (KDS)',
@@ -19,6 +22,8 @@ export default async function KdsLayout({
   return (
     <StaffIntlProvider>
       <div className="min-h-dvh">{children}</div>
+      <TerminalModeButton />
+      <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />
     </StaffIntlProvider>
   );
 }

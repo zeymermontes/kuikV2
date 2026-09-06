@@ -1,0 +1,23 @@
+{
+  "name": "kuik-native-terminal",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Kuik Terminal — Capacitor shell around app.kuik.mx",
+  "scripts": {
+    "sync": "cap sync",
+    "ios": "cap open ios",
+    "android": "cap open android",
+    "run:ios": "cap run ios",
+    "run:android": "cap run android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/core": "^8.5.1",
+    "@capacitor/ios": "^8.5.1",
+    "kuik-printer": "file:../plugins/kuik-printer"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.1",
+    "typescript": "^5"
+  }
+}

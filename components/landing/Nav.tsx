@@ -7,6 +7,7 @@ const LINKS = [
   ['/#ejemplos', 'Ejemplos'],
   ['/#precios', 'Precios'],
   ['/#faq', 'Preguntas'],
+  ['/apps', 'Apps'],
 ] as const;
 
 export function Nav({ loginLabel, ctaLabel }: { loginLabel: string; ctaLabel: string }) {

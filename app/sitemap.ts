@@ -21,6 +21,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return [
       { url: `${SITE_URL}/`, changeFrequency: 'weekly', priority: 1 },
       ...FEATURE_PAGES.map((f) => ({ url: `${SITE_URL}/${f.slug}`, changeFrequency: 'monthly' as const, priority: 0.8 })),
+      { url: `${SITE_URL}/apps`, changeFrequency: 'weekly', priority: 0.7 },
     ];
   }
 

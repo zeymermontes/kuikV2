@@ -9,6 +9,8 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    // Native shells have their own toolchains (native/README.md).
+    "native/**",
     "out/**",
     "build/**",
     "next-env.d.ts",

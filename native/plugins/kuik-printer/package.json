@@ -1,0 +1,24 @@
+{
+  "name": "kuik-printer",
+  "version": "0.1.0",
+  "description": "Raw TCP to ESC/POS receipt printers, for the Kuik Terminal app",
+  "private": true,
+  "main": "dist/plugin.cjs.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
+  "files": [
+    "android/src/main/",
+    "android/build.gradle",
+    "dist/",
+    "ios/Sources",
+    "Package.swift",
+    "KuikPrinter.podspec"
+  ],
+  "capacitor": {
+    "ios": { "src": "ios" },
+    "android": { "src": "android" }
+  },
+  "peerDependencies": {
+    "@capacitor/core": ">=8.0.0"
+  }
+}

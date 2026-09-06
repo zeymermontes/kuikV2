@@ -2,9 +2,13 @@ import 'server-only';
 import webpush from 'web-push';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { MemberRole } from '@/lib/database.types';
+import { fcmConfigured, sendFcm } from './fcm';
+import { apnsConfigured, sendApns } from './apns';
 
 /**
- * Outbound web push to a restaurant's staff.
+ * Outbound push to a restaurant's staff: web push to installed PWAs and
+ * browsers; to the native phone app, FCM on Android (lib/push/fcm.ts) and
+ * APNs on iOS (lib/push/apns.ts).
  *
  * Recipients are resolved at SEND time by joining tenant_members on role, so
  * removing someone from the team — or demoting them — stops their pushes
@@ -52,7 +56,9 @@ export async function sendToTenant(
   roles: MemberRole[],
   build: (locale: string) => PushPayload,
 ): Promise<void> {
-  if (!ensureConfigured()) return;
+  const web = ensureConfigured();
+  const native = fcmConfigured() || apnsConfigured();
+  if (!web && !native) return;
 
   const supabase = createAdminClient();
 
@@ -65,6 +71,15 @@ export async function sendToTenant(
   const userIds = (members ?? []).map((m) => (m as { user_id: string }).user_id);
   if (userIds.length === 0) return;
 
+  await Promise.all([
+    web ? sendWeb(supabase, tenantId, userIds, build) : Promise.resolve(),
+    native ? sendNative(supabase, tenantId, userIds, build) : Promise.resolve(),
+  ]);
+}
+
+type Admin = ReturnType<typeof createAdminClient>;
+
+async function sendWeb(supabase: Admin, tenantId: string, userIds: string[], build: (locale: string) => PushPayload): Promise<void> {
   const { data } = await supabase
     .from('push_subscriptions')
     .select('id, endpoint, p256dh, auth, locale')
@@ -98,4 +113,28 @@ export async function sendToTenant(
     // that person works at.
     await supabase.from('push_subscriptions').delete().in('endpoint', dead);
   }
+}
+
+async function sendNative(supabase: Admin, tenantId: string, userIds: string[], build: (locale: string) => PushPayload): Promise<void> {
+  const { data } = await supabase
+    .from('device_push_tokens')
+    .select('token, platform, locale')
+    .eq('tenant_id', tenantId)
+    .in('user_id', userIds);
+  const devices = (data ?? []) as { token: string; platform: 'ios' | 'android'; locale: string }[];
+  if (devices.length === 0) return;
+
+  const dead: string[] = [];
+  await Promise.all(
+    devices.map(async (d) => {
+      try {
+        const send = d.platform === 'ios' ? sendApns : sendFcm;
+        if ((await send(d.token, build(d.locale))) === 'dead') dead.push(d.token);
+      } catch {
+        // A network blip is not a dead token; the next push tries again.
+      }
+    }),
+  );
+  // As for endpoints: a dead token is dead for every tenant the person works at.
+  if (dead.length > 0) await supabase.from('device_push_tokens').delete().in('token', dead);
 }

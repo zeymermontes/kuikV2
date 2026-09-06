@@ -4,8 +4,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { Bell, BellOff, BellRing } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import { usePwa } from './PwaProvider';
+import { nativePush, shell } from '@/lib/native/shell';
 
-type State = 'loading' | 'unsupported' | 'ios-needs-install' | 'blocked' | 'off' | 'on';
+type State = 'loading' | 'unsupported' | 'ios-needs-install' | 'blocked' | 'off' | 'on' | 'native';
 
 /** base64url → Uint8Array, the shape applicationServerKey wants. */
 function urlBase64ToUint8Array(base64: string): Uint8Array {
@@ -39,6 +40,17 @@ export function PushToggle() {
    * mid-flight is no longer relevant — the caller checks a cancel flag.
    */
   const resolve = useCallback(async (): Promise<State> => {
+    // The phone app registers by itself (NativePush); the OS owns the switch.
+    if (shell() === 'mobile') {
+      const p = nativePush();
+      if (!p) return 'unsupported';
+      try {
+        const { receive } = await p.checkPermissions();
+        return receive === 'denied' ? 'blocked' : 'native';
+      } catch {
+        return 'unsupported';
+      }
+    }
     if (!publicKey || !('serviceWorker' in navigator) || !('PushManager' in window)) {
       return 'unsupported';
     }
@@ -126,6 +138,14 @@ export function PushToggle() {
     return (
       <span className={`${chip} border-neutral-200 text-neutral-500`} title={t('push_iosHint')}>
         <BellOff className="h-4 w-4" /> {t('push_iosHint')}
+      </span>
+    );
+  }
+
+  if (state === 'native') {
+    return (
+      <span className={`${chip} border-neutral-200 text-neutral-500`} title={t('push_enabled')}>
+        <BellRing className="h-4 w-4" /> {t('push_enabled')}
       </span>
     );
   }

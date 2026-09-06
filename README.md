@@ -419,6 +419,21 @@ received into stock, counts, waste and adjustments, all logged in
 `is_available` for `auto_86` ingredients. Product cost is refreshed from the
 recipe (and on demand for every product from *Inventario*).
 
+## Native apps
+
+Three shells around this same web app, in [native/](native/): **Kuik
+Terminal** (tablet: POS, kitchen, host stand, customer screen; prints straight
+to network printers), **Kuik** (phone: the dashboard with native push) and
+**Kuik Caja** (register PC: Electron with the print agent inside, customer
+screen on the second display, kiosk mode). Each loads app.kuik.mx and adds a
+token to the user agent; `lib/native/shell.ts` is where the web reads which
+shell it is in. `/terminal` is the tablet app's start page: it asks once what
+the device is and remembers it. Android builds are published to the public
+`apps` bucket and offered at kuik.mx/apps (iOS shows "próximamente" until a
+link exists); a shell older than the published version sees a banner. See
+[native/README.md](native/README.md) for building, signing, publishing and
+what each generated project carries.
+
 ## Landing page and live demos
 
 The marketing page ([app/page.tsx](app/page.tsx)) sells the whole platform

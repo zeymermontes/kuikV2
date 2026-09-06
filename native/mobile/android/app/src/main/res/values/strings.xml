@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Kuik</string>
+    <string name="title_activity_main">Kuik</string>
+    <string name="package_name">mx.kuik.app</string>
+    <string name="custom_url_scheme">mx.kuik.app</string>
+</resources>

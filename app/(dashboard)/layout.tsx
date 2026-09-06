@@ -7,6 +7,8 @@ import { effectivePlan, effectiveAddons } from '@/lib/plan';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { TrialBanner } from '@/components/dashboard/TrialBanner';
 import { PwaProvider } from '@/components/dashboard/PwaProvider';
+import { ShellUpdateBanner } from '@/components/ShellUpdateBanner';
+import { SITE_URL } from '@/lib/seo';
 import { StaffIntlProvider } from '@/components/intl/StaffIntlProvider';
 import { getPendingSummary } from './reservations/actions';
 import { getHandoffCount } from './whatsapp/inbox/actions';
@@ -61,6 +63,7 @@ export default async function DashboardLayout({
   return (
     <StaffIntlProvider>
       <PwaProvider>
+        <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />
         <div className="flex min-h-screen bg-neutral-50">
           <Sidebar
             isSuperAdmin={ctx.user.profile.role === 'super_admin'}
