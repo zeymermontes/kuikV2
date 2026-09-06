@@ -104,7 +104,8 @@ export type ServiceType = 'pickup' | 'delivery' | 'dinein';
 
 /** How a guest says they will pay; the restaurant picks which to offer. */
 /** 'onsite' = the guest settles at the counter when they pick up / are served. */
-export type PaymentMethod = 'cash' | 'transfer' | 'card' | 'onsite';
+/** `online` = paid through the connected gateway before the WhatsApp message goes out (0066). */
+export type PaymentMethod = 'cash' | 'transfer' | 'card' | 'onsite' | 'online';
 
 export interface TenantOrdering {
   tenant_id: string;
@@ -538,8 +539,17 @@ export interface OrderRow {
   service_type: string | null;
   table_label: string | null;
   payment_method: string | null;
+  /** none = paid at the counter / on WhatsApp; the rest follow the gateway (0066). */
+  payment_status: PaymentStatus;
+  payment_provider: string | null;
+  payment_ref: string | null;
+  paid_at: string | null;
+  amount_paid: number | null;
+  currency: string | null;
   created_at: string;
 }
+
+export type PaymentStatus = 'none' | 'pending' | 'paid' | 'failed' | 'refunded';
 
 export interface OrderItem {
   product_id: string;

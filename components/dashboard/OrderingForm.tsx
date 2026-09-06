@@ -1,24 +1,36 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
+import { CreditCard, ExternalLink, RefreshCw } from 'lucide-react';
 import type { TenantOrdering, ServiceType, PaymentMethod } from '@/lib/database.types';
-import { Card, Label, Input, Textarea } from '@/components/ui';
+import type { PaymentAccount } from '@/lib/payments/types';
+import { Card, Label, Input, Textarea, Button } from '@/components/ui';
 import { updateOrdering } from '@/app/(dashboard)/settings-actions';
+import { connectStripe, disconnectStripe, syncStripeAccount } from '@/app/(dashboard)/payments-actions';
 
 const SERVICE_TYPES: ServiceType[] = ['pickup', 'delivery', 'dinein'];
-const PAYMENT_METHODS: PaymentMethod[] = ['cash', 'transfer', 'card', 'onsite'];
+const PAYMENT_METHODS: PaymentMethod[] = ['cash', 'transfer', 'card', 'onsite', 'online'];
 
 export function OrderingForm({
   ordering,
   showPosSettings = false,
+  paymentAccount = null,
+  paymentsConfigured = false,
 }: {
   ordering: TenantOrdering;
   /** POS/KDS are still in development — see lib/features.ts. */
   showPosSettings?: boolean;
+  /** The gateway account connected for online payment, if any. */
+  paymentAccount?: PaymentAccount | null;
+  /** False when Kuik itself has no gateway keys: the option is explained, not offered. */
+  paymentsConfigured?: boolean;
 }) {
   const t = useTranslations('ordering');
   const [o, setO] = useState(ordering);
+  const [account, setAccount] = useState(paymentAccount);
+  const [busy, startBusy] = useTransition();
+  const ready = !!account && account.charges_enabled && account.details_submitted;
 
   function set<K extends keyof TenantOrdering>(key: K, value: TenantOrdering[K]) {
     setO((s) => ({ ...s, [key]: value }));
@@ -239,6 +251,66 @@ export function OrderingForm({
             );
           })}
         </div>
+        {(o.payment_methods ?? []).includes('online') && (
+          <div className="space-y-3 border-t border-neutral-100 pt-3">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-neutral-100">
+                <CreditCard className="h-4 w-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">{t('onlineTitle')}</p>
+                <p className="text-xs text-neutral-500">{t('onlineHint')}</p>
+              </div>
+            </div>
+            {!paymentsConfigured ? (
+              <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">{t('onlineNotConfigured')}</p>
+            ) : (
+              <div className="rounded-xl border border-neutral-200 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className={`h-2 w-2 rounded-full ${ready ? 'bg-green-500' : account ? 'bg-amber-400' : 'bg-neutral-300'}`} />
+                    <span className="font-medium">
+                      {ready ? t('stripeReady') : account ? t('stripePending') : t('stripeNotConnected')}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {account && !ready && (
+                      <Button
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => startBusy(async () => setAccount(await syncStripeAccount()))}
+                        className="px-3 py-1.5 text-xs"
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 ${busy ? 'animate-spin' : ''}`} /> {t('stripeCheck')}
+                      </Button>
+                    )}
+                    <Button disabled={busy} onClick={() => startBusy(() => connectStripe())} className="px-3 py-1.5 text-xs">
+                      <ExternalLink className="h-3.5 w-3.5" /> {account ? (ready ? t('stripeManage') : t('stripeContinue')) : t('stripeConnect')}
+                    </Button>
+                    {account && (
+                      <Button
+                        variant="ghost"
+                        disabled={busy}
+                        onClick={() => {
+                          if (!confirm(t('stripeDisconnectConfirm'))) return;
+                          startBusy(async () => {
+                            await disconnectStripe();
+                            setAccount(null);
+                            setO((s) => ({ ...s, payment_methods: (s.payment_methods ?? []).filter((m) => m !== 'online') }));
+                          });
+                        }}
+                        className="px-3 py-1.5 text-xs"
+                      >
+                        {t('stripeDisconnect')}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-neutral-500">{ready ? t('stripeReadyHint') : account ? t('stripePendingHint') : t('stripeConnectHint')}</p>
+              </div>
+            )}
+          </div>
+        )}
         {(o.payment_methods ?? []).includes('transfer') && (
           <div className="space-y-3 border-t border-neutral-100 pt-3">
             <p className="text-sm font-medium">{t('transferDetails')}</p>

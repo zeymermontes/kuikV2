@@ -71,6 +71,20 @@ export const getTenantByHostKey = cache(
 
     const plan = effectivePlan(sub ?? { status: 'trialing', plan: 'basic' });
 
+    // "Pagar en línea" is only offered once the gateway account can take
+    // money; until then the method is dropped here so the cart never shows a
+    // button that would fail at checkout.
+    if (ordering?.payment_methods?.includes('online')) {
+      const { data: acct } = await supabase
+        .from('payment_accounts')
+        .select('charges_enabled, details_submitted')
+        .eq('tenant_id', tenant.id)
+        .maybeSingle<{ charges_enabled: boolean; details_submitted: boolean }>();
+      if (!acct?.charges_enabled || !acct.details_submitted) {
+        ordering.payment_methods = ordering.payment_methods.filter((m) => m !== 'online');
+      }
+    }
+
     // Ordering row may be missing for tenants created before this feature.
     const orderingRow: TenantOrdering = ordering ?? {
       tenant_id: tenant.id,

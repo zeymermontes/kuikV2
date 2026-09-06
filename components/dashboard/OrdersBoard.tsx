@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Clock, UtensilsCrossed, ShoppingBag, Check, RefreshCw, CreditCard } from 'lucide-react';
+import { Clock, UtensilsCrossed, ShoppingBag, Check, RefreshCw, CreditCard, BadgeCheck, Hourglass, AlertTriangle } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import type { OrderRow, OrderStatus } from '@/lib/database.types';
 import { formatPrice } from '@/lib/utils';
@@ -136,6 +136,21 @@ export function OrdersBoard({
                         <span className="flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
                           <CreditCard className="h-3 w-3" />
                           {t.has(`payment_${o.payment_method}`) ? t(`payment_${o.payment_method}`) : o.payment_method}
+                        </span>
+                      )}
+                      {o.payment_status === 'paid' && (
+                        <span className="flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
+                          <BadgeCheck className="h-3 w-3" /> {t('paid')}
+                        </span>
+                      )}
+                      {o.payment_status === 'pending' && (
+                        <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                          <Hourglass className="h-3 w-3" /> {t('paymentPending')}
+                        </span>
+                      )}
+                      {(o.payment_status === 'failed' || o.payment_status === 'refunded') && (
+                        <span className="flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                          <AlertTriangle className="h-3 w-3" /> {t(o.payment_status === 'failed' ? 'paymentFailed' : 'paymentRefunded')}
                         </span>
                       )}
                     </div>

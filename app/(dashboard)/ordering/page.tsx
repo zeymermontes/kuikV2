@@ -9,8 +9,9 @@ import { JumpToSetting } from '@/components/dashboard/JumpToSetting';
 import { TableQRs } from '@/components/dashboard/TableQRs';
 import { PosPreview } from '@/components/dashboard/PosPreview';
 import { PrintingSettings } from '@/components/dashboard/PrintingSettings';
+import { getPaymentAccount, paymentsConfigured, refreshAccount } from '@/lib/payments';
 
-export default async function OrderingPage() {
+export default async function OrderingPage({ searchParams }: { searchParams: Promise<{ stripe?: string }> }) {
   const ctx = await requireOwner();
   const { tenant } = ctx;
   const t = await getTranslations('ordering');
@@ -23,6 +24,17 @@ export default async function OrderingPage() {
     dev ? supabase.from('printers').select('*').eq('tenant_id', tenant.id).order('position') : Promise.resolve({ data: [] }),
     dev ? supabase.from('categories').select('name, station').eq('tenant_id', tenant.id).is('branch_id', null).order('position') : Promise.resolve({ data: [] }),
   ]);
+  // Online payment: the connected gateway account. Coming back from Stripe's
+  // onboarding (?stripe=return) is the moment its flags change, so re-pull them.
+  let paymentAccount = await getPaymentAccount(tenant.id);
+  const { stripe } = await searchParams;
+  if (paymentAccount && (stripe === 'return' || stripe === 'refresh')) {
+    try {
+      paymentAccount = await refreshAccount(paymentAccount);
+    } catch {
+      /* Stripe unreachable: show what we have */
+    }
+  }
   // The stations a kitchen printer can be routed to: the same rule the POS uses (category.station, else its name).
   const stations = [...new Set(((categories ?? []) as { name: string; station: string | null }[]).map((c) => c.station || c.name))];
 
@@ -61,7 +73,7 @@ export default async function OrderingPage() {
     <div>
       <h1 className="mb-1 text-2xl font-bold">{t('title')}</h1>
       <p className="mb-6 text-sm text-neutral-500">{t('subtitle')}</p>
-      <OrderingForm ordering={ordering} showPosSettings={dev} />
+      <OrderingForm ordering={ordering} showPosSettings={dev} paymentAccount={paymentAccount} paymentsConfigured={paymentsConfigured()} />
       {dev && (
         <div className="mt-5">
           <PrintingSettings agents={(agents ?? []) as PrintAgent[]} printers={(printers ?? []) as Printer[]} stations={stations} ordering={ordering} />

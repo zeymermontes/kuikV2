@@ -9,6 +9,8 @@ export interface PlatformSettings {
   pro_amount: number;
   pro_name: string;
   extra_amount: number; // per additional restaurant
+  /** Kuik's cut of each online menu payment, on top of the gateway's fee (0066). */
+  payment_fee_percent: number;
 }
 
 // Fallback used if the platform_settings row hasn't been created yet.
@@ -19,6 +21,7 @@ const FALLBACK: PlatformSettings = {
   pro_amount: Number(process.env.MERCADOPAGO_PRO_AMOUNT ?? '499'),
   pro_name: 'Kuik Pro',
   extra_amount: Number(process.env.MERCADOPAGO_EXTRA_AMOUNT ?? '299'),
+  payment_fee_percent: 0,
 };
 
 /**
@@ -31,7 +34,7 @@ export const getPlatformSettings = cache(async (): Promise<PlatformSettings> => 
     const supabase = createAdminClient();
     const query = supabase
       .from('platform_settings')
-      .select('plan_amount, plan_currency, plan_name, pro_amount, pro_name, extra_amount')
+      .select('plan_amount, plan_currency, plan_name, pro_amount, pro_name, extra_amount, payment_fee_percent')
       .eq('id', 1)
       .maybeSingle<PlatformSettings>();
     // Never let a slow DB hang the marketing page — fall back after 3s.
@@ -39,7 +42,7 @@ export const getPlatformSettings = cache(async (): Promise<PlatformSettings> => 
       setTimeout(() => resolve({ data: null }), 3000),
     );
     const { data } = await Promise.race([query, timeout]);
-    return data ?? FALLBACK;
+    return data ? { ...FALLBACK, ...data, payment_fee_percent: Number(data.payment_fee_percent ?? 0) } : FALLBACK;
   } catch {
     return FALLBACK;
   }

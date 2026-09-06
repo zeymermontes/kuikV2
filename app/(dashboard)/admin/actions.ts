@@ -166,6 +166,7 @@ export async function updatePricing(input: {
   proAmount: number;
   proName: string;
   extraAmount: number;
+  paymentFeePercent?: number;
 }) {
   await requireSuperAdmin();
   if (!(input.amount > 0) || !input.currency) return;
@@ -181,6 +182,7 @@ export async function updatePricing(input: {
       pro_amount: input.proAmount,
       pro_name: input.proName || 'Kuik Pro',
       extra_amount: input.extraAmount,
+      payment_fee_percent: Math.max(0, Math.min(30, Number(input.paymentFeePercent) || 0)),
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'id' },

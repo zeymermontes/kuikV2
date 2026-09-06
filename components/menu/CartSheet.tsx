@@ -105,7 +105,12 @@ export function CartSheet({
   // "Pedir nombre" means required, not decorative: the restaurant asked for it
   // so it can call the order out. The button stays enabled so a tap explains why.
   const [tried, setTried] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
   const missingName = ordering.collect_name !== false && customerName.trim() === '';
+  // Online payment goes through the gateway before WhatsApp: the guest is sent
+  // to checkout and comes back to the menu (?pedido=&pago=ok), where the
+  // message — kept on this device meanwhile — is handed to WhatsApp as paid.
+  const payingOnline = payment === 'online';
 
   // Lock background scroll while the sheet is open (only the sheet scrolls; keeps
   // the mobile URL bar from toggling and shifting the sheet).
@@ -139,6 +144,7 @@ export function CartSheet({
       return;
     }
     setSending(true);
+    setPayError(null);
 
     const message = buildOrderMessage({
       restaurantName: tenant.name,
@@ -155,24 +161,52 @@ export function CartSheet({
       paymentLabel: payment
         ? payment === 'transfer' && transfer
           ? `${paymentLabel(payment)} — ${t('transferWillSend')}`
-          : paymentLabel(payment)
+          : payingOnline
+            ? t('payment_online_paid')
+            : paymentLabel(payment)
         : undefined,
       tipPercent: tip || undefined,
       deliveryFee: deliveryFee || undefined,
     });
 
+    const payload = {
+      items: lines,
+      total: showPrices ? total : null,
+      customer_name: ordering.collect_name !== false ? customerName.trim() || null : null,
+      service_type: serviceLabel(service),
+      table_label: service === 'dinein' ? table.trim() || null : null,
+      payment_method: payment,
+    };
+
+    if (payingOnline) {
+      try {
+        const res = await fetch(`/api/order/${tenant.id}`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ ...payload, pay: { service, tipPercent: tip, locale } }),
+        });
+        const data = (await res.json()) as { ok: boolean; orderId?: string; payUrl?: string; error?: string };
+        if (!data.ok || !data.payUrl || !data.orderId) throw new Error(data.error ?? 'checkout_failed');
+        try {
+          localStorage.setItem(`kuik:paid:${data.orderId}`, JSON.stringify({ message, phone: contact.whatsapp_phone, at: Date.now() }));
+        } catch {
+          // Without storage the confirmation still shows; only the prefilled message is lost.
+        }
+        window.location.assign(data.payUrl);
+        return; // the page is leaving
+      } catch (e) {
+        const code = e instanceof Error ? e.message : '';
+        setPayError(code === 'unpriced' ? t('payUnpriced') : t('payError'));
+        setSending(false);
+        return;
+      }
+    }
+
     try {
       await fetch(`/api/order/${tenant.id}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          items: lines,
-          total: showPrices ? total : null,
-          customer_name: ordering.collect_name !== false ? customerName.trim() || null : null,
-          service_type: serviceLabel(service),
-          table_label: service === 'dinein' ? table.trim() || null : null,
-          payment_method: payment,
-        }),
+        body: JSON.stringify(payload),
         keepalive: true,
       });
     } catch {
@@ -427,14 +461,18 @@ export function CartSheet({
                 {t('minOrder', { amount: money(ordering.min_order!) })}
               </p>
             )}
+            {payError && <p className="mb-2 text-center text-sm text-red-500">{payError}</p>}
 
             <button
               onClick={handleSend}
               disabled={sending || belowMin}
-              className="w-full rounded-full bg-[#25D366] py-3.5 text-center font-semibold text-white disabled:opacity-60"
+              className={`w-full rounded-full py-3.5 text-center font-semibold disabled:opacity-60 ${
+                payingOnline ? 'bg-[var(--brand-button)] text-[var(--brand-button-text)]' : 'bg-[#25D366] text-white'
+              }`}
             >
-              {t('send')}
+              {payingOnline ? (sending ? t('payRedirecting') : t('payAndSend', { amount: money(total) })) : t('send')}
             </button>
+            {payingOnline && <p className="mt-2 text-center text-xs text-[var(--brand-text-secondary)]">{t('payThenWhatsapp')}</p>}
           </div>
         )}
       </div>

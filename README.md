@@ -223,6 +223,64 @@ configurable footer (RFC, address…) and a thank-you.
   `realtime.messages` allow send/receive only to members who can operate the
   tenant's POS, so a guessed topic yields nothing.
 
+## Online payment for menu orders
+
+The cart can take the money before the order reaches the restaurant. The
+guest picks **Pagar en línea**, pays on the gateway's hosted page (card, OXXO,
+SPEI), lands back on the menu, and sends the WhatsApp message already marked
+*pagado*. The restaurant sees the order turn green on the order board and a
+kitchen ticket appears on the KDS.
+
+```
+cart ──POST /api/order (pay) ──► order row (pending) + gateway checkout ──► guest pays
+                                                                              │
+menu ◄── ?pedido=<id>&pago=ok ── success_url                    webhook ◄─────┘
+  │                                                                │
+  └── PaidSheet polls GET /api/order?id ──► "Pagado" + WhatsApp   └─► orders.payment_status = paid
+                                                                        kitchen_tickets (per station)
+```
+
+**Gateway-agnostic.** [lib/payments/types.ts](lib/payments/types.ts) defines
+the four things a gateway must do: connect a restaurant's account, report its
+status, create a checkout for an order, and translate a webhook into a
+`PaymentEvent` (paid / failed / refunded / account). Everything else — the
+order route, the webhook handler, the board, the cart — works off that.
+[lib/payments/stripe.ts](lib/payments/stripe.ts) is the first implementation;
+Mercado Pago Checkout Pro or Clip would be another file registered in
+[lib/payments/index.ts](lib/payments/index.ts).
+
+**Money flow (Stripe Connect, Express accounts, direct charges).** The
+restaurant is the merchant: it onboards on Stripe's hosted form from
+*Pedidos → Formas de pago → Pago en línea*, pays Stripe's fee and receives the
+payout. Kuik takes an application fee per payment, set by the super admin in
+*Admin → Precios* (`platform_settings.payment_fee_percent`, default 0).
+
+**Amounts are re-priced on the server** from the products table
+([lib/payments/pricing.ts](lib/payments/pricing.ts)); the cart's numbers are
+never charged. Option surcharges come from the cart but are floored at zero.
+
+**Setup**
+
+1. Apply [supabase/migrations/0066_online_payments.sql](supabase/migrations/0066_online_payments.sql).
+2. Stripe dashboard → Connect: enable Express accounts for Mexico. Copy the
+   platform secret key to `STRIPE_SECRET_KEY`.
+3. Stripe dashboard → Webhooks → add `https://app.kuik.mx/api/webhooks/stripe`
+   with **Listen to events on Connected accounts** ticked, events
+   `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
+   `checkout.session.async_payment_failed`, `checkout.session.expired`,
+   `charge.refunded`, `account.updated`. Copy the signing secret to
+   `STRIPE_WEBHOOK_SECRET`.
+4. Redeploy. Until both keys exist the *Pago en línea* option explains it is
+   not configured instead of offering to connect.
+5. Each restaurant: *Pedidos → Formas de pago*, turn on *Pago en línea*,
+   *Conectar con Stripe*, finish the form, come back. The cart only offers the
+   method once Stripe reports `charges_enabled`.
+
+**Locally:** `stripe listen --forward-to localhost:3000/api/webhooks/stripe`
+gives a `whsec_` for `.env.local`; test cards work against a test-mode
+platform key. `npm test` covers the pricing rules and the webhook translation
+and signature check without touching Stripe.
+
 ## Helper skills
 
 - `.claude/skills/run-local` — boot the app and open tenant subdomains.

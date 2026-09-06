@@ -14,6 +14,7 @@ export function PricingSettings({ settings }: { settings: PlatformSettings }) {
   const [proAmount, setProAmount] = useState(String(settings.pro_amount));
   const [extraAmount, setExtraAmount] = useState(String(settings.extra_amount));
   const [currency, setCurrency] = useState(settings.plan_currency);
+  const [feePercent, setFeePercent] = useState(String(settings.payment_fee_percent ?? 0));
   const [saved, setSaved] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -27,6 +28,7 @@ export function PricingSettings({ settings }: { settings: PlatformSettings }) {
         proAmount: Number(proAmount),
         proName,
         extraAmount: Number(extraAmount),
+        paymentFeePercent: Number(feePercent),
       });
       setSaved(true);
     });
@@ -55,6 +57,11 @@ export function PricingSettings({ settings }: { settings: PlatformSettings }) {
         <div>
           <Label>Restaurante adicional — monto/mes</Label>
           <Input type="number" step="0.01" inputMode="decimal" value={extraAmount} onChange={(e) => setExtraAmount(e.target.value)} />
+        </div>
+        <div>
+          <Label>Comisión Kuik por pago en línea (%)</Label>
+          <Input type="number" step="0.1" min={0} max={30} inputMode="decimal" value={feePercent} onChange={(e) => setFeePercent(e.target.value)} />
+          <p className="mt-1 text-xs text-neutral-400">Se descuenta de cada pago del menú que pasa por Stripe, además de la comisión de Stripe. 0 = Kuik no cobra.</p>
         </div>
         <div>
           <Label>Moneda</Label>

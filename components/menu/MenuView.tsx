@@ -40,6 +40,7 @@ import { CategoryBanner } from './CategoryBanner';
 import { SeparatorRow } from './SeparatorRow';
 import { CartBar } from './CartBar';
 import { CartSheet } from './CartSheet';
+import { PaidSheet } from './PaidSheet';
 import { OpenStatus } from './OpenStatus';
 import { ReservationSheet } from './ReservationSheet';
 import { WhatsAppBubble } from './WhatsAppBubble';
@@ -144,6 +145,8 @@ export function MenuView({
   const settings = useMemo(() => resolveMenuSettings(theme.settings), [theme.settings]);
   const [cart, dispatch] = useReducer(cartReducer, {});
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Back from online checkout: /?pedido=<id>&pago=ok|cancel (see CartSheet).
+  const [paidOrder, setPaidOrder] = useState<string | null>(null);
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [query, setQuery] = useState('');
   const [activeTags, setActiveTags] = useState<string[]>([]);
@@ -329,6 +332,29 @@ export function MenuView({
     if (!contact.reservations_enabled) return;
     setShowReserve(true);
   }, [openReservation, contact.reservations_enabled]);
+
+  // Back from the payment gateway. `ok` confirms and clears the cart; `cancel`
+  // reopens it with everything still there. The params are dropped from the
+  // URL so a reload or a share does not replay the confirmation.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const id = p.get('pedido');
+    const pago = p.get('pago');
+    if (!id || !pago) return;
+    const timer = setTimeout(() => {
+      if (pago === 'ok') {
+        setPaidOrder(id);
+        dispatch({ type: 'clear' });
+      } else {
+        setSheetOpen(true);
+      }
+      p.delete('pedido');
+      p.delete('pago');
+      const qs = p.toString();
+      window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Table QR: /menu?mesa=<n> pre-selects dine-in with that table number.
   useEffect(() => {
@@ -1114,6 +1140,17 @@ export function MenuView({
               line: { ...line, categoryName: catNameByProduct[line.productId] },
             })
           }
+        />
+      )}
+
+      {paidOrder && (
+        <PaidSheet
+          tenantId={tenant.id}
+          orderId={paidOrder}
+          fallbackPhone={contact.whatsapp_phone}
+          currency={currency}
+          locale={locale}
+          onClose={() => setPaidOrder(null)}
         />
       )}
 
