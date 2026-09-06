@@ -284,3 +284,15 @@ async function nextPosition(
   ]);
   return Math.max(p?.position ?? -1, s?.position ?? -1) + 1;
 }
+
+/** Mark one option (by name, across every product) as run out or back, e.g. "Leche de avena". */
+export async function setOptionAvailability(name: string, available: boolean): Promise<{ count: number }> {
+  const { tenant } = await requireTenant();
+  const supabase = await createClient();
+  const n = name.trim().slice(0, 80);
+  if (!n) return { count: 0 };
+  // The RPC carries its own role check (0078), like product availability.
+  const { data } = await supabase.rpc('set_option_availability', { p_tenant: tenant.id, p_name: n, p_available: available });
+  revalidate(tenant.subdomain, tenant.custom_domain);
+  return { count: Number(data ?? 0) };
+}

@@ -55,3 +55,17 @@ test('nonsense returns null so the bot re-asks instead of guessing', () => {
   assert.equal(parseSpanishTime('cuando sea'), null);
   assert.equal(parsePartySize('muchos'), null);
 });
+
+test('listOptionNames merges the same option across products and flags it when out anywhere', async () => {
+  const { listOptionNames, optionAvailable } = await import('../lib/menu-options');
+  const base = { id: '', tenant_id: '', category_id: '', description: null, price: 1, compare_at_price: null, cost: null, sku: null, prep_time: null, calories: null, show_price: true, image_url: null, is_available: true, is_hidden: false, position: 0, tags: [], variants: [], modifiers: [], removables: [], created_at: '', updated_at: '' };
+  const g = (opts: { name: string; price: number; available?: boolean }[]) => [{ id: 'g', name: 'Leche', required: false, multiple: false, options: opts }];
+  const products = [
+    { ...base, id: 'a', name: 'Latte', option_groups: g([{ name: 'Leche de avena', price: 15 }, { name: 'Entera', price: 0 }]) },
+    { ...base, id: 'b', name: 'Capuchino', option_groups: g([{ name: 'leche de avena', price: 15, available: false }]) },
+  ];
+  const names = listOptionNames(products);
+  assert.deepEqual(names.map((n) => [n.name, n.count, n.available]), [['Leche de avena', 2, false], ['Entera', 1, true]]);
+  assert.equal(optionAvailable({ name: 'x', price: 0 }), true);
+  assert.equal(optionAvailable({ name: 'x', price: 0, available: false }), false);
+});

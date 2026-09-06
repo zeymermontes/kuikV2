@@ -30,7 +30,7 @@ export function OptionGroupsEditor({
   function patchGroup(id: string, patch: Partial<OptionGroup>, persist = true) {
     apply(groups.map((g) => (g.id === id ? { ...g, ...patch } : g)), persist);
   }
-  function patchOption(gid: string, idx: number, patch: Partial<{ name: string; price: number }>, persist = true) {
+  function patchOption(gid: string, idx: number, patch: Partial<{ name: string; price: number; available: boolean }>, persist = true) {
     apply(
       groups.map((g) =>
         g.id === gid ? { ...g, options: g.options.map((o, i) => (i === idx ? { ...o, ...patch } : o)) } : g,
@@ -185,6 +185,13 @@ export function OptionGroupsEditor({
                     onBlur={() => onSave(groups)}
                     className="w-24"
                   />
+                  <button
+                    onClick={() => patchOption(g.id, i, { available: o.available === false })}
+                    className={`rounded-full px-2 py-1 text-xs font-medium ${o.available === false ? 'bg-red-100 text-red-700' : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'}`}
+                    title={o.available === false ? t('optionSoldOut') : t('optionInStock')}
+                  >
+                    {o.available === false ? t('optionSoldOut') : t('optionInStock')}
+                  </button>
                   <button onClick={() => removeOption(g.id, i)} className="p-1 text-neutral-400 hover:text-red-500">
                     <X className="h-4 w-4" />
                   </button>

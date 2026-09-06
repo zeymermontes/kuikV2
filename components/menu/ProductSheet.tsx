@@ -6,7 +6,7 @@ import { X, Plus, Minus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Product } from '@/lib/database.types';
 import type { CartLine } from '@/lib/whatsapp';
-import { resolveOptionGroups, optionKind, type SelectedOption } from '@/lib/menu-options';
+import { resolveOptionGroups, optionKind, type SelectedOption, optionAvailable } from '@/lib/menu-options';
 import { formatPrice } from '@/lib/utils';
 
 export function ProductSheet({
@@ -54,7 +54,7 @@ export function ProductSheet({
         const picked = initial.selections.filter((s) => s.group === g.name).map((s) => s.name);
         init[g.id] = g.options.map((o, i) => (picked.includes(o.name) ? i : -1)).filter((i) => i >= 0);
       } else {
-        init[g.id] = !g.multiple && g.required && g.options.length > 0 ? [0] : [];
+        init[g.id] = !g.multiple && g.required ? [g.options.findIndex(optionAvailable)].filter((i) => i >= 0) : [];
       }
     }
     return init;
@@ -86,7 +86,7 @@ export function ProductSheet({
     (sel[g.id] ?? []).map((i) => ({ group: g.name, name: g.options[i].name, price: g.options[i].price || 0 })),
   );
   const unit = (product.price ?? 0) + selections.reduce((s, o) => s + o.price, 0);
-  const valid = groups.every((g) => !g.required || (sel[g.id]?.length ?? 0) > 0);
+  const valid = groups.every((g) => (!g.required || (sel[g.id]?.length ?? 0) > 0) && (sel[g.id] ?? []).every((i) => optionAvailable(g.options[i])));
 
   function confirm() {
     if (!valid) return;
@@ -186,33 +186,36 @@ export function ProductSheet({
                   </div>
                   {g.description && <p className="-mt-1 mb-2 text-xs text-[var(--brand-text-secondary)]">{g.description}</p>}
                   <div className="space-y-2">
-                    {g.options.map((o, i) => (
-                      <label
-                        key={i}
-                        className={`flex items-center justify-between rounded-xl border px-3 py-2.5 transition ${
-                          chosen.includes(i)
-                            ? 'border-[var(--brand-button)] bg-[var(--brand-button)] text-[var(--brand-button-text)]'
-                            : 'border-[var(--brand-border)]'
-                        } ${
-                          readOnly ? '' : 'cursor-pointer'
-                        }`}
-                      >
-                        <span className="flex items-center gap-2 text-sm">
-                          {!readOnly && (
-                            <input
-                              type={g.multiple ? 'checkbox' : 'radio'}
-                              name={g.id}
-                              checked={chosen.includes(i)}
-                              onChange={() => toggle(g.id, i, g.multiple)}
-                            />
+                    {g.options.map((o, i) => {
+                      const out = !optionAvailable(o);
+                      return (
+                        <label
+                          key={i}
+                          className={`flex items-center justify-between rounded-xl border px-3 py-2.5 transition ${
+                            chosen.includes(i)
+                              ? 'border-[var(--brand-button)] bg-[var(--brand-button)] text-[var(--brand-button-text)]'
+                              : 'border-[var(--brand-border)]'
+                          } ${readOnly || out ? '' : 'cursor-pointer'} ${out ? 'opacity-50' : ''}`}
+                        >
+                          <span className="flex items-center gap-2 text-sm">
+                            {!readOnly && (
+                              <input
+                                type={g.multiple ? 'checkbox' : 'radio'}
+                                name={g.id}
+                                checked={chosen.includes(i)}
+                                disabled={out}
+                                onChange={() => toggle(g.id, i, g.multiple)}
+                              />
+                            )}
+                            <span className={out ? 'line-through' : ''}>{o.name}</span>
+                            {out && <span className="rounded-full border border-current px-1.5 text-[10px] font-semibold uppercase">{t('unavailable')}</span>}
+                          </span>
+                          {showPrice && o.price > 0 && !out && (
+                            <span className="text-sm font-medium">+ {formatPrice(o.price, currency, locale)}</span>
                           )}
-                          {o.name}
-                        </span>
-                        {showPrice && o.price > 0 && (
-                          <span className="text-sm font-medium">+ {formatPrice(o.price, currency, locale)}</span>
-                        )}
-                      </label>
-                    ))}
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
               );

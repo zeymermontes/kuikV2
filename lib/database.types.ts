@@ -442,6 +442,8 @@ export interface Category {
 export interface PricedOption {
   name: string;
   price: number;
+  /** false while it has run out ("no oat milk today"); absent = available (0078). */
+  available?: boolean;
 }
 
 // Dynamic, per-product option group (multiselect). Replaces the fixed

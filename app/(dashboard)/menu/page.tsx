@@ -9,6 +9,7 @@ import { MenuEditor } from '@/components/dashboard/menu/MenuEditor';
 import { MenuModeSwitch } from '@/components/dashboard/MenuModeSwitch';
 import { MenuImportExport } from '@/components/dashboard/menu/MenuImportExport';
 import { WaiterMenu } from '@/components/dashboard/menu/WaiterMenu';
+import { OptionAvailability } from '@/components/dashboard/menu/OptionAvailability';
 
 export default async function MenuPage({
   searchParams,
@@ -52,6 +53,7 @@ export default async function MenuPage({
       <div>
         <h1 className="mb-1 text-2xl font-bold">{t('title')}</h1>
         <p className="mb-6 text-sm text-neutral-500">{t('waiterHint')}</p>
+        {role === 'waiter' && <OptionAvailability products={(products ?? []) as Product[]} />}
         <WaiterMenu
           categories={(categories ?? []) as Category[]}
           products={(products ?? []) as Product[]}
@@ -90,6 +92,8 @@ export default async function MenuPage({
           )}
         </>
       )}
+
+      <OptionAvailability products={(products ?? []) as Product[]} />
 
       <MenuImportExport
         tenantId={tenant.id}
