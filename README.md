@@ -363,6 +363,62 @@ starts a new preapproval after cancelling the one in force. Kuik's cut of
 online payments can be lower on Restaurante (`pro_payment_fee_percent`).
 Extra restaurants on one account stay a separate line (`extra_amount`).
 
+## Register operations (employees, customers, refunds, promotions)
+
+Everything a register does beyond ringing up, each behind its own migration
+and pulled into the POS's offline store where the device needs it:
+
+- **Employees with PIN** (0072, [lib/employees.ts](lib/employees.ts)):
+  *Equipo → Empleados de la caja*. With employees set up the terminal asks
+  "¿Quién atiende?" by PIN; sales, payments and tickets carry `employee_id`.
+  Roles carry default permissions (discount, void, shift, drawer, history,
+  refund) with per-person overrides; an action the signed-in person may not
+  take asks a manager's PIN (`useEmployee().authorize(perm)`). Clock in/out
+  from the PIN screen (`time_entries`); optional lock after every sale;
+  reports show hours, sales and tips per employee.
+- **Customers at the register** (0073): the customer sheet finds a loyalty
+  member by phone or name, shows visits and reward progress, redeems, or
+  enrols. `tabs.loyalty_customer_id` + a trigger credit the stamp or points
+  when the sale closes, once, even when it synced late.
+- **Refunds** (0074): a refund is a `payments` row with a negative amount and
+  `kind = 'refund'` in the current shift; history offers it by lines or
+  amount with a reason, prints a slip, opens the drawer for cash. The Z
+  report nets refunds; a refunded sale cannot be reopened. Online payments
+  are returned through the gateway (`PaymentGateway.refund`) from the orders
+  board by managers.
+- **Promotions** (0075, [lib/promotions.ts](lib/promotions.ts)): percent,
+  amount, 2x1; by order, category or product; days, hours, dates, minimum
+  spend, coupon codes, channels (register / menu), stacking. One pure rule
+  file runs in the POS (`recomputeTab`), in the cart and on the server that
+  prices a paid order; `tabs.promo_discount` sits beside the manual discount.
+
+## CFDI invoicing
+
+[lib/cfdi](lib/cfdi) stamps CFDI 4.0 through Facturama's multi-issuer API:
+one Kuik account (`FACTURAMA_USER/PASSWORD`, sandbox unless
+`FACTURAMA_SANDBOX=false`), one CSD per restaurant uploaded from
+*Facturación* and forwarded to the PAC (never stored). Concepts split IVA out
+of the inclusive menu prices and spread discounts ([build.ts](lib/cfdi/build.ts));
+folios come from `next_invoice_folio()`. Guests request their own CFDI from
+the receipt (`/factura?o=<order>` or `?t=<sale>`, printed on tickets); the
+manager issues by sale id, cancels, downloads PDF/XML and issues the day's
+global CFDI to PÚBLICO EN GENERAL. Sales remember `invoice_id` so nothing is
+invoiced twice. Not yet exercised against a real Facturama account: the
+request/response shapes follow their public guides and need a sandbox run.
+
+## Inventory
+
+[lib/inventory.ts](lib/inventory.ts) + migration 0077. Ingredients (unit,
+stock, minimum, last cost, supplier, `auto_86`), a recipe per product
+(`product_ingredients`, edited in the product drawer, or one-tap simple
+tracking that creates an ingredient of the product itself), purchase orders
+received into stock, counts, waste and adjustments, all logged in
+`stock_movements`. Triggers deduct when a register sale closes
+(`tabs.stock_deducted_at`) or an online order is accepted
+(`orders.stock_deducted_at`), via `move_stock()`, which also flips
+`is_available` for `auto_86` ingredients. Product cost is refreshed from the
+recipe (and on demand for every product from *Inventario*).
+
 ## Landing page and live demos
 
 The marketing page ([app/page.tsx](app/page.tsx)) sells the whole platform
