@@ -599,7 +599,12 @@ export function MenuView({
   );
 
   // One run of products/separators, shared by a section and its subcategories.
-  const EntryList = ({ entries }: { entries: MenuCategory['entries'] }) =>
+  // A render function, not a component: a component defined inside the render
+  // gets a new identity every time MenuView re-renders (the bar sticking, the
+  // scroll spy moving, a quantity changing), and React then unmounts and
+  // remounts every card in it, which replays the entrance animation and
+  // flashes the whole screen.
+  const renderEntries = (entries: MenuCategory['entries']) =>
     entries.length === 0 ? null : (
       <div
         // Two-up only while each card keeps ~13rem: two fit the "narrow" column
@@ -908,9 +913,13 @@ export function MenuView({
 
       </div>
 
-      {/* Occluding strip: a clipped copy of the FIXED page background, shown only
-          while the bar is stuck — pixel-perfect with the page bg, no jitter. */}
-      {showNav && navStuck && navBgImage && (
+      {/* Occluding strip: a clipped copy of the FIXED page background, visible
+          only while the bar is stuck — pixel-perfect with the page bg, no jitter.
+          Always mounted and toggled with opacity on its own compositor layer:
+          mounting a viewport-sized fixed layer with a large image at the very
+          moment the bar sticks made the whole screen flash on Android, once
+          when it stuck and again when it let go. */}
+      {showNav && navBgImage && (
         <div
           aria-hidden
           className="pointer-events-none fixed left-0 top-0 z-10"
@@ -922,6 +931,8 @@ export function MenuView({
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             clipPath: `inset(0 0 calc(100lvh - ${barH}px) 0)`,
+            opacity: navStuck ? 1 : 0,
+            willChange: 'opacity',
           }}
         />
       )}
@@ -1087,7 +1098,7 @@ export function MenuView({
 
               {!isCollapsed && (
                 <>
-                  <EntryList entries={cat.entries} />
+                  {renderEntries(cat.entries)}
                   {/* Subcategories: a smaller heading, then their own items. */}
                   {cat.subcategories.map((sub) => (
                     <section key={sub.id} id={anchor(sub.id)} className="mt-6">
@@ -1109,7 +1120,7 @@ export function MenuView({
                         </h3>
                         {subRule !== 'none' && <CategoryRule />}
                       </div>
-                      <EntryList entries={sub.entries} />
+                      {renderEntries(sub.entries)}
                     </section>
                   ))}
                 </>
