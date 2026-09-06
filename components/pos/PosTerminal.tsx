@@ -224,7 +224,15 @@ export function PosTerminal({
     [db],
     [] as PosTab[],
   );
-  const shift = useLiveQuery(() => db.register_shifts.where('status').equals('open').first(), [db]);
+  // Every open shift in the restaurant; this device's is the one for its register.
+  // Shifts from before registers had their own (register null) belong to the default one.
+  const openShifts = useLiveQuery(() => db.register_shifts.where('status').equals('open').toArray(), [db]);
+  const mySlug = registerSlug(register);
+  const { shift, otherOpen } = useMemo(() => {
+    const all = openShifts ?? [];
+    const own = (s: RegisterShift) => (s.register ?? DEFAULT_REGISTER) === mySlug;
+    return { shift: all.find(own), otherOpen: all.filter((s) => !own(s)) };
+  }, [openShifts, mySlug]);
   const shiftId = shift?.id ?? null;
   const failed = useLiveQuery(() => db.outbox.where('status').equals('dead').count(), [db], 0);
   // Prints the agent could not do (printer off, out of paper): shown with a retry.
@@ -338,7 +346,7 @@ export function PosTerminal({
   }
 
   async function confirmOpenReg() {
-    await openShift(db, tenantId, userId, Number(field) || 0);
+    await openShift(db, tenantId, userId, Number(field) || 0, mySlug);
     setModal(null);
   }
   async function confirmCloseReg() {
@@ -772,6 +780,24 @@ export function PosTerminal({
                       <Clock className="h-3 w-3" />
                       {t('openedAt', { x: new Date((shift as RegisterShift).opened_at).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) })}
                     </p>
+                  )}
+                  <div className="mt-4 flex items-center justify-between gap-2 border-t border-neutral-100 pt-3 text-xs text-neutral-500">
+                    <span>{t('thisRegister', { x: register })}</span>
+                    <button onClick={() => openModal('remoteScreen')} className="font-semibold text-neutral-700 underline-offset-2 hover:underline">
+                      {t('renameRegister')}
+                    </button>
+                  </div>
+                  {otherOpen.length > 0 && (
+                    <div className="mt-2 text-xs text-neutral-500">
+                      <p className="font-medium text-neutral-600">{t('otherRegistersOpen')}</p>
+                      <ul className="mt-1 space-y-0.5">
+                        {otherOpen.map((s) => (
+                          <li key={s.id}>
+                            {s.register ?? DEFAULT_REGISTER} · {new Date(s.opened_at).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
                 </div>
 

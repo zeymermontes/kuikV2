@@ -76,6 +76,8 @@ export interface RegisterShift {
   id: string;
   tenant_id: string;
   branch_id: string | null;
+  /** Slug of the register that opened it (caja, barra…); null = before registers had shifts of their own. */
+  register: string | null;
   opened_by: string | null;
   opened_at: string;
   opening_cash: number;

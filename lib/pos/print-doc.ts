@@ -150,6 +150,7 @@ export function zReportDoc(
   const lines: PrintLine[] = [
     { t: 'text', v: o.restaurant, align: 'center', bold: true },
     { t: 'text', v: labels.title, align: 'center', bold: true, size: 2 },
+    ...(shift.register ? [{ t: 'text', v: shift.register.toUpperCase(), align: 'center', bold: true } as PrintLine] : []),
     { t: 'text', v: `${fmt(shift.opened_at)} → ${fmt(shift.closed_at)}`, align: 'center' },
     { t: 'hr' },
     { t: 'row', l: labels.opening, r: money(shift.opening_cash) },

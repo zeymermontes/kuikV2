@@ -58,12 +58,14 @@ export async function openShift(
   tenantId: string,
   userId: string,
   openingCash: number,
+  register: string | null = null,
 ): Promise<RegisterShift> {
   const t = nowISO();
   const shift: RegisterShift = {
     id: newId(),
     tenant_id: tenantId,
     branch_id: null,
+    register,
     opened_by: userId,
     opened_at: t,
     opening_cash: openingCash,

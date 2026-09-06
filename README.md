@@ -66,6 +66,21 @@ server-side with the service-role key, so anonymous visitors never touch RLS.
    `https://app.kuik.mx/api/webhooks/mercadopago?secret=$MERCADOPAGO_WEBHOOK_SECRET`.
 5. The `kuik-expire-trials` cron hits `/api/cron/expire-trials` daily.
 
+## POS on several devices
+
+Every tablet, computer or phone runs the same terminal on its own local store
+(Dexie) and syncs through Supabase Realtime; a table opened on a waiter's
+tablet shows up at the register at once, and a device that loses the network
+keeps working and merges when it is back (last write wins per row). Staff
+sign in with their own accounts; tabs record who served them.
+
+Each device is a **register** (named under Caja → "Esta caja"; the customer
+screen follows the same name). A cash shift belongs to a register
+(`register_shifts.register`, 0071): caja and barra each open their own float,
+take their own payments and print their own Z report, and the Caja view lists
+the other registers that are open. Shifts from before this column belong to
+the default register.
+
 ## POS printing
 
 How a kitchen ticket, a receipt or a cash-drawer pulse gets from the POS to a
