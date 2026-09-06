@@ -15,5 +15,10 @@ const FlowCanvas = dynamic(() => import('./FlowCanvas'), {
 });
 
 export function FlowEditorShell({ flow }: { flow: WhatsappFlow }) {
-  return <FlowCanvas flow={flow} />;
+  // data-full-bleed: the dashboard layout drops its form-width cap for this page.
+  return (
+    <div data-full-bleed>
+      <FlowCanvas flow={flow} />
+    </div>
+  );
 }

@@ -92,7 +92,9 @@ export default async function DashboardLayout({
               </div>
             )}
             <TrialBanner subscription={ctx.subscription} />
-            <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 sm:px-6">
+            {/* Forms read best at 4xl; a page that renders a canvas (the flow editor)
+                marks itself data-full-bleed and takes the whole width. */}
+            <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 has-[[data-full-bleed]]:max-w-none has-[[data-full-bleed]]:px-2 has-[[data-full-bleed]]:py-2 sm:px-6 sm:has-[[data-full-bleed]]:px-3">
               {children}
             </main>
           </div>
