@@ -29,6 +29,13 @@ export function OrderingForm({
   const t = useTranslations('ordering');
   const [o, setO] = useState(ordering);
   const [account, setAccount] = useState(paymentAccount);
+  // Coming back from Stripe re-renders the page with fresh flags; adopt them
+  // instead of keeping the ones this component first mounted with.
+  const [seenAccount, setSeenAccount] = useState(paymentAccount);
+  if (seenAccount !== paymentAccount) {
+    setSeenAccount(paymentAccount);
+    setAccount(paymentAccount);
+  }
   const [busy, startBusy] = useTransition();
   const ready = !!account && account.charges_enabled;
   const actionNeeded = ready && !account.details_submitted;
@@ -275,7 +282,7 @@ export function OrderingForm({
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {account && !ready && (
+                    {account && (!ready || actionNeeded) && (
                       <Button
                         variant="secondary"
                         disabled={busy}
