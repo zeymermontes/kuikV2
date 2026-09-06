@@ -675,41 +675,70 @@ export function DesignForm({
             <div data-setting={t('navPerCategory')} className="rounded-xl bg-neutral-50 p-3">
               <p className="text-xs font-medium text-neutral-500">{t('navPerCategory')}</p>
               <p className="mb-2 text-[10px] text-neutral-400">{t('navPerCategoryHint')}</p>
-              <div className="space-y-2">
-                {categories.map((c) => {
-                  const th = catThemes[c.id];
-                  return (
-                    <div key={c.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 bg-white px-2 py-1.5">
-                      <span className="min-w-[6rem] flex-1 truncate text-sm font-medium">{c.name}</span>
-                      {(
-                        [
-                          ['tab_selected_color', t('tabSelected'), local.tab_selected_color ?? local.primary_color],
-                          ['tab_unselected_color', t('tabUnselected'), local.tab_unselected_color ?? '#eeeeee'],
-                          ['tab_font_color', t('tabFont'), local.tab_font_color ?? local.text_color],
-                          ['tab_selected_border_color', t('tabSelectedBorder'), local.tab_selected_color ?? local.primary_color],
-                          ['tab_unselected_border_color', t('tabUnselectedBorder'), local.border_color ?? '#e5e5e5'],
-                        ] as const
-                      ).map(([key, label, fallback]) => (
-                        <label key={key} title={label} className="flex items-center gap-1">
-                          <ColorWheel
-                            value={th?.[key]}
-                            fallback={fallback}
-                            label={`${c.name} · ${label}`}
-                            size="sm"
-                            onChange={(hex) => setCatTheme(c.id, key, hex)}
-                            onClear={() => setCatTheme(c.id, key, null)}
-                          />
-                          {th?.[key] && (
-                            <button type="button" onClick={() => setCatTheme(c.id, key, null)} className="px-0.5 text-neutral-300 hover:text-neutral-600" aria-label={t('clearColor')}>
-                              ×
-                            </button>
-                          )}
-                        </label>
-                      ))}
+              {/* Five colours per category, laid out as a table: the column header names
+                  the slot, and hovering a swatch repeats it at once (no native tooltip delay). */}
+              {(() => {
+                const slots = [
+                  ['tab_selected_color', t('tabSelected'), t('slotBgActive'), local.tab_selected_color ?? local.primary_color],
+                  ['tab_unselected_color', t('tabUnselected'), t('slotBgInactive'), local.tab_unselected_color ?? '#eeeeee'],
+                  ['tab_font_color', t('tabFont'), t('slotText'), local.tab_font_color ?? local.text_color],
+                  ['tab_selected_border_color', t('tabSelectedBorder'), t('slotBorderActive'), local.tab_selected_color ?? local.primary_color],
+                  ['tab_unselected_border_color', t('tabUnselectedBorder'), t('slotBorderInactive'), local.border_color ?? '#e5e5e5'],
+                ] as const;
+                return (
+                  <div className="overflow-x-auto">
+                    <div className="min-w-[22rem]">
+                      <div className="mb-1 flex items-end gap-1 pr-2">
+                        <span className="min-w-[6rem] flex-1" />
+                        {slots.map(([key, , short]) => (
+                          <span key={key} className="w-12 shrink-0 text-center text-[10px] font-medium leading-tight text-neutral-500">
+                            {short}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="space-y-2">
+                        {categories.map((c) => {
+                          const th = catThemes[c.id];
+                          return (
+                            <div key={c.id} className="flex items-center gap-1 rounded-lg border border-neutral-200 bg-white py-1.5 pl-2 pr-2">
+                              <span className="min-w-[6rem] flex-1 truncate text-sm font-medium">{c.name}</span>
+                              {slots.map(([key, label, , fallback]) => (
+                                <div key={key} className="group relative flex w-12 shrink-0 items-center justify-center">
+                                  <ColorWheel
+                                    value={th?.[key]}
+                                    fallback={fallback}
+                                    label={`${c.name} · ${label}`}
+                                    size="sm"
+                                    onChange={(hex) => setCatTheme(c.id, key, hex)}
+                                    onClear={() => setCatTheme(c.id, key, null)}
+                                  />
+                                  {th?.[key] && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setCatTheme(c.id, key, null)}
+                                      className="absolute -right-0.5 -top-1 rounded-full bg-white px-0.5 text-[11px] leading-none text-neutral-400 shadow hover:text-neutral-700"
+                                      aria-label={t('clearColor')}
+                                    >
+                                      ×
+                                    </button>
+                                  )}
+                                  <span
+                                    role="tooltip"
+                                    className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-neutral-900 px-2 py-1 text-[11px] text-white group-hover:block group-focus-within:block"
+                                  >
+                                    {label}
+                                    {!th?.[key] && <span className="text-neutral-400"> · {t('inherits')}</span>}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </Card>
