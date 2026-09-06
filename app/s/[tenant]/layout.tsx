@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { PublicIntlProvider } from '@/components/intl/PublicIntlProvider';
 import { HtmlLang } from '@/components/intl/HtmlLang';
-import { EmbedStyles } from '@/components/EmbedStyles';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES, type Locale } from '@/lib/config';
 import { getTenantByHostKey } from '@/lib/tenant';
 import { resolveMenuSettings, pickImage } from '@/lib/menu-settings';
@@ -151,7 +150,6 @@ export default async function TenantLayout({
   return (
     <PublicIntlProvider locale={locale} messages={messages} timeZone={timeZone}>
       <HtmlLang locale={locale} />
-      <EmbedStyles />
       {theme.custom_font_url && (
         <style>{`@font-face{font-family:'${CUSTOM_FONT}';src:url('${theme.custom_font_url}');font-display:swap;}`}</style>
       )}

@@ -46,10 +46,16 @@ export function DeviceFrame({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const ro = new ResizeObserver(([e]) => {
+    const ro = new ResizeObserver(() => {
+      // The border box, not the entry's contentRect: the frame's padding IS the
+      // bezel, and contentRect excludes padding, so measuring it fed the bezel
+      // back into the scale on every pass. The scale settled a little too
+      // small, the screen ended up wider than the scaled iframe, and the page
+      // sat left of centre with a strip of nothing on the right.
       // Hidden (display:none) reports 0; keep the last real width so a mounted
       // demo is not re-laid-out to nothing while its tab is inactive.
-      if (e.contentRect.width > 0) setWidth(e.contentRect.width);
+      const w = el.offsetWidth;
+      if (w > 0) setWidth(w);
     });
     ro.observe(el);
     const io = new IntersectionObserver(
@@ -69,7 +75,7 @@ export function DeviceFrame({
   }, []);
 
   const { w, h, bezel, radius, screenRadius } = SIZE[kind];
-  // The observed width is the whole frame, bezel included.
+  // The measured width is the whole frame, bezel included.
   const scale = width > 0 ? width / (w + 2 * bezel) : 0;
   // Once the frame is near and has a size the iframe mounts, and stays mounted.
   if (near && scale > 0 && !mounted) setMounted(true);

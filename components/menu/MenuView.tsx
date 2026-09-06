@@ -518,13 +518,6 @@ export function MenuView({
   // top — this stays pixel-perfect aligned without `background-attachment: fixed`
   // (which jitters on Android when the URL bar hides and the viewport resizes).
   const navBgImage = settings.darkMode === 'on' ? null : theme.background_image_url;
-  // Without a background image the bar's tint sits on a solid brand layer, so
-  // a translucent tab colour never lets the page show through. The tint is a
-  // child layer rather than a gradient because a gradient cannot transition,
-  // and the bar must fade with the rest of the chrome when the section changes.
-  const navStyle: React.CSSProperties = navBgImage
-    ? { backgroundColor: 'var(--tab-bar-bg)' }
-    : { backgroundColor: 'var(--brand-bg)' };
 
   // Track when the bar is stuck to the top so the occluding strip only shows then.
   useEffect(() => {
@@ -597,6 +590,16 @@ export function MenuView({
   const sectionBackdrops = Array.from(
     new Set(filteredMenu.map((c) => c.theme?.background_image).filter((u): u is string => Boolean(u))),
   );
+  // A backdrop from the menu or from any section: the bar is a tint over it,
+  // and the strip below repeats the image behind the bar while it is stuck.
+  const navOverImage = !!navBgImage || (settings.darkMode !== 'on' && sectionBackdrops.length > 0);
+  // Without a backdrop the bar's tint sits on a solid brand layer, so a
+  // translucent tab colour never lets the page show through. The tint is a
+  // child layer rather than a gradient because a gradient cannot transition,
+  // and the bar must fade with the rest of the chrome when the section changes.
+  const navStyle: React.CSSProperties = navOverImage
+    ? { backgroundColor: 'var(--tab-bar-bg)' }
+    : { backgroundColor: 'var(--brand-bg)' };
 
   // One run of products/separators, shared by a section and its subcategories.
   // A render function, not a component: a component defined inside the render
@@ -915,11 +918,13 @@ export function MenuView({
 
       {/* Occluding strip: a clipped copy of the FIXED page background, visible
           only while the bar is stuck — pixel-perfect with the page bg, no jitter.
-          Always mounted and toggled with opacity on its own compositor layer:
-          mounting a viewport-sized fixed layer with a large image at the very
-          moment the bar sticks made the whole screen flash on Android, once
-          when it stuck and again when it let go. */}
-      {showNav && navBgImage && (
+          The page colour hides the products scrolling under the bar; the menu's
+          image and each section's backdrop sit on top, the section ones
+          cross-fading exactly like their full-page layers, so the bar shows the
+          slice of whatever backdrop is on screen. Always mounted and toggled
+          with opacity on its own compositor layer: mounting a viewport-sized
+          image layer at the moment the bar sticks flashed the whole screen. */}
+      {showNav && navOverImage && (
         <div
           aria-hidden
           className="pointer-events-none fixed left-0 top-0 z-10"
@@ -927,14 +932,34 @@ export function MenuView({
             width: '100vw',
             height: '100lvh',
             backgroundColor: 'var(--brand-bg)',
-            backgroundImage: `url(${navBgImage})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
             clipPath: `inset(0 0 calc(100lvh - ${barH}px) 0)`,
             opacity: navStuck ? 1 : 0,
             willChange: 'opacity',
           }}
-        />
+        >
+          {navBgImage && (
+            <div
+              className="absolute inset-0"
+              style={{ backgroundImage: `url(${navBgImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+            />
+          )}
+          {sectionBackdrops.map((url) => {
+            const owner = filteredMenu.find((c) => c.theme?.background_image === url)?.theme;
+            return (
+              <div
+                key={url}
+                className="absolute inset-0 transition-opacity duration-700 ease-in-out"
+                style={{
+                  backgroundColor: owner?.background_color,
+                  backgroundImage: `url(${url})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  opacity: activeTheme?.background_image === url ? 1 : 0,
+                }}
+              />
+            );
+          })}
+        </div>
       )}
 
       {/* Category tab nav (chips). Always shown in tabs mode. */}
@@ -945,7 +970,7 @@ export function MenuView({
             header bar and the category strip when both are coloured. */}
         <div ref={stickyRef} aria-hidden className="h-0" />
         <nav ref={navRef} className="sticky top-0 z-20" style={navStyle}>
-          {!navBgImage && (
+          {!navOverImage && (
             <div aria-hidden data-fade className="absolute inset-0 -z-10" style={{ backgroundColor: 'var(--tab-bar-bg)' }} />
           )}
           {/* The sticky element is deliberately NOT the scroll container:
