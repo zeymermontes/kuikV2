@@ -55,6 +55,8 @@ export function useReceiptLabels(): ReceiptLabels {
       change: t('changeDue'),
       thanks: t('receiptThanks'),
       method: (m: string) => t(`method_${m}` as 'method_cash'),
+      refund: t('refund'),
+      reason: t('refundReason'),
     }),
     [t],
   );
@@ -67,6 +69,7 @@ export function useZLabels(): ZLabels {
       title: t('zTitle'),
       opening: t('opening'),
       tips: t('tips'),
+      refunds: t('zRefunds'),
       totalCharged: t('totalCharged'),
       expected: t('zExpected'),
       counted: t('zCounted'),

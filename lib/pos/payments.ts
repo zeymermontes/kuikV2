@@ -33,10 +33,61 @@ export async function addPayment(
     shift_id: args.shiftId,
     taken_by: args.userId,
     employee_id: args.employeeId ?? null,
+    kind: 'sale',
+    reason: null,
+    refund_of: null,
+    detail: null,
     created_at: t,
     updated_at: t,
   };
   await enqueueUpsert(db, 'payments', payment);
+}
+
+/**
+ * Give money back on a paid sale: a negative payment in the current shift
+ * (cash leaves the drawer now, not the one the sale was in), and the sale
+ * remembers how much came back. Partial refunds stack.
+ */
+export async function refundTab(
+  db: PosDexie,
+  args: {
+    tenantId: string;
+    tab: PosTab;
+    amount: number;
+    method: PaymentMethod;
+    reason: string | null;
+    items: { name: string; qty: number; amount: number }[];
+    refundOf: string | null;
+    shiftId: string | null;
+    userId: string;
+    employeeId?: string | null;
+  },
+): Promise<Payment> {
+  const t = nowISO();
+  const amount = Math.round(Math.min(args.amount, Math.max(0, args.tab.total - (args.tab.refunded ?? 0))) * 100) / 100;
+  if (amount <= 0) throw new Error('nothing_to_refund');
+  const payment: Payment = {
+    id: newId(),
+    tenant_id: args.tenantId,
+    tab_id: args.tab.id,
+    method: args.method,
+    amount: -amount,
+    tip: 0,
+    tendered: null,
+    change: null,
+    shift_id: args.shiftId,
+    taken_by: args.userId,
+    employee_id: args.employeeId ?? null,
+    kind: 'refund',
+    reason: args.reason,
+    refund_of: args.refundOf,
+    detail: args.items.length ? { items: args.items } : null,
+    created_at: t,
+    updated_at: t,
+  };
+  await enqueueUpsert(db, 'payments', payment);
+  await enqueueUpsert(db, 'tabs', { ...args.tab, refunded: Math.round(((args.tab.refunded ?? 0) + amount) * 100) / 100 });
+  return payment;
 }
 
 export async function paidTotal(db: PosDexie, tabId: string): Promise<number> {

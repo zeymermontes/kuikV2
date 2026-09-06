@@ -61,6 +61,9 @@ export interface ReceiptLabels {
   thanks: string;
   /** Payment method names by key: cash, card, transfer, other. */
   method: (m: string) => string;
+  /** Refund slip wording. */
+  refund: string;
+  reason: string;
 }
 
 export interface ReceiptOptions {
@@ -104,6 +107,7 @@ export function receiptDoc(tab: PosTab, items: TabItem[], payments: Payment[], o
 
   let change = 0;
   for (const p of payments) {
+    if (p.kind === 'refund') continue;
     lines.push({ t: 'row', l: labels.method(p.method), r: money(p.amount) });
     change += p.change ?? 0;
   }
@@ -117,10 +121,31 @@ export function receiptDoc(tab: PosTab, items: TabItem[], payments: Payment[], o
   return { title: 'Recibo', lines, drawer: o.drawer };
 }
 
+/** The slip for money given back: what was returned, why, and how it was paid out. */
+export function refundDoc(tab: PosTab, refund: Payment, o: ReceiptOptions): PrintDoc {
+  const { money, labels } = o;
+  const when = new Date(refund.created_at).toLocaleString(o.locale, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const lines: PrintLine[] = [
+    { t: 'text', v: o.restaurant, align: 'center', bold: true, size: 2 },
+    { t: 'text', v: labels.refund.toUpperCase(), align: 'center', bold: true },
+  ];
+  const sub = [tab.table_label, tab.customer_name].filter(Boolean).join(' · ');
+  if (sub) lines.push({ t: 'text', v: sub, align: 'center' });
+  lines.push({ t: 'text', v: when, align: 'center' }, { t: 'hr' });
+  for (const it of refund.detail?.items ?? []) lines.push({ t: 'row', l: `${it.qty}x ${it.name}`, r: money(it.amount) });
+  if (refund.detail?.items?.length) lines.push({ t: 'hr' });
+  // Bold at normal size: a double-width row halves the columns and clips the method name on 58 mm paper.
+  lines.push({ t: 'row', l: labels.method(refund.method), r: `-${money(Math.abs(refund.amount))}`, bold: true });
+  if (refund.reason) lines.push({ t: 'text', v: `${labels.reason}: ${refund.reason}` });
+  lines.push({ t: 'hr' }, { t: 'feed', n: 1 });
+  return { title: labels.refund, lines, drawer: o.drawer };
+}
+
 export interface ZLabels {
   title: string;
   opening: string;
   tips: string;
+  refunds: string;
   totalCharged: string;
   expected: string;
   counted: string;
@@ -137,6 +162,8 @@ export function zReportDoc(
   const by = new Map<string, { count: number; amount: number }>();
   let tips = 0;
   let total = 0;
+  let refunds = 0;
+  let refundCount = 0;
   for (const p of payments) {
     const cur = by.get(p.method) ?? { count: 0, amount: 0 };
     cur.count++;
@@ -144,6 +171,10 @@ export function zReportDoc(
     by.set(p.method, cur);
     tips += p.tip;
     total += p.amount;
+    if (p.kind === 'refund') {
+      refunds += -p.amount;
+      refundCount++;
+    }
   }
   const fmt = (d: string | null) =>
     d ? new Date(d).toLocaleString(o.locale, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
@@ -159,7 +190,8 @@ export function zReportDoc(
   for (const m of ['cash', 'card', 'transfer', 'other']) {
     const v = by.get(m);
     if (v) lines.push({ t: 'row', l: `${labels.method(m)} (${v.count})`, r: money(v.amount) });
-  }
+  }  if (refundCount > 0) lines.push({ t: 'row', l: `${labels.refunds} (${refundCount})`, r: `-${money(refunds)}` });
+
   if (tips > 0) lines.push({ t: 'row', l: labels.tips, r: money(tips) });
   lines.push(
     { t: 'hr' },

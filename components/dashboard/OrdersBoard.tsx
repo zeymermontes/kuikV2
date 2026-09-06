@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Clock, UtensilsCrossed, ShoppingBag, Check, RefreshCw, CreditCard, BadgeCheck, Hourglass, AlertTriangle, Phone, MessageCircle } from 'lucide-react';
+import { Clock, UtensilsCrossed, ShoppingBag, Check, RefreshCw, CreditCard, BadgeCheck, Hourglass, AlertTriangle, Phone, MessageCircle, Undo2 } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import type { OrderRow, OrderStatus } from '@/lib/database.types';
 import { formatPrice, orderCode } from '@/lib/utils';
 import { createClient, channelName } from '@/lib/supabase/client';
-import { listOrders, setOrderStatus } from '@/app/(dashboard)/orders/actions';
+import { listOrders, setOrderStatus, refundOrder } from '@/app/(dashboard)/orders/actions';
 import { buildWhatsappUrl } from '@/lib/whatsapp';
 import type { OrderAlerts } from '@/lib/orders/alerts';
 
@@ -48,6 +48,7 @@ export function OrdersBoard({
   restaurantName,
   alerts,
   botConnected = false,
+  canRefund = false,
 }: {
   initial: OrderRow[];
   currency: string;
@@ -56,6 +57,8 @@ export function OrdersBoard({
   alerts: OrderAlerts;
   /** A linked WhatsApp bot confirms the guest by itself; without one the card offers a one-tap link. */
   botConnected?: boolean;
+  /** Managers may return online payments through the gateway. */
+  canRefund?: boolean;
 }) {
   const t = useTranslations('orders');
   const locale = useLocale();
@@ -172,6 +175,14 @@ export function OrdersBoard({
 
   const time = (iso: string) => new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 
+  async function refund(o: OrderRow) {
+    const amount = formatPrice(Number(o.amount_paid ?? o.total ?? 0), currency);
+    if (!window.confirm(t('refundConfirm', { x: amount }))) return;
+    const res = await refundOrder(o.id);
+    if (res.error) return window.alert(t('refundError', { x: res.error }));
+    setOrders((cur) => cur.map((x) => (x.id === o.id ? { ...x, payment_status: 'refunded' } : x)));
+  }
+
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
@@ -238,6 +249,11 @@ export function OrdersBoard({
                         <span className="flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
                           <BadgeCheck className="h-3 w-3" /> {t('paid')}
                         </span>
+                      )}
+                      {o.payment_status === 'paid' && canRefund && (
+                        <button onClick={() => refund(o)} className="flex items-center gap-1 rounded-full border border-red-200 px-2 py-0.5 text-xs font-semibold text-red-700 hover:bg-red-50">
+                          <Undo2 className="h-3 w-3" /> {t('refund')}
+                        </button>
                       )}
                       {o.payment_status === 'pending' && (
                         <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">

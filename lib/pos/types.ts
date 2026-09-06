@@ -37,6 +37,8 @@ export interface PosTab {
   discount: number;
   tip: number;
   total: number;
+  /** Money returned on this sale after it was paid (sum of its refunds). */
+  refunded: number;
   guests: number;
   void_reason: string | null;
   shift_id: string | null;
@@ -76,6 +78,11 @@ export interface Payment {
   shift_id: string | null;
   taken_by: string | null;
   employee_id: string | null;
+  /** 'refund' rows carry a negative amount and point at the sale they undo. */
+  kind: 'sale' | 'refund';
+  reason: string | null;
+  refund_of: string | null;
+  detail: { items?: { name: string; qty: number; amount: number }[] } | null;
   created_at: string;
   updated_at: string;
 }

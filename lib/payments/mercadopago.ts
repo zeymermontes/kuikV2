@@ -1,6 +1,6 @@
 import 'server-only';
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { MercadoPagoConfig, OAuth, Payment, Preference, User, WebhookSignatureValidator } from 'mercadopago';
+import { MercadoPagoConfig, OAuth, Payment, Preference, User, WebhookSignatureValidator, PaymentRefund } from 'mercadopago';
 import { APP_URL } from '@/lib/config';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { CheckoutInput, CheckoutResult, PaymentAccount, PaymentEvent, PaymentGateway, WebhookRequest } from './types';
@@ -170,6 +170,17 @@ export const mercadopagoGateway: PaymentGateway = {
     });
     if (!pref.id || !pref.init_point) throw new Error('mercadopago_no_init_point');
     return { url: pref.init_point, ref: pref.id };
+  },
+
+  async refund({ account, ref, amount }) {
+    const token = await freshToken(account);
+    if (!token) throw new Error('mercadopago_not_connected');
+    // `ref` is the payment id once the order was paid (applyPaymentEvent stores it).
+    const r = await new PaymentRefund(config(token)).create({
+      payment_id: ref,
+      body: amount != null ? { amount: Math.round(amount * 100) / 100 } : undefined,
+    });
+    return { ref: String(r.id ?? '') };
   },
 
   async parseWebhook(req: WebhookRequest): Promise<PaymentEvent> {

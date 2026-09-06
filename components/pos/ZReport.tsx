@@ -47,13 +47,19 @@ export function ZReport({
   };
   let tips = 0;
   let total = 0;
+  let refunds = 0;
+  let refundCount = 0;
   for (const p of payments ?? []) {
     by[p.method].count++;
     by[p.method].amount += p.amount;
     tips += p.tip;
     total += p.amount;
+    if (p.kind === 'refund') {
+      refunds += -p.amount;
+      refundCount++;
+    }
   }
-  const count = (payments ?? []).length;
+  const count = (payments ?? []).filter((p) => p.kind !== 'refund').length;
 
   function printZ() {
     printReport(printing, zReportDoc(shift, payments ?? [], { restaurant: restaurantName, locale, money, labels: zLabels }), shift.id);
@@ -67,6 +73,7 @@ export function ZReport({
       '',
       ...METHODS.map((m) => line(`${t(`method_${m}`)} (${by[m].count})`, money(by[m].amount))),
       tips > 0 ? line(t('tips'), money(tips)) : '',
+      refundCount > 0 ? line(`${t('zRefunds')} (${refundCount})`, `-${money(refunds)}`) : '',
       line(`${t('totalCharged')} (${count})`, money(total)),
       '',
       line(t('zExpected'), money(shift.expected_cash ?? 0)),
@@ -92,6 +99,7 @@ export function ZReport({
           <Row key={m} label={`${t(`method_${m}`)}${by[m].count ? ` ·${by[m].count}` : ''}`} value={money(by[m].amount)} />
         ))}
         {tips > 0 && <Row label={t('tips')} value={money(tips)} muted />}
+        {refundCount > 0 && <Row label={`${t('zRefunds')} ·${refundCount}`} value={`-${money(refunds)}`} tone="text-red-600" />}
 
         <div className="mt-2 border-t border-neutral-100 pt-2">
           <Row label={`${t('totalCharged')} ·${count}`} value={money(total)} bold />

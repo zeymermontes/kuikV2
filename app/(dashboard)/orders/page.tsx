@@ -33,7 +33,7 @@ export default async function OrdersPage() {
     <div>
       <h1 className="mb-1 text-2xl font-bold">{t('title')}</h1>
       <p className="mb-6 text-sm text-neutral-500">{t('subtitle')}</p>
-      <OrdersBoard initial={initial} currency={currency} tenantId={tenant.id} restaurantName={tenant.name} alerts={alerts} botConnected={!!bot} />
+      <OrdersBoard initial={initial} currency={currency} tenantId={tenant.id} restaurantName={tenant.name} alerts={alerts} botConnected={!!bot} canRefund={ctx.role === 'owner' || ctx.role === 'manager'} />
     </div>
   );
 }

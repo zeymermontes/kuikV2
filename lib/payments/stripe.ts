@@ -107,6 +107,25 @@ export const stripeGateway: PaymentGateway = {
     return { url: session.url, ref: session.id };
   },
 
+  async refund({ account, ref, amount, currency }) {
+    const s = stripe();
+    const opts = { stripeAccount: account.account_id };
+    // The order holds the checkout session; the money sits on its payment intent.
+    const session = await s.checkout.sessions.retrieve(ref, {}, opts);
+    const intent = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id;
+    if (!intent) throw new Error('stripe_no_payment_intent');
+    const r = await s.refunds.create(
+      {
+        payment_intent: intent,
+        amount: amount != null ? toMinor(amount, currency.toLowerCase()) : undefined,
+        // Kuik's fee goes back with the money, in proportion.
+        refund_application_fee: true,
+      },
+      opts,
+    );
+    return { ref: r.id };
+  },
+
   async parseWebhook(req: WebhookRequest): Promise<PaymentEvent> {
     const secret = process.env.STRIPE_WEBHOOK_SECRET;
     if (!secret) throw new Error('stripe_not_configured');

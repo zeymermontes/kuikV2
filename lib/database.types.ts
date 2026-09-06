@@ -587,6 +587,10 @@ export interface OrderRow {
   accepted_at: string | null;
   /** 0 none, 1 nudged, 2 escalated — the cron never repeats a step. */
   alert_level: number;
+  /** The gateway's refund, when the restaurant returned the money (0074). */
+  refund_ref: string | null;
+  refunded_at: string | null;
+  amount_refunded: number | null;
   created_at: string;
 }
 

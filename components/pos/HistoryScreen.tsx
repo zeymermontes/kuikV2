@@ -3,16 +3,20 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslations } from 'next-intl';
-import { ChevronLeft, ChevronDown, ChevronRight, Printer, Clock, RotateCcw, Search } from 'lucide-react';
+import { ChevronLeft, ChevronDown, ChevronRight, Printer, Clock, RotateCcw, Search, Undo2 } from 'lucide-react';
 import type { PosDexie } from '@/lib/pos/db';
 import type { PosTab, TabItem, Payment } from '@/lib/pos/types';
 import { formatPrice } from '@/lib/utils';
 import { printReceipt } from '@/lib/pos/printing';
 import { usePrinting, useReceiptLabels } from './PrintingContext';
 import { reopenTab } from '@/lib/pos/tabs';
+import { RefundSheet } from './RefundSheet';
+import { useEmployee } from './EmployeeContext';
 
 export function HistoryScreen({
   db,
+  tenantId,
+  userId,
   shiftId,
   restaurantName,
   currency,
@@ -20,6 +24,8 @@ export function HistoryScreen({
   onBack,
 }: {
   db: PosDexie;
+  tenantId: string;
+  userId: string;
   shiftId: string | null;
   restaurantName: string;
   currency: string;
@@ -29,7 +35,9 @@ export function HistoryScreen({
   const t = useTranslations('pos');
   const printing = usePrinting();
   const labels = useReceiptLabels();
+  const { authorize } = useEmployee();
   const [query, setQuery] = useState('');
+  const [refunding, setRefunding] = useState<{ tab: PosTab; items: TabItem[]; payments: Payment[] } | null>(null);
   const paid = useLiveQuery(() => db.tabs.where('status').equals('paid').toArray(), [db], [] as PosTab[]);
 
   async function reopen(tab: PosTab) {
@@ -42,6 +50,15 @@ export function HistoryScreen({
     .filter((x) => !q || (x.table_label ?? '').toLowerCase().includes(q))
     .sort((a, b) => (b.closed_at ?? '').localeCompare(a.closed_at ?? ''));
   const total = list.reduce((s, x) => s + x.total, 0);
+
+  async function startRefund(tab: PosTab) {
+    if (!(await authorize('refund'))) return;
+    const [items, payments] = await Promise.all([
+      db.tab_items.where('tab_id').equals(tab.id).toArray(),
+      db.payments.where('tab_id').equals(tab.id).toArray(),
+    ]);
+    setRefunding({ tab, items, payments });
+  }
 
   async function reprint(tab: PosTab) {
     const [items, payments] = await Promise.all([
@@ -97,11 +114,28 @@ export function HistoryScreen({
                 locale={locale}
                 onReprint={() => reprint(tab)}
                 onReopen={() => reopen(tab)}
+                onRefund={() => startRefund(tab)}
               />
             ))}
           </ul>
         )}
       </div>
+
+      {refunding && (
+        <RefundSheet
+          db={db}
+          tab={refunding.tab}
+          items={refunding.items}
+          payments={refunding.payments}
+          tenantId={tenantId}
+          userId={userId}
+          shiftId={shiftId}
+          restaurantName={restaurantName}
+          currency={currency}
+          locale={locale}
+          onClose={() => setRefunding(null)}
+        />
+      )}
     </div>
   );
 }
@@ -113,6 +147,7 @@ function HistoryRow({
   locale,
   onReprint,
   onReopen,
+  onRefund,
 }: {
   db: PosDexie;
   tab: PosTab;
@@ -120,6 +155,7 @@ function HistoryRow({
   locale: string;
   onReprint: () => void;
   onReopen: () => void;
+  onRefund: () => void;
 }) {
   const t = useTranslations('pos');
   const [open, setOpen] = useState(false);
@@ -150,13 +186,24 @@ function HistoryRow({
           </div>
         </button>
         <div className="flex items-center gap-2">
-          <span className="font-bold">{formatPrice(tab.total, currency, locale)}</span>
+          <span className="text-right">
+            <span className="block font-bold">{formatPrice(tab.total, currency, locale)}</span>
+            {tab.refunded > 0 && <span className="block text-xs font-medium text-red-600">{t('refundedOf', { x: formatPrice(tab.refunded, currency, locale) })}</span>}
+          </span>
           <button onClick={onReprint} title={t('reprint')} className="rounded-lg border border-neutral-300 p-2 text-neutral-500">
             <Printer className="h-4 w-4" />
           </button>
-          <button onClick={onReopen} title={t('reopen')} className="rounded-lg border border-neutral-300 p-2 text-neutral-500">
-            <RotateCcw className="h-4 w-4" />
-          </button>
+          {tab.refunded < tab.total && (
+            <button onClick={onRefund} title={t('refund')} className="rounded-lg border border-neutral-300 p-2 text-neutral-500">
+              <Undo2 className="h-4 w-4" />
+            </button>
+          )}
+          {/* A sale with money already returned stays closed; reopening it would let the total drift under the refund. */}
+          {!(tab.refunded > 0) && (
+            <button onClick={onReopen} title={t('reopen')} className="rounded-lg border border-neutral-300 p-2 text-neutral-500">
+              <RotateCcw className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
       {open && (
@@ -183,8 +230,12 @@ function HistoryRow({
           {(payments ?? []).length > 0 && (
             <ul className="mt-2 space-y-0.5 border-t border-neutral-100 pt-2 text-xs text-neutral-500">
               {(payments ?? []).map((p) => (
-                <li key={p.id} className="flex justify-between">
-                  <span>{t(`method_${p.method}`)}</span>
+                <li key={p.id} className={`flex justify-between ${p.kind === 'refund' ? 'text-red-600' : ''}`}>
+                  <span>
+                    {p.kind === 'refund' ? `${t('refund')} · ` : ''}
+                    {t(`method_${p.method}`)}
+                    {p.reason ? ` · ${p.reason}` : ''}
+                  </span>
                   <span>{formatPrice(p.amount + p.tip, currency, locale)}</span>
                 </li>
               ))}

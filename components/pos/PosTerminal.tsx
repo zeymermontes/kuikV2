@@ -772,6 +772,8 @@ function PosTerminalInner({
             <section className="flex-1 overflow-y-auto">
               <HistoryScreen
                 db={db}
+                tenantId={tenantId}
+                userId={userId}
                 shiftId={shiftId}
                 restaurantName={restaurantName}
                 currency={currency}

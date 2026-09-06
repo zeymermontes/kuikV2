@@ -84,4 +84,14 @@ export interface PaymentGateway {
   createCheckout(input: CheckoutInput): Promise<CheckoutResult>;
   /** Verify and translate a webhook delivery. Throws on a bad signature. */
   parseWebhook(req: WebhookRequest): Promise<PaymentEvent>;
+  /** Return money on a paid checkout (`ref` as stored on the order); the whole amount when `amount` is omitted. */
+  refund(input: RefundInput): Promise<{ ref: string }>;
+}
+
+export interface RefundInput {
+  account: PaymentAccount;
+  /** The order's payment_ref: Stripe's checkout session, Mercado Pago's payment id. */
+  ref: string;
+  amount?: number;
+  currency: string;
 }
