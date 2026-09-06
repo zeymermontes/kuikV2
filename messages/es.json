@@ -176,6 +176,7 @@
     "optionsInProducts": "{n, plural, =1 {en 1 producto} other {en # productos}}",
     "optionMarkOut": "Agotar",
     "optionMarkIn": "Ya hay",
+    "optionSaving": "Guardando…",
     "addGroup": "Agregar grupo",
     "pasteGroup": "Pegar grupo",
     "deleteGroup": "Eliminar grupo",

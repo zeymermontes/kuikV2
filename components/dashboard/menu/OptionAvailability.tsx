@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
-import { ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { ChevronDown, ChevronUp, Loader2, Search } from 'lucide-react';
 import type { Product } from '@/lib/database.types';
 import { listOptionNames } from '@/lib/menu-options';
 import { setOptionAvailability } from '@/app/(dashboard)/menu/actions';
@@ -50,7 +50,8 @@ export function OptionAvailability({ products }: { products: Product[] }) {
                   <span className="block text-xs text-neutral-400">{t('optionsInProducts', { n: o.count })}</span>
                 </span>
                 <button
-                  disabled={pending && busyName === o.name}
+                  disabled={pending}
+                  aria-busy={pending && busyName === o.name}
                   onClick={() => {
                     setBusyName(o.name);
                     start(async () => {
@@ -58,9 +59,17 @@ export function OptionAvailability({ products }: { products: Product[] }) {
                       setBusyName(null);
                     });
                   }}
-                  className={`rounded-full px-3 py-1.5 text-xs font-semibold ${o.available ? 'bg-neutral-100 text-neutral-700 hover:bg-red-100 hover:text-red-700' : 'bg-red-600 text-white hover:bg-green-600'}`}
+                  className={`inline-flex min-w-[5.5rem] items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold disabled:opacity-60 ${o.available ? 'bg-neutral-100 text-neutral-700 hover:bg-red-100 hover:text-red-700' : 'bg-red-600 text-white hover:bg-green-600'}`}
                 >
-                  {o.available ? t('optionMarkOut') : t('optionMarkIn')}
+                  {pending && busyName === o.name ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t('optionSaving')}
+                    </>
+                  ) : o.available ? (
+                    t('optionMarkOut')
+                  ) : (
+                    t('optionMarkIn')
+                  )}
                 </button>
               </li>
             ))}
