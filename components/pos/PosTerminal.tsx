@@ -479,7 +479,9 @@ export function PosTerminal({
           </span>
           <span className="hidden min-w-0 flex-1 xl:block">
             <span className="block truncate text-sm font-semibold">{serverName || t('noServer')}</span>
-            <span className="block text-xs text-neutral-400">{t('cashier')}</span>
+            <span className="block truncate text-xs text-neutral-400">
+              {t('cashier')} · {register === DEFAULT_REGISTER ? t('register') : register}
+            </span>
           </span>
           <ChevronDown className="hidden h-4 w-4 text-neutral-400 xl:block" />
         </button>
