@@ -5,6 +5,37 @@
 export type UserRole = 'owner' | 'super_admin';
 export type MemberRole = 'owner' | 'manager' | 'cashier' | 'waiter' | 'host';
 
+/** A person who uses the POS on a shared device, signed in by PIN (not a login account). */
+export type EmployeeRole = 'manager' | 'cashier' | 'waiter';
+
+export interface Employee {
+  id: string;
+  tenant_id: string;
+  name: string;
+  role: EmployeeRole;
+  /** sha256 of "<tenant>:<pin>" (lib/employees.ts); null = no PIN, tap to sign in. */
+  pin_hash: string | null;
+  /** Per-person overrides of the role's defaults, keyed by permission. */
+  perms: Record<string, boolean>;
+  color: string | null;
+  active: boolean;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One stretch of work on the clock. */
+export interface TimeEntry {
+  id: string;
+  tenant_id: string;
+  employee_id: string;
+  clock_in: string;
+  clock_out: string | null;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TenantMember {
   tenant_id: string;
   user_id: string;
@@ -148,6 +179,8 @@ export interface TenantOrdering {
   receipt_footer: string | null;
   /** How the restaurant is told about orders (lib/orders/alerts.ts, 0068). */
   order_alerts: Record<string, unknown> | null;
+  /** Ask for a PIN again after every closed sale (shared tablet). */
+  pos_lock_after_sale: boolean;
   updated_at: string;
 }
 

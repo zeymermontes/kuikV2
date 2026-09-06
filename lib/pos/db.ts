@@ -1,7 +1,7 @@
 'use client';
 
 import Dexie, { type Table } from 'dexie';
-import type { PosTab, TabItem, Payment, RegisterShift, KitchenTicket, PrintJob, SyncEntity } from './types';
+import type { PosTab, TabItem, Payment, RegisterShift, KitchenTicket, PrintJob, SyncEntity, Employee, TimeEntry } from './types';
 
 /** A queued mutation waiting to be flushed to Supabase (idempotent upsert/delete by id). */
 export interface OutboxRow {
@@ -36,6 +36,8 @@ export class PosDexie extends Dexie {
   kitchen_tickets!: Table<KitchenTicket, string>;
   /** Jobs this device sent, with the status the agent reports back. */
   print_jobs!: Table<PrintJob, string>;
+  employees!: Table<Employee, string>;
+  time_entries!: Table<TimeEntry, string>;
   menu_cache!: Table<MenuCacheRow, string>;
   outbox!: Table<OutboxRow, number>;
   meta!: Table<MetaRow, string>;
@@ -54,6 +56,10 @@ export class PosDexie extends Dexie {
     });
     this.version(2).stores({
       print_jobs: 'id, status, updated_at',
+    });
+    this.version(3).stores({
+      employees: 'id, active, updated_at',
+      time_entries: 'id, employee_id, updated_at',
     });
   }
 }

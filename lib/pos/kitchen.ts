@@ -12,6 +12,7 @@ export async function fireToKitchen(
   tab: PosTab,
   items: TabItem[],
   stationOf: (productId: string | null) => string,
+  employeeId: string | null = null,
 ): Promise<KitchenTicket[]> {
   const unfired = items.filter((i) => !i.voided_at && !i.fired_at);
   if (unfired.length === 0) return [];
@@ -37,6 +38,7 @@ export async function fireToKitchen(
       table_label: tab.table_label,
       status: 'new',
       fired_by: userId,
+      employee_id: employeeId,
       fired_at: t,
       items: group.map((g) => ({ name: g.name, qty: g.qty, selections: g.selections, note: g.note })),
       created_at: t,

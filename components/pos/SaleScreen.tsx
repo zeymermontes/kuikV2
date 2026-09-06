@@ -36,6 +36,7 @@ import { printKitchenTicket } from '@/lib/pos/printing';
 import { usePrinting } from './PrintingContext';
 import { hasOptions } from '@/lib/menu-options';
 import { PosModal } from './PosModal';
+import { useEmployee } from './EmployeeContext';
 import { formatPrice } from '@/lib/utils';
 import type { FloorTable, Product } from '@/lib/database.types';
 import { FloorPlan } from '@/components/host/FloorPlan';
@@ -116,6 +117,7 @@ export function SaleScreen({
 }) {
   const t = useTranslations('pos');
   const printing = usePrinting();
+  const { current: employee, authorize } = useEmployee();
   const money = (n: number) => formatPrice(n, currency, locale);
   const [activeCat, setActiveCat] = useState<string>(ALL);
   const [sheetProduct, setSheetProduct] = useState<Product | null>(null);
@@ -238,8 +240,10 @@ export function SaleScreen({
     setModal(null);
     onVoided();
   }
-  function openTabModal(kind: 'discount' | 'guests' | 'void' | 'customer' | 'table') {
+  async function openTabModal(kind: 'discount' | 'guests' | 'void' | 'customer' | 'table') {
     if (!tab) return;
+    if (kind === 'discount' && !(await authorize('discount'))) return;
+    if (kind === 'void' && !(await authorize('void'))) return;
     setField(kind === 'guests' ? String(tab.guests) : kind === 'customer' ? (tab.customer_name ?? '') : kind === 'table' ? (tab.table_label ?? '') : '');
     setPctMode(false);
     setMenuOpen(false);
@@ -247,7 +251,7 @@ export function SaleScreen({
   }
   async function fire() {
     if (!tab) return;
-    const tickets = await fireToKitchen(db, tenantId, userId, tab, live, stationOf);
+    const tickets = await fireToKitchen(db, tenantId, userId, tab, live, stationOf, employee?.id ?? null);
     // The KDS shows the ticket either way; paper is for kitchens that want it.
     if (printing.settings.kitchenAuto) for (const tk of tickets) printKitchenTicket(printing, tk, locale);
   }
@@ -360,7 +364,7 @@ export function SaleScreen({
                   <div className="flex items-start justify-between gap-2">
                     <p className="truncate text-sm font-semibold">{it.name}</p>
                     {!paid && (
-                      <button data-help="pos_remove" onClick={() => voidItem(db, it)} className="shrink-0 p-0.5 text-neutral-300 hover:text-red-500" title={t('remove')}>
+                      <button data-help="pos_remove" onClick={async () => (!it.fired_at || (await authorize('void'))) && voidItem(db, it)} className="shrink-0 p-0.5 text-neutral-300 hover:text-red-500" title={t('remove')}>
                         <Trash2 className="h-4 w-4" />
                       </button>
                     )}
@@ -582,6 +586,8 @@ export function SaleScreen({
               initial={{ qty: editItem.qty, note: editItem.note, selections: editItem.selections }}
               onClose={() => setEditItem(null)}
               onConfirm={async (line) => {
+                // Changing a line the kitchen already has is a void plus a new line.
+                if (editItem.fired_at && !(await authorize('void'))) return;
                 await voidItem(db, editItem);
                 await addLineToTab(db, tenantId, tab.id, line);
               }}

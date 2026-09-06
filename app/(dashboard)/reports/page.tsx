@@ -5,6 +5,7 @@ import { isPro } from '@/lib/plan';
 import { createClient } from '@/lib/supabase/server';
 import { resolveMenuSettings } from '@/lib/menu-settings';
 import { formatPrice, daysAgoISO } from '@/lib/utils';
+import { entryMinutes } from '@/lib/employees';
 import { Card } from '@/components/ui';
 import { ProUpsell } from '@/components/dashboard/ProUpsell';
 import { ExportButton } from '@/components/dashboard/ExportButton';
@@ -113,6 +114,32 @@ export default async function ReportsPage({
     .map((p) => ({ ...p, profit: p.revenue - p.cost }))
     .sort((a, b) => b.profit - a.profit)
     .slice(0, 10);
+
+  // ── By employee: hours on the clock, tabs closed, tips (POS, same window) ──
+  const [{ data: empRows }, { data: clockRows }, { data: tabRows }, { data: payRows }] = await Promise.all([
+    supabase.from('employees').select('id, name, role').eq('tenant_id', tenant.id),
+    supabase.from('time_entries').select('employee_id, clock_in, clock_out').eq('tenant_id', tenant.id).gte('clock_in', since),
+    supabase.from('tabs').select('employee_id, total').eq('tenant_id', tenant.id).eq('status', 'paid').not('employee_id', 'is', null).gte('closed_at', since),
+    supabase.from('payments').select('employee_id, tip').eq('tenant_id', tenant.id).not('employee_id', 'is', null).gte('created_at', since),
+  ]);
+  const byEmployee = new Map<string, { name: string; minutes: number; tabs: number; sales: number; tips: number }>();
+  for (const e of (empRows ?? []) as { id: string; name: string }[]) byEmployee.set(e.id, { name: e.name, minutes: 0, tabs: 0, sales: 0, tips: 0 });
+  for (const c of (clockRows ?? []) as { employee_id: string; clock_in: string; clock_out: string | null }[]) {
+    const row = byEmployee.get(c.employee_id);
+    if (row) row.minutes += entryMinutes(c);
+  }
+  for (const tb of (tabRows ?? []) as { employee_id: string; total: number }[]) {
+    const row = byEmployee.get(tb.employee_id);
+    if (row) {
+      row.tabs += 1;
+      row.sales += Number(tb.total) || 0;
+    }
+  }
+  for (const p of (payRows ?? []) as { employee_id: string; tip: number }[]) {
+    const row = byEmployee.get(p.employee_id);
+    if (row) row.tips += Number(p.tip) || 0;
+  }
+  const employeeRows = [...byEmployee.values()].filter((r) => r.minutes || r.tabs || r.tips).sort((a, b) => b.sales - a.sales);
 
   return (
     <div>
@@ -247,6 +274,36 @@ export default async function ReportsPage({
             </table>
           )}
         </Card>
+
+        {/* Employees */}
+        {employeeRows.length > 0 && (
+          <Card>
+            <h2 className="mb-3 font-semibold">{t('employees')}</h2>
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-neutral-500">
+                <tr>
+                  <th className="pb-1.5 font-medium">{t('employees')}</th>
+                  <th className="pb-1.5 text-right font-medium">{t('empHours')}</th>
+                  <th className="pb-1.5 text-right font-medium">{t('empSales')}</th>
+                  <th className="pb-1.5 text-right font-medium">{t('empTips')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {employeeRows.map((r) => (
+                  <tr key={r.name} className="border-t border-neutral-100">
+                    <td className="py-1.5">
+                      <span className="block truncate">{r.name}</span>
+                      <span className="text-xs text-neutral-400">{t('empSalesCount', { n: r.tabs })}</span>
+                    </td>
+                    <td className="py-1.5 text-right text-neutral-500">{(r.minutes / 60).toFixed(1)}</td>
+                    <td className="py-1.5 text-right font-medium">{formatPrice(r.sales, currency)}</td>
+                    <td className="py-1.5 text-right text-neutral-500">{formatPrice(r.tips, currency)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        )}
 
         {/* Top customers */}
         <Card>

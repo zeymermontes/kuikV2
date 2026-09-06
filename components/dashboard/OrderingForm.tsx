@@ -498,6 +498,11 @@ export function OrderingForm({
           defaultValue={o.pos_tables}
           onBlur={(e) => set('pos_tables', Math.max(0, Math.min(200, parseInt(e.target.value, 10) || 0)))}
         />
+        <div className="pt-2">
+          <h2 className="font-semibold">{t('posEmployees')}</h2>
+          <p className="mb-2 text-sm text-neutral-500">{t('posEmployeesHint')}</p>
+          <ToggleRow label={t('posLockAfterSale')} checked={o.pos_lock_after_sale} onChange={(v) => set('pos_lock_after_sale', v)} />
+        </div>
       </Card>
       )}
       </>

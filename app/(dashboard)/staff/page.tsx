@@ -1,7 +1,8 @@
 import { getTranslations } from 'next-intl/server';
 import { requireOwner } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
-import type { TenantMember, TenantInvite } from '@/lib/database.types';
+import type { TenantMember, TenantInvite, Employee } from '@/lib/database.types';
+import { EmployeesManager } from '@/components/dashboard/EmployeesManager';
 import { StaffManager } from '@/components/dashboard/StaffManager';
 import { APP_URL } from '@/lib/config';
 
@@ -10,8 +11,9 @@ export default async function StaffPage() {
   const t = await getTranslations('staff');
   const supabase = await createClient();
 
-  const [{ data: members }, { data: invites }] = await Promise.all([
+  const [{ data: members }, { data: invites }, { data: employees }] = await Promise.all([
     supabase.from('tenant_members').select('*').eq('tenant_id', tenant.id).order('created_at'),
+    supabase.from('employees').select('*').eq('tenant_id', tenant.id).order('position'),
     supabase
       .from('tenant_invites')
       .select('*')
@@ -30,6 +32,9 @@ export default async function StaffPage() {
         invites={(invites ?? []) as TenantInvite[]}
         signupUrl={`${APP_URL}/signup`}
       />
+      <div className="mt-8">
+        <EmployeesManager employees={(employees ?? []) as Employee[]} />
+      </div>
     </div>
   );
 }

@@ -52,6 +52,7 @@ test('the kitchen ticket leads with the station and lists every item with its op
     table_label: 'Mesa 4',
     status: 'new',
     fired_by: null,
+    employee_id: null,
     fired_at: '2026-09-05T18:30:00.000Z',
     items: [{ name: 'Latte', qty: 2, selections: [{ name: 'Avena' }], note: 'sin hielo' }],
     created_at: '',
@@ -74,6 +75,7 @@ test('the receipt shows the tip once, the payment and the change, and hides void
     table_label: null,
     customer_name: 'Ana',
     server_name: null,
+    employee_id: null,
     status: 'paid',
     opened_by: null,
     opened_at: '2026-09-05T18:00:00.000Z',
@@ -118,6 +120,7 @@ test('the receipt shows the tip once, the payment and the change, and hides void
     change: 5.5,
     shift_id: null,
     taken_by: null,
+    employee_id: null,
     created_at: '',
     updated_at: '',
   };

@@ -59,7 +59,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
   const cash =
     (ordering as Pick<
       TenantOrdering,
-      'cash_count_mode' | 'cash_denominations' | 'pos_tables' | 'print_receipt_mode' | 'print_kitchen_auto' | 'print_drawer_cash' | 'receipt_footer' | 'note_placeholder'
+      'cash_count_mode' | 'cash_denominations' | 'pos_tables' | 'print_receipt_mode' | 'print_kitchen_auto' | 'print_drawer_cash' | 'receipt_footer' | 'note_placeholder' | 'pos_lock_after_sale'
     > | null) ?? null;
 
   return (
@@ -83,6 +83,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
         footer: cash?.receipt_footer ?? null,
       }}
       notePlaceholder={cash?.note_placeholder ?? null}
+      lockAfterSale={cash?.pos_lock_after_sale ?? false}
       menu={{ categories: (categories ?? []) as Category[], products: (products ?? []) as Product[] }}
       // The menu's own variables too: the product sheet (options, notes) is the
       // public menu's and paints itself with `--brand-*`.

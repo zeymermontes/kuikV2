@@ -12,6 +12,7 @@ export function demoTickets(tenantId: string): KitchenTicket[] {
     table_label: table,
     status,
     fired_by: null,
+    employee_id: null,
     fired_at: ago(minutes),
     items,
     created_at: ago(minutes),

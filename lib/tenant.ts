@@ -120,6 +120,7 @@ export const getTenantByHostKey = cache(
       print_drawer_cash: true,
       receipt_footer: null,
       order_alerts: null,
+      pos_lock_after_sale: false,
       updated_at: tenant.created_at,
     };
 

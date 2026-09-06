@@ -50,6 +50,7 @@ import {
 import { demoScope, type PosTab, type PosMenu, type RegisterShift, type TabItem, type PrintJob } from '@/lib/pos/types';
 import { DEFAULT_PRINT_SETTINGS, retryJob, type PrintSettings } from '@/lib/pos/printing';
 import { PrintingProvider } from './PrintingContext';
+import { EmployeeProvider, useEmployee } from './EmployeeContext';
 import type { FloorTable, Printer as PrinterRow } from '@/lib/database.types';
 import { formatPrice } from '@/lib/utils';
 import { SaleScreen, type PayPhase } from './SaleScreen';
@@ -65,7 +66,19 @@ type Modal = 'newTab' | 'openReg' | 'closeReg' | 'server' | 'remoteScreen' | nul
 const INPUT = 'w-full rounded-xl border border-neutral-200 px-3 py-3 text-base focus:border-pos-accent focus:outline-none';
 const PRIMARY = 'w-full rounded-xl bg-pos-accent py-3 font-semibold text-white hover:bg-pos-accent-hover';
 
-export function PosTerminal({
+type TerminalProps = Parameters<typeof PosTerminalInner>[0];
+
+/** The register. Wraps the terminal in the employee (PIN) context, which needs the same offline store. */
+export function PosTerminal(props: TerminalProps) {
+  const db = useMemo(() => posDb(props.demo ? `demo_${props.tenantId}` : props.tenantId), [props.tenantId, props.demo]);
+  return (
+    <EmployeeProvider db={db} tenantId={props.tenantId} lockAfterSale={!!props.lockAfterSale}>
+      <PosTerminalInner {...props} />
+    </EmployeeProvider>
+  );
+}
+
+function PosTerminalInner({
   tenantId,
   userId,
   restaurantName,
@@ -108,6 +121,8 @@ export function PosTerminal({
   themeStyle?: React.CSSProperties;
   /** Where the customer screen lives; the public demo has its own copy. */
   customerPath?: string;
+  /** With employees set up: ask for a PIN again after every closed sale. */
+  lockAfterSale?: boolean;
   /** Dashboard preview: throwaway local store, no sync, seeded sale. */
   demo?: boolean;
   /** Tutorials: start in explain mode (taps describe instead of act). */
@@ -125,6 +140,9 @@ export function PosTerminal({
   const [field, setField] = useState('');
   const [zShift, setZShift] = useState<RegisterShift | null>(null);
   const [serverName, setServerName] = useState('');
+  // With employees, the signed-in one is the server; else the typed name.
+  const { current: employee, enabled: employeesOn, authorize, signOut } = useEmployee();
+  const serverLabel = employee?.name ?? serverName;
   // Which register this device is, for a customer screen on another device.
   const [register, setRegister] = useState(DEFAULT_REGISTER);
   const [copied, setCopied] = useState(false);
@@ -314,14 +332,14 @@ export function PosTerminal({
   // Counter / quick sale: a label-less tab, created the moment the first product is tapped.
   const ensureTab = useCallback(async (): Promise<PosTab> => {
     if (selected && selected.status !== 'paid' && selected.status !== 'void') return selected;
-    const tab = await openTab(db, tenantId, userId, null, shiftId, serverName || null);
+    const tab = await openTab(db, tenantId, userId, null, shiftId, serverLabel || null, employee?.id ?? null);
     setPayPhase(null);
     setSelectedId(tab.id);
     return tab;
-  }, [db, tenantId, userId, shiftId, serverName, selected]);
+  }, [db, tenantId, userId, shiftId, serverLabel, employee, selected]);
 
   async function confirmNewTab() {
-    const tab = await openTab(db, tenantId, userId, field.trim() || null, shiftId, serverName || null);
+    const tab = await openTab(db, tenantId, userId, field.trim() || null, shiftId, serverLabel || null, employee?.id ?? null);
     setModal(null);
     select(tab.id);
   }
@@ -341,7 +359,7 @@ export function PosTerminal({
   async function tapTable(label: string) {
     const existing = (tabs ?? []).find((x) => x.table_label === label);
     if (existing) return select(existing.id);
-    const tab = await openTab(db, tenantId, userId, label, shiftId, serverName || null);
+    const tab = await openTab(db, tenantId, userId, label, shiftId, serverLabel || null, employee?.id ?? null);
     select(tab.id);
   }
 
@@ -366,7 +384,7 @@ export function PosTerminal({
   }
 
   const openCount = (tabs ?? []).length;
-  const initials = (serverName || t('cashier'))
+  const initials = (serverLabel || t('cashier'))
     .split(/\s+/)
     .map((w) => w[0])
     .join('')
@@ -388,7 +406,10 @@ export function PosTerminal({
       <button
         key={item.key}
         data-help={`pos_nav_${item.key}`}
-        onClick={() => setView(item.key)}
+        onClick={async () => {
+          if (item.key === 'history' && !(await authorize('history'))) return;
+          setView(item.key);
+        }}
         className={
           mobile
             ? `relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${active ? 'text-pos-accent' : 'text-neutral-500'}`
@@ -467,6 +488,7 @@ export function PosTerminal({
         </div>
         <button
           onClick={() => {
+            if (employeesOn) return signOut();
             setField(serverName);
             setModal('server');
           }}
@@ -478,9 +500,9 @@ export function PosTerminal({
             {initials}
           </span>
           <span className="hidden min-w-0 flex-1 xl:block">
-            <span className="block truncate text-sm font-semibold">{serverName || t('noServer')}</span>
+            <span className="block truncate text-sm font-semibold">{serverLabel || t('noServer')}</span>
             <span className="block truncate text-xs text-neutral-400">
-              {t('cashier')} · {register === DEFAULT_REGISTER ? t('register') : register}
+              {employee ? t(`role_${employee.role}`) : t('cashier')} · {register === DEFAULT_REGISTER ? t('register') : register}
             </span>
           </span>
           <ChevronDown className="hidden h-4 w-4 text-neutral-400 xl:block" />
@@ -772,7 +794,7 @@ export function PosTerminal({
                   </div>
                   <button
                     data-help="pos_registerButton"
-                    onClick={() => openModal(shift ? 'closeReg' : 'openReg')}
+                    onClick={async () => (await authorize('shift')) && openModal(shift ? 'closeReg' : 'openReg')}
                     className={shift ? 'w-full rounded-xl border border-amber-300 py-3 font-semibold text-amber-700 hover:bg-amber-50' : PRIMARY}
                   >
                     {shift ? t('closeRegister') : t('openRegister')}

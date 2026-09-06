@@ -16,6 +16,7 @@ export async function addPayment(
     tendered?: number | null;
     shiftId: string | null;
     userId: string;
+    employeeId?: string | null;
   },
 ): Promise<void> {
   const t = nowISO();
@@ -31,6 +32,7 @@ export async function addPayment(
     change,
     shift_id: args.shiftId,
     taken_by: args.userId,
+    employee_id: args.employeeId ?? null,
     created_at: t,
     updated_at: t,
   };

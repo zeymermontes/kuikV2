@@ -8,6 +8,7 @@ import type { PosDexie } from '@/lib/pos/db';
 import type { PosTab, Payment, PaymentMethod, TabItem } from '@/lib/pos/types';
 import { addPayment, closeTab } from '@/lib/pos/payments';
 import { kickDrawer, printReceipt } from '@/lib/pos/printing';
+import { useEmployee, announceSaleClosed } from './EmployeeContext';
 import { usePrinting, useReceiptLabels } from './PrintingContext';
 import { formatPrice } from '@/lib/utils';
 import { NumPad } from './NumPad';
@@ -51,6 +52,7 @@ export function PaymentSheet({
 }) {
   const t = useTranslations('pos');
   const printing = usePrinting();
+  const { current: employee } = useEmployee();
   const labels = useReceiptLabels();
   const methodLabel = (m: PaymentMethod) => t(`method_${m}`);
   const money = (n: number) => formatPrice(n, currency, locale);
@@ -141,6 +143,7 @@ export function PaymentSheet({
       tendered: method === 'cash' ? tenderedNum || null : null,
       shiftId,
       userId,
+      employeeId: employee?.id ?? null,
     });
     setTendered('');
     if (covers) {
@@ -148,6 +151,7 @@ export function PaymentSheet({
       const closed = { ...tab, status: 'paid' as const, tip, total: base + tip };
       await closeTab(db, tab, tip);
       setDone(true);
+      announceSaleClosed();
       // Paper and drawer without a tap, when the restaurant set it up that way.
       const cashDrawer = method === 'cash' && printing.settings.drawerCash;
       const allPayments = [...(payments ?? []), { method, amount, change } as Payment];

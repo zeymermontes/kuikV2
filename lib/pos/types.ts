@@ -22,6 +22,8 @@ export interface PosTab {
   table_label: string | null;
   customer_name: string | null;
   server_name: string | null;
+  /** Who opened it, when the register uses employees with PIN. */
+  employee_id: string | null;
   status: TabStatus;
   opened_by: string | null;
   opened_at: string;
@@ -68,6 +70,7 @@ export interface Payment {
   change: number | null;
   shift_id: string | null;
   taken_by: string | null;
+  employee_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -100,19 +103,22 @@ export interface KitchenTicket {
   table_label: string | null;
   status: TicketStatus;
   fired_by: string | null;
+  employee_id: string | null;
   fired_at: string;
   items: unknown;
   created_at: string;
   updated_at: string;
 }
 
-export type { PrintJob, PrintJobKind, PrintJobStatus, Printer } from '@/lib/database.types';
+export type { PrintJob, PrintJobKind, PrintJobStatus, Printer, Employee, TimeEntry } from '@/lib/database.types';
 
 // Tables that participate in offline sync (local table name === Postgres table name).
 // print_jobs goes UP through the outbox like the rest but is not pulled down in
 // full: the queue is the agent's, the terminal only hears status changes live.
-export type SyncEntity = 'tabs' | 'tab_items' | 'payments' | 'register_shifts' | 'kitchen_tickets' | 'print_jobs';
-export const SYNC_ENTITIES: Exclude<SyncEntity, 'print_jobs'>[] = ['tabs', 'tab_items', 'payments', 'register_shifts', 'kitchen_tickets'];
+// employees only flow DOWN (the dashboard edits them; RLS rejects a POS write);
+// time_entries go both ways like the sales tables.
+export type SyncEntity = 'tabs' | 'tab_items' | 'payments' | 'register_shifts' | 'kitchen_tickets' | 'print_jobs' | 'employees' | 'time_entries';
+export const SYNC_ENTITIES: Exclude<SyncEntity, 'print_jobs'>[] = ['tabs', 'tab_items', 'payments', 'register_shifts', 'kitchen_tickets', 'employees', 'time_entries'];
 
 /** Channel scope for the dashboard demo pair (`/pos?demo=1` ↔ `/pos/customer?demo=1`); server-safe. */
 export const demoScope = (tenantId: string) => `demo:${tenantId}`;
