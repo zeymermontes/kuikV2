@@ -1229,6 +1229,7 @@
     "note": "Nota",
     "notePlaceholder": "Sin cebolla, extra salsa…",
     "yourName": "Tu nombre",
+    "nameRequired": "Escribe tu nombre para enviar el pedido.",
     "remove": "Quitar",
     "unavailable": "No disponible",
     "viewMenu": "Ver menú",

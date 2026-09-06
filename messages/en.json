@@ -1229,6 +1229,7 @@
     "note": "Note",
     "notePlaceholder": "No onion, extra sauce…",
     "yourName": "Your name",
+    "nameRequired": "Enter your name to send the order.",
     "remove": "Remove",
     "unavailable": "Unavailable",
     "viewMenu": "View menu",

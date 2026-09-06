@@ -102,6 +102,10 @@ export function CartSheet({
   const [pickupTime, setPickupTime] = useState('');
   const [table, setTable] = useState(presetTable ?? '');
   const [sending, setSending] = useState(false);
+  // "Pedir nombre" means required, not decorative: the restaurant asked for it
+  // so it can call the order out. The button stays enabled so a tap explains why.
+  const [tried, setTried] = useState(false);
+  const missingName = ordering.collect_name !== false && customerName.trim() === '';
 
   // Lock background scroll while the sheet is open (only the sheet scrolls; keeps
   // the mobile URL bar from toggling and shifting the sheet).
@@ -129,6 +133,11 @@ export function CartSheet({
 
   async function handleSend() {
     if (!contact.whatsapp_phone || lines.length === 0 || belowMin) return;
+    if (missingName) {
+      setTried(true);
+      document.getElementById('kuik-cart-name')?.focus();
+      return;
+    }
     setSending(true);
 
     const message = buildOrderMessage({
@@ -354,12 +363,20 @@ export function CartSheet({
 
               {/* Customer fields */}
               {ordering.collect_name !== false && (
-                <input
-                  value={customerName}
-                  onChange={(e) => onName(e.target.value)}
-                  placeholder={t('yourName')}
-                  className="w-full rounded-xl border border-[var(--brand-border)] bg-[var(--brand-surface)] px-3 py-2.5 text-sm focus:border-[var(--brand-primary)] focus:outline-none"
-                />
+                <div>
+                  <input
+                    id="kuik-cart-name"
+                    value={customerName}
+                    onChange={(e) => onName(e.target.value)}
+                    placeholder={`${t('yourName')} *`}
+                    required
+                    aria-invalid={tried && missingName}
+                    className={`w-full rounded-xl border bg-[var(--brand-surface)] px-3 py-2.5 text-sm focus:outline-none ${
+                      tried && missingName ? 'border-red-400 focus:border-red-500' : 'border-[var(--brand-border)] focus:border-[var(--brand-primary)]'
+                    }`}
+                  />
+                  {tried && missingName && <p className="mt-1 text-xs text-red-500">{t('nameRequired')}</p>}
+                </div>
               )}
               {ordering.collect_address && service === 'delivery' && (
                 <input
