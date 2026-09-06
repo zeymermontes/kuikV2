@@ -476,7 +476,8 @@
     "imageMaxHeightHint": "Stops a portrait shot — a bottle, say — from taking over whole screens.",
     "showHours": "Show hours",
     "showDirections": "Show directions",
-    "tabBarOpacity": "Bar opacity"
+    "tabBarOpacity": "Bar opacity",
+    "slotBar": "Bar"
   },
   "landing": {
     "title": "Home screen",

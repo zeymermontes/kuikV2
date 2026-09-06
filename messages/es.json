@@ -476,7 +476,8 @@
     "imageMaxHeightHint": "Evita que una foto vertical (una botella, por ejemplo) ocupe pantallas enteras.",
     "showHours": "Mostrar horario",
     "showDirections": "Mostrar cómo llegar",
-    "tabBarOpacity": "Opacidad de la barra"
+    "tabBarOpacity": "Opacidad de la barra",
+    "slotBar": "Barra"
   },
   "landing": {
     "title": "Pantalla de inicio",

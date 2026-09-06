@@ -53,13 +53,19 @@ export function DesignForm({
     Object.fromEntries(categories.map((c) => [c.id, c.theme])),
   );
   const [previewReload, setPreviewReload] = useState(0);
+  // Saved a moment after the last change, like the theme (see `set`): a wheel
+  // drag is many changes, and one request each tripped the rate limit.
+  const catSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   function setCatTheme(id: string, key: keyof CategoryTheme, value: string | null) {
     const next: CategoryTheme = { ...(catThemes[id] ?? {}) };
     if (value) next[key] = value;
     else delete next[key];
     const theme = Object.keys(next).length ? next : null;
     setCatThemes((m) => ({ ...m, [id]: theme }));
-    void updateCategory(id, { theme }).then(() => setPreviewReload((n) => n + 1));
+    clearTimeout(catSaveTimers.current[id]);
+    catSaveTimers.current[id] = setTimeout(() => {
+      void updateCategory(id, { theme }).then(() => setPreviewReload((n) => n + 1));
+    }, 450);
   }
 
   // Saves are debounced: a slider fires a change per pixel, and each save is a
@@ -718,6 +724,9 @@ export function DesignForm({
                   the slot, and hovering a swatch repeats it at once (no native tooltip delay). */}
               {(() => {
                 const slots = [
+                  // The bar behind the chips first: over a section's backdrop
+                  // its opacity (in the wheel) decides how much shows through.
+                  ['tab_bar_color', t('tabBar'), t('slotBar'), local.tab_bar_color ?? '#ffffff'],
                   ['tab_selected_color', t('tabSelected'), t('slotBgActive'), local.tab_selected_color ?? local.primary_color],
                   ['tab_unselected_color', t('tabUnselected'), t('slotBgInactive'), local.tab_unselected_color ?? '#eeeeee'],
                   ['tab_font_color', t('tabFont'), t('slotText'), local.tab_font_color ?? local.text_color],
@@ -726,7 +735,7 @@ export function DesignForm({
                 ] as const;
                 return (
                   <div className="overflow-x-auto">
-                    <div className="min-w-[22rem]">
+                    <div className="min-w-[25rem]">
                       <div className="mb-1 flex items-end gap-1 pr-2">
                         <span className="min-w-[6rem] flex-1" />
                         {slots.map(([key, , short]) => (
