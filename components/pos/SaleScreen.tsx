@@ -37,6 +37,8 @@ import { usePrinting } from './PrintingContext';
 import { hasOptions } from '@/lib/menu-options';
 import { PosModal } from './PosModal';
 import { useEmployee } from './EmployeeContext';
+import { CustomerSheet } from './CustomerSheet';
+import type { LoyaltyProgram } from '@/lib/database.types';
 import { formatPrice } from '@/lib/utils';
 import type { FloorTable, Product } from '@/lib/database.types';
 import { FloorPlan } from '@/components/host/FloorPlan';
@@ -85,6 +87,7 @@ export function SaleScreen({
   floorTables = [],
   floorPlan,
   notePlaceholder = null,
+  loyalty = null,
 }: {
   db: PosDexie;
   /** The sale being built; null until the first product is tapped. */
@@ -114,6 +117,8 @@ export function SaleScreen({
   floorPlan?: { tables: FloorTable[]; areas: { id: string; name: string }[] };
   /** The restaurant's hint for the notes box (tenant_ordering.note_placeholder). */
   notePlaceholder?: string | null;
+  /** The loyalty program, when the plan has it; members can be put on a sale. */
+  loyalty?: LoyaltyProgram | null;
 }) {
   const t = useTranslations('pos');
   const printing = usePrinting();
@@ -229,11 +234,6 @@ export function SaleScreen({
     await enqueueUpsert(db, 'tabs', { ...tab, table_label: label.trim() || null });
     setModal(null);
   }
-  async function applyCustomer() {
-    if (!tab) return;
-    await enqueueUpsert(db, 'tabs', { ...tab, customer_name: field.trim() || null });
-    setModal(null);
-  }
   async function applyVoid() {
     if (!tab) return;
     await voidTab(db, tab, field.trim() || null);
@@ -279,7 +279,12 @@ export function SaleScreen({
               className="block max-w-full truncate text-left text-xs text-neutral-400 hover:text-neutral-700"
               title={t('table')}
             >
-              {[tab.table_label ? `${t('tableShort')} ${tab.table_label}` : t('noTable'), tab.customer_name, tab.guests > 1 && `${tab.guests} ${t('guests').toLowerCase()}`, tab.status === 'held' && t('held')]
+              {[
+                tab.table_label ? `${t('tableShort')} ${tab.table_label}` : t('noTable'),
+                tab.customer_name ? `${tab.loyalty_customer_id ? '★ ' : ''}${tab.customer_name}` : tab.customer_phone,
+                tab.guests > 1 && `${tab.guests} ${t('guests').toLowerCase()}`,
+                tab.status === 'held' && t('held'),
+              ]
                 .filter(Boolean)
                 .join(' · ')}
             </button>
@@ -826,20 +831,20 @@ export function SaleScreen({
         </PosModal>
       )}
 
-      {modal === 'customer' && (
-        <PosModal title={t('customer')} onClose={() => setModal(null)}>
-          <input
-            autoFocus
-            value={field}
-            onChange={(e) => setField(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && applyCustomer()}
-            placeholder={t('customerPh')}
-            className={`${INPUT} mb-4`}
-          />
-          <button onClick={applyCustomer} className={PRIMARY}>
-            {t('apply')}
-          </button>
-        </PosModal>
+      {modal === 'customer' && tab && (
+        <CustomerSheet
+          db={db}
+          tab={tab}
+          program={loyalty}
+          currency={currency}
+          locale={locale}
+          canSearch={!printing.demo}
+          onApply={async (patch) => {
+            await enqueueUpsert(db, 'tabs', { ...tab, ...patch });
+            setModal(null);
+          }}
+          onClose={() => setModal(null)}
+        />
       )}
 
       {modal === 'void' && (

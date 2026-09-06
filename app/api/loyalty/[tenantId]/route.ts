@@ -3,13 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { rateLimit, clientIp, bucketKey } from '@/lib/rate-limit';
 import { effectivePlan } from '@/lib/plan';
 import type { LoyaltyProgram, LoyaltyCustomer, SubscriptionStatus } from '@/lib/database.types';
+import { makeLoyaltyCode as makeCode } from '@/lib/loyalty';
 
-const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous chars
-
-function makeCode(len = 6): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(len));
-  return Array.from(bytes, (b) => CODE_CHARS[b % CODE_CHARS.length]).join('');
-}
 
 /**
  * Public loyalty endpoint. POST { phone, name? } → enrolls (or fetches) the

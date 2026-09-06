@@ -2,10 +2,10 @@ import { getLocale } from 'next-intl/server';
 import { requireTenant } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { resolveMenuSettings } from '@/lib/menu-settings';
-import { canUsePos } from '@/lib/plan';
+import { canUsePos, isPro } from '@/lib/plan';
 import { posThemeVars } from '@/lib/pos/theme';
 import { themeVars } from '@/lib/theme-vars';
-import type { Category, FloorTable, Printer, Product, TenantOrdering } from '@/lib/database.types';
+import type { Category, FloorTable, LoyaltyProgram, Printer, Product, TenantOrdering } from '@/lib/database.types';
 import { PosTerminal } from '@/components/pos/PosTerminal';
 import { PosLocked } from '@/components/pos/PosLocked';
 import { demoAreas, demoTables } from '@/lib/host/demo';
@@ -22,7 +22,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
   const demo = !!params.demo;
   const explain = demo && !!params.explain;
 
-  const [{ data: categories }, { data: products }, { data: ordering }, { data: floor }, { data: areas }, { data: printers }] = await Promise.all([
+  const [{ data: categories }, { data: products }, { data: ordering }, { data: floor }, { data: areas }, { data: printers }, { data: loyalty }] = await Promise.all([
     supabase
       .from('categories')
       .select('*')
@@ -38,7 +38,10 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
     supabase.from('floor_tables').select('*').eq('tenant_id', tenant.id).order('position'),
     supabase.from('reservation_areas').select('id, name').eq('tenant_id', tenant.id).order('position'),
     supabase.from('printers').select('*').eq('tenant_id', tenant.id).eq('enabled', true).order('position'),
+    supabase.from('loyalty_program').select('*').eq('tenant_id', tenant.id).maybeSingle(),
   ]);
+  // Members can be put on a sale only where the plan includes loyalty.
+  const program = isPro(subscription) && (loyalty as LoyaltyProgram | null)?.enabled ? (loyalty as LoyaltyProgram) : null;
   const areaName = new Map(((areas ?? []) as { id: string; name: string }[]).map((a) => [a.id, a.name]));
   let planTables = (floor ?? []) as FloorTable[];
   let planAreas = ((areas ?? []) as { id: string; name: string }[]).map((a) => ({ id: a.id, name: a.name }));
@@ -84,6 +87,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       }}
       notePlaceholder={cash?.note_placeholder ?? null}
       lockAfterSale={cash?.pos_lock_after_sale ?? false}
+      loyalty={program}
       menu={{ categories: (categories ?? []) as Category[], products: (products ?? []) as Product[] }}
       // The menu's own variables too: the product sheet (options, notes) is the
       // public menu's and paints itself with `--brand-*`.

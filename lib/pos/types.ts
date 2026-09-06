@@ -21,6 +21,11 @@ export interface PosTab {
   branch_id: string | null;
   table_label: string | null;
   customer_name: string | null;
+  /** The diner on the sale, digits only, and their loyalty card when they have one. */
+  customer_phone: string | null;
+  loyalty_customer_id: string | null;
+  /** Set by the database once the stamp or points for this sale were credited. */
+  loyalty_awarded_at: string | null;
   server_name: string | null;
   /** Who opened it, when the register uses employees with PIN. */
   employee_id: string | null;

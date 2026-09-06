@@ -51,7 +51,7 @@ import { demoScope, type PosTab, type PosMenu, type RegisterShift, type TabItem,
 import { DEFAULT_PRINT_SETTINGS, retryJob, type PrintSettings } from '@/lib/pos/printing';
 import { PrintingProvider } from './PrintingContext';
 import { EmployeeProvider, useEmployee } from './EmployeeContext';
-import type { FloorTable, Printer as PrinterRow } from '@/lib/database.types';
+import type { FloorTable, LoyaltyProgram, Printer as PrinterRow } from '@/lib/database.types';
 import { formatPrice } from '@/lib/utils';
 import { SaleScreen, type PayPhase } from './SaleScreen';
 import { PosModal } from './PosModal';
@@ -96,6 +96,7 @@ function PosTerminalInner({
   menu: initialMenu,
   themeStyle,
   customerPath = '/pos/customer',
+  loyalty = null,
   demo = false,
   explain = false,
 }: {
@@ -123,6 +124,8 @@ function PosTerminalInner({
   customerPath?: string;
   /** With employees set up: ask for a PIN again after every closed sale. */
   lockAfterSale?: boolean;
+  /** The loyalty program, for putting members on a sale. */
+  loyalty?: LoyaltyProgram | null;
   /** Dashboard preview: throwaway local store, no sync, seeded sale. */
   demo?: boolean;
   /** Tutorials: start in explain mode (taps describe instead of act). */
@@ -670,6 +673,7 @@ function PosTerminalInner({
               floorTables={floorTables}
               floorPlan={floorPlan}
               notePlaceholder={notePlaceholder}
+              loyalty={loyalty}
             />
           )}
 

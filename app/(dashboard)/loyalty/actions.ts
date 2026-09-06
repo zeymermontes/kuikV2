@@ -3,6 +3,7 @@
 import { requireLoyalty } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import type { LoyaltyCustomer, LoyaltyProgram } from '@/lib/database.types';
+import { loyaltyPhone, makeLoyaltyCode } from '@/lib/loyalty';
 
 async function ctx() {
   const { tenant } = await requireLoyalty();
@@ -149,4 +150,54 @@ export async function redeem(customerId: string): Promise<LoyaltyCustomer | null
     ...event,
   });
   return updated ?? null;
+}
+
+/** Members whose phone or name starts with `query`, for the register's customer search. */
+export async function searchCustomers(query: string, limit = 8): Promise<LoyaltyCustomer[]> {
+  const { tenantId, supabase } = await ctx();
+  const q = query.trim();
+  if (q.length < 2) return [];
+  const digits = q.replace(/\D/g, '');
+  // ilike patterns: strip the characters PostgREST reads as syntax.
+  const safe = q.replace(/[%_,.()]/g, '');
+  const clauses = [safe ? `name.ilike.${safe}%` : null, digits.length >= 3 ? `phone.ilike.${digits}%` : null].filter(Boolean);
+  if (clauses.length === 0) return [];
+  const { data } = await supabase
+    .from('loyalty_customers')
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .or(clauses.join(','))
+    .order('total_visits', { ascending: false })
+    .limit(limit);
+  return (data ?? []) as LoyaltyCustomer[];
+}
+
+/** Enrol a member from the register (or fetch them when the phone is already a member). */
+export async function enrollCustomer(phoneInput: string, name: string | null): Promise<LoyaltyCustomer | null> {
+  const { tenantId, supabase } = await ctx();
+  const phone = loyaltyPhone(phoneInput);
+  if (!phone) return null;
+  const { data: existing } = await supabase.from('loyalty_customers').select('*').eq('tenant_id', tenantId).eq('phone', phone).maybeSingle<LoyaltyCustomer>();
+  if (existing) {
+    if (name && !existing.name) {
+      await supabase.from('loyalty_customers').update({ name }).eq('id', existing.id);
+      return { ...existing, name };
+    }
+    return existing;
+  }
+  for (let i = 0; i < 5; i++) {
+    const { data, error } = await supabase
+      .from('loyalty_customers')
+      .insert({ tenant_id: tenantId, phone, name: name?.trim() || null, code: makeLoyaltyCode() })
+      .select('*')
+      .maybeSingle<LoyaltyCustomer>();
+    if (!error && data) return data;
+  }
+  return null;
+}
+
+/** The register's program, for the customer sheet. */
+export async function loyaltyProgram(): Promise<LoyaltyProgram | null> {
+  const { tenantId, supabase } = await ctx();
+  return getProgram(supabase, tenantId);
 }
