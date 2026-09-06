@@ -1178,7 +1178,7 @@ function BrandImage({
           <option value="dark">{t('variantDark')}</option>
         </select>
       </div>
-      <div className="mt-2 grid grid-cols-2 gap-3">
+      <div className="mt-2 grid gap-3 sm:grid-cols-2">
         <div>
           <p className="mb-1 text-[11px] font-medium text-neutral-500">{t('versionLight')}</p>
           <ImageUploader value={light} tenantId={tenantId} folder={folder} shape={shape} onChange={onLight} />
@@ -1229,12 +1229,14 @@ function SelectRow({
   options: [string, string][];
 }) {
   return (
-    <div data-setting={label} className="flex items-center justify-between gap-3">
+    // Wraps: a select is as wide as its longest option, and on a phone that
+    // pushed it past the card's edge next to its label.
+    <div data-setting={label} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
       <span className="text-sm font-medium">{label}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg border border-neutral-300 px-2 py-1.5 text-sm"
+        className="min-w-0 max-w-full rounded-lg border border-neutral-300 px-2 py-1.5 text-sm"
       >
         {options.map(([v, l]) => (
           <option key={v} value={v}>
