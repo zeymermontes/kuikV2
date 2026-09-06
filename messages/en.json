@@ -1154,7 +1154,20 @@
     "void": "Void",
     "noArea": "No area",
     "map": "Map",
-    "list": "List"
+    "list": "List",
+    "availability": "Sold out",
+    "availabilityHint": "What you mark here leaves the public menu and the other registers at once. Options are marked in every product that offers them.",
+    "availabilityProducts": "Products",
+    "availabilityOptions": "Options",
+    "availabilitySearch": "Search a product or option…",
+    "availabilityEmpty": "Nothing sold out.",
+    "markSoldOut": "Sold out",
+    "markAvailable": "Available",
+    "availableAgain": "Available again",
+    "thisProduct": "This product",
+    "itsOptions": "Its options",
+    "optionInProducts": "{n, plural, one {in # product} other {in # products}}",
+    "holdToMark": "Press and hold a product to mark it sold out."
   },
   "orders": {
     "payment_cash": "Cash",

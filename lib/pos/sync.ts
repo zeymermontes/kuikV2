@@ -3,6 +3,8 @@
 import type { Table } from 'dexie';
 import type { PosDexie } from './db';
 import { SYNC_ENTITIES, type SyncEntity } from './types';
+import { applyRemoteProduct } from './availability';
+import type { Product } from '@/lib/database.types';
 import { createClient, channelName } from '@/lib/supabase/client';
 
 type Supabase = ReturnType<typeof createClient>;
@@ -58,9 +60,11 @@ export async function flushOutbox(db: PosDexie, supabase: Supabase): Promise<voi
   for (const item of pending) {
     try {
       const { error } =
-        item.op === 'delete'
-          ? await supabase.from(item.entity).delete().eq('id', item.id)
-          : await supabase.from(item.entity).upsert(item.payload, { onConflict: 'id' });
+        item.op === 'rpc'
+          ? await supabase.rpc(item.payload.fn as string, item.payload.args as Record<string, unknown>)
+          : item.op === 'delete'
+            ? await supabase.from(item.entity).delete().eq('id', item.id)
+            : await supabase.from(item.entity).upsert(item.payload, { onConflict: 'id' });
       if (error) {
         await db.outbox.update(item.seq!, { status: 'dead', error: error.message, attempts: item.attempts + 1 });
         continue; // surface, keep going
@@ -138,6 +142,16 @@ export function startSync(
       },
     );
   }
+  // The menu itself is not synced like the tables above (it comes with the
+  // page), but a product marked sold out elsewhere, or an option run out, must
+  // grey here too: patch the cached menu with the changed row.
+  channel = channel.on(
+    'postgres_changes',
+    { event: 'UPDATE', schema: 'public', table: 'products', filter: `tenant_id=eq.${tenantId}` },
+    (payload) => {
+      applyRemoteProduct(db, payload.new as Product).then(emit);
+    },
+  );
   // Status of the jobs this device queued (done / failed), as the agent reports them.
   channel = channel.on(
     'postgres_changes',

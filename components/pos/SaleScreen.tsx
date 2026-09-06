@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslations } from 'next-intl';
@@ -36,6 +36,8 @@ import { printKitchenTicket } from '@/lib/pos/printing';
 import { usePrinting } from './PrintingContext';
 import { hasOptions } from '@/lib/menu-options';
 import { PosModal } from './PosModal';
+import { AvailabilitySheet } from './AvailabilitySheet';
+import { soldOutCount } from '@/lib/pos/availability';
 import { useEmployee } from './EmployeeContext';
 import { CustomerSheet } from './CustomerSheet';
 import type { LoyaltyProgram } from '@/lib/database.types';
@@ -130,7 +132,30 @@ export function SaleScreen({
   const [pay, setPay] = useState<PaymentMethod | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [modal, setModal] = useState<'discount' | 'guests' | 'void' | 'customer' | 'table' | 'categories' | null>(null);
+  const [modal, setModal] = useState<'discount' | 'guests' | 'void' | 'customer' | 'table' | 'categories' | 'availability' | null>(null);
+  // "Agotados": from the chip (everything) or from a tile (that product first).
+  const [availFor, setAvailFor] = useState<Product | null>(null);
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const held = useRef(false);
+  function openAvailability(p: Product | null) {
+    setAvailFor(p);
+    setModal('availability');
+  }
+  // Holding a tile for half a second opens the sheet on that product; the
+  // click that follows the release is swallowed so nothing gets added.
+  function holdStart(p: Product) {
+    held.current = false;
+    if (holdTimer.current) clearTimeout(holdTimer.current);
+    holdTimer.current = setTimeout(() => {
+      held.current = true;
+      navigator.vibrate?.(15);
+      openAvailability(p);
+    }, 550);
+  }
+  function holdEnd() {
+    if (holdTimer.current) clearTimeout(holdTimer.current);
+    holdTimer.current = null;
+  }
   const [field, setField] = useState('');
   const [pctMode, setPctMode] = useState(false);
   const [tableMode, setTableMode] = useState<'list' | 'map'>('map');
@@ -172,6 +197,8 @@ export function SaleScreen({
       .filter((p): p is Product => !!p && p.is_available)
       .slice(0, 12);
   }, [allItems, menu.products]);
+
+  const soldOut = useMemo(() => soldOutCount(menu), [menu]);
 
   const catName = useMemo(() => {
     const m = new Map(menu.categories.map((c) => [c.id, c.name] as const));
@@ -495,6 +522,10 @@ export function SaleScreen({
               {c.name}
             </Chip>
           ))}
+          <Chip active={false} onClick={() => openAvailability(null)} help="pos_availability">
+            <Ban className="h-3.5 w-3.5" /> {t('availability')}
+            {soldOut > 0 && <span className="rounded-full bg-red-100 px-1.5 text-[11px] text-red-600">{soldOut}</span>}
+          </Chip>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-24 md:px-4 lg:pb-4">
@@ -503,9 +534,25 @@ export function SaleScreen({
               <button
                 key={p.id}
                 data-help="pos_product"
-                onClick={() => tapProduct(p)}
-                disabled={!p.is_available || paid}
-                className="group flex flex-col rounded-2xl bg-white p-2.5 text-left shadow-sm ring-1 ring-black/5 transition hover:shadow-md active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
+                // A sold-out tile stays tappable: the tap opens "Agotados" on it,
+                // which is how it comes back. Holding any tile does the same.
+                onClick={() => {
+                  if (held.current) {
+                    held.current = false;
+                    return;
+                  }
+                  if (p.is_available) void tapProduct(p);
+                  else openAvailability(p);
+                }}
+                onPointerDown={() => holdStart(p)}
+                onPointerUp={holdEnd}
+                onPointerLeave={holdEnd}
+                onPointerCancel={holdEnd}
+                onContextMenu={(e) => e.preventDefault()}
+                disabled={paid}
+                className={`group flex flex-col rounded-2xl bg-white p-2.5 text-left shadow-sm ring-1 ring-black/5 transition hover:shadow-md active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 ${
+                  p.is_available ? '' : 'opacity-50'
+                }`}
               >
                 <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-neutral-100">
                   {p.image_url ? (
@@ -635,6 +682,19 @@ export function SaleScreen({
         />
       )}
 
+      {modal === 'availability' && (
+        <AvailabilitySheet
+          db={db}
+          tenantId={tenantId}
+          menu={menu}
+          product={availFor}
+          demo={printing.demo}
+          onClose={() => {
+            setModal(null);
+            setAvailFor(null);
+          }}
+        />
+      )}
       {modal === 'categories' && (
         <PosModal title={t('categories')} onClose={() => setModal(null)} wide>
           <div className="grid max-h-[70dvh] grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 md:grid-cols-4">

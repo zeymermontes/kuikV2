@@ -1154,7 +1154,20 @@
     "void": "Anular",
     "noArea": "Sin área",
     "map": "Mapa",
-    "list": "Lista"
+    "list": "Lista",
+    "availability": "Agotados",
+    "availabilityHint": "Lo que se marque aquí se quita del menú público y de las demás cajas al instante. Las opciones se marcan en todos los productos que las tienen.",
+    "availabilityProducts": "Productos",
+    "availabilityOptions": "Opciones",
+    "availabilitySearch": "Buscar producto u opción…",
+    "availabilityEmpty": "Nada agotado.",
+    "markSoldOut": "Agotado",
+    "markAvailable": "Disponible",
+    "availableAgain": "Disponible de nuevo",
+    "thisProduct": "Este producto",
+    "itsOptions": "Sus opciones",
+    "optionInProducts": "{n, plural, one {en # producto} other {en # productos}}",
+    "holdToMark": "Mantén presionado un producto para marcarlo agotado."
   },
   "orders": {
     "payment_cash": "Efectivo",

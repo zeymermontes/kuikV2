@@ -6,8 +6,9 @@ import type { PosTab, TabItem, Payment, RegisterShift, KitchenTicket, PrintJob, 
 /** A queued mutation waiting to be flushed to Supabase (idempotent upsert/delete by id). */
 export interface OutboxRow {
   seq?: number;
-  entity: SyncEntity;
-  op: 'upsert' | 'delete';
+  entity: SyncEntity | 'products';
+  /** rpc: payload is { fn, args }; the register's "sold out" calls travel this way (lib/pos/availability.ts). */
+  op: 'upsert' | 'delete' | 'rpc';
   id: string;
   payload: Record<string, unknown>;
   updated_at: string;
