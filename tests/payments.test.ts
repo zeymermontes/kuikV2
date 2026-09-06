@@ -11,7 +11,7 @@ const line = (productId: string, qty: number, extra?: number, basePrice = 999): 
   name: `Item ${productId}`,
   basePrice, // the cart's number: must never be what gets charged
   qty,
-  selections: extra != null ? [{ groupId: 'g', optionId: 'o', name: 'extra', price: extra } as CartLine['selections'][number]] : [],
+  selections: extra != null ? [{ group: 'g', name: 'extra', price: extra } as unknown as CartLine['selections'][number]] : [],
 });
 
 test('the charge follows the menu price, not the cart, and floors negative extras', () => {
