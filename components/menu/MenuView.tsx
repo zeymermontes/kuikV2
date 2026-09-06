@@ -330,7 +330,8 @@ export function MenuView({
   useEffect(() => {
     if (!openReservation && !new URLSearchParams(window.location.search).has('reservar')) return;
     if (!contact.reservations_enabled) return;
-    setShowReserve(true);
+    const id = setTimeout(() => setShowReserve(true), 0);
+    return () => clearTimeout(id);
   }, [openReservation, contact.reservations_enabled]);
 
   // Back from the payment gateway. `ok` confirms and clears the cart; `cancel`

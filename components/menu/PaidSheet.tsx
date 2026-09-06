@@ -2,17 +2,27 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Check, Loader2, MessageCircle, X } from 'lucide-react';
+import { Check, Loader2, MessageCircle, Receipt as ReceiptIcon, X } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { buildWhatsappUrl } from '@/lib/whatsapp';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, orderCode } from '@/lib/utils';
 
 type Status = 'checking' | 'paid' | 'pending' | 'failed';
 
+interface OrderInfo {
+  payment_status?: string;
+  amount_paid?: number | null;
+  total?: number | null;
+  items?: { name?: string; qty?: number; selections?: { name?: string }[] }[];
+}
+
 /**
  * The guest is back from the gateway. Confirm the payment with Kuik (the
- * webhook usually lands before the redirect, but not always), then hand the
- * saved order text to WhatsApp marked as paid. If storage was wiped meanwhile
- * the restaurant still has the paid order on its board; the button just says so.
+ * webhook usually lands before the redirect, but not always), then show the
+ * order number, what was ordered and a QR of the receipt to show at the
+ * counter, and hand the saved order text to WhatsApp marked as paid. If
+ * storage was wiped meanwhile the restaurant still has the paid order on its
+ * board; the button just says so.
  */
 export function PaidSheet({
   tenantId,
@@ -31,7 +41,7 @@ export function PaidSheet({
 }) {
   const t = useTranslations('menu');
   const [status, setStatus] = useState<Status>('checking');
-  const [amount, setAmount] = useState<number | null>(null);
+  const [order, setOrder] = useState<OrderInfo | null>(null);
   // Only ever rendered after the menu read the URL on the client, so storage
   // is there to read on first render.
   const [saved] = useState<{ message: string; phone: string | null } | null>(() => {
@@ -42,6 +52,7 @@ export function PaidSheet({
       return null;
     }
   });
+  const [receiptUrl] = useState(() => (typeof window === 'undefined' ? '' : `${window.location.origin}/recibo/${orderId}`));
 
   useEffect(() => {
     let tries = 0;
@@ -50,10 +61,10 @@ export function PaidSheet({
     const tick = async () => {
       try {
         const res = await fetch(`/api/order/${tenantId}?id=${orderId}`);
-        const d = (await res.json()) as { ok: boolean; payment_status?: string; amount_paid?: number | null };
+        const d = (await res.json()) as { ok: boolean } & OrderInfo;
         if (stopped) return;
+        if (d.ok) setOrder(d);
         if (d.ok && d.payment_status === 'paid') {
-          setAmount(d.amount_paid ?? null);
           setStatus('paid');
           return;
         }
@@ -79,14 +90,18 @@ export function PaidSheet({
     };
   }, [tenantId, orderId]);
 
+  const code = orderCode(orderId);
   const phone = saved?.phone ?? fallbackPhone;
-  const message = saved?.message ?? t('paidFallbackMessage', { id: orderId.slice(0, 8) });
+  const message = saved?.message ?? t('paidFallbackMessage', { id: code });
+  const amount = order?.amount_paid ?? order?.total ?? null;
+  const items = order?.items ?? [];
+  const done = status === 'paid' || status === 'pending';
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div className="absolute inset-0 bg-black/50" onClick={status === 'checking' ? undefined : onClose} />
       <div
-        className="animate-slide-up pb-safe relative w-full max-w-md rounded-t-[var(--sheet-radius)] p-6 text-center sm:rounded-[var(--sheet-radius)]"
+        className="animate-slide-up pb-safe relative max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[var(--sheet-radius)] p-6 text-center sm:rounded-[var(--sheet-radius)]"
         style={{ backgroundColor: 'var(--brand-bg)', color: 'var(--brand-text)', fontFamily: 'var(--brand-font)' }}
       >
         {status !== 'checking' && (
@@ -116,12 +131,45 @@ export function PaidSheet({
                 : t('payCheckingBody')}
         </p>
 
-        {(status === 'paid' || status === 'pending') && phone && (
+        {done && (
+          <div className="mt-5 rounded-2xl border border-[var(--brand-border)] bg-[var(--brand-surface)] p-4 text-left">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--brand-text-secondary)]">{t('orderNumber')}</p>
+                <p className="font-mono text-2xl font-bold tracking-wider">#{code}</p>
+              </div>
+              <a href={receiptUrl} target="_blank" rel="noreferrer" className="shrink-0 rounded-xl bg-white p-1.5 shadow-sm" aria-label={t('viewReceipt')}>
+                <QRCodeSVG value={receiptUrl} size={84} level="M" />
+              </a>
+            </div>
+            {items.length > 0 && (
+              <ul className="mt-3 space-y-1 border-t border-[var(--brand-border)] pt-3 text-sm">
+                {items.map((l, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span className="font-semibold">{l.qty ?? 1}×</span>
+                    <span className="min-w-0 flex-1">
+                      {l.name}
+                      {l.selections && l.selections.length > 0 && (
+                        <span className="block text-xs text-[var(--brand-text-secondary)]">{l.selections.map((s) => s.name).filter(Boolean).join(', ')}</span>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-3 text-xs text-[var(--brand-text-secondary)]">{t('receiptQrHint')}</p>
+            <a href={receiptUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold underline-offset-4 hover:underline">
+              <ReceiptIcon className="h-4 w-4" /> {t('viewReceipt')}
+            </a>
+          </div>
+        )}
+
+        {done && phone && (
           <a
             href={buildWhatsappUrl(phone, message)}
             target="_blank"
             rel="noreferrer"
-            className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-[#25D366] py-3.5 font-semibold text-white"
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[#25D366] py-3.5 font-semibold text-white"
           >
             <MessageCircle className="h-5 w-5" /> {t('sendPaidWhatsapp')}
           </a>

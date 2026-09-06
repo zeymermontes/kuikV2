@@ -60,3 +60,12 @@ export function slugify(name: string, fallback = ''): string {
       .slice(0, 40) || fallback
   );
 }
+
+/**
+ * The short number a guest and the restaurant call an order by: the first six
+ * hex digits of its id, upper-case. Not unique forever, unique enough for the
+ * orders of one day, and the same on the receipt, the board and the chat.
+ */
+export function orderCode(id: string): string {
+  return id.replace(/-/g, '').slice(0, 6).toUpperCase();
+}

@@ -6,6 +6,7 @@ import { resolveMenuSettings } from '@/lib/menu-settings';
 import { getPlatformSettings } from '@/lib/platform';
 import { accountReady, getGateway, getPaymentAccount, paymentsConfigured } from '@/lib/payments';
 import { applicationFee, priceOrder } from '@/lib/payments/pricing';
+import { normalizePhone, safeReturnPath } from '@/lib/payments/return-path';
 import type { CartLine } from '@/lib/whatsapp';
 
 export const runtime = 'nodejs';
@@ -42,10 +43,11 @@ export async function POST(
     items?: unknown;
     total?: number | null;
     customer_name?: string | null;
+    customer_phone?: string | null;
     service_type?: string | null;
     table_label?: string | null;
     payment_method?: string | null;
-    pay?: { service?: string; tipPercent?: number; locale?: string } | null;
+    pay?: { service?: string; tipPercent?: number; locale?: string; returnPath?: string } | null;
   };
   try {
     body = await req.json();
@@ -64,6 +66,8 @@ export async function POST(
     items: body.items,
     total: body.total ?? null,
     customer_name: body.customer_name?.slice(0, 120) ?? null,
+    // Only present when given, so an install that has not run 0067 yet still logs WhatsApp orders.
+    ...(normalizePhone(body.customer_phone) ? { customer_phone: normalizePhone(body.customer_phone) } : {}),
     service_type: body.service_type ?? null,
     table_label: body.table_label ?? null,
     payment_method: typeof body.payment_method === 'string' ? body.payment_method.slice(0, 20) : null,
@@ -77,6 +81,9 @@ export async function POST(
 
   // ── Online payment ────────────────────────────────────────────────────────
   if (!paymentsConfigured()) return NextResponse.json({ ok: false, error: 'online_unavailable' }, { status: 409 });
+  // The WhatsApp message may never follow a paid order, so the number is the
+  // restaurant's only way to reach the guest about it.
+  if (!row.customer_phone) return NextResponse.json({ ok: false, error: 'phone_required' }, { status: 400 });
 
   const [{ data: tenant }, { data: theme }, { data: ordering }, account, platform] = await Promise.all([
     supabase.from('tenants').select('id, name, subdomain, custom_domain').eq('id', tenantId).maybeSingle(),
@@ -113,7 +120,8 @@ export async function POST(
   if (error || !inserted) return NextResponse.json({ ok: false }, { status: 500 });
   const orderId = (inserted as { id: string }).id;
 
-  const base = tenantBaseUrl(t.subdomain, t.custom_domain);
+  // Back to the page the cart was on: `/` or `/menu`, whichever this restaurant uses.
+  const back = `${tenantBaseUrl(t.subdomain, t.custom_domain)}${safeReturnPath(body.pay?.returnPath)}`;
   try {
     const checkout = await getGateway(account.provider).createCheckout({
       orderId,
@@ -129,8 +137,8 @@ export async function POST(
         ...(amount.tip > 0 ? [{ name: 'Propina', qty: 1, unitAmount: amount.tip }] : []),
       ],
       customerName: row.customer_name,
-      successUrl: `${base}/?pedido=${orderId}&pago=ok`,
-      cancelUrl: `${base}/?pedido=${orderId}&pago=cancel`,
+      successUrl: `${back}?pedido=${orderId}&pago=ok`,
+      cancelUrl: `${back}?pedido=${orderId}&pago=cancel`,
       locale: body.pay?.locale ?? 'es',
     });
     await supabase.from('orders').update({ payment_ref: checkout.ref }).eq('id', orderId);
@@ -142,14 +150,18 @@ export async function POST(
   }
 }
 
-/** The guest is back from checkout: tell the menu whether the order is paid. Public, by order id (a UUID nobody can guess). */
+/**
+ * The guest is back from checkout: the payment state and enough of the order
+ * to show a confirmation (number, lines, total). Public, by order id — a UUID
+ * nobody can guess — and without the phone or anything the guest did not type.
+ */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = await params;
   const id = req.nextUrl.searchParams.get('id') ?? '';
   if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ ok: false }, { status: 400 });
   const { data } = await createAdminClient()
     .from('orders')
-    .select('id, payment_status, amount_paid, currency')
+    .select('id, payment_status, amount_paid, currency, items, total, customer_name, service_type, table_label, created_at, paid_at')
     .eq('id', id)
     .eq('tenant_id', tenantId)
     .maybeSingle();

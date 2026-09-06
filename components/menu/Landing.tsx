@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -52,6 +52,13 @@ export function Landing({
   const [wifiCopied, setWifiCopied] = useState(false);
   const [showReserve, setShowReserve] = useState(false);
   const waDigits = contact.whatsapp_phone?.replace(/\D/g, '');
+
+  // Back from the payment gateway on the home page: the confirmation lives in
+  // the menu, so hand the parameters over to it.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.has('pedido')) window.location.replace(`/menu?${p.toString()}`);
+  }, []);
 
   function copyWifi() {
     if (!landing.wifi_password) return;

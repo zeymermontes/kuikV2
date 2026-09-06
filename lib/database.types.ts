@@ -533,6 +533,8 @@ export interface OrderRow {
   items: OrderItem[];
   total: number | null;
   customer_name: string | null;
+  /** Asked when paying online (0067); a WhatsApp order carries it in the chat instead. */
+  customer_phone: string | null;
   note: string | null;
   channel: string;
   status: OrderStatus;

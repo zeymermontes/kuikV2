@@ -88,3 +88,25 @@ test('webhook signatures are verified before anything is parsed', async () => {
   await assert.rejects(stripeGateway.parseWebhook(payload, bad));
   await assert.rejects(stripeGateway.parseWebhook(payload, null));
 });
+
+import { normalizePhone, safeReturnPath } from '../lib/payments/return-path';
+
+test('safeReturnPath accepts only plain paths on our host', () => {
+  assert.equal(safeReturnPath('/'), '/');
+  assert.equal(safeReturnPath('/menu'), '/menu');
+  assert.equal(safeReturnPath('/b/centro/menu'), '/b/centro/menu');
+  assert.equal(safeReturnPath('//evil.com'), '/');
+  assert.equal(safeReturnPath('https://evil.com/'), '/');
+  assert.equal(safeReturnPath('/menu?x=1'), '/');
+  assert.equal(safeReturnPath('/menu/../x'), '/');
+  assert.equal(safeReturnPath(undefined), '/');
+  assert.equal(safeReturnPath(42), '/');
+});
+
+test('normalizePhone keeps 10–15 digits and an optional plus', () => {
+  assert.equal(normalizePhone('55 1234 5678'), '5512345678');
+  assert.equal(normalizePhone('+52 (55) 1234-5678'), '+525512345678');
+  assert.equal(normalizePhone('12345'), null);
+  assert.equal(normalizePhone(''), null);
+  assert.equal(normalizePhone(null), null);
+});

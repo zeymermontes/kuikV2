@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Clock, UtensilsCrossed, ShoppingBag, Check, RefreshCw, CreditCard, BadgeCheck, Hourglass, AlertTriangle } from 'lucide-react';
+import { Clock, UtensilsCrossed, ShoppingBag, Check, RefreshCw, CreditCard, BadgeCheck, Hourglass, AlertTriangle, Phone } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import type { OrderRow, OrderStatus } from '@/lib/database.types';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, orderCode } from '@/lib/utils';
 import { createClient, channelName } from '@/lib/supabase/client';
 import { listOrders, setOrderStatus } from '@/app/(dashboard)/orders/actions';
 
@@ -118,13 +118,26 @@ export function OrdersBoard({
                 {items.map((o) => (
                   <div key={o.id} className="rounded-xl bg-white p-3 shadow-sm">
                     <div className="mb-1 flex items-center justify-between text-xs text-neutral-400">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" /> {time(o.created_at)}
+                      <span className="flex items-center gap-2">
+                        <span className="font-mono font-semibold text-neutral-600">#{orderCode(o.id)}</span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" /> {time(o.created_at)}
+                        </span>
                       </span>
                       {o.total != null && <span className="font-semibold text-neutral-700">{formatPrice(o.total, currency)}</span>}
                     </div>
                     <div className="mb-1.5 flex flex-wrap items-center gap-2 text-sm font-medium">
                       {o.customer_name && <span>{o.customer_name}</span>}
+                      {o.customer_phone && (
+                        <a
+                          href={`https://wa.me/${o.customer_phone.replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600 hover:bg-neutral-200"
+                        >
+                          <Phone className="h-3 w-3" /> {o.customer_phone}
+                        </a>
+                      )}
                       {o.service_type && (
                         <span className="flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
                           {o.service_type === 'dinein' ? <UtensilsCrossed className="h-3 w-3" /> : <ShoppingBag className="h-3 w-3" />}

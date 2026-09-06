@@ -50,6 +50,7 @@ export function CartSheet({
   );
   const [tip, setTip] = useState(0);
   const [customerName, setCustomerName] = useState('');
+  const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
 
   // Payment is only asked when the restaurant enabled at least one method, and
@@ -84,6 +85,8 @@ export function CartSheet({
       try {
         const n = localStorage.getItem('kuik:name');
         if (n) setCustomerName(n);
+        const ph = localStorage.getItem('kuik:phone');
+        if (ph) setPhone(ph);
       } catch {
         // ignore
       }
@@ -91,6 +94,14 @@ export function CartSheet({
     return () => clearTimeout(id);
   }, []);
 
+  function onPhone(v: string) {
+    setPhone(v);
+    try {
+      localStorage.setItem('kuik:phone', v);
+    } catch {
+      // ignore
+    }
+  }
   function onName(v: string) {
     setCustomerName(v);
     try {
@@ -111,6 +122,10 @@ export function CartSheet({
   // to checkout and comes back to the menu (?pedido=&pago=ok), where the
   // message — kept on this device meanwhile — is handed to WhatsApp as paid.
   const payingOnline = payment === 'online';
+  // A paid order may never be followed by the WhatsApp message, so the number
+  // is the only way the restaurant can reach the guest about it.
+  const phoneDigits = phone.replace(/\D/g, '');
+  const missingPhone = payingOnline && phoneDigits.length < 10;
 
   // Lock background scroll while the sheet is open (only the sheet scrolls; keeps
   // the mobile URL bar from toggling and shifting the sheet).
@@ -138,9 +153,9 @@ export function CartSheet({
 
   async function handleSend() {
     if (!contact.whatsapp_phone || lines.length === 0 || belowMin) return;
-    if (missingName) {
+    if (missingName || missingPhone) {
       setTried(true);
-      document.getElementById('kuik-cart-name')?.focus();
+      document.getElementById(missingName ? 'kuik-cart-name' : 'kuik-cart-phone')?.focus();
       return;
     }
     setSending(true);
@@ -173,6 +188,7 @@ export function CartSheet({
       items: lines,
       total: showPrices ? total : null,
       customer_name: ordering.collect_name !== false ? customerName.trim() || null : null,
+      customer_phone: payingOnline ? phone.trim() : null,
       service_type: serviceLabel(service),
       table_label: service === 'dinein' ? table.trim() || null : null,
       payment_method: payment,
@@ -183,7 +199,7 @@ export function CartSheet({
         const res = await fetch(`/api/order/${tenant.id}`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ ...payload, pay: { service, tipPercent: tip, locale } }),
+          body: JSON.stringify({ ...payload, pay: { service, tipPercent: tip, locale, returnPath: window.location.pathname } }),
         });
         const data = (await res.json()) as { ok: boolean; orderId?: string; payUrl?: string; error?: string };
         if (!data.ok || !data.payUrl || !data.orderId) throw new Error(data.error ?? 'checkout_failed');
@@ -196,7 +212,7 @@ export function CartSheet({
         return; // the page is leaving
       } catch (e) {
         const code = e instanceof Error ? e.message : '';
-        setPayError(code === 'unpriced' ? t('payUnpriced') : t('payError'));
+        setPayError(code === 'unpriced' ? t('payUnpriced') : code === 'phone_required' ? t('phoneRequired') : t('payError'));
         setSending(false);
         return;
       }
@@ -410,6 +426,27 @@ export function CartSheet({
                     }`}
                   />
                   {tried && missingName && <p className="mt-1 text-xs text-red-500">{t('nameRequired')}</p>}
+                </div>
+              )}
+              {payingOnline && (
+                <div>
+                  <input
+                    id="kuik-cart-phone"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    value={phone}
+                    onChange={(e) => onPhone(e.target.value)}
+                    placeholder={`${t('yourPhone')} *`}
+                    required
+                    aria-invalid={tried && missingPhone}
+                    className={`w-full rounded-xl border bg-[var(--brand-surface)] px-3 py-2.5 text-sm focus:outline-none ${
+                      tried && missingPhone ? 'border-red-400 focus:border-red-500' : 'border-[var(--brand-border)] focus:border-[var(--brand-primary)]'
+                    }`}
+                  />
+                  <p className={`mt-1 text-xs ${tried && missingPhone ? 'text-red-500' : 'text-[var(--brand-text-secondary)]'}`}>
+                    {tried && missingPhone ? t('phoneRequired') : t('phoneWhy')}
+                  </p>
                 </div>
               )}
               {ordering.collect_address && service === 'delivery' && (
