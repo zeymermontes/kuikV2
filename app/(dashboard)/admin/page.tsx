@@ -13,6 +13,7 @@ import { AiPlatformSettings } from '@/components/dashboard/AiPlatformSettings';
 import { LandingAiPrompt } from '@/components/dashboard/LandingAiPrompt';
 import { listAiUsage } from './actions';
 import { PlanSelect } from '@/components/dashboard/PlanSelect';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type { SubscriptionStatus } from '@/lib/database.types';
 
 // Already dynamic in practice, because requireSuperAdmin() reads cookies — but
@@ -28,6 +29,7 @@ interface Overview {
   owner_email: string;
   status: SubscriptionStatus | null;
   plan: 'basic' | 'pro' | null;
+  addons?: string[];
   trial_ends_at: string | null;
   current_period_end: string | null;
   free_months_granted: number | null;
@@ -84,6 +86,13 @@ export default async function AdminPage() {
 
   const { data } = await supabase.rpc('admin_tenant_overview');
   const rows = (data ?? []) as Overview[];
+  // Add-ons live on the subscription row; the overview RPC predates them.
+  const [{ data: addonRows }, pricing] = await Promise.all([
+    createAdminClient().from('subscriptions').select('tenant_id, addons').in('tenant_id', rows.map((r) => r.tenant_id)),
+    getPlatformSettings(),
+  ]);
+  const addonsOf = new Map(((addonRows ?? []) as { tenant_id: string; addons: string[] | null }[]).map((r) => [r.tenant_id, r.addons ?? []]));
+  const planNames = { basic: pricing.plan_name, pro: pricing.pro_name, pos: pricing.pos_addon_name };
   const plan = await getPlatformSettings();
 
   // Per-tenant landing state: the super-admin's home-mode selection and whether
@@ -195,7 +204,7 @@ export default async function AdminPage() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <PlanSelect tenantId={r.tenant_id} plan={r.plan ?? 'basic'} />
+                    <PlanSelect tenantId={r.tenant_id} plan={r.plan ?? 'basic'} addons={addonsOf.get(r.tenant_id) ?? []} names={planNames} />
                   </td>
                   <td className="px-4 py-3 text-neutral-500">
                     {end ? new Date(end).toLocaleDateString() : '—'}

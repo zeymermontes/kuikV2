@@ -42,6 +42,7 @@ export default async function MarketingPage() {
   const [plan, showcase] = await Promise.all([getPlatformSettings(), getShowcase()]);
   const money = (n: number) => formatPrice(n, plan.plan_currency);
   const fee = plan.payment_fee_percent ?? 0;
+  const proFee = plan.pro_payment_fee_percent ?? fee;
   const hero = showcase[0] ?? null;
   const examples = showcase.slice(0, 3);
 
@@ -103,15 +104,14 @@ export default async function MarketingPage() {
     'tunombre.kuik.mx incluido',
   ];
   const proFeatures = [
-    'Punto de venta con cocina (KDS)',
-    'Impresión automática y cajón de dinero',
-    'Pantalla del cliente',
     'Puesto de anfitrión con plano de mesas',
     'Bot de WhatsApp con flujos e IA',
     'Programa de lealtad',
     'Sucursales y dominio propio',
     'Reportes avanzados',
+    proFee < fee ? `Pago con tarjeta con comisión reducida (${proFee}%)` : 'Soporte prioritario',
   ];
+  const posFeatures = ['Punto de venta en cualquier dispositivo', 'Pantalla de cocina (KDS)', 'Impresión automática y cajón de dinero', 'Pantalla del cliente'];
 
   const faq = [
     {
@@ -132,11 +132,11 @@ export default async function MarketingPage() {
     },
     {
       q: '¿Puedo probar antes de pagar?',
-      a: `Sí. El primer mes es gratis con todas las funciones. Después eliges el plan que necesitas y puedes cancelar cuando quieras desde tu panel, sin contratos.`,
+      a: `Sí. El primer mes es gratis con todas las funciones, punto de venta incluido. Después eliges el plan que necesitas, agregas el punto de venta si lo quieres, y cancelas cuando sea desde tu panel, sin contratos.`,
     },
     {
       q: '¿Ya tengo un dominio o una página?',
-      a: 'En el plan Pro conectas tu dominio y el menú vive ahí. Si tienes una página propia, la enlazas o la sustituyes por una landing hecha a la medida de tu marca.',
+      a: `En el plan ${plan.pro_name} conectas tu dominio y el menú vive ahí. Si tienes una página propia, la enlazas o la sustituyes por una landing hecha a la medida de tu marca.`,
     },
   ];
 
@@ -356,7 +356,7 @@ export default async function MarketingPage() {
           <div className="relative flex flex-col rounded-3xl bg-neutral-950 p-8 text-white shadow-2xl ring-1 ring-neutral-900">
             <span className="absolute -top-3 left-8 rounded-full bg-amber-400 px-3 py-1 text-xs font-bold text-neutral-900">Más completo</span>
             <p className="text-sm font-semibold tracking-wide text-amber-400 uppercase">{plan.pro_name}</p>
-            <p className="mt-2 text-sm text-neutral-400">Para operar el restaurante entero: caja, cocina, puerta y WhatsApp.</p>
+            <p className="mt-2 text-sm text-neutral-400">Para el restaurante con mesas: reservaciones, anfitrión, WhatsApp y lealtad.</p>
             <div className="mt-6 flex items-end gap-1">
               <span className="text-5xl font-extrabold tracking-tight">{money(plan.pro_amount)}</span>
               <span className="mb-2 text-neutral-400">/mes</span>
@@ -376,8 +376,35 @@ export default async function MarketingPage() {
           </div>
         </div>
 
+        {/* The point of sale joins either plan. */}
+        <div className="mx-auto mt-6 max-w-4xl rounded-3xl border border-dashed border-neutral-300 bg-neutral-50/80 p-8">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-center">
+            <div>
+              <p className="text-sm font-semibold tracking-wide text-amber-600 uppercase">Complemento · {plan.pos_addon_name}</p>
+              <div className="mt-3 flex items-end gap-1">
+                <span className="text-4xl font-extrabold tracking-tight">+{money(plan.pos_addon_amount)}</span>
+                <span className="mb-1.5 text-neutral-500">/mes</span>
+              </div>
+              <p className="mt-3 text-sm text-neutral-600">
+                Se agrega a cualquier plan cuando quieras dejar tu caja. Funciona en la tablet o computadora que ya tienes y con tus impresoras térmicas.
+              </p>
+              <a href="/demo/pos" target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-neutral-900 underline-offset-4 hover:underline">
+                Probar el punto de venta <ExternalLink className="h-4 w-4" />
+              </a>
+            </div>
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {posFeatures.map((f) => (
+                <li key={f} className="flex items-start gap-3 text-sm">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+                  {f}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
         <div className="mx-auto mt-8 max-w-4xl space-y-1 text-center text-sm text-neutral-500">
-          <p>Restaurante adicional en la misma cuenta: {money(plan.extra_amount)}/mes.</p>
+          <p>Restaurante adicional en la misma cuenta: {money(plan.extra_amount)}/mes. El primer mes de prueba incluye todo, también el punto de venta.</p>
           <p>
             ¿Quieres una <span className="font-medium text-neutral-700">landing page a la medida de tu marca</span>? Se cotiza por separado.
           </p>

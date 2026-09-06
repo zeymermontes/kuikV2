@@ -5,6 +5,8 @@ import { getPlatformSettings } from '@/lib/platform';
 import { Card } from '@/components/ui';
 import { formatPrice } from '@/lib/utils';
 import { startSubscription } from './actions';
+import { effectiveAddons, type Addon } from '@/lib/plan';
+import { Calculator } from 'lucide-react';
 
 export default async function BillingPage({
   searchParams,
@@ -24,6 +26,9 @@ export default async function BillingPage({
   }[subscription.status];
   const Icon = statusMeta.icon;
   const currentTier = subscription.status === 'active' ? subscription.plan : null;
+  const paidAddons = (subscription.addons ?? []).filter((a): a is Addon => a === 'pos');
+  const hasPos = effectiveAddons(subscription).includes('pos');
+  const posState: 'trial' | 'active' | 'off' = subscription.status === 'trialing' ? 'trial' : currentTier && paidAddons.includes('pos') ? 'active' : 'off';
 
   const fmt = (n: number) => formatPrice(n, plan.plan_currency);
 
@@ -73,30 +78,73 @@ export default async function BillingPage({
           />
         </div>
       ) : (
-        <div className="grid max-w-2xl gap-4 sm:grid-cols-2">
-          <PlanCard
-            name={plan.plan_name}
-            price={fmt(plan.plan_amount)}
-            features={[t('f_menu'), t('f_whatsapp'), t('f_custom'), t('f_dashboard'), t('f_subdomain')]}
-            tier="basic"
-            current={currentTier === 'basic'}
-            perMonth={t('perMonth')}
-            currentLabel={t('currentPlan')}
-            ctaLabel={t('subscribe')}
-          />
-          <PlanCard
-            name={plan.pro_name}
-            price={fmt(plan.pro_amount)}
-            highlight={t('mostPopular')}
-            intro={t('everythingInBasic')}
-            features={[t('f_wabot'), t('f_domain'), t('f_loyalty'), t('f_branches'), t('f_reports')]}
-            tier="pro"
-            current={currentTier === 'pro'}
-            perMonth={t('perMonth')}
-            currentLabel={t('currentPlan')}
-            ctaLabel={currentTier === 'basic' ? t('upgrade') : t('subscribe')}
-          />
-        </div>
+        <>
+          <div className="grid max-w-2xl gap-4 sm:grid-cols-2">
+            <PlanCard
+              name={plan.plan_name}
+              price={fmt(plan.plan_amount)}
+              features={[t('f_menu'), t('f_whatsapp'), t('f_online_pay'), t('f_reservations'), t('f_custom'), t('f_dashboard'), t('f_subdomain')]}
+              tier="basic"
+              addons={paidAddons}
+              current={currentTier === 'basic'}
+              perMonth={t('perMonth')}
+              currentLabel={t('currentPlan')}
+              ctaLabel={t('subscribe')}
+            />
+            <PlanCard
+              name={plan.pro_name}
+              price={fmt(plan.pro_amount)}
+              highlight={t('mostPopular')}
+              intro={t('everythingInBasic', { plan: plan.plan_name })}
+              features={[t('f_wabot'), t('f_host'), t('f_domain'), t('f_loyalty'), t('f_branches'), t('f_reports')]}
+              tier="pro"
+              addons={paidAddons}
+              current={currentTier === 'pro'}
+              perMonth={t('perMonth')}
+              currentLabel={t('currentPlan')}
+              ctaLabel={currentTier === 'basic' ? t('upgrade', { plan: plan.pro_name }) : t('subscribe')}
+            />
+          </div>
+
+          {/* The point of sale joins either tier. */}
+          <div className="mt-4 max-w-2xl rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-sm font-semibold text-neutral-500">
+                  <Calculator className="h-4 w-4" /> {t('addonTitle')} · {plan.pos_addon_name}
+                </div>
+                <div className="mt-1 flex items-baseline gap-1">
+                  <span className="text-3xl font-bold">+{fmt(plan.pos_addon_amount)}</span>
+                  <span className="text-neutral-500">{t('perMonth')}</span>
+                </div>
+                <p className="mt-2 text-xs font-medium text-neutral-500">{t('addonIntro')}</p>
+                <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                  {[t('f_pos'), t('f_kds'), t('f_print'), t('f_customer_screen')].map((f) => (
+                    <li key={f} className="flex items-center gap-2 text-sm">
+                      <Check className="h-4 w-4 shrink-0 text-green-600" /> {f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="shrink-0 sm:w-56">
+                {posState === 'trial' && (
+                  <div className="rounded-full bg-amber-100 py-2.5 text-center text-sm font-semibold text-amber-700">{t('addonIncludedTrial')}</div>
+                )}
+                {posState === 'active' && (
+                  <div className="rounded-full bg-green-100 py-2.5 text-center text-sm font-semibold text-green-700">{t('addonActive')}</div>
+                )}
+                {posState === 'off' && (
+                  <form action={startSubscription.bind(null, currentTier ?? 'pro', ['pos'])}>
+                    <button type="submit" className="w-full rounded-full bg-neutral-900 py-2.5 text-sm font-semibold text-white hover:bg-neutral-700">
+                      {currentTier ? t('addonAdd') : t('addonSubscribeWith', { plan: plan.pro_name })}
+                    </button>
+                  </form>
+                )}
+                {hasPos && posState !== 'off' && <p className="mt-2 text-center text-xs text-neutral-500">{t('addonHint')}</p>}
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
@@ -110,6 +158,7 @@ function PlanCard({
   intro,
   highlight,
   tier,
+  addons = [],
   current,
   currentLabel,
   ctaLabel,
@@ -121,6 +170,8 @@ function PlanCard({
   intro?: string;
   highlight?: string;
   tier: 'basic' | 'pro';
+  /** Paid add-ons carried over when the tier changes. */
+  addons?: Addon[];
   current: boolean;
   currentLabel: string;
   ctaLabel: string;
@@ -156,7 +207,7 @@ function PlanCard({
           {currentLabel}
         </div>
       ) : (
-        <form action={startSubscription.bind(null, tier)} className="mt-5">
+        <form action={startSubscription.bind(null, tier, addons)} className="mt-5">
           <button
             type="submit"
             className={`flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-sm font-semibold ${

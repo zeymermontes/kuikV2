@@ -2,7 +2,7 @@ import { getLocale } from 'next-intl/server';
 import { requireTenant } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { resolveMenuSettings } from '@/lib/menu-settings';
-import { isPro } from '@/lib/plan';
+import { canUsePos } from '@/lib/plan';
 import { posThemeVars } from '@/lib/pos/theme';
 import { themeVars } from '@/lib/theme-vars';
 import type { Category, FloorTable, Printer, Product, TenantOrdering } from '@/lib/database.types';
@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 /** The terminal. `?demo=1` runs it against a throwaway local store for the dashboard preview. */
 export default async function PosPage({ searchParams }: { searchParams: Promise<{ demo?: string; explain?: string }> }) {
   const { tenant, user, theme, subscription } = await requireTenant();
-  if (!isPro(subscription)) return <PosLocked title="POS" />;
+  if (!canUsePos(subscription)) return <PosLocked title="POS" />;
   const supabase = await createClient();
   const locale = await getLocale();
   const params = await searchParams;

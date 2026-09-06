@@ -15,6 +15,9 @@ export function PricingSettings({ settings }: { settings: PlatformSettings }) {
   const [extraAmount, setExtraAmount] = useState(String(settings.extra_amount));
   const [currency, setCurrency] = useState(settings.plan_currency);
   const [feePercent, setFeePercent] = useState(String(settings.payment_fee_percent ?? 0));
+  const [proFeePercent, setProFeePercent] = useState(settings.pro_payment_fee_percent == null ? '' : String(settings.pro_payment_fee_percent));
+  const [posName, setPosName] = useState(settings.pos_addon_name);
+  const [posAmount, setPosAmount] = useState(String(settings.pos_addon_amount));
   const [saved, setSaved] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -29,6 +32,9 @@ export function PricingSettings({ settings }: { settings: PlatformSettings }) {
         proName,
         extraAmount: Number(extraAmount),
         paymentFeePercent: Number(feePercent),
+        proPaymentFeePercent: proFeePercent.trim() === '' ? null : Number(proFeePercent),
+        posAddonAmount: Number(posAmount),
+        posAddonName: posName,
       });
       setSaved(true);
     });
@@ -39,24 +45,36 @@ export function PricingSettings({ settings }: { settings: PlatformSettings }) {
       <h2 className="mb-4 font-semibold">Precios de suscripción</h2>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <Label>Plan Básico — nombre</Label>
+          <Label>Plan base — nombre</Label>
           <Input value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div>
-          <Label>Básico — monto/mes</Label>
+          <Label>Plan base — monto/mes</Label>
           <Input type="number" step="0.01" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
         </div>
         <div>
-          <Label>Plan Pro — nombre</Label>
+          <Label>Plan alto — nombre</Label>
           <Input value={proName} onChange={(e) => setProName(e.target.value)} />
         </div>
         <div>
-          <Label>Pro — monto/mes</Label>
+          <Label>Plan alto — monto/mes</Label>
           <Input type="number" step="0.01" inputMode="decimal" value={proAmount} onChange={(e) => setProAmount(e.target.value)} />
         </div>
         <div>
           <Label>Restaurante adicional — monto/mes</Label>
           <Input type="number" step="0.01" inputMode="decimal" value={extraAmount} onChange={(e) => setExtraAmount(e.target.value)} />
+        </div>
+        <div>
+          <Label>Complemento punto de venta — nombre</Label>
+          <Input value={posName} onChange={(e) => setPosName(e.target.value)} />
+        </div>
+        <div>
+          <Label>Punto de venta — monto/mes (se suma a cualquier plan)</Label>
+          <Input type="number" min={0} step="1" value={posAmount} onChange={(e) => setPosAmount(e.target.value)} />
+        </div>
+        <div>
+          <Label>Comisión por pago en línea, plan {proName || 'Restaurante'} (%) — vacío = igual</Label>
+          <Input type="number" min={0} max={30} step="0.1" value={proFeePercent} onChange={(e) => setProFeePercent(e.target.value)} placeholder="igual que el plan base" />
         </div>
         <div>
           <Label>Comisión Kuik por pago en línea (%)</Label>

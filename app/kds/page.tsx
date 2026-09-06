@@ -3,7 +3,7 @@ import { requireTenant } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import type { Printer } from '@/lib/database.types';
 import { PrintingProvider } from '@/components/pos/PrintingContext';
-import { isPro } from '@/lib/plan';
+import { canUsePos } from '@/lib/plan';
 import { demoTickets } from '@/lib/pos/kds-demo';
 import { KdsBoard } from '@/components/pos/KdsBoard';
 import { PosLocked } from '@/components/pos/PosLocked';
@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 /** The kitchen screen. `?station=Cocina` pins one station; `?demo=1` shows sample tickets (`&explain=1` in the tutorial). */
 export default async function KdsPage({ searchParams }: { searchParams: Promise<{ station?: string; demo?: string; explain?: string }> }) {
   const { tenant, user, subscription } = await requireTenant();
-  if (!isPro(subscription)) return <PosLocked title="KDS" />;
+  if (!canUsePos(subscription)) return <PosLocked title="KDS" />;
   const locale = await getLocale();
   const params = await searchParams;
   const demo = !!params.demo;

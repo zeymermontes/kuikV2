@@ -9,10 +9,10 @@ export function PosLocked({ title }: { title: string }) {
       </div>
       <div>
         <h1 className="text-xl font-bold">{title}</h1>
-        <p className="mt-1 text-sm text-neutral-500">Disponible en el plan Pro.</p>
+        <p className="mt-1 text-sm text-neutral-500">El punto de venta es un complemento que se suma a tu plan.</p>
       </div>
       <Link href="/billing" className="rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-white">
-        Mejorar a Pro
+        Agregar punto de venta
       </Link>
     </div>
   );

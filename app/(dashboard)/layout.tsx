@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { requireTenant, getMemberships } from '@/lib/auth';
 import { tenantUrl } from '@/lib/config';
 import { showDevFeatures } from '@/lib/features';
-import { effectivePlan } from '@/lib/plan';
+import { effectivePlan, effectiveAddons } from '@/lib/plan';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { TrialBanner } from '@/components/dashboard/TrialBanner';
 import { PwaProvider } from '@/components/dashboard/PwaProvider';
@@ -74,6 +74,7 @@ export default async function DashboardLayout({
             }))}
             activeTenantId={ctx.tenant.id}
             plan={effectivePlan(ctx.subscription)}
+            addons={effectiveAddons(ctx.subscription)}
             enforcePlan={ctx.support}
             pendingReservations={pending.total}
             pendingHandoffs={handoffs.total}

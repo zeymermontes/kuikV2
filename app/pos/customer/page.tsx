@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { getLocale } from 'next-intl/server';
 import { requireTenant } from '@/lib/auth';
 import { resolveMenuSettings } from '@/lib/menu-settings';
-import { isPro } from '@/lib/plan';
+import { canUsePos } from '@/lib/plan';
 import { posThemeVars } from '@/lib/pos/theme';
 import { demoScope } from '@/lib/pos/types';
 import { CustomerDisplay } from '@/components/pos/CustomerDisplay';
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
  */
 export default async function CustomerScreenPage({ searchParams }: { searchParams: Promise<{ demo?: string; screen?: string }> }) {
   const { tenant, theme, subscription } = await requireTenant();
-  if (!isPro(subscription)) return <PosLocked title="POS" />;
+  if (!canUsePos(subscription)) return <PosLocked title="POS" />;
   const locale = await getLocale();
   const params = await searchParams;
   const demo = !!params.demo;

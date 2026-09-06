@@ -3,24 +3,37 @@
 import { redirect } from 'next/navigation';
 import { requireOwner } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
-import { createSubscription } from '@/lib/mercadopago';
+import { cancelPreapproval, createSubscription } from '@/lib/mercadopago';
+import { getPlatformSettings } from '@/lib/platform';
+import { isAddon, type Addon } from '@/lib/plan';
 
-/** Starts the MercadoPago subscription flow for a plan and redirects to checkout. */
-export async function startSubscription(plan: 'basic' | 'pro') {
+/**
+ * Starts the MercadoPago subscription flow for a tier plus add-ons and
+ * redirects to checkout. A change of tier or add-ons is a new preapproval; the
+ * one in force is cancelled so the restaurant is never billed twice.
+ */
+export async function startSubscription(plan: 'basic' | 'pro', rawAddons: readonly string[] = []) {
   const { tenant, user, subscription } = await requireOwner();
   const additional = subscription.is_additional;
+  const addons: Addon[] = [...new Set(rawAddons.filter(isAddon))];
+  const settings = await getPlatformSettings();
 
-  // Record the chosen tier now; the webhook flips status to active on payment.
+  // Record the choice now; the webhook flips status to active on payment.
   const supabase = await createClient();
-  await supabase.from('subscriptions').update({ plan }).eq('tenant_id', tenant.id);
+  await supabase.from('subscriptions').update({ plan, addons }).eq('tenant_id', tenant.id);
 
   let initPoint: string | null = null;
   try {
+    if (subscription.mp_preapproval_id && subscription.status === 'active') {
+      await cancelPreapproval(subscription.mp_preapproval_id).catch((err) => console.error('[mercadopago] cancel old preapproval failed:', err));
+    }
+    const tierName = additional ? 'Adicional' : plan === 'pro' ? settings.pro_name : settings.plan_name;
     const result = await createSubscription({
       tenantId: tenant.id,
       payerEmail: user.email ?? '',
-      reason: `Kuik ${additional ? 'Adicional' : plan === 'pro' ? 'Pro' : 'Básico'} — ${tenant.name}`,
+      reason: `Kuik ${tierName}${addons.includes('pos') ? ` + ${settings.pos_addon_name}` : ''} — ${tenant.name}`,
       plan,
+      addons,
       additional,
     });
     initPoint = result.initPoint;

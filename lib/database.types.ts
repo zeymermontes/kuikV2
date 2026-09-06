@@ -571,6 +571,8 @@ export interface Subscription {
   tenant_id: string;
   status: SubscriptionStatus;
   plan: 'basic' | 'pro';
+  /** Paid add-ons ('pos'); the trial has them all (lib/plan.ts, 0069). */
+  addons: string[];
   is_additional: boolean;
   trial_ends_at: string | null;
   current_period_end: string | null;

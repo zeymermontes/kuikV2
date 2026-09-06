@@ -318,6 +318,23 @@ gives a `whsec_` for `.env.local`; test cards work against a test-mode
 platform key. `npm test` covers the pricing rules and the webhook translation
 and signature check without touching Stripe.
 
+## Plans
+
+Two tiers and one add-on ([lib/plan.ts](lib/plan.ts), prices and names in
+`platform_settings`, edited in *Admin → Precios*):
+
+| | Sells | Gate |
+| --- | --- | --- |
+| **Menú** (`basic`) | menu, WhatsApp orders, online payment, reservations, design, reports | default |
+| **Restaurante** (`pro`) | + host stand, WhatsApp bot, loyalty, branches, custom domain, advanced reports | `isPro` / `canUse(plan, feature)` |
+| **Punto de venta** (add-on `pos`) | register, KDS, printing, customer screen; joins either tier | `canUsePos(sub)` / `canUse(plan, 'pos', addons)` |
+
+The trial month has everything. Paid add-ons live in `subscriptions.addons`
+(0069); the monthly MercadoPago charge is tier + add-ons, and changing either
+starts a new preapproval after cancelling the one in force. Kuik's cut of
+online payments can be lower on Restaurante (`pro_payment_fee_percent`).
+Extra restaurants on one account stay a separate line (`extra_amount`).
+
 ## Landing page and live demos
 
 The marketing page ([app/page.tsx](app/page.tsx)) sells the whole platform
@@ -328,10 +345,12 @@ and lets a visitor try it without an account:
   scaled to fit. They mount when scrolled near and stay mounted, so a demo
   keeps its state when the visitor switches tabs.
 - **Public demos** under `/demo/pos`, `/demo/kds`, `/demo/host` and
-  `/demo/customer` run the real POS, kitchen and host screens in memory
-  against the fixed demo restaurant in [lib/demo-tenant.ts](lib/demo-tenant.ts)
-  (the same `demo` mode the dashboard tutorials use). No login, nothing is
-  written; the pages are `noindex`.
+  `/demo/customer` run the real POS, kitchen and host screens in memory (the
+  same `demo` mode the dashboard tutorials use). The register sells the first
+  showcase restaurant's real menu ([lib/demo-menu.ts](lib/demo-menu.ts)) so it
+  matches the phone beside it; the kitchen and host use the fixed demo
+  restaurant in [lib/demo-tenant.ts](lib/demo-tenant.ts). No login, nothing
+  is written; the pages are `noindex`.
 - **Showcase restaurants** ([lib/showcase.ts](lib/showcase.ts)) are real
   tenants whose public menus are embedded live. Edit `SHOWCASE_SUBDOMAINS` to
   choose who appears; only list businesses that agreed to.

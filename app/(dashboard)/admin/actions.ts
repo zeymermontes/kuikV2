@@ -1,5 +1,7 @@
 'use server';
 
+import { isAddon } from '@/lib/plan';
+
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -167,9 +169,13 @@ export async function updatePricing(input: {
   proName: string;
   extraAmount: number;
   paymentFeePercent?: number;
+  proPaymentFeePercent?: number | null;
+  posAddonAmount?: number;
+  posAddonName?: string;
 }) {
   await requireSuperAdmin();
   if (!(input.amount > 0) || !input.currency) return;
+  const clampFee = (n: number) => Math.max(0, Math.min(30, n));
 
   const supabase = createAdminClient();
   // upsert (not update) so the price persists even if the seed row is missing.
@@ -178,11 +184,15 @@ export async function updatePricing(input: {
       id: 1,
       plan_amount: input.amount,
       plan_currency: input.currency.toUpperCase().slice(0, 3),
-      plan_name: input.planName || 'Kuik Básico',
+      plan_name: input.planName || 'Menú',
       pro_amount: input.proAmount,
-      pro_name: input.proName || 'Kuik Pro',
+      pro_name: input.proName || 'Restaurante',
       extra_amount: input.extraAmount,
-      payment_fee_percent: Math.max(0, Math.min(30, Number(input.paymentFeePercent) || 0)),
+      payment_fee_percent: clampFee(Number(input.paymentFeePercent) || 0),
+      pro_payment_fee_percent:
+        input.proPaymentFeePercent == null || Number.isNaN(Number(input.proPaymentFeePercent)) ? null : clampFee(Number(input.proPaymentFeePercent)),
+      pos_addon_amount: Math.max(0, Number(input.posAddonAmount) || 0),
+      pos_addon_name: (input.posAddonName || 'Punto de venta').slice(0, 60),
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'id' },
@@ -491,6 +501,17 @@ export async function clearCustomLanding(tenantId: string) {
 
   revalidatePath('/admin');
   revalidatePath('/', 'layout');
+}
+
+/** Super-admin: grant or remove the paid add-ons (the point of sale). */
+export async function setTenantAddons(tenantId: string, addons: string[]) {
+  const actor = await requireSuperAdmin();
+  const clean = [...new Set(addons.filter(isAddon))];
+  const supabase = createAdminClient();
+  await supabase.from('subscriptions').update({ addons: clean }).eq('tenant_id', tenantId);
+  await supabase.from('audit_log').insert({ actor_id: actor.id, tenant_id: tenantId, action: 'set_addons', detail: { addons: clean } });
+  revalidatePath('/admin');
+  revalidatePath(`/s/`);
 }
 
 /** Super-admin: override a tenant's plan tier. */

@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 import { ChevronsUpDown, ChevronDown, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { canUse, type PlanTier, type Feature } from '@/lib/plan';
+import { canUse, type Addon, type PlanTier, type Feature } from '@/lib/plan';
 import type { MemberRole } from '@/lib/database.types';
 import { signOut } from '@/app/(auth)/actions';
 import { setActiveTenant } from '@/app/(dashboard)/tenant-actions';
@@ -90,6 +90,7 @@ export function Sidebar({
   tenants,
   activeTenantId,
   plan,
+  addons = [],
   enforcePlan,
   pendingReservations,
   pendingHandoffs,
@@ -102,6 +103,8 @@ export function Sidebar({
   tenants: { id: string; name: string }[];
   activeTenantId: string;
   plan: PlanTier;
+  /** Add-ons in force (the point of sale); see lib/plan.ts. */
+  addons?: Addon[];
   // When true (support mode), hide Pro-only items the tenant's plan can't use.
   enforcePlan: boolean;
   /** Reservation requests still waiting on a yes or no, across all future days. */
@@ -123,7 +126,7 @@ export function Sidebar({
     (item) =>
       (item.roles as readonly string[]).includes(role) &&
       (!('dev' in item && item.dev) || showDevFeatures) &&
-      (!('feature' in item && item.feature) || !enforcePlan || canUse(plan, item.feature as Feature)),
+      (!('feature' in item && item.feature) || !enforcePlan || canUse(plan, item.feature as Feature, addons)),
   );
 
   const searchPages = visible.map(({ href, key }) => ({ href, label: t(key) }));

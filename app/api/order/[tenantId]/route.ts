@@ -8,6 +8,7 @@ import { accountReady, getGateway, getPaymentAccount, paymentsConfigured } from 
 import { applicationFee, priceOrder } from '@/lib/payments/pricing';
 import { normalizePhone, safeReturnPath } from '@/lib/payments/return-path';
 import { notifyWhatsappOrder } from '@/lib/orders/notify';
+import { effectivePlan, feePercentFor } from '@/lib/plan';
 import type { OrderRow } from '@/lib/database.types';
 import type { CartLine } from '@/lib/whatsapp';
 
@@ -89,13 +90,15 @@ export async function POST(
   // restaurant's only way to reach the guest about it.
   if (!row.customer_phone) return NextResponse.json({ ok: false, error: 'phone_required' }, { status: 400 });
 
-  const [{ data: tenant }, { data: theme }, { data: ordering }, account, platform] = await Promise.all([
+  const [{ data: tenant }, { data: theme }, { data: ordering }, account, platform, { data: sub }] = await Promise.all([
     supabase.from('tenants').select('id, name, subdomain, custom_domain').eq('id', tenantId).maybeSingle(),
     supabase.from('tenant_theme').select('settings').eq('tenant_id', tenantId).maybeSingle(),
     supabase.from('tenant_ordering').select('payment_methods, delivery_fee, free_delivery_over, ordering_enabled').eq('tenant_id', tenantId).maybeSingle(),
     getPaymentAccount(tenantId),
     getPlatformSettings(),
+    supabase.from('subscriptions').select('status, plan').eq('tenant_id', tenantId).maybeSingle(),
   ]);
+  const tier = effectivePlan((sub as { status: 'trialing' | 'active' | 'past_due' | 'canceled'; plan: 'basic' | 'pro' } | null) ?? { status: 'trialing', plan: 'basic' });
   const t = tenant as { id: string; name: string; subdomain: string; custom_domain: string | null } | null;
   const ord = ordering as { payment_methods: string[]; delivery_fee: number | null; free_delivery_over: number | null; ordering_enabled: boolean } | null;
   if (!t || !ord || !ord.ordering_enabled || !ord.payment_methods?.includes('online') || !accountReady(account)) {
@@ -134,7 +137,7 @@ export async function POST(
       restaurantName: t.name,
       amount: amount.total,
       currency,
-      applicationFee: applicationFee(amount.total, platform.payment_fee_percent),
+      applicationFee: applicationFee(amount.total, feePercentFor(platform, tier)),
       lines: [
         ...amount.lines,
         ...(amount.deliveryFee > 0 ? [{ name: 'Envío', qty: 1, unitAmount: amount.deliveryFee }] : []),

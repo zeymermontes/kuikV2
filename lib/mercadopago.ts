@@ -2,6 +2,7 @@ import 'server-only';
 import { MercadoPagoConfig, PreApproval } from 'mercadopago';
 import { APP_URL } from '@/lib/config';
 import { getPlatformSettings } from '@/lib/platform';
+import type { Addon } from '@/lib/plan';
 
 function mpClient() {
   return new MercadoPagoConfig({
@@ -38,20 +39,20 @@ export async function createSubscription({
   payerEmail,
   reason,
   plan = 'basic',
+  addons = [],
   additional = false,
 }: {
   tenantId: string;
   payerEmail: string;
   reason: string;
   plan?: 'basic' | 'pro';
+  /** Paid add-ons folded into the same monthly charge. */
+  addons?: readonly Addon[];
   additional?: boolean;
 }): Promise<{ id: string; initPoint: string }> {
   const settings = await getPlatformSettings();
-  const amount = additional
-    ? settings.extra_amount
-    : plan === 'pro'
-      ? settings.pro_amount
-      : settings.plan_amount;
+  const base = additional ? settings.extra_amount : plan === 'pro' ? settings.pro_amount : settings.plan_amount;
+  const amount = base + (addons.includes('pos') ? settings.pos_addon_amount : 0);
   const preapproval = new PreApproval(mpClient());
 
   const result = await preapproval.create({
@@ -80,4 +81,14 @@ export async function createSubscription({
 export async function getPreapproval(id: string) {
   const preapproval = new PreApproval(mpClient());
   return preapproval.get({ id });
+}
+
+/**
+ * Stop charging an earlier preapproval. Called when a restaurant moves to a
+ * new plan or adds the point of sale: the change is a new preapproval, and
+ * the old one must not keep billing alongside it.
+ */
+export async function cancelPreapproval(id: string): Promise<void> {
+  const preapproval = new PreApproval(mpClient());
+  await preapproval.update({ id, body: { status: 'cancelled' } });
 }
