@@ -34,6 +34,14 @@ export const metadata: Metadata = {
     description: 'Menú digital, pedidos por WhatsApp, pago con tarjeta, punto de venta, cocina y reservaciones. Un mes gratis.',
     type: 'website',
     locale: 'es_MX',
+    url: '/',
+    images: [{ url: '/og.png', width: 1200, height: 630, alt: 'Kuik: el POS en una tablet y un menú real en un teléfono' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Kuik — Tu restaurante completo, en una sola plataforma',
+    description: 'Menú digital, pedidos por WhatsApp, pago con tarjeta, punto de venta, cocina y reservaciones. Un mes gratis.',
+    images: ['/og.png'],
   },
 };
 
