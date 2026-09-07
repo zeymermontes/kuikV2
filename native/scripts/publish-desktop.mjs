@@ -38,7 +38,9 @@ if (!url || !key) throw new Error('SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY miss
 
 const version = JSON.parse(readFileSync(resolve(root, 'native/desktop/package.json'), 'utf8')).version;
 
-const files = readdirSync(dir).filter((f) => /\.(dmg|zip|exe|AppImage|deb|yml|blockmap)$/.test(f));
+const files = readdirSync(dir)
+  .filter((f) => /\.(dmg|zip|exe|AppImage|deb|yml|blockmap)$/.test(f))
+  .sort();
 if (files.length === 0) throw new Error(`no installers in ${dir}`);
 
 const types = {
@@ -52,10 +54,23 @@ const types = {
 };
 
 const supabase = createClient(url, key, { auth: { persistSession: false } });
+const LIMIT = 300 * 1024 * 1024;
 const { data: buckets } = await supabase.storage.listBuckets();
-if (!buckets?.some((b) => b.id === 'apps')) {
-  const { error } = await supabase.storage.createBucket('apps', { public: true, fileSizeLimit: 300 * 1024 * 1024 });
+const apps = buckets?.find((b) => b.id === 'apps');
+if (!apps) {
+  const { error } = await supabase.storage.createBucket('apps', { public: true, fileSizeLimit: LIMIT });
   if (error) throw error;
+} else if ((apps.file_size_limit ?? 0) < LIMIT) {
+  // An installer is over 100 MB. The bucket's cap can only go as high as the
+  // project's own upload limit (Supabase → Project Settings → Storage), so
+  // say so plainly instead of failing on the first big file.
+  const { error } = await supabase.storage.updateBucket('apps', { public: true, fileSizeLimit: LIMIT });
+  if (error) {
+    throw new Error(
+      `the apps bucket allows ${Math.round((apps.file_size_limit ?? 0) / 1e6)} MB per file and cannot be raised to 300 MB: ` +
+        `raise "Upload file size limit" under Project Settings → Storage in the Supabase dashboard, then rerun (${error.message})`,
+    );
+  }
 }
 const bucket = supabase.storage.from('apps');
 
