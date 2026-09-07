@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useSyncExternalStore } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -15,6 +15,13 @@ export interface HubTile {
   key: HubKey;
   /** The plan does not include it yet; the tile still opens, onto the add-on page. */
   locked?: boolean;
+}
+
+/** A register that has opened a shift, and where: what the customer screen can follow. */
+export interface HubRegister {
+  branchId: string | null;
+  /** The register's slug (caja, barra…), as the shift recorded it. */
+  register: string;
 }
 
 const CUSTOMER_REGISTER_KEY = 'terminal_customer_register';
@@ -73,16 +80,20 @@ export function TerminalHub({
   userName,
   tiles,
   branches = [],
+  registers = [],
 }: {
   restaurantName: string;
   userName: string;
   tiles: HubTile[];
   branches?: DeviceBranch[];
+  registers?: HubRegister[];
 }) {
   const t = useTranslations('terminal');
   const router = useRouter();
   const [askRegister, setAskRegister] = useState(false);
   const [register, setRegister] = useState('');
+  // Typing a register that has not opened a shift yet (a brand-new tablet).
+  const [otherRegister, setOtherRegister] = useState(false);
   const hasBranches = branches.length > 0;
   const branchId = useSyncExternalStore(subscribeBranch, rememberedBranchId, () => null);
   // A remembered branch that no longer exists reads as the main location;
@@ -104,6 +115,15 @@ export function TerminalHub({
     }
     setAskRegister((v) => !v);
   }
+
+  // The registers of the chosen branch, the default one always offered
+  // (shifts from before registers had names belong to it).
+  const branchRegisters = useMemo(() => {
+    const here = registers.filter((r) => (r.branchId ?? null) === (branch?.id ?? null)).map((r) => r.register);
+    return here.includes(DEFAULT_REGISTER) ? here : [DEFAULT_REGISTER, ...here];
+  }, [registers, branch]);
+  const registerKey = registerSlug(register || DEFAULT_REGISTER);
+  const listed = !otherRegister && branchRegisters.includes(registerKey);
 
   function openCustomer() {
     try {
@@ -196,18 +216,57 @@ export function TerminalHub({
             openCustomer();
           }}
         >
-          <label className="block">
-            <span className="text-sm font-medium">{t('customerRegister')}</span>
-            <input
-              value={register}
-              onChange={(e) => setRegister(e.target.value)}
-              placeholder={DEFAULT_REGISTER}
-              autoFocus
-              className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-white outline-none focus:border-white/40"
-            />
-            <span className="mt-1 block text-xs text-neutral-500">{t('customerRegisterHint')}</span>
-          </label>
-          <button type="submit" className="mt-3 rounded-xl bg-white px-6 py-3 font-semibold text-black">
+          <p className="text-sm font-medium">{t('customerRegister')}</p>
+          <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label={t('customerRegister')}>
+            {branchRegisters.map((r) => {
+              const active = listed && r === registerKey;
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => {
+                    setOtherRegister(false);
+                    setRegister(r);
+                  }}
+                  className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
+                    active ? 'bg-white text-black' : 'border border-white/15 text-neutral-300 hover:bg-white/10'
+                  }`}
+                >
+                  {r}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              role="radio"
+              aria-checked={!listed}
+              onClick={() => {
+                setOtherRegister(true);
+                if (branchRegisters.includes(registerKey)) setRegister('');
+              }}
+              className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
+                !listed ? 'bg-white text-black' : 'border border-white/15 text-neutral-300 hover:bg-white/10'
+              }`}
+            >
+              {t('customerRegisterOther')}
+            </button>
+          </div>
+          {!listed && (
+            <label className="mt-3 block">
+              <input
+                value={register}
+                onChange={(e) => setRegister(e.target.value)}
+                placeholder={DEFAULT_REGISTER}
+                autoFocus
+                aria-label={t('customerRegister')}
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-white outline-none focus:border-white/40"
+              />
+              <span className="mt-1 block text-xs text-neutral-500">{t('customerRegisterHint')}</span>
+            </label>
+          )}
+          <button type="submit" className="mt-4 rounded-xl bg-white px-6 py-3 font-semibold text-black">
             {t('go')}
           </button>
         </form>

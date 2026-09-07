@@ -2529,13 +2529,14 @@
     "locked": "Not in your plan",
     "nothing": "Your account has nothing to open on this device. Ask the owner to check your role.",
     "customerRegister": "Which register does this screen follow?",
-    "customerRegisterHint": "The register’s name, as set under Register → This register.",
+    "customerRegisterHint": "Type the name as set under Register → This register. Registers show up here once they open their first shift.",
     "go": "Open",
     "changeMode": "Back to home",
     "signOut": "Sign out",
     "branch": "Branch",
     "branchMain": "Main location",
-    "branchHint": "Register, kitchen and host stand open for this branch. The device remembers it."
+    "branchHint": "Register, kitchen and host stand open for this branch. The device remembers it.",
+    "customerRegisterOther": "Other…"
   },
   "shellUpdate": {
     "available": "A new version of the app is out ({version}).",

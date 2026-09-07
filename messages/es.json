@@ -2529,13 +2529,14 @@
     "locked": "No incluido en tu plan",
     "nothing": "Tu cuenta no tiene nada que abrir en este dispositivo. Pide al dueño que revise tu rol.",
     "customerRegister": "¿A qué caja sigue esta pantalla?",
-    "customerRegisterHint": "El nombre de la caja, como aparece en Caja → Esta caja.",
+    "customerRegisterHint": "Escribe el nombre tal como aparece en Caja → Esta caja. Las cajas aparecen aquí cuando abren su primer turno.",
     "go": "Abrir",
     "changeMode": "Volver al inicio",
     "signOut": "Cerrar sesión",
     "branch": "Sucursal",
     "branchMain": "Sede principal",
-    "branchHint": "Caja, cocina y anfitrión abren para esta sucursal. El dispositivo la recuerda."
+    "branchHint": "Caja, cocina y anfitrión abren para esta sucursal. El dispositivo la recuerda.",
+    "customerRegisterOther": "Otra…"
   },
   "shellUpdate": {
     "available": "Hay una versión nueva de la app ({version}).",
