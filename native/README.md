@@ -158,6 +158,29 @@ mode (Ctrl/Cmd+Shift+K), start with the computer, and re-opens the token
 window.
 
 When the POS opens the customer screen (`/pos/customer`), the shell puts it
-full screen on the second display if there is one. Installers are not signed
-or notarized yet; `electron-builder` takes the certificates through its usual
-`CSC_*` variables.
+full screen on the second display if there is one.
+
+### Releasing Kuik Caja
+
+The GitHub workflow [desktop.yml](../.github/workflows/desktop.yml) builds
+the three installers on their own runners and publishes them:
+
+```sh
+# bump "version" in native/desktop/package.json, commit, then
+git tag desktop-v0.1.1 && git push origin desktop-v0.1.1
+```
+
+- Installers and electron-updater's `latest*.yml` land flat under
+  `apps/desktop/` in the public bucket (`scripts/publish-desktop.mjs`), and
+  `latest.json` gets a `desktop` entry that kuik.mx/apps shows with one
+  button per OS. An installed app checks that feed on launch and every four
+  hours, downloads in the background and installs on quit.
+- Repository secrets: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for the
+  upload (set). Signing is optional: `WIN_CSC_LINK` + `WIN_CSC_KEY_PASSWORD`
+  (a base64 .pfx), `MAC_CSC_LINK` + `MAC_CSC_KEY_PASSWORD` (a base64 .p12
+  "Developer ID Application") with `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`
+  and `APPLE_TEAM_ID` for notarization. Without them the installers are
+  unsigned: Windows shows SmartScreen once, Mac needs right-click → Open, and
+  the macOS build cannot update itself (Squirrel.Mac requires a signature).
+- Locally, `npm run dist:mac` (or win/linux) then
+  `node ../scripts/publish-desktop.mjs dist` does the same for one platform.

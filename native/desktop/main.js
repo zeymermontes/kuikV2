@@ -14,6 +14,7 @@
 
 const { app, BrowserWindow, Menu, ipcMain, screen, session, shell, dialog } = require('electron');
 const { spawn } = require('node:child_process');
+const { autoUpdater } = require('electron-updater');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -279,6 +280,26 @@ ipcMain.handle('setup:skip', () => {
   return { ok: true };
 });
 
+// ── Updates ──────────────────────────────────────────────────────────────────
+// The app looks at the bucket's update feed (electron-builder.yml → publish)
+// on launch and every few hours, downloads a newer build in the background
+// and installs it when the app next quits. Best effort: an unsigned macOS
+// build cannot update itself (Squirrel.Mac refuses), and a register with no
+// internet simply tries again later.
+function checkForUpdates() {
+  if (!app.isPackaged || SMOKE) return;
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('error', (err) => {
+    try {
+      fs.appendFileSync(agentLogPath(), `[updater] ${new Date().toISOString()} ${err?.message || err}\n`);
+    } catch {}
+  });
+  const check = () => autoUpdater.checkForUpdates().catch(() => {});
+  check();
+  setInterval(check, 4 * 60 * 60 * 1000);
+}
+
 // ── Lifecycle ────────────────────────────────────────────────────────────────
 
 if (!app.requestSingleInstanceLock()) {
@@ -327,6 +348,7 @@ if (!app.requestSingleInstanceLock()) {
     } else {
       openSetup();
     }
+    checkForUpdates();
   });
 
   app.on('window-all-closed', () => app.quit());

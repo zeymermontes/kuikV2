@@ -15,7 +15,15 @@ export interface AppRelease {
   ios: { url: string; publishedAt: string } | null;
 }
 
-export type AppReleases = Partial<Record<AppId, AppRelease>>;
+export interface DesktopRelease {
+  version: string;
+  publishedAt?: string;
+  mac?: { url: string; size: number } | null;
+  win?: { url: string; size: number } | null;
+  linux?: { url: string; size: number } | null;
+}
+
+export type AppReleases = Partial<Record<AppId, AppRelease>> & { desktop?: DesktopRelease };
 
 export const APPS_BUCKET = 'apps';
 
@@ -46,6 +54,11 @@ export async function getAppReleases(): Promise<AppReleases> {
           ios: r.ios && typeof r.ios.url === 'string' ? r.ios : null,
         };
       }
+    }
+    const d = (json as Record<string, unknown>).desktop as Partial<DesktopRelease> | undefined;
+    if (d && typeof d.version === 'string') {
+      const link = (x: unknown) => (x && typeof (x as { url?: unknown }).url === 'string' ? (x as { url: string; size: number }) : null);
+      out.desktop = { version: d.version, publishedAt: d.publishedAt, mac: link(d.mac), win: link(d.win), linux: link(d.linux) };
     }
     return out;
   } catch {

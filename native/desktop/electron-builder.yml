@@ -3,6 +3,14 @@ productName: Kuik Caja
 copyright: Kuik
 directories:
   output: dist
+# One name per platform and version, no spaces: the publish script and the
+# update feed (latest*.yml) refer to these.
+artifactName: kuik-caja-${version}-${os}-${arch}.${ext}
+# electron-updater: the app checks this folder of the public apps bucket for
+# a newer version (native/scripts/publish-desktop.mjs keeps it current).
+publish:
+  provider: generic
+  url: https://efejxzvcsixwzwcqocqf.supabase.co/storage/v1/object/public/apps/desktop
 files:
   - main.js
   - preload.js

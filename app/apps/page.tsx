@@ -7,6 +7,7 @@ import { JsonLd } from '@/components/seo/JsonLd';
 import { Nav } from '@/components/landing/Nav';
 import { Footer } from '@/components/landing/Footer';
 import { AppQr } from '@/components/landing/AppQr';
+import { DesktopButtons } from '@/components/landing/DesktopButtons';
 
 export const metadata: Metadata = {
   title: 'Apps de Kuik — Android hoy, iOS próximamente',
@@ -172,14 +173,20 @@ export default async function AppsPage() {
               </li>
             ))}
           </ol>
-          <div className="mt-10 flex items-start gap-3 rounded-2xl border border-neutral-200 bg-white p-5">
-            <Monitor className="mt-0.5 h-5 w-5 shrink-0 text-neutral-500" />
-            <div className="text-sm">
-              <p className="font-semibold">¿Caja en una computadora?</p>
-              <p className="mt-1 text-neutral-600">
-                La app de escritorio Kuik Caja trae el agente de impresión adentro y manda la pantalla del cliente al segundo monitor. Está en pruebas; pídela por
-                WhatsApp o desde tu panel en Pedidos → Impresión.
-              </p>
+          <div className="mt-10 rounded-2xl border border-neutral-200 bg-white p-5 sm:p-6">
+            <div className="flex items-start gap-3">
+              <Monitor className="mt-0.5 h-5 w-5 shrink-0 text-neutral-500" />
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold">Kuik Caja, para la computadora de la caja</p>
+                <p className="mt-1 text-sm text-neutral-600">
+                  Trae el agente de impresión adentro, manda la pantalla del cliente al segundo monitor, y se actualiza sola. Windows, Mac y Linux.
+                </p>
+                <DesktopButtons release={releases.desktop ?? null} />
+                <p className="mt-3 text-xs text-neutral-500">
+                  Los instaladores aún no están firmados: Windows muestra &quot;Windows protegió tu PC&quot; (Más información → Ejecutar de todas formas) y
+                  Mac pide abrirlo con clic derecho → Abrir la primera vez.
+                </p>
+              </div>
             </div>
           </div>
         </div>
