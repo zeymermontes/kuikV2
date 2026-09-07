@@ -209,3 +209,21 @@ services:
       # The service refuses to boot otherwise.
       - key: DATABASE_URL
         sync: false
+
+  # Weekly media sweep: delete what the bucket holds and no row references
+  # any more (replaced photos, re-imported menus). See lib/media/sweep.ts.
+  - type: cron
+    name: kuik-media-sweep
+    runtime: node
+    schedule: "0 7 * * 0" # Sunday 07:00 UTC
+    plan: starter
+    buildCommand: "echo no build"
+    startCommand: >
+      curl -fsS -H "Authorization: Bearer $CRON_SECRET"
+      https://app.kuik.mx/api/cron/media-sweep
+    envVars:
+      - key: CRON_SECRET
+        fromService:
+          name: kuik
+          type: web
+          envVarKey: CRON_SECRET

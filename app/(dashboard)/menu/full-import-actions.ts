@@ -52,6 +52,8 @@ async function loadExisting(
  * pass through; external URLs are fetched and re-hosted; bare filenames (not yet
  * uploaded) resolve to null.
  */
+const REMOTE_IMAGE_MAX = 10 * 1024 * 1024;
+
 async function resolveImage(
   supabase: Awaited<ReturnType<typeof createClient>>,
   tenantId: string,
@@ -61,11 +63,16 @@ async function resolveImage(
   const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
   if (supaUrl && ref.startsWith(supaUrl)) return ref;
   try {
-    const res = await fetch(ref);
+    const res = await fetch(ref, { signal: AbortSignal.timeout(15_000) });
     if (!res.ok) return null;
-    const ct = res.headers.get('content-type') || 'image/jpeg';
-    const ext = (ct.split('/')[1] || 'jpg').split(';')[0].slice(0, 5);
+    const ct = (res.headers.get('content-type') || '').split(';')[0].trim();
+    // Only images, and only reasonable ones: a remote menu's photo is copied
+    // as-is (no browser here to compress it), so a 40 MB TIFF stays out.
+    if (!ct.startsWith('image/')) return null;
+    if (Number(res.headers.get('content-length') || 0) > REMOTE_IMAGE_MAX) return null;
+    const ext = (ct.split('/')[1] || 'jpg').slice(0, 5);
     const bytes = new Uint8Array(await res.arrayBuffer());
+    if (bytes.length > REMOTE_IMAGE_MAX) return null;
     const path = `${tenantId}/imported/${crypto.randomUUID()}.${ext}`;
     const { error } = await supabase.storage.from('media').upload(path, bytes, { contentType: ct });
     if (error) return null;

@@ -8,7 +8,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import type { Category, Product, TenantTheme } from '@/lib/database.types';
 import { BADGES } from '@/lib/badges';
 import { resolveOptionGroups } from '@/lib/menu-options';
-import { uploadFile } from '@/lib/upload';
+import { uploadImage } from '@/lib/upload';
 import { Button } from '@/components/ui';
 import {
   previewFullImport,
@@ -264,7 +264,9 @@ export function MenuImportExport({
           if (!missingImages.includes(base)) missingImages.push(base);
           return null;
         }
-        const url = await uploadFile(new File([bytes as unknown as BlobPart], base, { type: mime(base) }), tenantId, 'imported').catch(() => null);
+        // Through the same compression as a photo picked in the dashboard: a
+        // menu's ZIP is usually full-size camera shots.
+        const url = await uploadImage(new File([bytes as unknown as BlobPart], base, { type: mime(base) }), tenantId, 'imported').catch(() => null);
         if (url) cache.set(base, url);
         return url;
       }
