@@ -15,6 +15,7 @@ import {
   type PaymentProvider,
   type PublicPaymentAccount,
 } from '@/lib/payments';
+import { verifyCredentials } from '@/lib/payments/clip';
 
 // Connecting a gateway is a manager's job. The rows in payment_accounts are
 // written here with the service role (the browser only reads the flags), and
@@ -29,6 +30,7 @@ export async function paymentAccountState(): Promise<{ providers: PaymentProvide
 export async function connectGateway(provider: PaymentProvider): Promise<void> {
   const { tenant, user } = await requireManager();
   if (!isPaymentProvider(provider) || !configuredProviders().includes(provider)) throw new Error('payments_not_configured');
+  if (provider === 'clip') throw new Error('clip_uses_credentials'); // connectClip below
   const existing = await getPaymentAccount(tenant.id);
   // One gateway per restaurant: switching means disconnecting first.
   if (existing && existing.provider !== provider) throw new Error('other_gateway_connected');
@@ -46,6 +48,38 @@ export async function connectGateway(provider: PaymentProvider): Promise<void> {
     await createAdminClient().from('payment_accounts').insert({ tenant_id: tenant.id, provider, account_id: accountId });
   }
   redirect(url);
+}
+
+/**
+ * Clip has no hosted onboarding: the manager pastes the API key and secret
+ * of an application created on dashboard.clip.mx. The pair is checked
+ * against Clip before it is stored, and it never reaches the browser again.
+ */
+export async function connectClip(input: { apiKey: string; secret: string }): Promise<{ account?: PublicPaymentAccount | null; error?: 'invalid' | 'other_gateway' | 'not_offered' }> {
+  const { tenant } = await requireManager();
+  if (!configuredProviders().includes('clip')) return { error: 'not_offered' };
+  const apiKey = input.apiKey.trim();
+  const secret = input.secret.trim();
+  if (!apiKey || !secret || !(await verifyCredentials({ api_key: apiKey, secret }))) return { error: 'invalid' };
+  const existing = await getPaymentAccount(tenant.id);
+  if (existing && existing.provider !== 'clip') return { error: 'other_gateway' };
+  const now = new Date().toISOString();
+  const row = {
+    tenant_id: tenant.id,
+    provider: 'clip' as const,
+    account_id: apiKey,
+    credentials: { api_key: apiKey, secret },
+    charges_enabled: true,
+    details_submitted: true,
+    updated_at: now,
+  };
+  const supabase = createAdminClient();
+  const { error } = existing
+    ? await supabase.from('payment_accounts').update(row).eq('tenant_id', tenant.id)
+    : await supabase.from('payment_accounts').insert(row);
+  if (error) throw new Error(error.message);
+  revalidatePath('/ordering');
+  return { account: publicAccount(await getPaymentAccount(tenant.id)) };
 }
 
 /** Kept for existing callers. */

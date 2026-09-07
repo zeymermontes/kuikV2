@@ -4,7 +4,7 @@ import { rateLimit, clientIp, bucketKey } from '@/lib/rate-limit';
 import { tenantBaseUrl } from '@/lib/config';
 import { resolveMenuSettings } from '@/lib/menu-settings';
 import { getPlatformSettings } from '@/lib/platform';
-import { accountReady, getGateway, getPaymentAccount, paymentsConfigured } from '@/lib/payments';
+import { accountReady, applyPaymentEvent, getGateway, getPaymentAccount, isPaymentProvider, paymentsConfigured } from '@/lib/payments';
 import { applicationFee, priceOrder, discountedLines } from '@/lib/payments/pricing';
 import { normalizePhone, safeReturnPath } from '@/lib/payments/return-path';
 import { notifyWhatsappOrder } from '@/lib/orders/notify';
@@ -188,12 +188,30 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   const { tenantId } = await params;
   const id = req.nextUrl.searchParams.get('id') ?? '';
   if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ ok: false }, { status: 400 });
-  const { data } = await createAdminClient()
-    .from('orders')
-    .select('id, payment_status, amount_paid, currency, items, total, customer_name, service_type, table_label, created_at, paid_at')
-    .eq('id', id)
-    .eq('tenant_id', tenantId)
-    .maybeSingle();
+  const supabase = createAdminClient();
+  const select = 'id, payment_status, amount_paid, currency, items, total, customer_name, service_type, table_label, created_at, paid_at, payment_provider, payment_ref';
+  let { data } = await supabase.from('orders').select(select).eq('id', id).eq('tenant_id', tenantId).maybeSingle();
   if (!data) return NextResponse.json({ ok: false }, { status: 404 });
-  return NextResponse.json({ ok: true, ...(data as object) });
+  // Still pending while the guest is back from checkout: ask the gateway
+  // itself when it can say (Clip's notification may lag or never come), so
+  // the confirmation does not depend on the webhook alone.
+  const o = data as { payment_status: string; payment_provider: string | null; payment_ref: string | null };
+  if (o.payment_status === 'pending' && isPaymentProvider(o.payment_provider) && o.payment_ref) {
+    const gateway = getGateway(o.payment_provider);
+    if (gateway.checkStatus) {
+      const account = await getPaymentAccount(tenantId);
+      if (account && account.provider === o.payment_provider) {
+        try {
+          await applyPaymentEvent(await gateway.checkStatus(account, o.payment_ref), o.payment_provider);
+          ({ data } = await supabase.from('orders').select(select).eq('id', id).eq('tenant_id', tenantId).maybeSingle());
+        } catch (e) {
+          console.error('[order] status check failed:', e instanceof Error ? e.message : e);
+        }
+      }
+    }
+  }
+  const { payment_provider: _p, payment_ref: _r, ...pub } = data as Record<string, unknown>;
+  void _p;
+  void _r;
+  return NextResponse.json({ ok: true, ...pub });
 }

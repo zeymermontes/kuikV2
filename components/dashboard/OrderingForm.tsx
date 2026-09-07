@@ -2,13 +2,13 @@
 
 import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
-import { CreditCard, ExternalLink, RefreshCw } from 'lucide-react';
+import { CreditCard, ExternalLink, KeyRound, RefreshCw } from 'lucide-react';
 import type { TenantOrdering, ServiceType, PaymentMethod } from '@/lib/database.types';
 import type { PaymentProvider, PublicPaymentAccount } from '@/lib/payments/types';
 import { Card, Label, Input, Textarea, Button } from '@/components/ui';
 import { updateOrdering } from '@/app/(dashboard)/settings-actions';
 import { resolveOrderAlerts, type OrderAlerts } from '@/lib/orders/alerts';
-import { connectGateway, disconnectGateway, syncPaymentAccount } from '@/app/(dashboard)/payments-actions';
+import { connectClip, connectGateway, disconnectGateway, syncPaymentAccount } from '@/app/(dashboard)/payments-actions';
 
 const SERVICE_TYPES: ServiceType[] = ['pickup', 'delivery', 'dinein'];
 // The three the cart offers: settle at the counter, transfer, or pay by card
@@ -44,9 +44,54 @@ export function OrderingForm({
   const ready = !!account && account.charges_enabled;
   const actionNeeded = ready && !account.details_submitted;
   const paymentsConfigured = providers.length > 0;
-  // Wording keyed by gateway: stripe* and mp* strings say the provider's name.
-  const gw = account?.provider === 'mercadopago' ? 'mp' : 'stripe';
+  // Wording keyed by gateway: stripe*, mp* and clip* strings say the provider's name.
+  const gw = account?.provider === 'mercadopago' ? 'mp' : account?.provider === 'clip' ? 'clip' : 'stripe';
   const gwT = (key: string) => t(`${gw}${key}` as 'stripeReady');
+  const GATEWAY_NAME: Record<PaymentProvider, string> = { stripe: 'Stripe', mercadopago: 'Mercado Pago', clip: 'Clip' };
+  // Clip is connected with a key pair typed here, not on a hosted page.
+  const [clipForm, setClipForm] = useState(false);
+  const [clipKey, setClipKey] = useState('');
+  const [clipSecret, setClipSecret] = useState('');
+  const [clipError, setClipError] = useState<string | null>(null);
+  function saveClip() {
+    setClipError(null);
+    startBusy(async () => {
+      const r = await connectClip({ apiKey: clipKey, secret: clipSecret });
+      if (r.error) {
+        setClipError(r.error);
+        return;
+      }
+      setAccount(r.account ?? null);
+      setClipForm(false);
+      setClipKey('');
+      setClipSecret('');
+    });
+  }
+  const clipCredentials = (
+    <div className="space-y-2 rounded-xl border border-neutral-200 p-3">
+      <p className="text-sm font-medium">{t('clipTitle')}</p>
+      <p className="text-xs text-neutral-500">{t('clipWhere')}</p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div>
+          <Label>{t('clipApiKey')}</Label>
+          <Input value={clipKey} onChange={(e) => setClipKey(e.target.value)} autoComplete="off" spellCheck={false} />
+        </div>
+        <div>
+          <Label>{t('clipSecret')}</Label>
+          <Input type="password" value={clipSecret} onChange={(e) => setClipSecret(e.target.value)} autoComplete="off" />
+        </div>
+      </div>
+      {clipError && <p className="rounded-lg bg-red-50 px-2 py-1.5 text-xs text-red-700">{t(`clipErr_${clipError}` as 'clipErr_invalid')}</p>}
+      <div className="flex gap-2">
+        <Button disabled={busy || !clipKey.trim() || !clipSecret.trim()} onClick={saveClip} className="px-3 py-1.5 text-xs">
+          {t('clipSave')}
+        </Button>
+        <Button variant="ghost" disabled={busy} onClick={() => setClipForm(false)} className="px-3 py-1.5 text-xs">
+          {t('cancel')}
+        </Button>
+      </div>
+    </div>
+  );
 
   function set<K extends keyof TenantOrdering>(key: K, value: TenantOrdering[K]) {
     setO((s) => ({ ...s, [key]: value }));
@@ -337,33 +382,40 @@ export function OrderingForm({
             {!paymentsConfigured ? (
               <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">{t('onlineNotConfigured')}</p>
             ) : !account ? (
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-neutral-600">{t('gatewayPick')}</p>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {providers.map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      disabled={busy}
-                      onClick={() => startBusy(() => connectGateway(p))}
-                      className="flex flex-col items-start gap-1 rounded-xl border border-neutral-200 p-3 text-left transition hover:border-neutral-900 disabled:opacity-60"
-                    >
-                      <span className="flex items-center gap-1.5 text-sm font-semibold">
-                        <ExternalLink className="h-3.5 w-3.5" /> {t(p === 'stripe' ? 'stripeConnect' : 'mpConnect')}
-                      </span>
-                      <span className="text-xs text-neutral-500">{t(p === 'stripe' ? 'gatewayStripeHint' : 'gatewayMpHint')}</span>
-                    </button>
-                  ))}
+              clipForm ? (
+                clipCredentials
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-neutral-600">{t('gatewayPick')}</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {providers.map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        disabled={busy}
+                        onClick={() => (p === 'clip' ? setClipForm(true) : startBusy(() => connectGateway(p)))}
+                        className="flex flex-col items-start gap-1 rounded-xl border border-neutral-200 p-3 text-left transition hover:border-neutral-900 disabled:opacity-60"
+                      >
+                        <span className="flex items-center gap-1.5 text-sm font-semibold">
+                          {p === 'clip' ? <KeyRound className="h-3.5 w-3.5" /> : <ExternalLink className="h-3.5 w-3.5" />}{' '}
+                          {t(p === 'stripe' ? 'stripeConnect' : p === 'mercadopago' ? 'mpConnect' : 'clipConnect')}
+                        </span>
+                        <span className="text-xs text-neutral-500">{t(p === 'stripe' ? 'gatewayStripeHint' : p === 'mercadopago' ? 'gatewayMpHint' : 'gatewayClipHint')}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-neutral-500">{t('gatewayOneHint')}</p>
                 </div>
-                <p className="text-xs text-neutral-500">{t('gatewayOneHint')}</p>
-              </div>
+              )
+            ) : clipForm ? (
+              clipCredentials
             ) : (
               <div className="rounded-xl border border-neutral-200 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-sm">
                     <span className={`h-2 w-2 rounded-full ${ready ? 'bg-green-500' : 'bg-amber-400'}`} />
                     <span className="font-medium">{ready ? gwT('Ready') : gwT('Pending')}</span>
-                    <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] text-neutral-600">{account.provider === 'mercadopago' ? 'Mercado Pago' : 'Stripe'}</span>
+                    <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] text-neutral-600">{GATEWAY_NAME[account.provider]}</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {(!ready || actionNeeded) && (
@@ -376,10 +428,26 @@ export function OrderingForm({
                         <RefreshCw className={`h-3.5 w-3.5 ${busy ? 'animate-spin' : ''}`} /> {t('stripeCheck')}
                       </Button>
                     )}
-                    {(account.provider === 'stripe' || !ready) && (
-                      <Button disabled={busy} onClick={() => startBusy(() => connectGateway(account.provider))} className="px-3 py-1.5 text-xs">
-                        <ExternalLink className="h-3.5 w-3.5" /> {ready ? gwT('Manage') : gwT('Continue')}
-                      </Button>
+                    {account.provider === 'clip' ? (
+                      <>
+                        <Button disabled={busy} onClick={() => setClipForm(true)} className="px-3 py-1.5 text-xs">
+                          <KeyRound className="h-3.5 w-3.5" /> {t('clipContinue')}
+                        </Button>
+                        <a
+                          href="https://dashboard.clip.mx"
+                          target="_blank"
+                          rel="noopener"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" /> {t('clipManage')}
+                        </a>
+                      </>
+                    ) : (
+                      (account.provider === 'stripe' || !ready) && (
+                        <Button disabled={busy} onClick={() => startBusy(() => connectGateway(account.provider))} className="px-3 py-1.5 text-xs">
+                          <ExternalLink className="h-3.5 w-3.5" /> {ready ? gwT('Manage') : gwT('Continue')}
+                        </Button>
+                      )
                     )}
                     <Button
                       variant="ghost"

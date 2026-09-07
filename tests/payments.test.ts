@@ -111,3 +111,24 @@ test('normalizePhone keeps 10–15 digits and an optional plus', () => {
   assert.equal(normalizePhone(''), null);
   assert.equal(normalizePhone(null), null);
 });
+
+// ── Clip ────────────────────────────────────────────────────────────────────
+import { translateCheckout } from '../lib/payments/clip';
+
+test('a completed Clip link is paid, named by its receipt, with the order from the metadata', () => {
+  const ev = translateCheckout({
+    payment_request_id: 'link-1',
+    status: 'CHECKOUT_COMPLETED',
+    amount: 250.5,
+    currency: 'mxn',
+    receipt_no: 'PigbE6lU',
+    metadata: { external_reference: 'order-9' },
+  });
+  assert.deepEqual(ev, { type: 'paid', ref: 'PigbE6lU', amount: 250.5, currency: 'MXN', orderId: 'order-9' });
+});
+
+test('an expired or cancelled Clip link fails the order; a pending one is left alone', () => {
+  assert.equal(translateCheckout({ payment_request_id: 'l', status: 'CHECKOUT_EXPIRED', metadata: { external_reference: 'o' } }).type, 'failed');
+  assert.equal(translateCheckout({ payment_request_id: 'l', status: 'CHECKOUT_CANCELLED' }).type, 'failed');
+  assert.equal(translateCheckout({ payment_request_id: 'l', status: 'CHECKOUT_PENDING' }).type, 'ignored');
+});

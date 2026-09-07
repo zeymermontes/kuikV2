@@ -1,9 +1,9 @@
 // One shape for every payment gateway, so the cart, the order route and the
-// order board never learn a provider's vocabulary. Stripe (lib/payments/stripe.ts)
-// and Mercado Pago (lib/payments/mercadopago.ts) implement it; Clip would be
-// another file exporting the same interface.
+// order board never learn a provider's vocabulary. Stripe (lib/payments/stripe.ts),
+// Mercado Pago (lib/payments/mercadopago.ts) and Clip (lib/payments/clip.ts)
+// implement it.
 
-export type PaymentProvider = 'stripe' | 'mercadopago';
+export type PaymentProvider = 'stripe' | 'mercadopago' | 'clip';
 
 export interface PaymentAccount {
   tenant_id: string;
@@ -86,6 +86,12 @@ export interface PaymentGateway {
   parseWebhook(req: WebhookRequest): Promise<PaymentEvent>;
   /** Return money on a paid checkout (`ref` as stored on the order); the whole amount when `amount` is omitted. */
   refund(input: RefundInput): Promise<{ ref: string }>;
+  /**
+   * Read a checkout's state from the gateway, for gateways whose webhooks may
+   * lag or go missing: the order route asks when the guest is back and the
+   * order is still pending. `ref` is the checkout id stored on the order.
+   */
+  checkStatus?(account: PaymentAccount, ref: string): Promise<PaymentEvent>;
 }
 
 export interface RefundInput {

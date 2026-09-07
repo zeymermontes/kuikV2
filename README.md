@@ -277,7 +277,7 @@ order route, the webhook handler, the board, the cart — works off that. Two
 implementations are registered in [lib/payments/index.ts](lib/payments/index.ts):
 [stripe.ts](lib/payments/stripe.ts) and [mercadopago.ts](lib/payments/mercadopago.ts).
 A restaurant connects one of them from *Pedidos → Formas de pago → Pagar con
-tarjeta*; Clip would be another file.
+tarjeta*.
 
 **Mercado Pago (marketplace shape).** The restaurant signs in with its own
 Mercado Pago account (OAuth, callback `/api/payments/mercadopago/callback`,
@@ -290,6 +290,21 @@ webhook secret (`x-signature`), and the payment is read with that tenant's
 token. Env: `MERCADOPAGO_CLIENT_ID`, `MERCADOPAGO_CLIENT_SECRET`,
 `MERCADOPAGO_WEBHOOK_SIGNING_SECRET`; the redirect URL and the webhook URL
 must be registered on the application (see `.env.example`).
+
+**Clip (credentials shape).** No OAuth and no marketplace: the restaurant
+creates a production application on dashboard.clip.mx and pastes its API key
+and secret under *Pedidos → Formas de pago → Conectar con Clip*
+(`connectClip` verifies the pair against Clip before storing it in
+`payment_accounts.credentials`, migration 0084). Each order becomes a Clip
+Checkout link (`POST /v2/checkout`, one hour, card / MSI / OXXO) whose
+`metadata.external_reference` is the order id. Clip's notification
+(`/api/webhooks/clip?tenant=<id>`) carries only the link id and no
+signature, so the link is read back from Clip with the restaurant's own
+credentials before anything is applied; the order route also asks Clip
+directly while the guest waits on the confirmation, in case the
+notification lags. Refunds name the receipt. Kuik's fee cannot be withheld
+from a Clip payment; `applicationFee` is ignored there. Nothing to
+configure on Kuik's side; `CLIP_DISABLED=1` hides the option.
 
 **Money flow (Stripe Connect, direct charges).** The
 restaurant is the merchant: it onboards on Stripe's hosted form from

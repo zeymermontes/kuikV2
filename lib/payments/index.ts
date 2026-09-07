@@ -2,27 +2,33 @@ import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { stripeGateway, stripeConfigured } from './stripe';
 import { mercadopagoGateway, mercadopagoConfigured } from './mercadopago';
+import { clipGateway } from './clip';
 import type { PaymentAccount, PaymentEvent, PaymentGateway, PaymentProvider, PublicPaymentAccount } from './types';
 import { notifyPaidOrder } from '@/lib/orders/notify';
 import type { KitchenTicket } from '@/lib/pos/types';
 
 export type { PaymentAccount, PaymentEvent, PaymentGateway, PaymentProvider, PublicPaymentAccount, WebhookRequest } from './types';
 
-const gateways: Record<PaymentProvider, PaymentGateway> = { stripe: stripeGateway, mercadopago: mercadopagoGateway };
+const gateways: Record<PaymentProvider, PaymentGateway> = { stripe: stripeGateway, mercadopago: mercadopagoGateway, clip: clipGateway };
 
 export function getGateway(id: PaymentProvider = 'stripe'): PaymentGateway {
   return gateways[id];
 }
 
 export function isPaymentProvider(x: unknown): x is PaymentProvider {
-  return x === 'stripe' || x === 'mercadopago';
+  return x === 'stripe' || x === 'mercadopago' || x === 'clip';
 }
 
-/** The gateways Kuik itself has keys for; a restaurant picks one of these. */
+/**
+ * The gateways a restaurant may pick. Stripe and Mercado Pago need Kuik's own
+ * keys; Clip needs none (the restaurant brings its credentials), so it is
+ * always offered unless CLIP_DISABLED is set.
+ */
 export function configuredProviders(): PaymentProvider[] {
   const out: PaymentProvider[] = [];
   if (stripeConfigured()) out.push('stripe');
   if (mercadopagoConfigured()) out.push('mercadopago');
+  if (!process.env.CLIP_DISABLED) out.push('clip');
   return out;
 }
 
