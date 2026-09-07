@@ -84,6 +84,13 @@ export function FloorPlan({
     if (Math.abs(dx) + Math.abs(dy) > 4) d.moved = true;
     d.el.style.transform = `translate(${dx}px, ${dy}px)`;
   }
+  // The browser took the gesture for scrolling (a finger, before touch-action
+  // was set) or the pointer was lost: put the table back where it was.
+  function onPointerCancel() {
+    const d = drag.current;
+    drag.current = null;
+    if (d) d.el.style.transform = '';
+  }
   function onPointerUp(e: React.PointerEvent, table: FloorTable) {
     const d = drag.current;
     drag.current = null;
@@ -133,6 +140,9 @@ export function FloorPlan({
               onPointerDown={(e) => onPointerDown(e, table.id)}
               onPointerMove={onPointerMove}
               onPointerUp={(e) => onPointerUp(e, table)}
+              onPointerCancel={onPointerCancel}
+              // A long press on a touch screen would open the context menu mid-drag.
+              onContextMenu={(e) => editMode && e.preventDefault()}
               onClick={() => {
                 if (justDragged.current) {
                   justDragged.current = false;
@@ -142,7 +152,7 @@ export function FloorPlan({
               }}
               className={`absolute flex items-center justify-center text-white transition-shadow ${
                 table.shape === 'round' ? 'rounded-full' : table.shape === 'diamond' ? 'rotate-45 rounded-xl' : 'rounded-xl'
-              } ${editMode ? 'cursor-move' : ''} ${selected ? 'ring-4 ring-white' : suggested ? 'ring-4 ring-white/50 animate-pulse' : ''} ${
+              } ${editMode ? 'cursor-move select-none' : ''} ${selected ? 'ring-4 ring-white' : suggested ? 'ring-4 ring-white/50 animate-pulse' : ''} ${
                 over ? 'shadow-[0_0_0_3px_#ef4444]' : ''
               }`}
               style={{
@@ -152,6 +162,9 @@ export function FloorPlan({
                 height: size.h * CELL,
                 backgroundColor: color,
                 color: light ? '#1f1f2a' : '#fff',
+                // Without this a finger's first few pixels go to the browser
+                // as a scroll and the drag is cancelled after one step.
+                touchAction: editMode ? 'none' : undefined,
               }}
               title={table.label}
             >

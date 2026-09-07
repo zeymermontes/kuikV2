@@ -384,7 +384,7 @@ export function HostApp({
     <div className="relative flex h-full flex-col">
       {/* Seating / moving bar with suggestions */}
       {seating && seatingParty && (
-        <div className="absolute inset-x-2 top-2 z-20 rounded-2xl bg-white p-2.5 text-neutral-900 shadow-xl md:inset-x-3 md:top-3" data-help="host_seatingBar">
+        <div className="relative z-20 mx-2 mt-2 shrink-0 rounded-2xl bg-white p-2.5 text-neutral-900 shadow-xl md:mx-3 md:mt-3" data-help="host_seatingBar">
           <div className="flex items-center gap-2">
             <span className="min-w-0 flex-1 text-sm">
               <span className="font-bold">{seating.move ? t('movingBar', { name: seatingParty.customer_name }) : t('seatingBar', { name: seatingParty.customer_name, n: seatingParty.party_size })}</span>
@@ -415,9 +415,10 @@ export function HostApp({
         </div>
       )}
 
-      {/* Edit mode: combinations */}
+      {/* Edit mode: combinations. In the flow, like the seating bar: a bar
+          laid over the plan hid the tables in the top rows. */}
       {editMode && !seating && (
-        <div className="absolute inset-x-2 top-2 z-20 rounded-2xl bg-white p-2.5 text-neutral-900 shadow-xl md:inset-x-3 md:top-3">
+        <div className="relative z-20 mx-2 mt-2 shrink-0 rounded-2xl bg-white p-2.5 text-neutral-900 shadow-xl md:mx-3 md:mt-3">
           {comboPick ? (
             <div className="flex items-center gap-2">
               <span className="min-w-0 flex-1 text-sm">
