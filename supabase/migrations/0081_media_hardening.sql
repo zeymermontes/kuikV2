@@ -29,6 +29,9 @@ $$;
 drop policy if exists "media authed write"  on storage.objects;
 drop policy if exists "media authed update" on storage.objects;
 drop policy if exists "media authed delete" on storage.objects;
+drop policy if exists "media member write"  on storage.objects;
+drop policy if exists "media member update" on storage.objects;
+drop policy if exists "media member delete" on storage.objects;
 
 create policy "media member write" on storage.objects for insert to authenticated
   with check (bucket_id = 'media' and public.media_write_allowed(name));
