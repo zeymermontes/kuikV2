@@ -10,6 +10,8 @@ import { TenantAdminActions } from '@/components/dashboard/TenantAdminActions';
 import { LandingControls } from '@/components/dashboard/LandingControls';
 import { PricingSettings } from '@/components/dashboard/PricingSettings';
 import { AiPlatformSettings } from '@/components/dashboard/AiPlatformSettings';
+import { AppReleasesCard } from '@/components/dashboard/AppReleasesCard';
+import { getAppReleases } from '@/lib/apps/releases';
 import { LandingAiPrompt } from '@/components/dashboard/LandingAiPrompt';
 import { listAiUsage } from './actions';
 import { PlanSelect } from '@/components/dashboard/PlanSelect';
@@ -63,13 +65,14 @@ export default async function AdminPage() {
     .filter(([, key]) => Boolean(key))
     .map(([id]) => id as string);
 
-  const [{ data: aiRow }, aiUsage] = await Promise.all([
+  const [{ data: aiRow }, aiUsage, releases] = await Promise.all([
     supabase
       .from('platform_settings')
       .select('ai_enabled, whatsapp_enabled, ai_default_provider, ai_default_model, ai_monthly_message_cap')
       .eq('id', 1)
       .maybeSingle(),
     listAiUsage(),
+    getAppReleases({ fresh: true }),
   ]);
 
   const aiSettings = {
@@ -155,6 +158,10 @@ export default async function AdminPage() {
           usage={aiUsage}
           configuredProviders={configuredProviders}
         />
+      </div>
+
+      <div className="mb-6">
+        <AppReleasesCard releases={releases} />
       </div>
 
       <Card className="overflow-x-auto p-0">

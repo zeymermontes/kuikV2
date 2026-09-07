@@ -30,6 +30,12 @@ export interface DesktopBridge {
   /** Open (or focus) the customer screen on the second display, if there is one. */
   openCustomerScreen: (url: string) => Promise<boolean>;
   setKiosk: (on: boolean) => Promise<void>;
+  /**
+   * Quit and install the update electron-updater has already downloaded;
+   * false when none is ready yet (it then checks again). Missing on shells
+   * built before this call existed.
+   */
+  installUpdate?: () => Promise<boolean>;
 }
 
 declare global {
@@ -61,6 +67,13 @@ export function shellVersion(ua?: string | null): string | null {
 
 export function isNativeShell(): boolean {
   return shell() !== 'browser';
+}
+
+/** The OS under a Capacitor shell ('android' | 'ios'), or null elsewhere; the desktop shell reports nothing here. */
+export function capacitorPlatform(): 'android' | 'ios' | null {
+  if (typeof window === 'undefined') return null;
+  const p = window.Capacitor?.getPlatform?.();
+  return p === 'android' || p === 'ios' ? p : null;
 }
 
 /** A Capacitor plugin proxy by name, or null outside the Capacitor shells. */

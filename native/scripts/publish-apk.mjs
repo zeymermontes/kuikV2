@@ -1,7 +1,13 @@
 // Upload a release APK to the public `apps` bucket and refresh latest.json,
-// which kuik.mx/apps and the in-app update banner read.
+// which kuik.mx/apps and the in-app update gate read.
 //
-//   node scripts/publish-apk.mjs terminal|mobile path/to/app-release.apk
+//   node scripts/publish-apk.mjs terminal|mobile path/to/app-release.apk [--mandatory | --min <version>]
+//
+// Every release is announced in the app. --mandatory also makes this
+// version the minimum: older builds are blocked until they update.
+// --min <version> sets the minimum to some other version (or `none`);
+// neither flag keeps whatever minimum was there. The super-admin page can
+// change it later without republishing.
 //
 // Uses SUPABASE_SERVICE_ROLE_KEY from the repo's .env.local. The bucket is
 // created if missing (public: downloads need no policy, uploads need the
@@ -12,11 +18,16 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const [app, apkPath] = process.argv.slice(2);
-if (!['terminal', 'mobile'].includes(app) || !apkPath) {
-  console.error('usage: node scripts/publish-apk.mjs terminal|mobile <apk>');
+const args = process.argv.slice(2);
+const mandatory = args.includes('--mandatory');
+const minIdx = args.indexOf('--min');
+const minArg = minIdx >= 0 ? args[minIdx + 1] : undefined;
+const [app, apkPath] = args.filter((a, i) => !a.startsWith('--') && i !== minIdx + 1);
+if (!['terminal', 'mobile'].includes(app) || !apkPath || (minIdx >= 0 && !minArg)) {
+  console.error('usage: node scripts/publish-apk.mjs terminal|mobile <apk> [--mandatory | --min <version>|none]');
   process.exit(2);
 }
+if (minArg && minArg !== 'none' && !/^\d+(\.\d+){0,3}$/.test(minArg)) throw new Error(`--min: not a version: ${minArg}`);
 
 const env = Object.fromEntries(
   readFileSync(resolve(root, '.env.local'), 'utf8')
@@ -56,9 +67,11 @@ for (const name of [file, versioned]) {
 
 const { data: existing } = await bucket.download('latest.json');
 const latest = existing ? JSON.parse(await existing.text()) : {};
+const minVersion = mandatory ? version : minArg === 'none' ? null : (minArg ?? latest[id]?.minVersion ?? null);
 latest[id] = {
   version,
   versionCode,
+  minVersion,
   android: { url: bucket.getPublicUrl(file).data.publicUrl, size, publishedAt: new Date().toISOString() },
   ios: latest[id]?.ios ?? null,
 };
@@ -68,5 +81,5 @@ const { error } = await bucket.upload('latest.json', Buffer.from(JSON.stringify(
   cacheControl: '60',
 });
 if (error) throw error;
-console.log(`latest.json → ${id} ${version} (${versionCode})`);
+console.log(`latest.json → ${id} ${version} (${versionCode}), minimum ${minVersion ?? 'none'}${mandatory ? ' (mandatory)' : ''}`);
 console.log(bucket.getPublicUrl(file).data.publicUrl);

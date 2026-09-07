@@ -8,8 +8,8 @@ shell it is in from a token the shell appends to the user agent
 
 | App | Folder | Device | Adds |
 |---|---|---|---|
-| **Kuik Terminal** (`mx.kuik.terminal`) | [terminal/](terminal/) | Tablet, landscape, shared | Mode chooser (`/terminal`), TCP to network printers, screen never sleeps |
-| **Kuik** (`mx.kuik.app`) | [mobile/](mobile/) | Phone, portrait, personal | Native push (APNs on iOS, FCM on Android) |
+| **Kuik Terminal** (`mx.kuik.terminal`) | [terminal/](terminal/) | Tablet, shared | Hub (`/terminal`), TCP to network printers, screen never sleeps |
+| **Kuik** (`mx.kuik.app`) | [mobile/](mobile/) | Phone, personal | Hub (`/terminal`), native push (APNs on iOS, FCM on Android) |
 | **Kuik Caja** (`mx.kuik.desktop`) | [desktop/](desktop/) | Register PC | The print agent inside, customer screen on the second display, kiosk, start with the computer |
 
 The public menu stays on the web: nobody installs an app per restaurant.
@@ -44,10 +44,15 @@ The public menu stays on the web: nobody installs an app per restaurant.
   (`lib/push/apns.ts`, a p8 key, no Firebase on iOS), FCM for Android
   (`lib/push/fcm.ts`, a service account). Both are optional; unset means
   that platform gets nothing and web push carries on.
-- **Modes on the tablet.** `/terminal` asks once whether this device is the
-  register, the kitchen, the host stand or the customer screen, remembers it,
-  and forwards. The floating grid button (bottom right, only inside the
-  Terminal app) returns to the chooser; Android's back button does too.
+- **The hub.** Both Capacitor apps open `/terminal` on every launch, and
+  land there again after login. It lists what this account can open on this
+  device: register, kitchen, host stand, customer screen, and the admin panel
+  (owners and managers). Tiles a role cannot use are not drawn; a plan gate
+  shows as a lock to the owner only. The floating grid button (bottom right,
+  only inside the apps) returns to the hub; Android's back button does too.
+- **Orientation.** Both apps rotate with the device (`fullUser` on Android,
+  all orientations in `Info.plist`), so a tablet can stand in portrait and a
+  phone can lie flat for the kitchen.
 
 ## Toolchain
 
@@ -89,15 +94,15 @@ cd android && JAVA_HOME=/opt/homebrew/opt/openjdk@21 ./gradlew assembleDebug
 What the generated projects carry that `cap add` does not give you (keep
 these when regenerating):
 
-- **terminal/ios** `Info.plist`: landscape only, `UIRequiresFullScreen`,
+- **terminal/ios** `Info.plist`: every orientation, `UIRequiresFullScreen`,
   `NSLocalNetworkUsageDescription` (iOS asks before the first TCP write to a
   printer), `WKAppBoundDomains` with `app.kuik.mx` (with
   `limitsNavigationsToAppBoundDomains` in the config this lets WKWebView run
   the site's service workers, so `/pos` opens offline). `AppDelegate.swift`:
   idle timer off.
-- **terminal/android** `AndroidManifest.xml`: `sensorLandscape`.
-  `MainActivity.java`: keep-screen-on flag; back button walks history, then
-  opens the chooser instead of closing the app.
+- **terminal/android** `AndroidManifest.xml`: `screenOrientation="fullUser"`
+  (both apps). `MainActivity.java`: keep-screen-on flag; back button walks
+  history, then opens the hub instead of closing the app.
 - **mobile/ios** `Info.plist`: portrait, `remote-notification` background
   mode, `WKAppBoundDomains`. `App.entitlements`: `aps-environment` (Xcode →
   Signing & Capabilities → Push Notifications does the same).
@@ -137,6 +142,36 @@ node scripts/publish-apk.mjs mobile <apk>
   the value the user agent carries and the banner compares against.
 - iOS "próximamente" flips to a link when `latest.json` gets an `ios.url`
   (a TestFlight public link works); the script keeps whatever is there.
+  Add `ios.version` when the store actually serves a build: the gate below
+  never demands a version the store does not have.
+
+### Recommended or mandatory
+
+Every published build is announced inside the app (`ShellUpdateBanner`,
+mounted by the hub, register, kitchen, host and dashboard layouts): a banner
+with the download that can be put off for a day. A build can also be made
+the floor:
+
+```sh
+node scripts/publish-apk.mjs terminal <apk> --mandatory      # this version is now the minimum
+node scripts/publish-apk.mjs terminal <apk> --min 0.1.1      # some other minimum, or `none`
+node scripts/set-min-version.mjs terminal 0.1.1              # change it later, no republish
+```
+
+- `minVersion` in `latest.json` is the oldest build allowed. A shell below
+  it gets a full-screen wall instead of the banner and cannot go on until it
+  updates; the super-admin page (Admin → Apps nativas) shows and edits the
+  same value.
+- The wall only goes up where the update is installable today
+  (`lib/apps/version.ts`): the APK is live the moment it is uploaded, so
+  Android is enforced at once; an iPhone keeps working with the banner until
+  `ios.version` reaches the minimum, since a store review can take days.
+  Kuik Caja is enforced once its feed carries the version (it downloads by
+  itself, the wall's button restarts into it).
+- Use it for breaking changes only: a new plugin the web now calls, an API
+  the old WebView cannot handle. Everything else is a web deploy and needs
+  no build. Devices see a change within a few minutes (the feed is cached
+  for one minute and the shells re-check every ten, and on every launch).
 
 ## Desktop (Electron)
 
@@ -174,7 +209,11 @@ git tag desktop-v0.1.1 && git push origin desktop-v0.1.1
   `apps/desktop/` in the public bucket (`scripts/publish-desktop.mjs`), and
   `latest.json` gets a `desktop` entry that kuik.mx/apps shows with one
   button per OS. An installed app checks that feed on launch and every four
-  hours, downloads in the background and installs on quit.
+  hours, downloads in the background and installs on quit. Pass
+  `--mandatory` to `publish-desktop.mjs` (or use `set-min-version.mjs
+  desktop <v>`) to block older builds until they restart into the update;
+  the wall's "restart and install" button does that through
+  `window.kuikDesktop.installUpdate`.
 - Repository secrets: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for the
   upload (set). Signing is optional: `WIN_CSC_LINK` + `WIN_CSC_KEY_PASSWORD`
   (a base64 .pfx), `MAC_CSC_LINK` + `MAC_CSC_KEY_PASSWORD` (a base64 .p12

@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('kuikDesktop', {
   agentStatus: () => ipcRenderer.invoke('agent:status'),
   openCustomerScreen: (url) => ipcRenderer.invoke('customer:open', url),
   setKiosk: (on) => ipcRenderer.invoke('kiosk:set', on),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
   // Setup window only.
   saveAgentToken: (token) => ipcRenderer.invoke('setup:save', token),
   skipAgent: () => ipcRenderer.invoke('setup:skip'),

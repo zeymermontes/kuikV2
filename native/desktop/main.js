@@ -286,19 +286,37 @@ ipcMain.handle('setup:skip', () => {
 // and installs it when the app next quits. Best effort: an unsigned macOS
 // build cannot update itself (Squirrel.Mac refuses), and a register with no
 // internet simply tries again later.
+let updateReady = false;
+const checkNow = () => (app.isPackaged && !SMOKE ? autoUpdater.checkForUpdates().catch(() => null) : Promise.resolve(null));
+
 function checkForUpdates() {
   if (!app.isPackaged || SMOKE) return;
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('update-downloaded', () => {
+    updateReady = true;
+  });
   autoUpdater.on('error', (err) => {
     try {
       fs.appendFileSync(agentLogPath(), `[updater] ${new Date().toISOString()} ${err?.message || err}\n`);
     } catch {}
   });
-  const check = () => autoUpdater.checkForUpdates().catch(() => {});
-  check();
-  setInterval(check, 4 * 60 * 60 * 1000);
+  checkNow();
+  setInterval(checkNow, 4 * 60 * 60 * 1000);
 }
+
+// The page asks for this when the feed says its build is too old to keep
+// using (components/ShellUpdateBanner.tsx): install what is downloaded, or
+// look again and let the page say the download is on its way.
+ipcMain.handle('update:install', async () => {
+  if (updateReady) {
+    stopAgent();
+    autoUpdater.quitAndInstall();
+    return true;
+  }
+  await checkNow();
+  return false;
+});
 
 // ── Lifecycle ────────────────────────────────────────────────────────────────
 

@@ -1,7 +1,11 @@
 // Upload Kuik Caja installers (from the desktop workflow, or a local
 // electron-builder run) to the public `apps` bucket and refresh latest.json.
 //
-//   node scripts/publish-desktop.mjs <dir with .dmg/.zip/.exe/.AppImage/.deb/.yml>
+//   node scripts/publish-desktop.mjs <dir with .dmg/.zip/.exe/.AppImage/.deb/.yml> [--mandatory | --min <version>|none]
+//
+// --mandatory makes this version the minimum: an older Kuik Caja is blocked
+// until it restarts into the update it downloads by itself. --min sets
+// another minimum; neither keeps the one already set (see publish-apk.mjs).
 //
 // Everything goes flat under apps/desktop/: electron-updater's generic
 // provider reads latest.yml, latest-mac.yml and latest-linux.yml there and the
@@ -16,11 +20,16 @@ import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const dir = process.argv[2];
-if (!dir) {
-  console.error('usage: node scripts/publish-desktop.mjs <dir>');
+const args = process.argv.slice(2);
+const mandatory = args.includes('--mandatory');
+const minIdx = args.indexOf('--min');
+const minArg = minIdx >= 0 ? args[minIdx + 1] : undefined;
+const [dir] = args.filter((a, i) => !a.startsWith('--') && i !== minIdx + 1);
+if (!dir || (minIdx >= 0 && !minArg)) {
+  console.error('usage: node scripts/publish-desktop.mjs <dir> [--mandatory | --min <version>|none]');
   process.exit(2);
 }
+if (minArg && minArg !== 'none' && !/^\d+(\.\d+){0,3}$/.test(minArg)) throw new Error(`--min: not a version: ${minArg}`);
 
 let url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 let key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -95,11 +104,12 @@ for (const name of files) {
 
 const { data: existing } = await bucket.download('latest.json');
 const latest = existing ? JSON.parse(await existing.text()) : {};
-latest.desktop = { version, ...latest.desktop, ...links, publishedAt: new Date().toISOString() };
+const minVersion = mandatory ? version : minArg === 'none' ? null : (minArg ?? latest.desktop?.minVersion ?? null);
+latest.desktop = { version, ...latest.desktop, ...links, minVersion, publishedAt: new Date().toISOString() };
 const { error } = await bucket.upload('latest.json', Buffer.from(JSON.stringify(latest, null, 2)), {
   contentType: 'application/json',
   upsert: true,
   cacheControl: '60',
 });
 if (error) throw error;
-console.log(`latest.json → desktop ${version}: ${Object.keys(links).join(', ') || 'no new installers'}`);
+console.log(`latest.json → desktop ${version}: ${Object.keys(links).join(', ') || 'no new installers'}, minimum ${minVersion ?? 'none'}${mandatory ? ' (mandatory)' : ''}`);

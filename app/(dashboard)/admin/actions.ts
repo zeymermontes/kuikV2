@@ -9,6 +9,7 @@ import { unzipSync } from 'fflate';
 import { requireSuperAdmin } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { contentTypeFor, LANDING_DIR } from '@/lib/landing';
+import { RELEASE_KEYS, setMinVersion, type ReleaseKey } from '@/lib/apps/releases';
 import type { Subscription } from '@/lib/database.types';
 
 /** Cookie that puts a super-admin into "support mode" for a specific tenant. */
@@ -531,4 +532,17 @@ export async function setTenantPlan(tenantId: string, plan: 'basic' | 'pro') {
   });
   revalidatePath('/admin');
   revalidatePath(`/s/`);
+}
+
+/**
+ * The oldest build of a native app still allowed to run (latest.json in the
+ * apps bucket, lib/apps/releases.ts). Older shells are blocked until they
+ * update, where the update can be installed today. null allows every build.
+ */
+export async function setAppMinVersion(app: ReleaseKey, minVersion: string | null): Promise<{ error?: string }> {
+  await requireSuperAdmin();
+  if (!RELEASE_KEYS.includes(app)) return { error: 'missing' };
+  const res = await setMinVersion(app, minVersion);
+  if (!res.error) revalidatePath('/admin');
+  return res;
 }
