@@ -22,7 +22,7 @@ const args = process.argv.slice(2);
 const mandatory = args.includes('--mandatory');
 const minIdx = args.indexOf('--min');
 const minArg = minIdx >= 0 ? args[minIdx + 1] : undefined;
-const [app, apkPath] = args.filter((a, i) => !a.startsWith('--') && i !== minIdx + 1);
+const [app, apkPath] = args.filter((a, i) => !a.startsWith('--') && !(minIdx >= 0 && i === minIdx + 1));
 if (!['terminal', 'mobile'].includes(app) || !apkPath || (minIdx >= 0 && !minArg)) {
   console.error('usage: node scripts/publish-apk.mjs terminal|mobile <apk> [--mandatory | --min <version>|none]');
   process.exit(2);

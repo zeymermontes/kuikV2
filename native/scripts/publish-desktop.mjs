@@ -24,7 +24,7 @@ const args = process.argv.slice(2);
 const mandatory = args.includes('--mandatory');
 const minIdx = args.indexOf('--min');
 const minArg = minIdx >= 0 ? args[minIdx + 1] : undefined;
-const [dir] = args.filter((a, i) => !a.startsWith('--') && i !== minIdx + 1);
+const [dir] = args.filter((a, i) => !a.startsWith('--') && !(minIdx >= 0 && i === minIdx + 1));
 if (!dir || (minIdx >= 0 && !minArg)) {
   console.error('usage: node scripts/publish-desktop.mjs <dir> [--mandatory | --min <version>|none]');
   process.exit(2);
