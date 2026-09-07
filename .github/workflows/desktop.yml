@@ -1,0 +1,95 @@
+# Kuik Caja (native/desktop): installers for Windows, macOS and Linux, then
+# published to the public `apps` bucket so kuik.mx/apps offers them and the
+# installed app updates itself (electron-updater, generic provider).
+#
+# Runs on a tag like desktop-v0.1.0 (the version in native/desktop/package.json
+# must match) or by hand from the Actions tab.
+#
+# Signing is optional and comes from repository secrets; without them the
+# installers build unsigned and the OS warns once at install time.
+#   Windows: WIN_CSC_LINK (base64 .pfx), WIN_CSC_KEY_PASSWORD
+#   macOS:   MAC_CSC_LINK (base64 .p12 "Developer ID Application"), MAC_CSC_KEY_PASSWORD,
+#            APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID (notarization)
+# Publishing needs SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.
+
+name: Kuik Caja
+
+on:
+  push:
+    tags: ['desktop-v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: mac
+          - os: windows-latest
+            target: win
+          - os: ubuntu-latest
+            target: linux
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: native/desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: native/desktop/package-lock.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - run: npm ci
+      - name: Print agent binaries
+        shell: bash
+        run: sh scripts/build-agent.sh
+      - name: Installer
+        shell: bash
+        env:
+          # electron-builder reads CSC_LINK / CSC_KEY_PASSWORD; pick the platform's pair.
+          CSC_LINK: ${{ matrix.target == 'win' && secrets.WIN_CSC_LINK || matrix.target == 'mac' && secrets.MAC_CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ matrix.target == 'win' && secrets.WIN_CSC_KEY_PASSWORD || matrix.target == 'mac' && secrets.MAC_CSC_KEY_PASSWORD || '' }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -z "$CSC_LINK" ]; then export CSC_IDENTITY_AUTO_DISCOVERY=false; fi
+          npx electron-builder --${{ matrix.target }} --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kuik-caja-${{ matrix.target }}
+          path: |
+            native/desktop/dist/*.dmg
+            native/desktop/dist/*.zip
+            native/desktop/dist/*.exe
+            native/desktop/dist/*.AppImage
+            native/desktop/dist/*.deb
+            native/desktop/dist/*.yml
+            native/desktop/dist/*.blockmap
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          path: installers
+          merge-multiple: true
+      - name: Upload to the apps bucket and refresh latest.json
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node native/scripts/publish-desktop.mjs installers
