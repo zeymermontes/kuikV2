@@ -50,7 +50,10 @@ export function FloorPlan({
 }) {
   const box = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
-  const drag = useRef<{ id: string; ox: number; oy: number; moved: boolean; el: HTMLElement } | null>(null);
+  const drag = useRef<{ table: FloorTable; ox: number; oy: number; moved: boolean; el: HTMLElement } | null>(null);
+  // Where the table lands if the finger lets go now: the drag follows the
+  // pointer freely, the ghost shows the cell it snaps to.
+  const [ghost, setGhost] = useState<{ id: string; x: number; y: number; shape: FloorTable['shape'] } | null>(null);
   // The click that follows a drag must not open the table; pointerup clears `drag` before it fires.
   const justDragged = useRef(false);
 
@@ -70,11 +73,18 @@ export function FloorPlan({
     return () => ro.disconnect();
   }, [cols, rows, fitWidth]);
 
-  function onPointerDown(e: React.PointerEvent, id: string) {
+  /** The cell a table dragged by (dx, dy) pixels snaps to. */
+  function snap(table: FloorTable, dx: number, dy: number) {
+    return {
+      x: Math.max(0, table.x + Math.round(dx / (CELL * scale))),
+      y: Math.max(0, table.y + Math.round(dy / (CELL * scale))),
+    };
+  }
+  function onPointerDown(e: React.PointerEvent, table: FloorTable) {
     if (!editMode) return;
     const el = e.currentTarget as HTMLElement;
     el.setPointerCapture(e.pointerId);
-    drag.current = { id, ox: e.clientX, oy: e.clientY, moved: false, el };
+    drag.current = { table, ox: e.clientX, oy: e.clientY, moved: false, el };
   }
   function onPointerMove(e: React.PointerEvent) {
     const d = drag.current;
@@ -83,24 +93,28 @@ export function FloorPlan({
     const dy = e.clientY - d.oy;
     if (Math.abs(dx) + Math.abs(dy) > 4) d.moved = true;
     d.el.style.transform = `translate(${dx}px, ${dy}px)`;
+    if (!d.moved) return;
+    const { x, y } = snap(d.table, dx, dy);
+    setGhost((g) => (g && g.x === x && g.y === y ? g : { id: d.table.id, x, y, shape: d.table.shape }));
   }
   // The browser took the gesture for scrolling (a finger, before touch-action
   // was set) or the pointer was lost: put the table back where it was.
   function onPointerCancel() {
     const d = drag.current;
     drag.current = null;
+    setGhost(null);
     if (d) d.el.style.transform = '';
   }
   function onPointerUp(e: React.PointerEvent, table: FloorTable) {
     const d = drag.current;
     drag.current = null;
+    setGhost(null);
     if (!d) return;
     d.el.style.transform = '';
     if (!d.moved) return;
     justDragged.current = true;
-    const nx = table.x + Math.round((e.clientX - d.ox) / (CELL * scale));
-    const ny = table.y + Math.round((e.clientY - d.oy) / (CELL * scale));
-    onMove(table.id, Math.max(0, nx), Math.max(0, ny));
+    const { x, y } = snap(table, e.clientX - d.ox, e.clientY - d.oy);
+    onMove(table.id, x, y);
   }
 
   return (
@@ -124,6 +138,15 @@ export function FloorPlan({
           backgroundSize: `${CELL}px ${CELL}px`,
         }}
       >
+        {ghost && (
+          <div
+            aria-hidden
+            className={`pointer-events-none absolute border-2 border-dashed border-white/70 bg-white/10 ${
+              ghost.shape === 'round' ? 'rounded-full' : ghost.shape === 'diamond' ? 'rotate-45 rounded-xl' : 'rounded-xl'
+            }`}
+            style={{ left: ghost.x * CELL, top: ghost.y * CELL, width: SIZE[ghost.shape].w * CELL, height: SIZE[ghost.shape].h * CELL }}
+          />
+        )}
         {views.map((v) => {
           const { table, seated, upcoming, blocked, color } = v;
           const size = SIZE[table.shape];
@@ -137,7 +160,7 @@ export function FloorPlan({
             <button
               key={table.id}
               data-help="host_table"
-              onPointerDown={(e) => onPointerDown(e, table.id)}
+              onPointerDown={(e) => onPointerDown(e, table)}
               onPointerMove={onPointerMove}
               onPointerUp={(e) => onPointerUp(e, table)}
               onPointerCancel={onPointerCancel}
@@ -150,7 +173,7 @@ export function FloorPlan({
                 }
                 onTap(table.id);
               }}
-              className={`absolute flex items-center justify-center text-white transition-shadow ${
+              className={`absolute flex items-center justify-center text-white transition-shadow ${ghost?.id === table.id ? 'z-10' : ''} ${
                 table.shape === 'round' ? 'rounded-full' : table.shape === 'diamond' ? 'rotate-45 rounded-xl' : 'rounded-xl'
               } ${editMode ? 'cursor-move select-none' : ''} ${selected ? 'ring-4 ring-white' : suggested ? 'ring-4 ring-white/50 animate-pulse' : ''} ${
                 over ? 'shadow-[0_0_0_3px_#ef4444]' : ''
