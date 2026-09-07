@@ -237,8 +237,8 @@ export function featureMetadata(page: FeaturePageData) {
       type: 'website' as const,
       locale: 'es_MX',
       url: `/${page.slug}`,
-      images: [{ url: '/og.png', width: 1200, height: 630, alt: 'Kuik: el POS en una tablet y un menú real en un teléfono' }],
+      images: [{ url: '/og.jpg', width: 1200, height: 630, alt: 'Kuik: el POS en una tablet y un menú real en un teléfono' }],
     },
-    twitter: { card: 'summary_large_image' as const, title: page.metaTitle, description: page.description, images: ['/og.png'] },
+    twitter: { card: 'summary_large_image' as const, title: page.metaTitle, description: page.description, images: ['/og.jpg'] },
   };
 }

@@ -40,13 +40,13 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'es_MX',
     url: '/',
-    images: [{ url: '/og.png', width: 1200, height: 630, alt: 'Kuik: el POS en una tablet y un menú real en un teléfono' }],
+    images: [{ url: '/og.jpg', width: 1200, height: 630, alt: 'Kuik: el POS en una tablet y un menú real en un teléfono' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Kuik — Tu restaurante completo, en una sola plataforma',
     description: 'Menú digital, pedidos por WhatsApp, pago con tarjeta, punto de venta, cocina y reservaciones. Un mes gratis.',
-    images: ['/og.png'],
+    images: ['/og.jpg'],
   },
 };
 
@@ -229,7 +229,7 @@ export default async function MarketingPage() {
                 <li key={s.subdomain}>
                   <a href={s.url} target="_blank" rel="noreferrer" className="flex items-center gap-2.5 text-sm font-semibold text-neutral-700 grayscale transition hover:grayscale-0" title={`Ver el menú de ${s.name}`}>
                     {s.logoUrl ? (
-                      <Image src={s.logoUrl} alt="" width={40} height={40} className="h-8 w-8 rounded-lg object-contain" />
+                      <Image src={s.logoUrl} alt="" width={s.wide ? 96 : 40} height={s.wide ? 32 : 40} className={s.wide ? 'h-7 w-auto object-contain' : 'h-8 w-8 rounded-lg object-contain'} />
                     ) : (
                       <span className="h-8 w-8 rounded-lg" style={{ background: s.primary }} aria-hidden />
                     )}

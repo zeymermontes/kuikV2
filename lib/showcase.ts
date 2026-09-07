@@ -3,14 +3,25 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { tenantUrl } from '@/lib/config';
 
 // Restaurants shown on the landing page, in this order. Their public menus are
-// embedded live, so only list businesses that agreed to appear.
-export const SHOWCASE_SUBDOMAINS = ['kavaa', 'laseisdos', 'marandsea', 'hirata-rest', 'antesala', 'chi'];
+// embedded live, so only list businesses that agreed to appear. `logo`
+// overrides the tenant's own logo on the strip: Mar and Sea's is white for
+// its dark header and vanishes on the light background here, so the strip
+// uses the navy version from its landing site (public/showcase/).
+const SHOWCASE: { subdomain: string; logo?: string; wide?: boolean }[] = [
+  { subdomain: 'kavaa' },
+  { subdomain: 'laseisdos' },
+  { subdomain: 'marandsea', logo: '/showcase/marandsea.svg', wide: true },
+  { subdomain: 'antesala' },
+];
+export const SHOWCASE_SUBDOMAINS = SHOWCASE.map((s) => s.subdomain);
 
 export interface ShowcaseTenant {
   name: string;
   subdomain: string;
   url: string;
   logoUrl: string | null;
+  /** A wordmark (about 3:1) that would shrink to nothing in a square slot. */
+  wide?: boolean;
   primary: string;
 }
 
@@ -26,11 +37,11 @@ export async function getShowcase(): Promise<ShowcaseTenant[]> {
       .select('tenant_id, logo_url, primary_color')
       .in('tenant_id', rows.map((r) => r.id));
     const theme = new Map(((themes ?? []) as { tenant_id: string; logo_url: string | null; primary_color: string }[]).map((t) => [t.tenant_id, t]));
-    return SHOWCASE_SUBDOMAINS.flatMap((sub) => {
-      const t = rows.find((r) => r.subdomain === sub);
+    return SHOWCASE.flatMap(({ subdomain, logo, wide }) => {
+      const t = rows.find((r) => r.subdomain === subdomain);
       if (!t) return [];
       const th = theme.get(t.id);
-      return [{ name: t.name, subdomain: t.subdomain, url: tenantUrl(t.subdomain), logoUrl: th?.logo_url ?? null, primary: th?.primary_color ?? '#171717' }];
+      return [{ name: t.name, subdomain: t.subdomain, url: tenantUrl(t.subdomain), logoUrl: logo ?? th?.logo_url ?? null, wide, primary: th?.primary_color ?? '#171717' }];
     });
   } catch {
     return [];

@@ -1,6 +1,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { LANDING_DIR } from '@/lib/landing';
 
 /**
  * Delete what the `media` bucket holds and nothing points at any more: the
@@ -9,9 +10,14 @@ import { createAdminClient } from '@/lib/supabase/admin';
  *
  * Referenced = every media path found in the text of any row of any public
  * table (media_referenced_paths(), migration 0081). Kept regardless: the
- * landing/ folder (deployed and cleaned by the super admin's own action) and
- * anything uploaded in the last day, so a file whose row is still being
- * saved is never swept from under it.
+ * custom landing site (`landing-site/`, lib/landing.ts: a whole static site
+ * deployed and cleaned by the super admin's own action, whose assets no row
+ * points at) and anything uploaded in the last day, so a file whose row is
+ * still being saved is never swept from under it.
+ *
+ * The first version of this sweep skipped `landing/`, a folder that never
+ * existed, and so deleted every custom landing (Mar and Sea, La Seis Dos Pro,
+ * 2026-09). The kept folder is now the same constant the uploader writes to.
  */
 
 export interface SweepReport {
@@ -90,7 +96,7 @@ export async function sweepMedia(opts: { dryRun?: boolean; tenantId?: string } =
     const all = await listAll(supabase, t.id);
     objects += all.length;
     for (const o of all) {
-      if (o.path.startsWith(`${t.id}/landing/`)) continue;
+      if (o.path.startsWith(`${t.id}/${LANDING_DIR}/`)) continue;
       if (now - o.createdAt < GRACE_MS) continue;
       if (referenced.has(o.path)) continue;
       orphans.push(o);

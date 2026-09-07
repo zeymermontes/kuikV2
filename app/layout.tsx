@@ -13,9 +13,9 @@ export const metadata: Metadata = {
     'Crea el menú digital de tu restaurante, personalízalo y recibe pedidos por WhatsApp.',
   // Default icon (overridden per-tenant on the menu site with the restaurant logo).
   icons: { icon: '/icon.svg' },
-  // The card a shared kuik.mx link shows: the POS on a tablet and a real menu on a phone (public/og.png).
-  openGraph: { images: [{ url: '/og.png', width: 1200, height: 630, alt: 'Kuik: menú digital, pedidos, punto de venta, cocina y reservaciones' }] },
-  twitter: { card: 'summary_large_image', images: ['/og.png'] },
+  // The card a shared kuik.mx link shows: the POS on a tablet and a real menu on a phone (public/og.jpg, a 1200×630 JPEG under 300 KB: WhatsApp drops larger preview images; public/og.png is the 2× source).
+  openGraph: { images: [{ url: '/og.jpg', width: 1200, height: 630, alt: 'Kuik: menú digital, pedidos, punto de venta, cocina y reservaciones' }] },
+  twitter: { card: 'summary_large_image', images: ['/og.jpg'] },
   // Google Search Console ownership, when verified by meta tag (DNS works without this).
   verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } : undefined,
 };
