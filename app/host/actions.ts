@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { branchFilter } from '@/lib/branches';
 import { requireReservations, requireManager } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { todayInTz, nowHHMMInTz } from '@/lib/time';
@@ -27,12 +28,12 @@ function bump() {
 }
 
 /** One day's book plus the floor plan. */
-export async function listHostDay(day: string): Promise<HostDay> {
+export async function listHostDay(day: string, branchId: string | null = null): Promise<HostDay> {
   const { tenant } = await requireReservations();
   const supabase = await createClient();
   const [{ data: reservations }, { data: tables }, { data: combos }] = await Promise.all([
-    supabase.from('reservations').select('*').eq('tenant_id', tenant.id).eq('date', day).order('time', { ascending: true }),
-    supabase.from('floor_tables').select('*').eq('tenant_id', tenant.id).order('position', { ascending: true }),
+    branchFilter(supabase.from('reservations').select('*').eq('tenant_id', tenant.id).eq('date', day), branchId).order('time', { ascending: true }),
+    branchFilter(supabase.from('floor_tables').select('*').eq('tenant_id', tenant.id), branchId).order('position', { ascending: true }),
     supabase.from('floor_combinations').select('*').eq('tenant_id', tenant.id),
   ]);
   return {
@@ -125,6 +126,8 @@ export async function addWalkIn(input: {
   tableIds?: string[];
   tags?: string[];
   areaId?: string | null;
+  /** The stand's branch; null is the main location. */
+  branchId?: string | null;
 }): Promise<Reservation | null> {
   const { tenant } = await requireReservations();
   const supabase = await createClient();
@@ -134,6 +137,7 @@ export async function addWalkIn(input: {
     .from('reservations')
     .insert({
       tenant_id: tenant.id,
+      branch_id: input.branchId ?? null,
       area_id: input.areaId ?? null,
       customer_name: input.name.trim() || 'Walk-in',
       phone: input.phone?.trim() || null,
@@ -191,6 +195,7 @@ export async function saveTable(input: {
   area_id: string | null;
   x?: number;
   y?: number;
+  branchId?: string | null;
 }): Promise<FloorTable | null> {
   const { tenant } = await requireManager();
   const supabase = await createClient();
@@ -206,7 +211,7 @@ export async function saveTable(input: {
     ? await supabase.from('floor_tables').update(fields).eq('id', input.id).eq('tenant_id', tenant.id).select('*').single()
     : await supabase
         .from('floor_tables')
-        .insert({ tenant_id: tenant.id, ...fields, x: input.x ?? 0, y: input.y ?? 0 })
+        .insert({ tenant_id: tenant.id, branch_id: input.branchId ?? null, ...fields, x: input.x ?? 0, y: input.y ?? 0 })
         .select('*')
         .single();
   bump();

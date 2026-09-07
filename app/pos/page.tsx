@@ -11,11 +11,13 @@ import { PosLocked } from '@/components/pos/PosLocked';
 import { demoAreas, demoTables } from '@/lib/host/demo';
 import { getCfdiSettings, cfdiReady } from '@/lib/cfdi';
 import { tenantBaseUrl } from '@/lib/config';
+import { branchFilter, resolveBranch } from '@/lib/branches';
+import { DeviceBranchSync } from '@/components/pos/DeviceBranchSync';
 
 export const dynamic = 'force-dynamic';
 
 /** The terminal. `?demo=1` runs it against a throwaway local store for the dashboard preview. */
-export default async function PosPage({ searchParams }: { searchParams: Promise<{ demo?: string; explain?: string }> }) {
+export default async function PosPage({ searchParams }: { searchParams: Promise<{ demo?: string; explain?: string; branch?: string }> }) {
   const { tenant, user, theme, subscription } = await requireTenant();
   if (!canUsePos(subscription)) return <PosLocked title="POS" />;
   const supabase = await createClient();
@@ -23,23 +25,26 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
   const params = await searchParams;
   const demo = !!params.demo;
   const explain = demo && !!params.explain;
+  // `?branch=`: this register's branch (lib/pos/branch.ts). Its menu when it
+  // has its own, its floor plan, its printers plus the unassigned ones.
+  const branch = demo ? null : await resolveBranch(supabase, tenant.id, params.branch);
+  const menuBranchId = branch?.menu_mode === 'independent' ? branch.id : null;
 
   const [{ data: categories }, { data: products }, { data: ordering }, { data: floor }, { data: areas }, { data: printers }, { data: loyalty }] = await Promise.all([
-    supabase
-      .from('categories')
-      .select('*')
-      .eq('tenant_id', tenant.id)
-      .is('branch_id', null)
-      .eq('is_visible', true)
-      .order('position'),
+    branchFilter(supabase.from('categories').select('*').eq('tenant_id', tenant.id), menuBranchId).eq('is_visible', true).order('position'),
     supabase.from('products').select('*').eq('tenant_id', tenant.id).eq('is_hidden', false).order('position'),
     // `*` rather than a column list: a deploy that lands before migration 0065
     // is applied must still get the cash settings, with the print ones defaulting.
     supabase.from('tenant_ordering').select('*').eq('tenant_id', tenant.id).maybeSingle(),
     // The host stand's plan, when the restaurant drew one: the POS floor map uses its tables.
-    supabase.from('floor_tables').select('*').eq('tenant_id', tenant.id).order('position'),
-    supabase.from('reservation_areas').select('id, name').eq('tenant_id', tenant.id).order('position'),
-    supabase.from('printers').select('*').eq('tenant_id', tenant.id).eq('enabled', true).order('position'),
+    branchFilter(supabase.from('floor_tables').select('*').eq('tenant_id', tenant.id), branch?.id ?? null).order('position'),
+    branchFilter(supabase.from('reservation_areas').select('id, name').eq('tenant_id', tenant.id), branch?.id ?? null).order('position'),
+    (branch
+      ? supabase.from('printers').select('*').eq('tenant_id', tenant.id).or(`branch_id.eq.${branch.id},branch_id.is.null`)
+      : supabase.from('printers').select('*').eq('tenant_id', tenant.id)
+    )
+      .eq('enabled', true)
+      .order('position'),
     supabase.from('loyalty_program').select('*').eq('tenant_id', tenant.id).maybeSingle(),
   ]);
   // Receipts print the self-invoice link once the restaurant can stamp CFDIs.
@@ -62,6 +67,10 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
     area: x.area_id ? (areaName.get(x.area_id) ?? null) : null,
   }));
 
+  // A branch with its own menu has its own products; keep the ones in the categories shown.
+  const categoryIds = new Set(((categories ?? []) as Category[]).map((c) => c.id));
+  const menuProducts = ((products ?? []) as Product[]).filter((p) => categoryIds.has(p.category_id));
+
   const settings = resolveMenuSettings(theme.settings);
   const currency = settings.currency;
   const cash =
@@ -71,7 +80,10 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
     > | null) ?? null;
 
   return (
+    <>
+    <DeviceBranchSync branch={branch ? { id: branch.id, name: branch.name, slug: branch.slug } : null} />
     <PosTerminal
+      branch={branch ? { id: branch.id, name: branch.name, slug: branch.slug } : null}
       tenantId={tenant.id}
       userId={user.id}
       restaurantName={tenant.name}
@@ -94,12 +106,13 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       notePlaceholder={cash?.note_placeholder ?? null}
       lockAfterSale={cash?.pos_lock_after_sale ?? false}
       loyalty={program}
-      menu={{ categories: (categories ?? []) as Category[], products: (products ?? []) as Product[] }}
+      menu={{ categories: (categories ?? []) as Category[], products: menuProducts }}
       // The menu's own variables too: the product sheet (options, notes) is the
       // public menu's and paints itself with `--brand-*`.
       themeStyle={{ ...themeVars(theme, settings), ...posThemeVars(theme) }}
       demo={demo}
       explain={explain}
     />
+    </>
   );
 }

@@ -48,6 +48,7 @@ import {
   type DisplayState,
 } from '@/lib/pos/customer-screen';
 import { demoScope, type PosTab, type PosMenu, type RegisterShift, type TabItem, type PrintJob } from '@/lib/pos/types';
+import { registerScope, sameBranch, type DeviceBranch } from '@/lib/pos/branch';
 import { DEFAULT_PRINT_SETTINGS, retryJob, type PrintSettings } from '@/lib/pos/printing';
 import { PrintingProvider } from './PrintingContext';
 import { EmployeeProvider, useEmployee } from './EmployeeContext';
@@ -95,6 +96,7 @@ function PosTerminalInner({
   notePlaceholder = null,
   menu: initialMenu,
   themeStyle,
+  branch = null,
   customerPath = '/pos/customer',
   loyalty = null,
   demo = false,
@@ -120,6 +122,8 @@ function PosTerminalInner({
   menu: PosMenu;
   /** Brand colours as CSS variables (lib/pos/theme.ts). */
   themeStyle?: React.CSSProperties;
+  /** This register's branch; null is the main location (lib/pos/branch.ts). */
+  branch?: DeviceBranch | null;
   /** Where the customer screen lives; the public demo has its own copy. */
   customerPath?: string;
   /** With employees set up: ask for a PIN again after every closed sale. */
@@ -240,14 +244,20 @@ function PosTerminalInner({
   const cached = useLiveQuery(() => db.menu_cache.get('menu'), [db]);
   const menu = (cached?.data as PosMenu | undefined) ?? seedMenu;
 
+  // The store holds the whole restaurant (sync is per tenant); this screen
+  // shows its own branch's tabs and shifts.
+  const branchId = branch?.id ?? null;
   const tabs = useLiveQuery(
-    () => db.tabs.where('status').anyOf('open', 'held').reverse().sortBy('updated_at'),
-    [db],
+    async () => (await db.tabs.where('status').anyOf('open', 'held').reverse().sortBy('updated_at')).filter((t) => sameBranch(t.branch_id, branchId)),
+    [db, branchId],
     [] as PosTab[],
   );
-  // Every open shift in the restaurant; this device's is the one for its register.
+  // Every open shift in the branch; this device's is the one for its register.
   // Shifts from before registers had their own (register null) belong to the default one.
-  const openShifts = useLiveQuery(() => db.register_shifts.where('status').equals('open').toArray(), [db]);
+  const openShifts = useLiveQuery(
+    async () => (await db.register_shifts.where('status').equals('open').toArray()).filter((s) => sameBranch(s.branch_id, branchId)),
+    [db, branchId],
+  );
   const mySlug = registerSlug(register);
   const { shift, otherOpen } = useMemo(() => {
     const all = openShifts ?? [];
@@ -275,7 +285,8 @@ function PosTerminalInner({
   const live = useMemo(() => (items ?? []).filter((i) => !i.voided_at), [items]);
 
   // ── Customer screen ────────────────────────────────────────────────────────
-  const remote = useMemo(() => (demo ? null : { tenantId, register }), [demo, tenantId, register]);
+  // The customer screen follows the register within its branch.
+  const remote = useMemo(() => (demo ? null : { tenantId, register: registerScope(registerSlug(register), branch) }), [demo, tenantId, register, branch]);
   const publish = useDisplayPublisher(scope, brand, remote);
   useEffect(() => {
     const imageOf = new Map(menu.products.map((p) => [p.id, p.image_url] as const));
@@ -306,7 +317,7 @@ function PosTerminalInner({
   }, [publish, selected, live, payPhase, menu.products]);
 
   const customerUrl = `${customerPath}${demo ? '?demo=1' : ''}`;
-  const remoteUrl = typeof window === 'undefined' ? '' : `${window.location.origin}/pos/customer?screen=${registerSlug(register)}`;
+  const remoteUrl = typeof window === 'undefined' ? '' : `${window.location.origin}/pos/customer?screen=${registerScope(registerSlug(register), branch)}`;
   async function copyRemoteUrl() {
     try {
       await navigator.clipboard.writeText(remoteUrl);
@@ -505,7 +516,7 @@ function PosTerminalInner({
           <span className="hidden min-w-0 flex-1 xl:block">
             <span className="block truncate text-sm font-semibold">{serverLabel || t('noServer')}</span>
             <span className="block truncate text-xs text-neutral-400">
-              {employee ? t(`role_${employee.role}`) : t('cashier')} · {register === DEFAULT_REGISTER ? t('register') : register}
+              {employee ? t(`role_${employee.role}`) : t('cashier')} · {register === DEFAULT_REGISTER ? t('register') : register}{branch ? ` · ${branch.name}` : ''}
             </span>
           </span>
           <ChevronDown className="hidden h-4 w-4 text-neutral-400 xl:block" />

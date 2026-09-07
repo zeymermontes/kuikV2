@@ -1,6 +1,7 @@
 'use client';
 
 import type { PosDexie } from './db';
+import { deviceBranchId } from './branch';
 import { enqueueUpsert, newId, nowISO } from './sync';
 import type { PosTab, TabItem } from './types';
 import type { PosMenu } from './types';
@@ -23,7 +24,7 @@ export async function openTab(
   const tab: PosTab = {
     id: newId(),
     tenant_id: tenantId,
-    branch_id: null,
+    branch_id: deviceBranchId(),
     table_label: label,
     customer_name: null,
     customer_phone: null,

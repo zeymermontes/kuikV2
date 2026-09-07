@@ -51,6 +51,7 @@ function chime(kind: 'new' | 'late') {
 
 export function KdsBoard({
   tenantId,
+  branchId = null,
   station,
   locale,
   demo = false,
@@ -58,6 +59,8 @@ export function KdsBoard({
   initial = [],
 }: {
   tenantId: string;
+  /** This screen's branch; null is the main location. */
+  branchId?: string | null;
   station: string | null;
   locale: string;
   /** Sample tickets in memory; nothing syncs. */
@@ -126,7 +129,7 @@ export function KdsBoard({
 
   useEffect(() => {
     if (demo) return;
-    const match = (tk: KitchenTicket) => !station || tk.station === station;
+    const match = (tk: KitchenTicket) => (!station || tk.station === station) && (tk.branch_id ?? null) === branchId;
     const sortFired = (a: KitchenTicket, b: KitchenTicket) => a.fired_at.localeCompare(b.fired_at);
     const since = new Date(Date.now() - RECALL_MIN * 60_000).toISOString();
 
@@ -165,7 +168,7 @@ export function KdsBoard({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, tenantId, station, demo]);
+  }, [supabase, tenantId, station, branchId, demo]);
 
   const mins = (iso: string) => (now ? Math.max(0, Math.floor((now - new Date(iso).getTime()) / 60000)) : 0);
   const secs = (iso: string) => (now ? Math.max(0, Math.floor((now - new Date(iso).getTime()) / 1000)) : 0);

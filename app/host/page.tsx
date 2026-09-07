@@ -8,19 +8,23 @@ import type { FloorTable, FloorCombination, Reservation, ReservationArea, Tenant
 import { HostApp } from '@/components/host/HostApp';
 import { getPendingSummary } from '@/app/(dashboard)/reservations/actions';
 import { demoAreas, demoCombinations, demoReservations, demoTables } from '@/lib/host/demo';
+import { branchFilter, resolveBranch } from '@/lib/branches';
+import { DeviceBranchSync } from '@/components/pos/DeviceBranchSync';
 
 export const dynamic = 'force-dynamic';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** `?demo=1` shows a sample floor and day in memory: the dashboard preview, and a first look before a plan exists. */
-export default async function HostPage({ searchParams }: { searchParams: Promise<{ d?: string; demo?: string; explain?: string }> }) {
+export default async function HostPage({ searchParams }: { searchParams: Promise<{ d?: string; demo?: string; explain?: string; branch?: string }> }) {
   const ctx = await requireReservations();
   const { tenant, theme, role, support } = ctx;
   const supabase = await createClient();
   const locale = await getLocale();
-  const { d, demo: demoParam, explain: explainParam } = await searchParams;
+  const { d, demo: demoParam, explain: explainParam, branch: branchParam } = await searchParams;
   const demo = !!demoParam;
+  const branch = demo ? null : await resolveBranch(supabase, tenant.id, branchParam);
+  const branchId = branch?.id ?? null;
   const explain = demo && !!explainParam;
 
   // "Today" at the restaurant, not on the server (see app/(dashboard)/reservations).
@@ -28,18 +32,21 @@ export default async function HostPage({ searchParams }: { searchParams: Promise
   const day = d && ISO_DATE.test(d) ? d : today;
 
   const [{ data: rows }, { data: tables }, { data: combos }, { data: areas }, { data: contact }, pending] = await Promise.all([
-    supabase.from('reservations').select('*').eq('tenant_id', tenant.id).eq('date', day).order('time', { ascending: true }),
-    supabase.from('floor_tables').select('*').eq('tenant_id', tenant.id).order('position', { ascending: true }),
+    branchFilter(supabase.from('reservations').select('*').eq('tenant_id', tenant.id).eq('date', day), branchId).order('time', { ascending: true }),
+    branchFilter(supabase.from('floor_tables').select('*').eq('tenant_id', tenant.id), branchId).order('position', { ascending: true }),
     supabase.from('floor_combinations').select('*').eq('tenant_id', tenant.id),
-    supabase.from('reservation_areas').select('*').eq('tenant_id', tenant.id).order('position', { ascending: true }),
+    branchFilter(supabase.from('reservation_areas').select('*').eq('tenant_id', tenant.id), branchId).order('position', { ascending: true }),
     supabase.from('tenant_contact').select('*').eq('tenant_id', tenant.id).maybeSingle(),
     getPendingSummary(),
   ]);
   const c = contact as TenantContact | null;
 
   return (
+    <>
+    <DeviceBranchSync branch={branch ? { id: branch.id, name: branch.name, slug: branch.slug } : null} />
     <HostApp
       tenantId={tenant.id}
+      branchId={branchId}
       tenantName={tenant.name}
       logoUrl={theme.logo_url}
       day={day}
@@ -64,5 +71,6 @@ export default async function HostPage({ searchParams }: { searchParams: Promise
       explain={explain}
       themeStyle={posThemeVars(theme)}
     />
+    </>
   );
 }

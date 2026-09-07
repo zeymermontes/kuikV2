@@ -50,6 +50,7 @@ type Sheet =
  */
 export function HostApp({
   tenantId,
+  branchId = null,
   tenantName,
   logoUrl,
   day,
@@ -65,6 +66,8 @@ export function HostApp({
   explain = false,
 }: {
   tenantId: string;
+  /** The stand's branch; null is the main location. New parties and tables carry it. */
+  branchId?: string | null;
   tenantName: string;
   logoUrl: string | null;
   day: string;
@@ -116,14 +119,14 @@ export function HostApp({
 
   const refresh = useCallback(async () => {
     try {
-      const d = await listHostDay(day);
+      const d = await listHostDay(day, branchId);
       setReservations(d.reservations);
       setTables(d.tables);
       setCombos(d.combos);
     } catch {
       // keep what we have mid-service
     }
-  }, [day]);
+  }, [day, branchId]);
 
   // Live: the book, the plan and the combinations, same shape as the dashboard board.
   useEffect(() => {
@@ -678,6 +681,7 @@ export function HostApp({
                 tags: input.tags,
                 areaId: input.areaId,
                 tableIds: input.seatNow ? tableIds : [],
+                branchId,
               });
               if (!r) return;
               setReservations((cur) => [...cur.filter((x) => x.id !== r.id), r]);
@@ -710,7 +714,7 @@ export function HostApp({
               return;
             }
             start(async () => {
-              const saved = await saveTable({ id: sheet.id, ...input, x: at.x, y: at.y });
+              const saved = await saveTable({ id: sheet.id, ...input, x: at.x, y: at.y, branchId });
               if (saved) setTables((cur) => [...cur.filter((x) => x.id !== saved.id), saved]);
             });
           }}

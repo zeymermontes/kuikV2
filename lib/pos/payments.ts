@@ -1,6 +1,7 @@
 'use client';
 
 import type { PosDexie } from './db';
+import { deviceBranchId } from './branch';
 import { enqueueUpsert, newId, nowISO } from './sync';
 import type { Payment, PaymentMethod, PosTab, RegisterShift } from './types';
 
@@ -117,7 +118,7 @@ export async function openShift(
   const shift: RegisterShift = {
     id: newId(),
     tenant_id: tenantId,
-    branch_id: null,
+    branch_id: deviceBranchId(),
     register,
     opened_by: userId,
     opened_at: t,

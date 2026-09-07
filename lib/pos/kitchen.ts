@@ -1,6 +1,7 @@
 'use client';
 
 import type { PosDexie } from './db';
+import { deviceBranchId } from './branch';
 import { enqueueUpsert, newId, nowISO } from './sync';
 import type { KitchenTicket, TabItem, PosTab } from './types';
 
@@ -32,7 +33,7 @@ export async function fireToKitchen(
     const ticket: KitchenTicket = {
       id: ticketId,
       tenant_id: tenantId,
-      branch_id: null,
+      branch_id: deviceBranchId(),
       tab_id: tab.id,
       station,
       table_label: tab.table_label,
