@@ -57,6 +57,7 @@ export async function retryDead(db: PosDexie): Promise<void> {
 /** Flush queued mutations to Supabase in order. Network errors retry; hard errors go to `dead`. */
 export async function flushOutbox(db: PosDexie, supabase: Supabase): Promise<void> {
   const pending = await db.outbox.where('status').equals('pending').sortBy('seq');
+  let menuChanged = false;
   for (const item of pending) {
     try {
       const { error } =
@@ -70,12 +71,17 @@ export async function flushOutbox(db: PosDexie, supabase: Supabase): Promise<voi
         continue; // surface, keep going
       }
       await db.outbox.delete(item.seq!);
+      if (item.op === 'rpc') menuChanged = true;
     } catch {
       // Network/offline: stop and retry the whole queue later (preserves order).
       await db.outbox.update(item.seq!, { attempts: item.attempts + 1 });
-      return;
+      break;
     }
   }
+  // A product or option marked sold out changed the public menu: have the
+  // server drop its cached pages, so diners see it now rather than when the
+  // minute-long cache expires.
+  if (menuChanged) void fetch('/api/menu/revalidate', { method: 'POST' }).catch(() => {});
 }
 
 /**

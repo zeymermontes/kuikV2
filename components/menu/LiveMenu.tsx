@@ -36,7 +36,15 @@ export function LiveMenu(props: ComponentProps<typeof MenuView>) {
       if (!allowed.has(e.origin)) return;
       const d = e.data as { type?: string; theme?: TenantTheme } | null;
       // Something saved server-side (a category's design): fetch it afresh.
-      if (d?.type === 'kuik:reload') return location.reload();
+      if (d?.type === 'kuik:reload') {
+        // A fresh query string, not a reload: the edge (Cloudflare) caches the
+        // page by URL for a minute, and a reload would hand back that copy
+        // even though the server already has the change.
+        const u = new URL(location.href);
+        u.searchParams.set('_v', String(Date.now()));
+        location.replace(u.toString());
+        return;
+      }
       if (!d || d.type !== 'kuik:design' || !d.theme) return;
       setPreview(true);
       setTheme(d.theme);

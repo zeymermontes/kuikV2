@@ -364,6 +364,9 @@ function NavLink({
   return (
     <Link
       href={href}
+      // Not prefetched: every dashboard load otherwise fetched a dozen routes at
+      // once, which counted against Cloudflare's rate limit alongside real work.
+      prefetch={false}
       onClick={onClick}
       className={cn(
         'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition',
