@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { Search } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import type { TenantTheme, CategoryTheme } from '@/lib/database.types';
@@ -153,9 +154,11 @@ export function DesignForm({
     | 'button_color' | 'button_text_color'
     | 'search_bg_color' | 'search_text_color' | 'search_border_color';
 
-  const colorFields: { key: ColorKey; label: string; fallback?: string }[] = [
+  type ColorField = { key: ColorKey; label: string; fallback?: string };
+  // The palette proper. The rest of the theme colours sit in the card of the
+  // thing they paint: section titles, the category bar, the search box.
+  const baseFields: ColorField[] = [
     { key: 'primary_color', label: t('primary') },
-    { key: 'secondary_color', label: t('secondary') },
     { key: 'background_color', label: t('background') },
     { key: 'card_color', label: t('card') },
     { key: 'border_color', label: t('border') },
@@ -164,14 +167,75 @@ export function DesignForm({
     { key: 'text_secondary_color', label: t('textSecondary') },
     { key: 'button_color', label: t('button'), fallback: local.primary_color },
     { key: 'button_text_color', label: t('buttonText'), fallback: '#ffffff' },
+  ];
+  const titleField: ColorField = { key: 'secondary_color', label: t('sectionTitleColor') };
+  const tabFields: ColorField[] = [
     { key: 'tab_bar_color', label: t('tabBar'), fallback: '#ffffff' },
     { key: 'tab_selected_color', label: t('tabSelected'), fallback: local.primary_color },
     { key: 'tab_unselected_color', label: t('tabUnselected'), fallback: '#eeeeee' },
     { key: 'tab_font_color', label: t('tabFont'), fallback: local.text_color },
+  ];
+  const searchFields: ColorField[] = [
     { key: 'search_bg_color', label: t('searchBg'), fallback: local.card_color },
     { key: 'search_text_color', label: t('searchText'), fallback: local.text_color },
     { key: 'search_border_color', label: t('searchBorder'), fallback: local.border_color },
   ];
+  // Dark mode paints these from its own palette; editing them then changes nothing.
+  const darkOn = settings.darkMode === 'on';
+  const darkReplaced = new Set<ColorKey>(['background_color', 'text_color', 'text_secondary_color', 'card_color', 'border_color']);
+  /** Sections whose own design sets this colour, and so ignore the general one. */
+  const overriddenBy = (key: ColorKey): string[] =>
+    categories.filter((c) => (catThemes[c.id] as Record<string, unknown> | null)?.[key]).map((c) => c.name);
+
+  function renderColor({ key, label, fallback }: ColorField) {
+    const { rgb, alpha } = parseColor(local[key] ?? fallback ?? '#000000');
+    const pct = Math.round((alpha / 255) * 100);
+    const overrides = overriddenBy(key);
+    return (
+      <div key={key} data-setting={label} className={darkOn && darkReplaced.has(key) ? 'opacity-50' : undefined}>
+        <Label>{label}</Label>
+        <div className="flex items-center gap-2">
+          <ColorWheel value={local[key] ?? null} fallback={fallback ?? '#000000'} label={label} alpha onChange={(hex) => set(key, hex)} />
+          <input
+            type="text"
+            value={local[key] ?? ''}
+            maxLength={9}
+            spellCheck={false}
+            placeholder={fallback ?? '#000000'}
+            onChange={(e) => setLocal((s) => ({ ...s, [key]: e.target.value }))}
+            onBlur={(e) => {
+              const v = normHex(e.target.value);
+              if (v) set(key, v);
+              else setLocal((s) => ({ ...s, [key]: theme[key] }));
+            }}
+            className="w-full min-w-0 rounded-lg border border-neutral-300 px-2 py-1.5 font-mono text-xs uppercase outline-none focus:border-neutral-900"
+          />
+        </div>
+        <div className="mt-1.5 flex items-center gap-2">
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={pct}
+            onChange={(e) => set(key, toHex(rgb, Math.round((Number(e.target.value) / 100) * 255)))}
+            className="h-1 flex-1 cursor-pointer accent-neutral-900"
+            title={t('opacity')}
+          />
+          <span className="w-8 text-right text-[10px] text-neutral-400">{pct}%</span>
+        </div>
+        {/* A section with its own value wins over this one there: say so, or
+            a change here looks ignored in the preview. */}
+        {overrides.length > 0 && (
+          <p className="mt-1 text-[10px] leading-snug text-amber-700">
+            {t('overriddenBy', { names: overrides.join(', ') })}{' '}
+            <Link href="/menu" className="underline">
+              {t('overriddenLink')}
+            </Link>
+          </p>
+        )}
+      </div>
+    );
+  }
 
   // ── Find a setting ────────────────────────────────────────────────────────
   // The form has grown past what anyone scans by eye. Typing lists every row,
@@ -392,52 +456,8 @@ export function DesignForm({
         {/* Colors */}
         <Card>
           <h2 className="mb-4 font-semibold">{t('colors')}</h2>
-          <div className="grid grid-cols-2 gap-4">
-            {colorFields.map(({ key, label, fallback }) => {
-              const { rgb, alpha } = parseColor(local[key] ?? fallback ?? '#000000');
-              const pct = Math.round((alpha / 255) * 100);
-              return (
-                <div key={key}>
-                  <Label>{label}</Label>
-                  <div className="flex items-center gap-2">
-                    <ColorWheel
-                      value={local[key] ?? null}
-                      fallback={fallback ?? '#000000'}
-                      label={label}
-                      alpha
-                      onChange={(hex) => set(key, hex)}
-                    />
-                    <input
-                      type="text"
-                      value={local[key] ?? ''}
-                      maxLength={9}
-                      spellCheck={false}
-                      placeholder={fallback ?? '#000000'}
-                      onChange={(e) => setLocal((s) => ({ ...s, [key]: e.target.value }))}
-                      onBlur={(e) => {
-                        const v = normHex(e.target.value);
-                        if (v) set(key, v);
-                        else setLocal((s) => ({ ...s, [key]: theme[key] }));
-                      }}
-                      className="w-full min-w-0 rounded-lg border border-neutral-300 px-2 py-1.5 font-mono text-xs uppercase outline-none focus:border-neutral-900"
-                    />
-                  </div>
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      value={pct}
-                      onChange={(e) => set(key, toHex(rgb, Math.round((Number(e.target.value) / 100) * 255)))}
-                      className="h-1 flex-1 cursor-pointer accent-neutral-900"
-                      title={t('opacity')}
-                    />
-                    <span className="w-8 text-right text-[10px] text-neutral-400">{pct}%</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          {darkOn && <p className="-mt-2 mb-3 text-xs text-amber-700">{t('darkOverrides')}</p>}
+          <div className="grid grid-cols-2 gap-4">{baseFields.map(renderColor)}</div>
           <div className="mt-4">
             <SelectRow
               label={t('darkMode')}
@@ -662,60 +682,9 @@ export function DesignForm({
               <span className="w-10 text-right text-[10px] text-neutral-400">{Math.round(settings.navActiveOpacity * 100)}%</span>
             </div>
           </div>
-          {/* The same four theme colours the Colours card edits, repeated here
-              because this is where owners look for them. */}
-          <div className="grid grid-cols-2 gap-2">
-            {(
-              [
-                ['tab_selected_color', t('tabSelected'), local.primary_color],
-                ['tab_unselected_color', t('tabUnselected'), '#eeeeee'],
-                ['tab_font_color', t('tabFont'), local.text_color],
-                ['tab_bar_color', t('tabBar'), '#ffffff'],
-              ] as const
-            ).map(([key, label, fallback]) => (
-              <label key={key} data-setting={label} className="flex items-center gap-2 rounded-lg border border-neutral-200 px-2 py-1.5">
-                <ColorWheel
-                  value={local[key]}
-                  fallback={fallback}
-                  label={label}
-                  size="sm"
-                  onChange={(hex) => set(key, hex)}
-                  onClear={() => set(key, null)}
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[11px] font-medium">{label}</span>
-                  <span className="block font-mono text-[10px] text-neutral-400">{local[key] ?? t('optAuto')}</span>
-                </span>
-                {local[key] && (
-                  <button type="button" onClick={() => set(key, null)} className="px-1 text-neutral-300 hover:text-neutral-600" aria-label={t('clearColor')}>
-                    ×
-                  </button>
-                )}
-              </label>
-            ))}
-          </div>
-          {/* The bar's transparency: over a background image this is what
-              decides how much of it shows through the stuck bar. */}
-          {(() => {
-            const { rgb, alpha } = parseColor(local.tab_bar_color ?? '#ffffff');
-            const pct = Math.round((alpha / 255) * 100);
-            return (
-              <div data-setting={t('tabBarOpacity')} className="flex items-center justify-between gap-3">
-                <span className="text-sm font-medium">{t('tabBarOpacity')}</span>
-                <div className="flex flex-1 items-center gap-2">
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    value={pct}
-                    onChange={(e) => set('tab_bar_color', toHex(rgb, Math.round((Number(e.target.value) / 100) * 255)))}
-                    className="h-1 flex-1 cursor-pointer accent-neutral-900"
-                  />
-                  <span className="w-10 text-right text-[10px] text-neutral-400">{pct}%</span>
-                </div>
-              </div>
-            );
-          })()}
+          {/* The bar's own colours, with opacity: over a background image the
+              bar's transparency decides how much shows through. */}
+          <div className="grid grid-cols-2 gap-4">{tabFields.map(renderColor)}</div>
           {categories.length > 0 && (
             <div data-setting={t('navPerCategory')} className="rounded-xl bg-neutral-50 p-3">
               <p className="text-xs font-medium text-neutral-500">{t('navPerCategory')}</p>
@@ -794,6 +763,7 @@ export function DesignForm({
         {/* Section headings */}
         <Card className="space-y-4">
           <h2 className="font-semibold">{t('sections')}</h2>
+          <div className="grid grid-cols-2 gap-4">{renderColor(titleField)}</div>
           <SelectRow
             label={t('categoryAlign')}
             value={settings.categoryAlign}
@@ -1080,6 +1050,7 @@ export function DesignForm({
           <h2 className="font-semibold">{t('discovery')}</h2>
           <ToggleRow label={t('showPricesGlobal')} checked={local.show_prices} onChange={(v) => set('show_prices', v)} />
           <ToggleRow label={t('showSearch')} checked={settings.showSearch} onChange={(v) => setS('showSearch', v)} />
+          {settings.showSearch && <div className="grid grid-cols-2 gap-4">{searchFields.map(renderColor)}</div>}
           <ToggleRow label={t('showBadges')} checked={settings.showBadges} onChange={(v) => setS('showBadges', v)} />
           <ToggleRow label={t('showFilters')} checked={settings.showFilters} onChange={(v) => setS('showFilters', v)} />
           <ToggleRow

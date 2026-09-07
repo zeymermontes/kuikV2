@@ -266,7 +266,7 @@
     "background": "Fondo de página",
     "card": "Fondo de tarjeta",
     "border": "Borde de tarjeta",
-    "separator": "Separadores",
+    "separator": "Líneas separadoras",
     "text": "Texto principal",
     "textSecondary": "Texto secundario",
     "button": "Botones",
@@ -476,8 +476,11 @@
     "imageMaxHeightHint": "Evita que una foto vertical (una botella, por ejemplo) ocupe pantallas enteras.",
     "showHours": "Mostrar horario",
     "showDirections": "Mostrar cómo llegar",
-    "tabBarOpacity": "Opacidad de la barra",
-    "slotBar": "Barra"
+    "slotBar": "Barra",
+    "sectionTitleColor": "Color de los títulos",
+    "darkOverrides": "Con el modo oscuro encendido, fondo, tarjeta, borde y textos usan la paleta oscura; cambiarlos aquí no se nota.",
+    "overriddenBy": "{names}: tienen su propio valor y no usan este.",
+    "overriddenLink": "Cambiarlo en Menú"
   },
   "landing": {
     "title": "Pantalla de inicio",

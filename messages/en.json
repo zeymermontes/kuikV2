@@ -266,7 +266,7 @@
     "background": "Page background",
     "card": "Card background",
     "border": "Card border",
-    "separator": "Separators",
+    "separator": "Separator lines",
     "text": "Primary text",
     "textSecondary": "Secondary text",
     "button": "Buttons",
@@ -476,8 +476,11 @@
     "imageMaxHeightHint": "Stops a portrait shot — a bottle, say — from taking over whole screens.",
     "showHours": "Show hours",
     "showDirections": "Show directions",
-    "tabBarOpacity": "Bar opacity",
-    "slotBar": "Bar"
+    "slotBar": "Bar",
+    "sectionTitleColor": "Title colour",
+    "darkOverrides": "With dark mode on, background, card, border and text use the dark palette; changing them here shows nothing.",
+    "overriddenBy": "{names}: set their own value and ignore this one.",
+    "overriddenLink": "Change it in Menú"
   },
   "landing": {
     "title": "Home screen",
