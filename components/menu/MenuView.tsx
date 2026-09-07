@@ -1212,6 +1212,7 @@ export function MenuView({
       {sheetOpen && (
         <CartSheet
           tenant={tenant}
+          branchId={currentBranchId ?? null}
           contact={contact}
           ordering={ordering}
           showPrices={theme.show_prices}

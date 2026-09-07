@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, Check, ClipboardList, Package, Pencil, Plus, RefreshCw, Trash2, Truck } from 'lucide-react';
 import type { Ingredient, PurchaseLine, PurchaseOrder, StockMovement } from '@/lib/database.types';
@@ -23,12 +24,17 @@ type Tab = 'stock' | 'purchases' | 'log';
 const blank = (): IngredientInput => ({ name: '', unit: 'pza', min_stock: null, cost_per_unit: 0, supplier: null, auto_86: false, active: true, stock: 0 });
 
 export function InventoryManager({
+  branchId = null,
+  branches = [],
   ingredients,
   movements,
   purchases,
   usedBy,
   currency,
 }: {
+  /** The location shown and written to; null is the main one (0083). */
+  branchId?: string | null;
+  branches?: { id: string; name: string }[];
   ingredients: Ingredient[];
   movements: StockMovement[];
   purchases: PurchaseOrder[];
@@ -61,7 +67,7 @@ export function InventoryManager({
   function submitMove() {
     if (!move) return;
     start(async () => {
-      const r = await recordMovement({ ingredientId: move.ingredientId, kind: move.kind, qty: Number(move.qty), note: move.note || null });
+      const r = await recordMovement({ ingredientId: move.ingredientId, kind: move.kind, qty: Number(move.qty), note: move.note || null, branchId });
       if (r.error) return setMsg(r.error);
       setMove(null);
     });
@@ -81,7 +87,7 @@ export function InventoryManager({
   function submitPo(status: 'draft' | 'sent') {
     if (!po) return;
     start(async () => {
-      const r = await savePurchase({ id: po.id, supplier: po.supplier || null, note: po.note || null, items: po.items, status });
+      const r = await savePurchase({ id: po.id, supplier: po.supplier || null, note: po.note || null, items: po.items, status, branchId });
       if (r.error) return setMsg(r.error === 'items' ? t('errItems') : r.error);
       setPo(null);
     });
@@ -96,6 +102,19 @@ export function InventoryManager({
   return (
     <div className="max-w-4xl space-y-5">
       <div className="flex flex-wrap items-center gap-2">
+        {branches.length > 0 && (
+          <div className="mb-3 flex flex-wrap items-center gap-1 text-xs">
+            {[{ id: '', name: t('mainLocation') }, ...branches].map((b) => (
+              <Link
+                key={b.id || 'main'}
+                href={b.id ? `/inventory?branch=${b.id}` : '/inventory'}
+                className={`rounded-full px-3 py-1 font-medium ${(b.id || null) === branchId ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'}`}
+              >
+                {b.name}
+              </Link>
+            ))}
+          </div>
+        )}
         {tabs.map((x) => (
           <button
             key={x.key}

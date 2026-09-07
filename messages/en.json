@@ -1170,7 +1170,8 @@
     "thisProduct": "This product",
     "itsOptions": "Its options",
     "optionInProducts": "{n, plural, one {in # product} other {in # products}}",
-    "holdToMark": "Press and hold a product to mark it sold out."
+    "holdToMark": "Press and hold a product to mark it sold out.",
+    "availabilityLocation": "Applies to this location only; other branches are unchanged."
   },
   "orders": {
     "payment_cash": "Cash",
@@ -1517,7 +1518,8 @@
     "recipeEmptyHint": "No ingredients yet. To track this product as is (a beer, a dessert), create its stock item here; for a recipe, add ingredients under Inventory.",
     "trackSimple": "Track stock",
     "recipeCost": "Cost per recipe",
-    "portionsLeft": "enough for {n}"
+    "portionsLeft": "enough for {n}",
+    "mainLocation": "Main location"
   },
   "branches": {
     "title": "Branches",
@@ -1571,7 +1573,9 @@
     "empTips": "Tips",
     "empSalesCount": "{n} tabs",
     "botConversations": "Bot conversations",
-    "botReservations": "Bot reservations"
+    "botReservations": "Bot reservations",
+    "allBranches": "All branches",
+    "mainLocation": "Main location"
   },
   "superAdmin": {
     "title": "Super Admin",

@@ -6,7 +6,7 @@ import { Ban, Check, Search } from 'lucide-react';
 import type { Product } from '@/lib/database.types';
 import type { PosDexie } from '@/lib/pos/db';
 import type { PosMenu } from '@/lib/pos/types';
-import { optionCatalog, productOptions, setOptionAvailable, setProductAvailable } from '@/lib/pos/availability';
+import { optionCatalog, productOptions, setOptionAvailable, setProductAvailable, type SoldOutLocation } from '@/lib/pos/availability';
 import { PosModal } from './PosModal';
 
 /**
@@ -21,6 +21,7 @@ export function AvailabilitySheet({
   menu,
   product,
   demo,
+  location = null,
   onClose,
 }: {
   db: PosDexie;
@@ -29,6 +30,8 @@ export function AvailabilitySheet({
   /** The product the sheet was opened from, if any. */
   product?: Product | null;
   demo?: boolean;
+  /** With branches, marks apply to this device's location only. */
+  location?: SoldOutLocation | null;
   onClose: () => void;
 }) {
   const t = useTranslations('pos');
@@ -52,8 +55,8 @@ export function AvailabilitySheet({
   const focusOptions = useMemo(() => (focus ? optionCatalog(menu, [focus]) : []), [menu, focus]);
   const catName = useMemo(() => new Map(menu.categories.map((c) => [c.id, c.name] as const)), [menu.categories]);
 
-  const toggleProduct = (p: Product) => void setProductAvailable(db, p.id, !p.is_available, demo);
-  const toggleOption = (name: string, available: boolean) => void setOptionAvailable(db, tenantId, name, !available, demo);
+  const toggleProduct = (p: Product) => void setProductAvailable(db, { tenantId, productId: p.id, available: !p.is_available, demo, location });
+  const toggleOption = (name: string, available: boolean) => void setOptionAvailable(db, { tenantId, name, available: !available, demo, location });
 
   const row = 'flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5 ring-1 ring-black/5';
   const btn = (out: boolean) =>
@@ -63,7 +66,7 @@ export function AvailabilitySheet({
 
   return (
     <PosModal title={t('availability')} onClose={onClose}>
-      <p className="mb-3 text-xs text-neutral-500">{t('availabilityHint')}</p>
+      <p className="mb-3 text-xs text-neutral-500">{location?.hasBranches ? t('availabilityLocation') : t('availabilityHint')}</p>
 
       {focus && (
         <div className="mb-4 space-y-2 rounded-2xl bg-neutral-50 p-3">

@@ -1,4 +1,5 @@
 import 'server-only';
+import { applySoldOut, type SoldOutRow } from '@/lib/availability/overlay';
 import { cache } from 'react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { effectivePlan } from '@/lib/plan';
@@ -209,7 +210,7 @@ export const getProductsByIds = cache(
  * separators) for a tenant, ready for rendering.
  */
 export const getMenu = cache(
-  async (tenantId: string, branchId: string | null = null): Promise<MenuCategory[]> => {
+  async (tenantId: string, branchId: string | null = null, locationId: string | null = branchId): Promise<MenuCategory[]> => {
     const supabase = createAdminClient();
 
     // branchId NULL → the main menu; a branch id → that branch's independent menu.
@@ -221,7 +222,7 @@ export const getMenu = cache(
       .order('position');
     catQuery = branchId ? catQuery.eq('branch_id', branchId) : catQuery.is('branch_id', null);
 
-    const [{ data: categories }, { data: products }, { data: separators }] =
+    const [{ data: categories }, { data: products }, { data: separators }, { data: soldOut }] =
       await Promise.all([
         catQuery,
         supabase
@@ -234,11 +235,18 @@ export const getMenu = cache(
           .select('*')
           .eq('tenant_id', tenantId)
           .order('position'),
+        // What ran out at the location being shown (a shared menu at a branch
+        // is the main menu with that branch's rows laid over it).
+        supabase.from('branch_sold_out').select('branch_id, product_id, option_key').eq('tenant_id', tenantId),
       ]);
 
     const cats = (categories ?? []) as Category[];
     // Hidden products never render on the public menu.
-    const prods = ((products ?? []) as Product[]).filter((p) => !p.is_hidden);
+    const prods = applySoldOut(
+      ((products ?? []) as Product[]).filter((p) => !p.is_hidden),
+      (soldOut ?? []) as SoldOutRow[],
+      locationId,
+    );
     const seps = (separators ?? []) as Separator[];
 
     const entriesOf = (catId: string): MenuEntry[] =>

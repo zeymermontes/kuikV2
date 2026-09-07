@@ -64,16 +64,17 @@ export async function deleteIngredient(id: string) {
 }
 
 /** Waste, a manual adjustment, or a count (which sets the stock to what was counted). */
-export async function recordMovement(input: { ingredientId: string; kind: 'waste' | 'adjust' | 'count'; qty: number; note?: string | null }): Promise<{ error?: string }> {
+export async function recordMovement(input: { ingredientId: string; kind: 'waste' | 'adjust' | 'count'; qty: number; note?: string | null; branchId?: string | null }): Promise<{ error?: string }> {
   const { tenant, user } = await requireManager();
   if (!UUID.test(input.ingredientId)) return { error: 'ingredient' };
   const qty = Number(input.qty);
   if (!Number.isFinite(qty)) return { error: 'qty' };
   const supabase = await createClient();
   const note = input.note?.trim().slice(0, 200) || null;
+  const branch = input.branchId && UUID.test(input.branchId) ? input.branchId : null;
   const { error } =
     input.kind === 'count'
-      ? await supabase.rpc('count_stock', { p_tenant: tenant.id, p_ingredient: input.ingredientId, p_counted: Math.max(0, qty), p_note: note, p_user: user.id })
+      ? await supabase.rpc('count_stock', { p_tenant: tenant.id, p_ingredient: input.ingredientId, p_counted: Math.max(0, qty), p_note: note, p_user: user.id, p_branch: branch })
       : await supabase.rpc('move_stock', {
           p_tenant: tenant.id,
           p_ingredient: input.ingredientId,
@@ -84,6 +85,7 @@ export async function recordMovement(input: { ingredientId: string; kind: 'waste
           p_note: note,
           p_employee: null,
           p_user: user.id,
+          p_branch: branch,
         });
   if (error) return { error: error.message };
   revalidatePath('/inventory');
@@ -154,11 +156,11 @@ export async function recalcProductCosts(): Promise<{ updated: number }> {
 
 // ── Purchases ───────────────────────────────────────────────────────────────
 
-export async function savePurchase(input: { id?: string; supplier: string | null; note: string | null; items: PurchaseLine[]; status: 'draft' | 'sent' }): Promise<{ error?: string }> {
+export async function savePurchase(input: { id?: string; supplier: string | null; note: string | null; items: PurchaseLine[]; status: 'draft' | 'sent'; branchId?: string | null }): Promise<{ error?: string }> {
   const { tenant } = await requireManager();
   const items = input.items.filter((l) => UUID.test(l.ingredient_id) && Number(l.qty) > 0).map((l) => ({ ingredient_id: l.ingredient_id, name: l.name.slice(0, 80), qty: Number(l.qty), cost: Math.max(0, Number(l.cost) || 0) }));
   if (items.length === 0) return { error: 'items' };
-  const row = { tenant_id: tenant.id, supplier: input.supplier?.trim() || null, note: input.note?.trim() || null, items, total: purchaseTotal(items), status: input.status, updated_at: new Date().toISOString() };
+  const row = { tenant_id: tenant.id, branch_id: input.branchId && UUID.test(input.branchId) ? input.branchId : null, supplier: input.supplier?.trim() || null, note: input.note?.trim() || null, items, total: purchaseTotal(items), status: input.status, updated_at: new Date().toISOString() };
   const supabase = await createClient();
   const { error } = input.id
     ? await supabase.from('purchase_orders').update(row).eq('tenant_id', tenant.id).eq('id', input.id).in('status', ['draft', 'sent'])
@@ -173,10 +175,11 @@ export async function receivePurchase(id: string): Promise<{ error?: string }> {
   const { tenant, user } = await requireManager();
   const supabase = await createClient();
   const { data } = await supabase.from('purchase_orders').select('*').eq('tenant_id', tenant.id).eq('id', id).maybeSingle();
-  const po = data as { id: string; status: string; items: PurchaseLine[] } | null;
+  const po = data as { id: string; status: string; items: PurchaseLine[]; branch_id: string | null } | null;
   if (!po || po.status === 'received' || po.status === 'cancelled') return { error: 'status' };
   for (const l of po.items) {
-    await supabase.rpc('move_stock', { p_tenant: tenant.id, p_ingredient: l.ingredient_id, p_kind: 'purchase', p_qty: Number(l.qty), p_ref: po.id, p_note: null, p_employee: null, p_user: user.id });
+    // Received into the order's own location.
+    await supabase.rpc('move_stock', { p_tenant: tenant.id, p_ingredient: l.ingredient_id, p_kind: 'purchase', p_qty: Number(l.qty), p_ref: po.id, p_note: null, p_employee: null, p_user: user.id, p_branch: po.branch_id ?? null });
     if (Number(l.cost) > 0) await supabase.from('ingredients').update({ cost_per_unit: Number(l.cost) }).eq('id', l.ingredient_id).eq('tenant_id', tenant.id);
   }
   await supabase.from('purchase_orders').update({ status: 'received', received_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', id);

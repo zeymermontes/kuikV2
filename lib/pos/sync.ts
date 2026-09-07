@@ -3,7 +3,8 @@
 import type { Table } from 'dexie';
 import type { PosDexie } from './db';
 import { SYNC_ENTITIES, type SyncEntity } from './types';
-import { applyRemoteProduct } from './availability';
+import { applyRemoteProduct, applyRemoteSoldOut } from './availability';
+import type { SoldOutRow } from '@/lib/availability/overlay';
 import type { Product } from '@/lib/database.types';
 import { createClient, channelName } from '@/lib/supabase/client';
 
@@ -156,6 +157,17 @@ export function startSync(
     { event: 'UPDATE', schema: 'public', table: 'products', filter: `tenant_id=eq.${tenantId}` },
     (payload) => {
       applyRemoteProduct(db, payload.new as Product).then(emit);
+    },
+  );
+  // A product or option marked out at this device's location, from another
+  // register or the dashboard (0083). Deletes carry the row (replica identity full).
+  channel = channel.on(
+    'postgres_changes',
+    { event: '*', schema: 'public', table: 'branch_sold_out', filter: `tenant_id=eq.${tenantId}` },
+    (payload) => {
+      const removed = payload.eventType === 'DELETE';
+      const row = (removed ? payload.old : payload.new) as SoldOutRow;
+      if (row && ('product_id' in row || 'option_key' in row)) applyRemoteSoldOut(db, row, removed).then(emit);
     },
   );
   // Status of the jobs this device queued (done / failed), as the agent reports them.

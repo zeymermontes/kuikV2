@@ -18,6 +18,7 @@ import type { Promotion } from '@/lib/database.types';
 export function CartSheet({
   tenant,
   contact,
+  branchId = null,
   ordering,
   showPrices,
   currency,
@@ -33,6 +34,8 @@ export function CartSheet({
   onRemove,
 }: {
   tenant: Tenant;
+  /** The branch the menu was opened for; recorded on the order (0083). */
+  branchId?: string | null;
   contact: TenantContact;
   ordering: TenantOrdering;
   showPrices: boolean;
@@ -209,6 +212,7 @@ export function CartSheet({
     });
 
     const payload = {
+      branch_id: branchId,
       items: lines,
       total: showPrices ? total : null,
       discount: discount || null,

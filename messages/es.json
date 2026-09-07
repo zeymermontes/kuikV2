@@ -1170,7 +1170,8 @@
     "thisProduct": "Este producto",
     "itsOptions": "Sus opciones",
     "optionInProducts": "{n, plural, one {en # producto} other {en # productos}}",
-    "holdToMark": "Mantén presionado un producto para marcarlo agotado."
+    "holdToMark": "Mantén presionado un producto para marcarlo agotado.",
+    "availabilityLocation": "Aplica solo a esta ubicación; las demás sucursales no cambian."
   },
   "orders": {
     "payment_cash": "Efectivo",
@@ -1517,7 +1518,8 @@
     "recipeEmptyHint": "Sin insumos todavía. Para llevar existencias de este producto tal cual (una cerveza, un postre), crea su insumo aquí; para una receta, agrega insumos en Inventario.",
     "trackSimple": "Llevar existencias",
     "recipeCost": "Costo por receta",
-    "portionsLeft": "alcanza para {n}"
+    "portionsLeft": "alcanza para {n}",
+    "mainLocation": "Sede principal"
   },
   "branches": {
     "title": "Sucursales",
@@ -1571,7 +1573,9 @@
     "empTips": "Propinas",
     "empSalesCount": "{n} cuentas",
     "botConversations": "Conversaciones del bot",
-    "botReservations": "Reservas por el bot"
+    "botReservations": "Reservas por el bot",
+    "allBranches": "Todas las sucursales",
+    "mainLocation": "Sede principal"
   },
   "superAdmin": {
     "title": "Super Admin",

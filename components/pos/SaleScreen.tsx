@@ -37,7 +37,7 @@ import { usePrinting } from './PrintingContext';
 import { hasOptions } from '@/lib/menu-options';
 import { PosModal } from './PosModal';
 import { AvailabilitySheet } from './AvailabilitySheet';
-import { soldOutCount } from '@/lib/pos/availability';
+import { soldOutCount, type SoldOutLocation } from '@/lib/pos/availability';
 import { useEmployee } from './EmployeeContext';
 import { CustomerSheet } from './CustomerSheet';
 import type { LoyaltyProgram } from '@/lib/database.types';
@@ -90,7 +90,10 @@ export function SaleScreen({
   floorPlan,
   notePlaceholder = null,
   loyalty = null,
+  soldOutLocation = null,
 }: {
+  /** Where "sold out" marks go (lib/pos/availability.ts). */
+  soldOutLocation?: SoldOutLocation | null;
   db: PosDexie;
   /** The sale being built; null until the first product is tapped. */
   tab: PosTab | null;
@@ -687,6 +690,7 @@ export function SaleScreen({
           db={db}
           tenantId={tenantId}
           menu={menu}
+          location={soldOutLocation}
           product={availFor}
           demo={printing.demo}
           onClose={() => {

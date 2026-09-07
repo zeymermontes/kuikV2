@@ -13,6 +13,7 @@ import { getCfdiSettings, cfdiReady } from '@/lib/cfdi';
 import { tenantBaseUrl } from '@/lib/config';
 import { branchFilter, resolveBranch } from '@/lib/branches';
 import { DeviceBranchSync } from '@/components/pos/DeviceBranchSync';
+import { applySoldOut, type SoldOutRow } from '@/lib/availability/overlay';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,7 +31,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
   const branch = demo ? null : await resolveBranch(supabase, tenant.id, params.branch);
   const menuBranchId = branch?.menu_mode === 'independent' ? branch.id : null;
 
-  const [{ data: categories }, { data: products }, { data: ordering }, { data: floor }, { data: areas }, { data: printers }, { data: loyalty }] = await Promise.all([
+  const [{ data: categories }, { data: products }, { data: ordering }, { data: floor }, { data: areas }, { data: printers }, { data: loyalty }, { count: branchCount }, { data: soldOut }] = await Promise.all([
     branchFilter(supabase.from('categories').select('*').eq('tenant_id', tenant.id), menuBranchId).eq('is_visible', true).order('position'),
     supabase.from('products').select('*').eq('tenant_id', tenant.id).eq('is_hidden', false).order('position'),
     // `*` rather than a column list: a deploy that lands before migration 0065
@@ -46,7 +47,14 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       .eq('enabled', true)
       .order('position'),
     supabase.from('loyalty_program').select('*').eq('tenant_id', tenant.id).maybeSingle(),
+    // With branches, sold-out is per location (0083): this one's rows are laid over the menu.
+    supabase.from('branches').select('id', { count: 'exact', head: true }).eq('tenant_id', tenant.id),
+    supabase.from('branch_sold_out').select('branch_id, product_id, option_key').eq('tenant_id', tenant.id),
   ]);
+  const soldOutLocation = { hasBranches: (branchCount ?? 0) > 0, branchId: branch?.id ?? null };
+  const soldOutHere = soldOutLocation.hasBranches
+    ? ((soldOut ?? []) as SoldOutRow[]).filter((r) => (r.branch_id ?? null) === soldOutLocation.branchId)
+    : [];
   // Receipts print the self-invoice link once the restaurant can stamp CFDIs.
   const cfdi = demo ? null : await getCfdiSettings(tenant.id);
   const invoiceUrl = cfdiReady(cfdi) && cfdi.self_invoice ? `${tenantBaseUrl(tenant.subdomain, tenant.custom_domain)}/factura` : null;
@@ -69,7 +77,11 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
 
   // A branch with its own menu has its own products; keep the ones in the categories shown.
   const categoryIds = new Set(((categories ?? []) as Category[]).map((c) => c.id));
-  const menuProducts = ((products ?? []) as Product[]).filter((p) => categoryIds.has(p.category_id));
+  const menuProducts = applySoldOut(
+    ((products ?? []) as Product[]).filter((p) => categoryIds.has(p.category_id)),
+    (soldOut ?? []) as SoldOutRow[],
+    soldOutLocation.hasBranches ? soldOutLocation.branchId : null,
+  );
 
   const settings = resolveMenuSettings(theme.settings);
   const currency = settings.currency;
@@ -84,6 +96,8 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
     <DeviceBranchSync branch={branch ? { id: branch.id, name: branch.name, slug: branch.slug } : null} />
     <PosTerminal
       branch={branch ? { id: branch.id, name: branch.name, slug: branch.slug } : null}
+      soldOutLocation={soldOutLocation}
+      soldOutRows={soldOutHere}
       tenantId={tenant.id}
       userId={user.id}
       restaurantName={tenant.name}

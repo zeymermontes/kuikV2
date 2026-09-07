@@ -53,6 +53,7 @@ export async function POST(
     pay?: { service?: string; tipPercent?: number; locale?: string; returnPath?: string } | null;
     promo_code?: string | null;
     discount?: number | null;
+    branch_id?: string | null;
   };
   try {
     body = await req.json();
@@ -66,8 +67,14 @@ export async function POST(
 
   const supabase = createAdminClient();
   const paying = !!body.pay && body.payment_method === 'online';
+  // The branch the menu was opened for, if it is one of this tenant's.
+  const branchId =
+    typeof body.branch_id === 'string' && /^[0-9a-f-]{36}$/i.test(body.branch_id)
+      ? ((await supabase.from('branches').select('id').eq('tenant_id', tenantId).eq('id', body.branch_id).maybeSingle()).data?.id ?? null)
+      : null;
   const row = {
     tenant_id: tenantId,
+    branch_id: branchId,
     items: body.items,
     total: body.total ?? null,
     customer_name: body.customer_name?.slice(0, 120) ?? null,

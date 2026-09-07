@@ -49,6 +49,8 @@ import {
 } from '@/lib/pos/customer-screen';
 import { demoScope, type PosTab, type PosMenu, type RegisterShift, type TabItem, type PrintJob } from '@/lib/pos/types';
 import { registerScope, sameBranch, type DeviceBranch } from '@/lib/pos/branch';
+import { seedSoldOut, type SoldOutLocation } from '@/lib/pos/availability';
+import type { SoldOutRow } from '@/lib/availability/overlay';
 import { DEFAULT_PRINT_SETTINGS, retryJob, type PrintSettings } from '@/lib/pos/printing';
 import { PrintingProvider } from './PrintingContext';
 import { EmployeeProvider, useEmployee } from './EmployeeContext';
@@ -97,6 +99,8 @@ function PosTerminalInner({
   menu: initialMenu,
   themeStyle,
   branch = null,
+  soldOutLocation = null,
+  soldOutRows = [],
   customerPath = '/pos/customer',
   loyalty = null,
   demo = false,
@@ -124,6 +128,10 @@ function PosTerminalInner({
   themeStyle?: React.CSSProperties;
   /** This register's branch; null is the main location (lib/pos/branch.ts). */
   branch?: DeviceBranch | null;
+  /** Where "sold out" marks go (lib/pos/availability.ts). */
+  soldOutLocation?: SoldOutLocation | null;
+  /** What ran out at this location, for merging server rows without losing it. */
+  soldOutRows?: SoldOutRow[];
   /** Where the customer screen lives; the public demo has its own copy. */
   customerPath?: string;
   /** With employees set up: ask for a PIN again after every closed sale. */
@@ -200,6 +208,9 @@ function PosTerminalInner({
   useEffect(() => {
     db.menu_cache.put({ id: 'menu', data: seedMenu, cached_at: nowISO() });
   }, [db, seedMenu]);
+  useEffect(() => {
+    void seedSoldOut(db, soldOutRows);
+  }, [db, soldOutRows]);
 
   useEffect(() => {
     if (demo) return;
@@ -662,6 +673,7 @@ function PosTerminalInner({
           {view === 'sale' && (
             <SaleScreen
               db={db}
+              soldOutLocation={soldOutLocation}
               tab={selected}
               items={live}
               openTabs={tabs ?? []}

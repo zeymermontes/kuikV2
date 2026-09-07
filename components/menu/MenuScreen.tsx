@@ -39,7 +39,7 @@ export async function MenuScreen({
   }
 
   const menuBranchId = branch && branch.menu_mode === 'independent' ? branch.id : null;
-  const menu = await getMenu(data.tenant.id, menuBranchId);
+  const menu = await getMenu(data.tenant.id, menuBranchId, branch?.id ?? null);
 
   // A branch routes orders to its own WhatsApp/address.
   const contact = branch

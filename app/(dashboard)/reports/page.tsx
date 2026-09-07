@@ -20,7 +20,7 @@ const RANGES = [7, 30, 90];
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ days?: string }>;
+  searchParams: Promise<{ days?: string; branch?: string }>;
 }) {
   const { tenant, theme, subscription } = await requireManager();
   const t = await getTranslations('reports');
@@ -35,17 +35,30 @@ export default async function ReportsPage({
     );
   }
 
-  const days = RANGES.includes(Number((await searchParams).days))
-    ? Number((await searchParams).days)
-    : 30;
+  const sp = await searchParams;
+  const days = RANGES.includes(Number(sp.days)) ? Number(sp.days) : 30;
   const currency = resolveMenuSettings(theme.settings).currency;
   const supabase = await createClient();
 
+  // `?branch=`: one location, or every one. Tabs, payments and online orders
+  // carry the branch since 0083; earlier rows count as the main location.
+  const { data: branchRows } = await supabase.from('branches').select('id, name').eq('tenant_id', tenant.id).order('position');
+  const branches = (branchRows ?? []) as { id: string; name: string }[];
+  const branchParam = sp.branch ?? '';
+  const branchId = branches.some((b) => b.id === branchParam) ? branchParam : null;
+  const mainOnly = branchParam === 'main';
+  const byBranch = <Q,>(q: Q): Q => {
+    // A structural cast, not a generic constraint: the builder's own generics blow up type instantiation.
+    const b = q as unknown as { eq: (c: string, v: string) => Q; is: (c: string, v: null) => Q };
+    return branchId ? b.eq('branch_id', branchId) : mainOnly ? b.is('branch_id', null) : q;
+  };
+  const withBranch = (p: string) => (branchId ? `${p}&branch=${branchId}` : mainOnly ? `${p}&branch=main` : p);
+
   const [{ data: stats }, { data: sales }, { data: hours }, { data: topP }, { data: loy }, { data: topC }] =
     await Promise.all([
-      supabase.rpc('tenant_stats', { p_tenant: tenant.id, p_days: days }),
-      supabase.rpc('sales_series', { p_tenant: tenant.id, p_days: days }),
-      supabase.rpc('busiest_hours', { p_tenant: tenant.id, p_days: days }),
+      supabase.rpc('tenant_stats', { p_tenant: tenant.id, p_days: days, p_branch: branchId }),
+      supabase.rpc('sales_series', { p_tenant: tenant.id, p_days: days, p_branch: branchId }),
+      supabase.rpc('busiest_hours', { p_tenant: tenant.id, p_days: days, p_branch: branchId }),
       supabase.rpc('top_products', { p_tenant: tenant.id, p_days: days, p_limit: 10 }),
       supabase.rpc('loyalty_summary', { p_tenant: tenant.id }),
       supabase.rpc('top_customers', { p_tenant: tenant.id, p_limit: 10 }),
@@ -81,7 +94,7 @@ export default async function ReportsPage({
   // ── Profitability (logged orders × per-product cost) ──────────────────────
   const since = daysAgoISO(days);
   const [{ data: orderRows }, { data: prodRows }] = await Promise.all([
-    supabase.from('orders').select('items').eq('tenant_id', tenant.id).gte('created_at', since),
+    byBranch(supabase.from('orders').select('items').eq('tenant_id', tenant.id)).gte('created_at', since),
     supabase.from('products').select('id, name, cost').eq('tenant_id', tenant.id),
   ]);
   const costById = new Map(
@@ -119,8 +132,8 @@ export default async function ReportsPage({
   const [{ data: empRows }, { data: clockRows }, { data: tabRows }, { data: payRows }] = await Promise.all([
     supabase.from('employees').select('id, name, role').eq('tenant_id', tenant.id),
     supabase.from('time_entries').select('employee_id, clock_in, clock_out').eq('tenant_id', tenant.id).gte('clock_in', since),
-    supabase.from('tabs').select('employee_id, total').eq('tenant_id', tenant.id).eq('status', 'paid').not('employee_id', 'is', null).gte('closed_at', since),
-    supabase.from('payments').select('employee_id, tip').eq('tenant_id', tenant.id).not('employee_id', 'is', null).gte('created_at', since),
+    byBranch(supabase.from('tabs').select('employee_id, total').eq('tenant_id', tenant.id)).eq('status', 'paid').not('employee_id', 'is', null).gte('closed_at', since),
+    byBranch(supabase.from('payments').select('employee_id, tip').eq('tenant_id', tenant.id)).not('employee_id', 'is', null).gte('created_at', since),
   ]);
   const byEmployee = new Map<string, { name: string; minutes: number; tabs: number; sales: number; tips: number }>();
   for (const e of (empRows ?? []) as { id: string; name: string }[]) byEmployee.set(e.id, { name: e.name, minutes: 0, tabs: 0, sales: 0, tips: 0 });
@@ -152,7 +165,7 @@ export default async function ReportsPage({
           {RANGES.map((d) => (
             <Link
               key={d}
-              href={`/reports?days=${d}`}
+              href={withBranch(`/reports?days=${d}`)}
               className={`rounded-full px-3 py-1.5 text-sm font-medium ${
                 days === d ? 'bg-neutral-900 text-white' : 'border border-neutral-300 text-neutral-600'
               }`}
@@ -160,6 +173,39 @@ export default async function ReportsPage({
               {t('lastDays', { d })}
             </Link>
           ))}
+          {branches.length > 0 && (
+
+            <span className="ml-3 inline-flex flex-wrap gap-1">
+
+              {[{ id: '', name: t('allBranches') }, { id: 'main', name: t('mainLocation') }, ...branches].map((b) => (
+
+                <Link
+
+                  key={b.id || 'all'}
+
+                  href={b.id ? `/reports?days=${days}&branch=${b.id}` : `/reports?days=${days}`}
+
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${
+
+                    (b.id === '' && !branchId && !mainOnly) || (b.id === 'main' && mainOnly) || (b.id !== '' && b.id === branchId)
+
+                      ? 'bg-neutral-900 text-white'
+
+                      : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+
+                  }`}
+
+                >
+
+                  {b.name}
+
+                </Link>
+
+              ))}
+
+            </span>
+
+          )}
         </div>
       </div>
 

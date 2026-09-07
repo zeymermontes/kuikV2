@@ -132,6 +132,27 @@ export interface Ingredient {
   updated_at: string;
 }
 
+/** An ingredient's stock at a branch; the main location's lives on the ingredient itself (0083). */
+export interface IngredientStock {
+  id: string;
+  tenant_id: string;
+  ingredient_id: string;
+  branch_id: string;
+  stock: number;
+  min_stock: number | null;
+  updated_at: string;
+}
+
+/** A product or an option (by name key) run out at one location; null branch is the main one (0083). */
+export interface BranchSoldOut {
+  id: string;
+  tenant_id: string;
+  branch_id: string | null;
+  product_id: string | null;
+  option_key: string | null;
+  created_at: string;
+}
+
 /** One line of a product's recipe: this much of that ingredient per unit sold. */
 export interface RecipeLine {
   product_id: string;
@@ -145,6 +166,8 @@ export type StockMovementKind = 'sale' | 'purchase' | 'waste' | 'count' | 'adjus
 export interface StockMovement {
   id: string;
   tenant_id: string;
+  /** Null is the main location (0083). */
+  branch_id?: string | null;
   ingredient_id: string;
   kind: StockMovementKind;
   qty: number;
@@ -165,6 +188,8 @@ export interface PurchaseLine {
 export interface PurchaseOrder {
   id: string;
   tenant_id: string;
+  /** Received into this branch's stock; null is the main location (0083). */
+  branch_id?: string | null;
   supplier: string | null;
   status: 'draft' | 'sent' | 'received' | 'cancelled';
   items: PurchaseLine[];
@@ -734,6 +759,8 @@ export type OrderStatus = 'new' | 'preparing' | 'ready' | 'done';
 export interface OrderRow {
   id: string;
   tenant_id: string;
+  /** The branch the menu was opened for; null is the main location (0083). */
+  branch_id?: string | null;
   items: OrderItem[];
   total: number | null;
   customer_name: string | null;
