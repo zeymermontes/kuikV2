@@ -15,8 +15,8 @@ public class MainActivity extends BridgeActivity {
 
     /**
      * The hardware back button walks the WebView's history; at the root it
-     * opens the mode chooser instead of closing the app, which on a shared
-     * tablet would just confuse whoever picks it up next.
+     * opens the hub instead of closing the app, which on a shared tablet
+     * would just confuse whoever picks it up next.
      */
     @Override
     public void onBackPressed() {
@@ -27,7 +27,7 @@ public class MainActivity extends BridgeActivity {
         }
         String url = webView.getUrl();
         if (url != null && !url.contains("/terminal")) {
-            webView.loadUrl(getBridge().getServerUrl() + "?pick=1");
+            webView.loadUrl(getBridge().getServerUrl());
             return;
         }
         super.onBackPressed();

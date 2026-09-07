@@ -1614,7 +1614,22 @@
     "landingErr_noFile": "No file selected.",
     "landingErr_badZip": "Could not read the .zip.",
     "landingErr_noIndex": "No index.html found in the zip.",
-    "landingErr_uploadFailed": "Upload failed. Try again."
+    "landingErr_uploadFailed": "Upload failed. Try again.",
+    "apps": "Native apps",
+    "appsHint": "Each app announces a new version. With a minimum version, older builds cannot go on until they update; it is only enforced where the update can already be installed (the APK at once, the stores when they carry it).",
+    "appsApp": "App",
+    "appsLatest": "Published",
+    "appsMin": "Minimum version",
+    "appsMinNone": "None",
+    "appsRequireLatest": "Require the published one",
+    "appsAllowAll": "Allow all",
+    "appsSave": "Save",
+    "appsSaved": "Saved. Devices see it within minutes.",
+    "appsErr_invalid": "Enter a version like 0.1.2.",
+    "appsErr_ahead": "Newer than the published one; nobody could update.",
+    "appsErr_missing": "That app has no published version yet.",
+    "appsErr_failed": "Could not save; try again.",
+    "appsNotPublished": "Not published"
   },
   "menu": {
     "orderWhatsapp": "Order on WhatsApp",
@@ -2499,8 +2514,8 @@
     "recall": "Recall"
   },
   "terminal": {
-    "title": "What does this screen do?",
-    "subtitle": "Pick this device’s mode. It is remembered next time; change it from the mode button.",
+    "title": "What do you want to open?",
+    "subtitle": "Everything you can use on this device. The corner button brings you back here.",
     "pos": "Register",
     "posDesc": "Charge, tabs and tables.",
     "kds": "Kitchen",
@@ -2509,11 +2524,30 @@
     "hostDesc": "Reservations and the floor plan.",
     "customer": "Customer screen",
     "customerDesc": "Mirrors the sale for the guest paying.",
+    "admin": "Admin panel",
+    "adminDesc": "Menu, orders, reports and settings.",
+    "locked": "Not in your plan",
+    "nothing": "Your account has nothing to open on this device. Ask the owner to check your role.",
     "customerRegister": "Which register does this screen follow?",
     "customerRegisterHint": "The register’s name, as set under Register → This register.",
     "go": "Open",
-    "changeMode": "Change mode",
+    "changeMode": "Back to home",
     "signOut": "Sign out",
-    "remembered": "Opening {mode}…"
+    "branch": "Branch",
+    "branchMain": "Main location",
+    "branchHint": "Register, kitchen and host stand open for this branch. The device remembers it."
+  },
+  "shellUpdate": {
+    "available": "A new version of the app is out ({version}).",
+    "download": "Download",
+    "later": "Not now",
+    "requiredTitle": "Update the app to continue",
+    "requiredBody": "This version no longer works with Kuik. Download the new one, install it over this one and open it again; your session and the register's data stay.",
+    "requiredDesktopBody": "This version of Kuik Caja no longer works with Kuik. The update downloads by itself; restart to install it.",
+    "versions": "You have {mine}; the current one is {latest}.",
+    "restartInstall": "Restart and install",
+    "desktopDownloading": "The update is downloading. Wait a moment and try again; if it does not arrive, close and reopen Kuik Caja.",
+    "desktopDownloadingShort": "Downloading…",
+    "installHint": "Opens in the browser. When the download finishes, open it and accept the install."
   }
 }

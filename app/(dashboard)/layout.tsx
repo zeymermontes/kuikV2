@@ -8,6 +8,7 @@ import { Sidebar } from '@/components/dashboard/Sidebar';
 import { TrialBanner } from '@/components/dashboard/TrialBanner';
 import { PwaProvider } from '@/components/dashboard/PwaProvider';
 import { ShellUpdateBanner } from '@/components/ShellUpdateBanner';
+import { TerminalModeButton } from '@/components/pos/TerminalModeButton';
 import { SITE_URL } from '@/lib/seo';
 import { StaffIntlProvider } from '@/components/intl/StaffIntlProvider';
 import { getPendingSummary } from './reservations/actions';
@@ -64,6 +65,8 @@ export default async function DashboardLayout({
     <StaffIntlProvider>
       <PwaProvider>
         <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />
+        {/* Inside the native apps the dashboard is one tile of the hub; this is the way back. */}
+        <TerminalModeButton />
         <div className="flex min-h-screen bg-neutral-50">
           <Sidebar
             isSuperAdmin={ctx.user.profile.role === 'super_admin'}

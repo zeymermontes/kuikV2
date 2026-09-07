@@ -10,18 +10,23 @@ import { shell } from '@/lib/native/shell';
 const noop = () => () => {};
 
 /**
- * The way back to the mode chooser inside the Terminal app, where there is
- * no address bar. Renders nothing in a browser or the other shells.
+ * The way back to the hub (/terminal) inside the Terminal and phone apps,
+ * where there is no address bar. Renders nothing in a browser or on the
+ * desktop, which has its own window chrome.
  */
 export function TerminalModeButton() {
   const t = useTranslations('terminal');
-  const inTerminal = useSyncExternalStore(noop, () => shell() === 'terminal', () => false);
+  const inApp = useSyncExternalStore(
+    noop,
+    () => shell() === 'terminal' || shell() === 'mobile',
+    () => false,
+  );
   const pathname = usePathname();
   // The guest-facing screen shows no staff controls.
-  if (!inTerminal || pathname.startsWith('/pos/customer')) return null;
+  if (!inApp || pathname.startsWith('/pos/customer')) return null;
   return (
     <Link
-      href="/terminal?pick=1"
+      href="/terminal"
       title={t('changeMode')}
       aria-label={t('changeMode')}
       className="fixed bottom-3 right-3 z-50 flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-black/60 text-white/70 shadow backdrop-blur hover:text-white"

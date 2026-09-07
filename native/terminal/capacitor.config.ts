@@ -9,7 +9,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 // (an iOS simulator can use http://localhost:3000; a real device cannot).
 
 const server = (process.env.KUIK_SERVER_URL ?? 'https://app.kuik.mx').replace(/\/$/, '');
-const version = '0.1.0';
+const version = '0.1.1';
 
 const config: CapacitorConfig = {
   appId: 'mx.kuik.terminal',

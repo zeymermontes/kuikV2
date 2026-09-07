@@ -1614,7 +1614,22 @@
     "landingErr_noFile": "No se seleccionó archivo.",
     "landingErr_badZip": "No se pudo leer el .zip.",
     "landingErr_noIndex": "No se encontró index.html en el zip.",
-    "landingErr_uploadFailed": "Falló la subida. Inténtalo de nuevo."
+    "landingErr_uploadFailed": "Falló la subida. Inténtalo de nuevo.",
+    "apps": "Apps nativas",
+    "appsHint": "Cada app avisa cuando hay versión nueva. Con una versión mínima, las más viejas no pueden seguir hasta actualizar; solo se exige donde la actualización ya se puede instalar (el APK al momento, las tiendas cuando la tengan).",
+    "appsApp": "App",
+    "appsLatest": "Publicada",
+    "appsMin": "Versión mínima",
+    "appsMinNone": "Ninguna",
+    "appsRequireLatest": "Exigir la publicada",
+    "appsAllowAll": "Permitir todas",
+    "appsSave": "Guardar",
+    "appsSaved": "Guardado. Los dispositivos lo ven en unos minutos.",
+    "appsErr_invalid": "Escribe una versión como 0.1.2.",
+    "appsErr_ahead": "Es más nueva que la publicada; nadie podría actualizar.",
+    "appsErr_missing": "Esa app aún no tiene versión publicada.",
+    "appsErr_failed": "No se pudo guardar; inténtalo de nuevo.",
+    "appsNotPublished": "Sin publicar"
   },
   "menu": {
     "orderWhatsapp": "Ordenar por WhatsApp",
@@ -2499,8 +2514,8 @@
     "recall": "Recuperar"
   },
   "terminal": {
-    "title": "¿Qué hace esta pantalla?",
-    "subtitle": "Elige el modo de este dispositivo. Se recuerda la próxima vez; puedes cambiarlo desde el botón de modo.",
+    "title": "¿Qué quieres abrir?",
+    "subtitle": "Todo lo que puedes usar en este dispositivo. Vuelves aquí con el botón de la esquina.",
     "pos": "Caja",
     "posDesc": "Cobrar, cuentas y mesas.",
     "kds": "Cocina",
@@ -2509,11 +2524,30 @@
     "hostDesc": "Reservaciones y plano del salón.",
     "customer": "Pantalla del cliente",
     "customerDesc": "Mirror de la cuenta para quien paga.",
+    "admin": "Panel de administración",
+    "adminDesc": "Menú, pedidos, reportes y ajustes.",
+    "locked": "No incluido en tu plan",
+    "nothing": "Tu cuenta no tiene nada que abrir en este dispositivo. Pide al dueño que revise tu rol.",
     "customerRegister": "¿A qué caja sigue esta pantalla?",
     "customerRegisterHint": "El nombre de la caja, como aparece en Caja → Esta caja.",
     "go": "Abrir",
-    "changeMode": "Cambiar modo",
+    "changeMode": "Volver al inicio",
     "signOut": "Cerrar sesión",
-    "remembered": "Abriendo {mode}…"
+    "branch": "Sucursal",
+    "branchMain": "Sede principal",
+    "branchHint": "Caja, cocina y anfitrión abren para esta sucursal. El dispositivo la recuerda."
+  },
+  "shellUpdate": {
+    "available": "Hay una versión nueva de la app ({version}).",
+    "download": "Descargar",
+    "later": "Ahora no",
+    "requiredTitle": "Actualiza la app para continuar",
+    "requiredBody": "Esta versión ya no es compatible con Kuik. Descarga la nueva, instálala encima y vuelve a abrir; no pierdes tu sesión ni lo que está en la caja.",
+    "requiredDesktopBody": "Esta versión de Kuik Caja ya no es compatible. La actualización se descarga sola; reinicia para instalarla.",
+    "versions": "Tienes la {mine}; la actual es la {latest}.",
+    "restartInstall": "Reiniciar e instalar",
+    "desktopDownloading": "La actualización se está descargando. Espera un momento y vuelve a intentar; si no llega, cierra y abre Kuik Caja.",
+    "desktopDownloadingShort": "Descargando…",
+    "installHint": "Se abre en el navegador. Al terminar la descarga, ábrela y acepta instalar."
   }
 }
