@@ -3,6 +3,8 @@ productName: Kuik Caja
 copyright: Kuik
 directories:
   output: dist
+  # build/icon.png (from public/icons) becomes the .icns / .ico automatically.
+  buildResources: build
 # One name per platform and version, no spaces: the publish script and the
 # update feed (latest*.yml) refer to these.
 artifactName: kuik-caja-${version}-${os}-${arch}.${ext}
@@ -34,6 +36,7 @@ win:
 linux:
   target: [AppImage, deb]
   category: Office
+  maintainer: soporte@kuik.mx
   extraResources:
     - from: agent/
       to: agent/
