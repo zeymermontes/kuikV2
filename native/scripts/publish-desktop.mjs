@@ -39,7 +39,7 @@ if (!url || !key) throw new Error('SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY miss
 const version = JSON.parse(readFileSync(resolve(root, 'native/desktop/package.json'), 'utf8')).version;
 
 const files = readdirSync(dir)
-  .filter((f) => /\.(dmg|zip|exe|AppImage|deb|yml|blockmap)$/.test(f))
+  .filter((f) => /\.(dmg|zip|exe|AppImage|deb|yml|blockmap)$/.test(f) && f !== 'builder-debug.yml')
   .sort();
 if (files.length === 0) throw new Error(`no installers in ${dir}`);
 
