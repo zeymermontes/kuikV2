@@ -21,6 +21,9 @@ export async function startSubscription(plan: 'basic' | 'pro', rawAddons: readon
   // Record the choice now; the webhook flips status to active on payment.
   const supabase = await createClient();
   await supabase.from('subscriptions').update({ plan, addons }).eq('tenant_id', tenant.id);
+  // Every branch is a line of the same charge (lib/pricing.ts).
+  const { count: branchCount } = await supabase.from('branches').select('id', { count: 'exact', head: true }).eq('tenant_id', tenant.id);
+  const branches = branchCount ?? 0;
 
   let initPoint: string | null = null;
   try {
@@ -31,10 +34,11 @@ export async function startSubscription(plan: 'basic' | 'pro', rawAddons: readon
     const result = await createSubscription({
       tenantId: tenant.id,
       payerEmail: user.email ?? '',
-      reason: `Kuik ${tierName}${addons.includes('pos') ? ` + ${settings.pos_addon_name}` : ''} — ${tenant.name}`,
+      reason: `Kuik ${tierName}${addons.includes('pos') ? ` + ${settings.pos_addon_name}` : ''}${branches > 0 ? ` + ${branches} sucursal${branches === 1 ? '' : 'es'}` : ''} — ${tenant.name}`,
       plan,
       addons,
       additional,
+      branches,
     });
     initPoint = result.initPoint;
   } catch (err) {

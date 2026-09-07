@@ -354,12 +354,15 @@ Two tiers and one add-on ([lib/plan.ts](lib/plan.ts), prices and names in
 | | Sells | Gate |
 | --- | --- | --- |
 | **Menú** (`basic`) | menu, WhatsApp orders, online payment, reservations, design, reports | default |
-| **Restaurante** (`pro`) | + host stand, WhatsApp bot, loyalty, branches, custom domain, advanced reports | `isPro` / `canUse(plan, feature)` |
+| **Restaurante** (`pro`) | + host stand, WhatsApp bot, loyalty, custom domain, advanced reports | `isPro` / `canUse(plan, feature)` |
+| **Sucursal** (per branch) | on either tier; 250/month on Menú, 499/month on Restaurante (`branch_amount_*`, 0082) | `lib/pricing.ts` |
 | **Punto de venta** (add-on `pos`) | register, KDS, printing, customer screen; joins either tier | `canUsePos(sub)` / `canUse(plan, 'pos', addons)` |
 
 The trial month has everything. Paid add-ons live in `subscriptions.addons`
-(0069); the monthly MercadoPago charge is tier + add-ons, and changing either
-starts a new preapproval after cancelling the one in force. Kuik's cut of
+(0069); the monthly MercadoPago charge is tier + add-ons + branches
+(`monthlyAmount` in [lib/pricing.ts](lib/pricing.ts)), and changing tier or
+add-ons starts a new preapproval after cancelling the one in force. Adding or
+removing a branch only updates the amount of the preapproval in force. Kuik's cut of
 online payments can be lower on Restaurante (`pro_payment_fee_percent`).
 Extra restaurants on one account stay a separate line (`extra_amount`).
 

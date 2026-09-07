@@ -16,6 +16,9 @@ export interface PlatformSettings {
   /** The point-of-sale add-on: register, kitchen screen, printing, customer screen (0069). */
   pos_addon_amount: number;
   pos_addon_name: string;
+  /** What one branch adds per month, on each tier (0082). */
+  branch_amount_basic: number;
+  branch_amount_pro: number;
 }
 
 // Fallback used if the platform_settings row hasn't been created yet.
@@ -30,6 +33,8 @@ const FALLBACK: PlatformSettings = {
   pro_payment_fee_percent: null,
   pos_addon_amount: Number(process.env.MERCADOPAGO_POS_AMOUNT ?? '499'),
   pos_addon_name: 'Punto de venta',
+  branch_amount_basic: Number(process.env.MERCADOPAGO_BRANCH_BASIC_AMOUNT ?? '250'),
+  branch_amount_pro: Number(process.env.MERCADOPAGO_BRANCH_PRO_AMOUNT ?? '499'),
 };
 
 /**
@@ -42,7 +47,7 @@ export const getPlatformSettings = cache(async (): Promise<PlatformSettings> => 
     const supabase = createAdminClient();
     const query = supabase
       .from('platform_settings')
-      .select('plan_amount, plan_currency, plan_name, pro_amount, pro_name, extra_amount, payment_fee_percent, pro_payment_fee_percent, pos_addon_amount, pos_addon_name')
+      .select('plan_amount, plan_currency, plan_name, pro_amount, pro_name, extra_amount, payment_fee_percent, pro_payment_fee_percent, pos_addon_amount, pos_addon_name, branch_amount_basic, branch_amount_pro')
       .eq('id', 1)
       .maybeSingle<PlatformSettings>();
     // Never let a slow DB hang the marketing page — fall back after 3s.
@@ -59,6 +64,8 @@ export const getPlatformSettings = cache(async (): Promise<PlatformSettings> => 
       pro_payment_fee_percent: d.pro_payment_fee_percent == null ? null : Number(d.pro_payment_fee_percent),
       pos_addon_amount: Number(d.pos_addon_amount ?? FALLBACK.pos_addon_amount),
       pos_addon_name: d.pos_addon_name || FALLBACK.pos_addon_name,
+      branch_amount_basic: Number(d.branch_amount_basic ?? FALLBACK.branch_amount_basic),
+      branch_amount_pro: Number(d.branch_amount_pro ?? FALLBACK.branch_amount_pro),
     };
   } catch {
     return FALLBACK;

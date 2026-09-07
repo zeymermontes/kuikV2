@@ -1289,7 +1289,8 @@
     "addonSubscribeWith": "Subscribe to {plan} + point of sale",
     "addonIncludedTrial": "Included in your trial",
     "addonActive": "Active on your plan",
-    "addonHint": "Set it up in Orders → Printing and open the POS from the sidebar."
+    "addonHint": "Set it up in Orders → Printing and open the POS from the sidebar.",
+    "f_branchesPriced": "Branches: {price}/month each"
   },
   "pro": {
     "locked": "{feature} is a Pro feature",
@@ -1540,7 +1541,8 @@
     "add": "Add",
     "viewBranch": "View branch",
     "editMenu": "Edit menu",
-    "confirmDelete": "Delete this branch?"
+    "confirmDelete": "Delete this branch?",
+    "priceNote": "Each branch adds {price} a month to your subscription, from the next cycle."
   },
   "reports": {
     "title": "Reports",

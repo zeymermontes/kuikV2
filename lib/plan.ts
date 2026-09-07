@@ -16,7 +16,8 @@ export type Addon = 'pos';
 export const ADDONS: readonly Addon[] = ['pos'];
 
 export type Feature = 'custom_domain' | 'loyalty' | 'branches' | 'pro_reports' | 'pos' | 'wa_bots';
-const PRO_ONLY: Feature[] = ['custom_domain', 'loyalty', 'branches', 'pro_reports', 'wa_bots'];
+// Branches are on either tier, paid per branch (lib/pricing.ts, 0082).
+const PRO_ONLY: Feature[] = ['custom_domain', 'loyalty', 'pro_reports', 'wa_bots'];
 const ADDON_OF: Partial<Record<Feature, Addon>> = { pos: 'pos' };
 
 type SubLike = Pick<Subscription, 'status' | 'plan'> & { addons?: readonly string[] | null };

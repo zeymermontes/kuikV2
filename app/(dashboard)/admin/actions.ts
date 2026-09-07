@@ -172,6 +172,8 @@ export async function updatePricing(input: {
   proPaymentFeePercent?: number | null;
   posAddonAmount?: number;
   posAddonName?: string;
+  branchBasicAmount?: number;
+  branchProAmount?: number;
 }) {
   await requireSuperAdmin();
   if (!(input.amount > 0) || !input.currency) return;
@@ -193,6 +195,8 @@ export async function updatePricing(input: {
         input.proPaymentFeePercent == null || Number.isNaN(Number(input.proPaymentFeePercent)) ? null : clampFee(Number(input.proPaymentFeePercent)),
       pos_addon_amount: Math.max(0, Number(input.posAddonAmount) || 0),
       pos_addon_name: (input.posAddonName || 'Punto de venta').slice(0, 60),
+      branch_amount_basic: Math.max(0, Number(input.branchBasicAmount) || 0),
+      branch_amount_pro: Math.max(0, Number(input.branchProAmount) || 0),
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'id' },

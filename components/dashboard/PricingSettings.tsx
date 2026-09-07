@@ -18,6 +18,8 @@ export function PricingSettings({ settings }: { settings: PlatformSettings }) {
   const [proFeePercent, setProFeePercent] = useState(settings.pro_payment_fee_percent == null ? '' : String(settings.pro_payment_fee_percent));
   const [posName, setPosName] = useState(settings.pos_addon_name);
   const [posAmount, setPosAmount] = useState(String(settings.pos_addon_amount));
+  const [branchBasic, setBranchBasic] = useState(String(settings.branch_amount_basic));
+  const [branchPro, setBranchPro] = useState(String(settings.branch_amount_pro));
   const [saved, setSaved] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -35,6 +37,8 @@ export function PricingSettings({ settings }: { settings: PlatformSettings }) {
         proPaymentFeePercent: proFeePercent.trim() === '' ? null : Number(proFeePercent),
         posAddonAmount: Number(posAmount),
         posAddonName: posName,
+        branchBasicAmount: Number(branchBasic),
+        branchProAmount: Number(branchPro),
       });
       setSaved(true);
     });
@@ -71,6 +75,14 @@ export function PricingSettings({ settings }: { settings: PlatformSettings }) {
         <div>
           <Label>Punto de venta — monto/mes (se suma a cualquier plan)</Label>
           <Input type="number" min={0} step="1" value={posAmount} onChange={(e) => setPosAmount(e.target.value)} />
+        </div>
+        <div>
+          <Label>Sucursal adicional, plan {name || 'Menú'} — monto/mes por sucursal</Label>
+          <Input type="number" min={0} step="1" value={branchBasic} onChange={(e) => setBranchBasic(e.target.value)} />
+        </div>
+        <div>
+          <Label>Sucursal adicional, plan {proName || 'Restaurante'} — monto/mes por sucursal</Label>
+          <Input type="number" min={0} step="1" value={branchPro} onChange={(e) => setBranchPro(e.target.value)} />
         </div>
         <div>
           <Label>Comisión por pago en línea, plan {proName || 'Restaurante'} (%) — vacío = igual</Label>

@@ -1,4 +1,5 @@
 import 'server-only';
+import { monthlyAmount } from '@/lib/pricing';
 import { MercadoPagoConfig, PreApproval } from 'mercadopago';
 import { APP_URL } from '@/lib/config';
 import { getPlatformSettings } from '@/lib/platform';
@@ -41,6 +42,7 @@ export async function createSubscription({
   plan = 'basic',
   addons = [],
   additional = false,
+  branches = 0,
 }: {
   tenantId: string;
   payerEmail: string;
@@ -49,10 +51,11 @@ export async function createSubscription({
   /** Paid add-ons folded into the same monthly charge. */
   addons?: readonly Addon[];
   additional?: boolean;
+  /** Branches on the account: each adds the tier's branch price (lib/pricing.ts). */
+  branches?: number;
 }): Promise<{ id: string; initPoint: string }> {
   const settings = await getPlatformSettings();
-  const base = additional ? settings.extra_amount : plan === 'pro' ? settings.pro_amount : settings.plan_amount;
-  const amount = base + (addons.includes('pos') ? settings.pos_addon_amount : 0);
+  const amount = monthlyAmount(settings, { plan, addons, additional, branches });
   const preapproval = new PreApproval(mpClient());
 
   const result = await preapproval.create({
@@ -75,6 +78,19 @@ export async function createSubscription({
     id: result.id!,
     initPoint: result.init_point!,
   };
+}
+
+/**
+ * Change what a running preapproval charges each month. MercadoPago applies
+ * it from the next cycle; no new authorisation is needed. Used when a branch
+ * is added or removed (the amount changes, the plan does not).
+ */
+export async function updatePreapprovalAmount(id: string, amount: number): Promise<void> {
+  const settings = await getPlatformSettings();
+  await new PreApproval(mpClient()).update({
+    id,
+    body: { auto_recurring: { transaction_amount: amount, currency_id: settings.plan_currency } },
+  });
 }
 
 /** Fetch the latest state of a preapproval from MercadoPago. */

@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import { branchAmount } from '@/lib/pricing';
 import { CheckCircle2, Clock, AlertCircle, Check, Sparkles } from 'lucide-react';
 import { requireOwner } from '@/lib/auth';
 import { getPlatformSettings } from '@/lib/platform';
@@ -69,7 +70,7 @@ export default async function BillingPage({
             name={t('additionalRestaurant')}
             price={fmt(plan.extra_amount)}
             intro={t('additionalIntro')}
-            features={[t('f_wabot'), t('f_domain'), t('f_loyalty'), t('f_branches'), t('f_reports')]}
+            features={[t('f_wabot'), t('f_domain'), t('f_loyalty'), t('f_branchesPriced', { price: fmt(branchAmount(plan, 'pro')) }), t('f_reports')]}
             tier="pro"
             current={subscription.status === 'active'}
             perMonth={t('perMonth')}
@@ -83,7 +84,7 @@ export default async function BillingPage({
             <PlanCard
               name={plan.plan_name}
               price={fmt(plan.plan_amount)}
-              features={[t('f_menu'), t('f_whatsapp'), t('f_online_pay'), t('f_reservations'), t('f_custom'), t('f_dashboard'), t('f_subdomain')]}
+              features={[t('f_menu'), t('f_whatsapp'), t('f_online_pay'), t('f_reservations'), t('f_custom'), t('f_dashboard'), t('f_subdomain'), t('f_branchesPriced', { price: fmt(branchAmount(plan, 'basic')) })]}
               tier="basic"
               addons={paidAddons}
               current={currentTier === 'basic'}
@@ -96,7 +97,7 @@ export default async function BillingPage({
               price={fmt(plan.pro_amount)}
               highlight={t('mostPopular')}
               intro={t('everythingInBasic', { plan: plan.plan_name })}
-              features={[t('f_wabot'), t('f_host'), t('f_domain'), t('f_loyalty'), t('f_branches'), t('f_reports')]}
+              features={[t('f_wabot'), t('f_host'), t('f_domain'), t('f_loyalty'), t('f_branchesPriced', { price: fmt(branchAmount(plan, 'pro')) }), t('f_reports')]}
               tier="pro"
               addons={paidAddons}
               current={currentTier === 'pro'}

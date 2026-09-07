@@ -1289,7 +1289,8 @@
     "addonSubscribeWith": "Suscribirse a {plan} + punto de venta",
     "addonIncludedTrial": "Incluido en tu prueba",
     "addonActive": "Activo en tu plan",
-    "addonHint": "Configúralo en Pedidos → Impresión y abre el POS desde el menú lateral."
+    "addonHint": "Configúralo en Pedidos → Impresión y abre el POS desde el menú lateral.",
+    "f_branchesPriced": "Sucursales: {price}/mes cada una"
   },
   "pro": {
     "locked": "{feature} es una función Pro",
@@ -1540,7 +1541,8 @@
     "add": "Agregar",
     "viewBranch": "Ver sucursal",
     "editMenu": "Editar menú",
-    "confirmDelete": "¿Eliminar esta sucursal?"
+    "confirmDelete": "¿Eliminar esta sucursal?",
+    "priceNote": "Cada sucursal suma {price} al mes a tu suscripción; se cobra desde el siguiente ciclo."
   },
   "reports": {
     "title": "Reportes",

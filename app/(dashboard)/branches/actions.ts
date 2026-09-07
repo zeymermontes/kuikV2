@@ -3,7 +3,11 @@
 import { revalidatePath } from 'next/cache';
 import { revalidateTenant } from '@/lib/revalidate';
 import { requireManager } from '@/lib/auth';
-import { isPro } from '@/lib/plan';
+import { effectiveAddons, effectivePlan } from '@/lib/plan';
+import { monthlyAmount } from '@/lib/pricing';
+import { getPlatformSettings } from '@/lib/platform';
+import { updatePreapprovalAmount } from '@/lib/mercadopago';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { slugify } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/server';
 import type { Category, Product, Separator, BranchMenuMode } from '@/lib/database.types';
@@ -88,7 +92,9 @@ export async function createBranch(input: {
   copyFrom: string; // 'none' | 'main' | <branchId>
 }) {
   const { tenant, subscription } = await requireManager();
-  if (!isPro(subscription) || !input.name.trim()) return;
+  // Any tier may add branches; each is a paid line (lib/pricing.ts). A lapsed
+  // subscription first has to be put in order on the billing page.
+  if (!['active', 'trialing'].includes(subscription.status) || !input.name.trim()) return;
   const supabase = await createClient();
 
   // Ensure a unique slug within the tenant.
@@ -126,6 +132,38 @@ export async function createBranch(input: {
   revalidatePath('/branches');
   revalidatePath('/menu');
   revalidateTenant(tenant.subdomain, tenant.custom_domain);
+  await syncBranchCharge(tenant.id);
+}
+
+/**
+ * A branch added or removed changes what the restaurant pays: recompute the
+ * monthly amount and update the preapproval in force. Nothing to do on a
+ * trial (no charge yet) or before the first payment (the checkout the owner
+ * starts from the billing page counts the branches itself).
+ */
+async function syncBranchCharge(tenantId: string): Promise<void> {
+  const admin = createAdminClient();
+  const { data: sub } = await admin
+    .from('subscriptions')
+    .select('status, plan, addons, is_additional, mp_preapproval_id')
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+  if (!sub || sub.status !== 'active' || !sub.mp_preapproval_id) return;
+  const { count } = await admin.from('branches').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId);
+  const settings = await getPlatformSettings();
+  const amount = monthlyAmount(settings, {
+    plan: effectivePlan(sub),
+    addons: effectiveAddons(sub),
+    additional: !!sub.is_additional,
+    branches: count ?? 0,
+  });
+  try {
+    await updatePreapprovalAmount(sub.mp_preapproval_id, amount);
+  } catch (err) {
+    // The next tier change re-creates the preapproval with the right amount;
+    // meanwhile the restaurant is charged the old one, never more.
+    console.error('[mercadopago] update preapproval amount failed:', err);
+  }
 }
 
 export async function updateBranch(
@@ -155,4 +193,5 @@ export async function deleteBranch(id: string) {
   revalidatePath('/branches');
   revalidatePath('/menu');
   revalidateTenant(tenant.subdomain, tenant.custom_domain);
+  await syncBranchCharge(tenant.id);
 }

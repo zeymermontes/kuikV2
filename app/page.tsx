@@ -429,7 +429,10 @@ export default async function MarketingPage() {
         </div>
 
         <div className="mx-auto mt-8 max-w-4xl space-y-1 text-center text-sm text-neutral-500">
-          <p>Restaurante adicional en la misma cuenta: {money(plan.extra_amount)}/mes. El primer mes de prueba incluye todo, también el punto de venta.</p>
+          <p>
+            Sucursal adicional: {money(plan.branch_amount_basic)}/mes en {plan.plan_name}, {money(plan.branch_amount_pro)}/mes en {plan.pro_name}. Restaurante
+            adicional en la misma cuenta: {money(plan.extra_amount)}/mes. El primer mes de prueba incluye todo, también el punto de venta.
+          </p>
           <p>
             ¿Quieres una <span className="font-medium text-neutral-700">landing page a la medida de tu marca</span>? Se cotiza por separado.
           </p>
