@@ -43,7 +43,7 @@ const size = statSync(apkPath).size;
 const supabase = createClient(url, key, { auth: { persistSession: false } });
 const { data: buckets } = await supabase.storage.listBuckets();
 if (!buckets?.some((b) => b.id === 'apps')) {
-  const { error } = await supabase.storage.createBucket('apps', { public: true, fileSizeLimit: 100 * 1024 * 1024 });
+  const { error } = await supabase.storage.createBucket('apps', { public: true, fileSizeLimit: 300 * 1024 * 1024 });
   if (error) throw error;
   console.log('created bucket apps');
 }

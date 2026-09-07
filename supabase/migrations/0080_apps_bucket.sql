@@ -6,8 +6,8 @@
 -- role can write, since no insert/update policy exists for it.
 
 insert into storage.buckets (id, name, public, file_size_limit)
-values ('apps', 'apps', true, 104857600)
-on conflict (id) do update set public = true, file_size_limit = 104857600;
+values ('apps', 'apps', true, 314572800)
+on conflict (id) do update set public = true, file_size_limit = 314572800;
 
 do $$ begin
   if not exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'apps public read') then
