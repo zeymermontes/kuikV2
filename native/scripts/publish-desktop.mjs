@@ -105,7 +105,8 @@ for (const name of files) {
 const { data: existing } = await bucket.download('latest.json');
 const latest = existing ? JSON.parse(await existing.text()) : {};
 const minVersion = mandatory ? version : minArg === 'none' ? null : (minArg ?? latest.desktop?.minVersion ?? null);
-latest.desktop = { version, ...latest.desktop, ...links, minVersion, publishedAt: new Date().toISOString() };
+// The previous entry's links survive when an OS was not rebuilt; its version never does.
+latest.desktop = { ...latest.desktop, ...links, version, minVersion, publishedAt: new Date().toISOString() };
 const { error } = await bucket.upload('latest.json', Buffer.from(JSON.stringify(latest, null, 2)), {
   contentType: 'application/json',
   upsert: true,
