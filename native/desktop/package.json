@@ -1,7 +1,7 @@
 {
   "name": "kuik-desktop",
   "productName": "Kuik Caja",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "The register PC's app: app.kuik.mx with the print agent inside",
   "homepage": "https://kuik.mx",
