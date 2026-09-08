@@ -889,7 +889,10 @@
     "hostStand": "Vista de anfitrión",
     "hostPreviewTitle": "Vista de anfitrión",
     "hostPreviewHint": "La pantalla para la tablet de la entrada: plano de mesas con estado en vivo, lista de espera, reservaciones y sentadas. Esta es una demo con datos de ejemplo; abre la vista real para dibujar tu plano.",
-    "openHost": "Abrir vista de anfitrión"
+    "openHost": "Abrir vista de anfitrión",
+    "hostProOnly": "El puesto de anfitrión (plano de mesas, lista de espera, sentadas) viene con el plan Restaurante. Las reservaciones de esta página funcionan igual en tu plan.",
+    "hostProCta": "Cambiar de plan",
+    "hostProDemo": "Ver la demo"
   },
   "printing": {
     "agents": "Agente de impresión",

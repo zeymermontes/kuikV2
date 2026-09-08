@@ -889,7 +889,10 @@
     "hostStand": "Host stand",
     "hostPreviewTitle": "Host stand",
     "hostPreviewHint": "The screen for the tablet at the door: live floor plan, waitlist, reservations and seated parties. This is a demo with sample data; open the real view to draw your plan.",
-    "openHost": "Open host stand"
+    "openHost": "Open host stand",
+    "hostProOnly": "The host stand (floor plan, waitlist, seating) comes with the Restaurante plan. The reservations on this page work the same on your plan.",
+    "hostProCta": "Change plan",
+    "hostProDemo": "See the demo"
   },
   "printing": {
     "agents": "Print agent",

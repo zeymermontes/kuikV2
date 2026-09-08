@@ -6,6 +6,7 @@ import type { Reservation, ReservationArea, TenantContact } from '@/lib/database
 import { ReservationsBoard } from '@/components/dashboard/ReservationsBoard';
 import { ReservationsSettings } from '@/components/dashboard/ReservationsSettings';
 import { HostPreview } from '@/components/dashboard/HostPreview';
+import { canUseHost } from '@/lib/plan';
 import { getPendingSummary } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +18,7 @@ export default async function ReservationsPage({
 }: {
   searchParams: Promise<{ d?: string }>;
 }) {
-  const { tenant, role, support } = await requireReservations();
+  const { tenant, role, support, subscription } = await requireReservations();
   const t = await getTranslations('reservations');
   const supabase = await createClient();
   const { d } = await searchParams;
@@ -80,7 +81,8 @@ export default async function ReservationsPage({
           areas={(areas ?? []) as ReservationArea[]}
         />
       )}
-      {canConfigure && <HostPreview />}
+      {/* The host stand is Pro (lib/plan.ts): on Menú the card says so instead of showing the live frame. */}
+      {canConfigure && <HostPreview locked={!canUseHost(subscription)} />}
     </div>
   );
 }
