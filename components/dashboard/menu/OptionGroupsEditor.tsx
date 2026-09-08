@@ -1,7 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, X, Copy, ClipboardPaste, Check, Trash2 } from 'lucide-react';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, arrayMove, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Plus, X, Copy, ClipboardPaste, Check, Trash2, GripVertical } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { OptionGroup } from '@/lib/database.types';
 import { Input } from '@/components/ui';
@@ -21,6 +24,29 @@ export function OptionGroupsEditor({
   const t = useTranslations('menuEditor');
   const [groups, setGroups] = useState<OptionGroup[]>(value);
   const [copiedAll, setCopiedAll] = useState(false);
+  // A small distance before a drag starts, so a tap on the grip still counts as a click elsewhere.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+
+  // Groups are shown in array order, on the menu and here: dragging reorders the array.
+  function onGroupDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const from = groups.findIndex((g) => g.id === active.id);
+    const to = groups.findIndex((g) => g.id === over.id);
+    if (from < 0 || to < 0) return;
+    apply(arrayMove(groups, from, to));
+  }
+  // Options have no id of their own; they are addressed as "<group>:<index>".
+  function onOptionDragEnd(gid: string, e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const g = groups.find((x) => x.id === gid);
+    if (!g) return;
+    const from = Number(String(active.id).split(':').pop());
+    const to = Number(String(over.id).split(':').pop());
+    if (Number.isNaN(from) || Number.isNaN(to)) return;
+    patchGroup(gid, { options: arrayMove(g.options, from, to) });
+  }
 
   // setGroups locally; persist=true also writes to the server.
   function apply(next: OptionGroup[], persist = true) {
@@ -99,9 +125,14 @@ export function OptionGroupsEditor({
       </div>
 
       <div className="space-y-3">
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onGroupDragEnd}>
+        <SortableContext items={groups.map((g) => g.id)} strategy={verticalListSortingStrategy}>
         {groups.map((g) => (
-          <div key={g.id} className="rounded-xl border border-neutral-200 p-3">
+          <Sortable key={g.id} id={g.id} className="rounded-xl border border-neutral-200 bg-white p-3">
+            {(grip) => (
+            <>
             <div className="flex items-center gap-2">
+              {grip}
               <Input
                 value={g.name}
                 placeholder={t('groupName')}
@@ -166,8 +197,13 @@ export function OptionGroupsEditor({
             </div>
 
             <div className="mt-3 space-y-2">
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => onOptionDragEnd(g.id, e)}>
+              <SortableContext items={g.options.map((_, i) => `${g.id}:${i}`)} strategy={verticalListSortingStrategy}>
               {g.options.map((o, i) => (
-                <div key={i} className="flex items-center gap-2">
+                <Sortable key={`${g.id}:${i}`} id={`${g.id}:${i}`} className="flex items-center gap-2 bg-white">
+                  {(grip) => (
+                  <>
+                  {grip}
                   <Input
                     value={o.name}
                     placeholder={t('optionName')}
@@ -195,14 +231,22 @@ export function OptionGroupsEditor({
                   <button onClick={() => removeOption(g.id, i)} className="p-1 text-neutral-400 hover:text-red-500">
                     <X className="h-4 w-4" />
                   </button>
-                </div>
+                  </>
+                  )}
+                </Sortable>
               ))}
+              </SortableContext>
+              </DndContext>
               <button onClick={() => addOption(g.id)} className="flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-900">
                 <Plus className="h-4 w-4" /> {t('addOption')}
               </button>
             </div>
-          </div>
+            </>
+            )}
+          </Sortable>
         ))}
+        </SortableContext>
+        </DndContext>
 
         <div className="flex gap-2">
           <button onClick={addGroup} className="flex items-center gap-1 rounded-lg border border-dashed border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50">
@@ -211,6 +255,21 @@ export function OptionGroupsEditor({
           <Mini onClick={pasteGroup}><ClipboardPaste className="h-3 w-3" /> {t('pasteGroup')}</Mini>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** A draggable row: the wrapper moves with the pointer, the grip it hands to `children` starts the drag. */
+function Sortable({ id, className, children }: { id: string; className: string; children: (grip: React.ReactNode) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const grip = (
+    <button type="button" {...attributes} {...listeners} className="shrink-0 cursor-grab touch-none p-0.5 text-neutral-300 hover:text-neutral-500" aria-label="Mover">
+      <GripVertical className="h-4 w-4" />
+    </button>
+  );
+  return (
+    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }} className={className}>
+      {children(grip)}
     </div>
   );
 }
