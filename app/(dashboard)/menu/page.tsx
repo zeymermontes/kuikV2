@@ -8,6 +8,7 @@ import type { Category, Product, Separator, BranchLite } from '@/lib/database.ty
 import { MenuEditor } from '@/components/dashboard/menu/MenuEditor';
 import { MenuModeSwitch } from '@/components/dashboard/MenuModeSwitch';
 import { MenuImportExport } from '@/components/dashboard/menu/MenuImportExport';
+import { AdvisorNotice } from '@/components/dashboard/AdvisorNotice';
 import { WaiterMenu } from '@/components/dashboard/menu/WaiterMenu';
 import { OptionAvailability } from '@/components/dashboard/menu/OptionAvailability';
 
@@ -66,6 +67,8 @@ export default async function MenuPage({
   return (
     <div>
       <h1 className="mb-4 text-2xl font-bold">{t('title')}</h1>
+
+      <AdvisorNotice tenantId={tenant.id} restaurantName={tenant.name} createdAt={tenant.created_at} locale={tenant.locale} variant="card" />
 
       {branches.length > 0 && (
         <div className="no-scrollbar mb-4 flex gap-2 overflow-x-auto">

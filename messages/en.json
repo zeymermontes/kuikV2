@@ -2605,5 +2605,29 @@
     "desktopDownloading": "The update is downloading. Wait a moment and try again; if it does not arrive, close and reopen Kuik Caja.",
     "desktopDownloadingShort": "Downloading…",
     "installHint": "Opens in the browser. When the download finishes, open it and accept the install."
+  },
+  "cutout": {
+    "title": "Remove the background",
+    "working": "Separating the dish from the background…",
+    "hint": "This is how it looks without a background. Move the slider to adjust the edge.",
+    "sensitivity": "Sensitivity",
+    "soft": "Keep more",
+    "hard": "Remove more",
+    "holdOriginal": "Press and hold to see the original",
+    "use": "Use without background",
+    "keep": "Keep the original",
+    "unavailable": "The background could not be removed on this device. The original photo is already saved.",
+    "downloading": "Downloading the model (first time only)…",
+    "downloadingPct": "Downloading the model (first time only)… {pct}%",
+    "loading": "Preparing the model…",
+    "firstTime": "The cut is made on your device. The first time it downloads a model of about 45 MB; after that it is immediate."
+  },
+  "advisor": {
+    "popupTitle": "An advisor builds your menu, free of charge",
+    "popupBody": "Send us your menu or your photos on WhatsApp and someone from the Kuik team leaves it ready and professional, for free.",
+    "cardTitle": "Want help with your menu?",
+    "cardBody": "A Kuik advisor builds it for you, professional and free. Message us on WhatsApp.",
+    "cta": "Talk to an advisor",
+    "later": "Not now"
   }
 }

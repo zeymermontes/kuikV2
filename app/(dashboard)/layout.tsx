@@ -9,6 +9,7 @@ import { TrialBanner } from '@/components/dashboard/TrialBanner';
 import { PwaProvider } from '@/components/dashboard/PwaProvider';
 import { ShellUpdateBanner } from '@/components/ShellUpdateBanner';
 import { TerminalModeButton } from '@/components/pos/TerminalModeButton';
+import { AdvisorNotice } from '@/components/dashboard/AdvisorNotice';
 import { SITE_URL } from '@/lib/seo';
 import { StaffIntlProvider } from '@/components/intl/StaffIntlProvider';
 import { getPendingSummary } from './reservations/actions';
@@ -99,6 +100,8 @@ export default async function DashboardLayout({
               </div>
             )}
             <TrialBanner subscription={ctx.subscription} />
+            {/* New accounts: a Kuik advisor builds the menu with them, free. */}
+            <AdvisorNotice tenantId={ctx.tenant.id} restaurantName={ctx.tenant.name} createdAt={ctx.tenant.created_at} locale={ctx.tenant.locale} variant="popup" />
             {/* Forms read best at 4xl; a page that renders a canvas (the flow editor)
                 marks itself data-full-bleed and takes the whole width. */}
             <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 has-[[data-full-bleed]]:max-w-none has-[[data-full-bleed]]:px-2 has-[[data-full-bleed]]:py-2 sm:px-6 sm:has-[[data-full-bleed]]:px-3">

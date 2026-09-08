@@ -2605,5 +2605,29 @@
     "desktopDownloading": "La actualización se está descargando. Espera un momento y vuelve a intentar; si no llega, cierra y abre Kuik Caja.",
     "desktopDownloadingShort": "Descargando…",
     "installHint": "Se abre en el navegador. Al terminar la descarga, ábrela y acepta instalar."
+  },
+  "cutout": {
+    "title": "Quitar el fondo",
+    "working": "Separando el platillo del fondo…",
+    "hint": "Así se vería sin fondo. Mueve el control para ajustar el borde.",
+    "sensitivity": "Sensibilidad",
+    "soft": "Conserva más",
+    "hard": "Quita más",
+    "holdOriginal": "Mantén presionado para ver el original",
+    "use": "Usar sin fondo",
+    "keep": "Mantener el original",
+    "unavailable": "No se pudo quitar el fondo en este dispositivo. La foto original ya quedó guardada.",
+    "downloading": "Descargando el modelo (solo la primera vez)…",
+    "downloadingPct": "Descargando el modelo (solo la primera vez)… {pct}%",
+    "loading": "Preparando el modelo…",
+    "firstTime": "El recorte se hace en tu dispositivo. La primera vez descarga un modelo de unos 45 MB; después es inmediato."
+  },
+  "advisor": {
+    "popupTitle": "Un asesor te arma el menú, sin costo",
+    "popupBody": "Mándanos tu carta o tus fotos por WhatsApp y una persona del equipo de Kuik te deja el menú listo y profesional, gratis.",
+    "cardTitle": "¿Quieres ayuda con tu menú?",
+    "cardBody": "Un asesor de Kuik te lo arma profesional y sin costo. Escríbenos por WhatsApp.",
+    "cta": "Hablar con un asesor",
+    "later": "Ahora no"
   }
 }
