@@ -1,5 +1,7 @@
 import { getTranslations } from 'next-intl/server';
+import { redirect } from 'next/navigation';
 import { requireManager } from '@/lib/auth';
+import { invoicingVisible } from '@/lib/cfdi';
 import { createClient } from '@/lib/supabase/server';
 import { tenantBaseUrl } from '@/lib/config';
 import { cfdiConfigured } from '@/lib/cfdi';
@@ -7,7 +9,10 @@ import type { Invoice, TenantCfdi } from '@/lib/database.types';
 import { InvoicingSettings } from '@/components/dashboard/InvoicingSettings';
 
 export default async function InvoicingPage() {
-  const { tenant } = await requireManager();
+  const ctx = await requireManager();
+  const { tenant } = ctx;
+  // Hidden until Kuik's PAC is configured (lib/cfdi invoicingVisible); dev accounts get in to set it up.
+  if (!invoicingVisible(ctx)) redirect('/menu');
   const t = await getTranslations('invoicing');
   const supabase = await createClient();
   const [{ data: cfg }, { data: invoices }] = await Promise.all([

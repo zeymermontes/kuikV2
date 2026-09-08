@@ -84,7 +84,8 @@ const NAV = [
   { group: 'settings', href: '/contact', icon: Phone, key: 'contact', roles: ['owner'] },
   { group: 'settings', href: '/staff', icon: Users, key: 'staff', roles: ['owner'] },
   { group: 'settings', href: '/domain', icon: Globe, key: 'domain', roles: ['owner'], feature: 'custom_domain' },
-  { group: 'settings', href: '/invoicing', icon: FileText, key: 'invoicing', roles: ['owner', 'manager'] },
+  // `cfdi: true`: hidden until Kuik's PAC (Facturama) is configured; dev accounts keep it to set things up.
+  { group: 'settings', href: '/invoicing', icon: FileText, key: 'invoicing', roles: ['owner', 'manager'], cfdi: true },
   { group: 'settings', href: '/billing', icon: CreditCard, key: 'billing', roles: ['owner'] },
   { group: 'settings', href: '/tutorial', icon: GraduationCap, key: 'tutorial', roles: ['owner', 'manager', 'cashier', 'waiter', 'host'] },
 
@@ -93,6 +94,7 @@ const NAV = [
 export function Sidebar({
   isSuperAdmin,
   showDevFeatures,
+  invoicing = false,
   role,
   menuUrl,
   locale,
@@ -106,6 +108,8 @@ export function Sidebar({
 }: {
   isSuperAdmin: boolean;
   showDevFeatures: boolean;
+  /** CFDI invoicing is available: the PAC is configured (lib/cfdi invoicingVisible). */
+  invoicing?: boolean;
   role: MemberRole;
   menuUrl: string;
   locale: string;
@@ -136,6 +140,7 @@ export function Sidebar({
     (item) =>
       (item.roles as readonly string[]).includes(role) &&
       (!('dev' in item && item.dev) || showDevFeatures) &&
+      (!('cfdi' in item && item.cfdi) || invoicing) &&
       (!('feature' in item && item.feature) || !enforcePlan || canUse(plan, item.feature as Feature, addons)),
   );
 

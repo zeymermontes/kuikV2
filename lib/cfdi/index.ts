@@ -3,6 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import type { Invoice, InvoiceReceiver, OrderRow, TenantCfdi } from '@/lib/database.types';
 import type { PosTab, TabItem, Payment } from '@/lib/pos/types';
 import { todayInTz } from '@/lib/time';
+import { showDevFeatures } from '@/lib/features';
+import type { Profile } from '@/lib/database.types';
 import { orderCode } from '@/lib/utils';
 import { buildConcepts, globalPeriod, type SaleLine } from './build';
 import { PAYMENT_FORMS, PUBLICO_EN_GENERAL, normalizeRfc, isValidZip } from './catalogs';
@@ -20,6 +22,15 @@ export async function getCfdiSettings(tenantId: string): Promise<TenantCfdi | nu
 }
 
 /** Ready to stamp: switched on, fiscal data complete, CSD registered, PAC configured. */
+/**
+ * Whether the Facturación page and its nav item show at all: only once
+ * Kuik's PAC is configured, since nothing can be stamped before. Dev accounts
+ * see it regardless, to set the restaurant's fiscal data up ahead of time.
+ */
+export function invoicingVisible(ctx: { user: { profile: Profile }; support: boolean; customerView?: boolean }): boolean {
+  return facturamaConfigured() || showDevFeatures(ctx);
+}
+
 export function cfdiReady(c: TenantCfdi | null): c is TenantCfdi {
   return !!c && c.enabled && !!c.rfc && !!c.legal_name && !!c.fiscal_regime && !!c.zip_code && !!c.csd_registered_at && facturamaConfigured();
 }

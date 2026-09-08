@@ -16,6 +16,7 @@ import { getPendingSummary } from './reservations/actions';
 import { getHandoffCount } from './whatsapp/inbox/actions';
 import type { MemberRole } from '@/lib/database.types';
 import { exitSupport, exitCustomerView } from './admin/actions';
+import { invoicingVisible } from '@/lib/cfdi';
 
 /**
  * The dashboard is installable; the public menu and marketing site are not.
@@ -72,6 +73,7 @@ export default async function DashboardLayout({
           <Sidebar
             isSuperAdmin={ctx.user.profile.role === 'super_admin' && !ctx.customerView}
             showDevFeatures={showDevFeatures(ctx)}
+            invoicing={invoicingVisible(ctx)}
             role={ctx.role}
             menuUrl={tenantUrl(ctx.tenant.subdomain)}
             locale={ctx.user.profile.locale}
