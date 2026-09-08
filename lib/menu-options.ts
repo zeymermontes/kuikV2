@@ -38,6 +38,41 @@ export function hasOptions(p: Product): boolean {
   return resolveOptionGroups(p).length > 0;
 }
 
+// ── Pasting groups onto products ────────────────────────────────────────────
+// The editor copies a group, or all of a product's groups, to localStorage
+// under these keys; the product drawer and the menu's multi-select paste them.
+export const OPTION_CLIPBOARD_GROUP = 'kuik_clip_optiongroup';
+export const OPTION_CLIPBOARD_ALL = 'kuik_clip_optiongroups';
+
+const groupKey = (name: string) => name.trim().toLowerCase();
+
+/** Whether any incoming group has the same name as one the product already has. */
+export function hasRepeatedGroups(existing: OptionGroup[], incoming: OptionGroup[]): boolean {
+  const names = new Set(existing.map((g) => groupKey(g.name)));
+  return incoming.some((g) => names.has(groupKey(g.name)));
+}
+
+/**
+ * The product's groups after pasting. `overwrite` replaces a group of the
+ * same name where it stands and appends the rest; `duplicate` appends
+ * everything, repeats included. Incoming groups always get fresh ids, so two
+ * products never share one.
+ */
+export function mergeOptionGroups(existing: OptionGroup[], incoming: OptionGroup[], mode: 'overwrite' | 'duplicate', newId: () => string): OptionGroup[] {
+  const fresh = incoming.map((g) => ({ ...g, id: newId(), options: g.options.map((o) => ({ ...o })) }));
+  if (mode === 'duplicate') return [...existing, ...fresh];
+  const byName = new Map(fresh.map((g) => [groupKey(g.name), g] as const));
+  const replaced = new Set<string>();
+  const out = existing.map((g) => {
+    const key = groupKey(g.name);
+    const next = byName.get(key);
+    if (!next || replaced.has(key)) return g;
+    replaced.add(key);
+    return next;
+  });
+  return [...out, ...fresh.filter((g) => !replaced.has(groupKey(g.name)))];
+}
+
 export function optionKind(g: OptionGroup): OptionKind {
   return g.kind === 'takeaway' || g.kind === 'drink' ? g.kind : 'dish';
 }

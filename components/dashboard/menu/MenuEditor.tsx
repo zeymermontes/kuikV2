@@ -28,10 +28,14 @@ import {
   ImageIcon,
   CornerDownRight,
   ListPlus,
+  CheckSquare,
+  ClipboardPaste,
+  Square,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
-import type { Category, Product, Separator } from '@/lib/database.types';
+import type { Category, OptionGroup, Product, Separator } from '@/lib/database.types';
+import { OPTION_CLIPBOARD_ALL, OPTION_CLIPBOARD_GROUP, hasRepeatedGroups, mergeOptionGroups, resolveOptionGroups } from '@/lib/menu-options';
 import {
   addCategory,
   updateCategory,
@@ -41,6 +45,7 @@ import {
   addSeparator,
   reorderEntries,
   updateProduct,
+  setProductsOptionGroups,
 } from '@/app/(dashboard)/menu/actions';
 import { ProductDrawer } from './ProductDrawer';
 import { CategoryDrawer } from './CategoryDrawer';
@@ -89,6 +94,57 @@ export function MenuEditor({
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<DrawerState>(null);
+
+  // Multi-select: tick products (across categories) and paste option groups
+  // onto all of them, from what the drawer copied to the clipboard.
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [pasteAsk, setPasteAsk] = useState<{ groups: OptionGroup[]; repeats: number } | null>(null);
+  const [pasteDone, setPasteDone] = useState<number | null>(null);
+  const uid = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+
+  function togglePick(id: string) {
+    setPicked((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function stopSelecting() {
+    setSelecting(false);
+    setPicked(new Set());
+  }
+  function readClipboard(key: string): OptionGroup[] | null {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const v = JSON.parse(raw) as OptionGroup | OptionGroup[];
+      const arr = Array.isArray(v) ? v : [v];
+      return arr.length && arr.every((g) => g && typeof g.name === 'string' && Array.isArray(g.options)) ? arr : null;
+    } catch {
+      return null;
+    }
+  }
+  /** Paste starts here: with a repeat anywhere, ask how; otherwise just append. */
+  function beginPaste(key: string) {
+    const groups = readClipboard(key);
+    if (!groups) return alert(t('pasteHint'));
+    const targets = prods.filter((p) => picked.has(p.id));
+    const repeats = targets.filter((p) => hasRepeatedGroups(resolveOptionGroups(p), groups)).length;
+    if (repeats > 0) setPasteAsk({ groups, repeats });
+    else void applyPaste(groups, 'duplicate');
+  }
+  async function applyPaste(groups: OptionGroup[], mode: 'overwrite' | 'duplicate') {
+    setPasteAsk(null);
+    const items = prods.filter((p) => picked.has(p.id)).map((p) => ({ id: p.id, option_groups: mergeOptionGroups(resolveOptionGroups(p), groups, mode, uid) }));
+    const byId = new Map(items.map((it) => [it.id, it.option_groups]));
+    setProds((ps) => ps.map((p) => (byId.has(p.id) ? { ...p, option_groups: byId.get(p.id)!, variants: [], modifiers: [], removables: [] } : p)));
+    await setProductsOptionGroups(items);
+    setPasteDone(items.length);
+    setTimeout(() => setPasteDone(null), 3000);
+    stopSelecting();
+  }
 
   // The sidebar shows parents in order, each followed by its subcategories.
   // Order comes from `position`, not from the array: a drag updates positions
@@ -207,6 +263,14 @@ export function MenuEditor({
               <span className="font-semibold">{selectedCat.name}</span>
               <div className="flex gap-2">
                 <button
+                  onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
+                  className={`flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium ${
+                    selecting ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-300 text-neutral-700 hover:bg-neutral-50'
+                  }`}
+                >
+                  <CheckSquare className="h-3.5 w-3.5" /> {selecting ? t('selectDone') : t('select')}
+                </button>
+                <button
                   onClick={() =>
                     startTransition(async () => {
                       // Add the product, then auto-open its config drawer.
@@ -227,6 +291,28 @@ export function MenuEditor({
               </div>
             </div>
 
+            {selecting && (
+              <div className="flex flex-wrap items-center gap-2 border-b border-neutral-100 bg-neutral-50 px-4 py-2 text-xs">
+                <span className="font-semibold">{t('selectedCount', { n: picked.size })}</span>
+                <button
+                  disabled={picked.size === 0}
+                  onClick={() => beginPaste(OPTION_CLIPBOARD_ALL)}
+                  className="flex items-center gap-1 rounded-lg border border-neutral-300 bg-white px-2.5 py-1 font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-40"
+                >
+                  <ClipboardPaste className="h-3.5 w-3.5" /> {t('pasteAllTo')}
+                </button>
+                <button
+                  disabled={picked.size === 0}
+                  onClick={() => beginPaste(OPTION_CLIPBOARD_GROUP)}
+                  className="flex items-center gap-1 rounded-lg border border-neutral-300 bg-white px-2.5 py-1 font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-40"
+                >
+                  <ClipboardPaste className="h-3.5 w-3.5" /> {t('pasteGroupTo')}
+                </button>
+                <span className="text-neutral-500">{t('pasteHint')}</span>
+              </div>
+            )}
+            {pasteDone != null && <p className="border-b border-green-100 bg-green-50 px-4 py-2 text-xs text-green-700">{t('pasted', { n: pasteDone })}</p>}
+
             {entries.length === 0 ? (
               <p className="px-4 py-10 text-center text-sm text-neutral-400">{t('empty')}</p>
             ) : (
@@ -238,8 +324,9 @@ export function MenuEditor({
                         <ProductRow
                           key={e.id}
                           product={e.data}
-                          onEdit={() => setDrawer({ kind: 'product', id: e.id })}
+                          onEdit={() => (selecting ? togglePick(e.id) : setDrawer({ kind: 'product', id: e.id }))}
                           onToggleAvailable={() => updateProduct(e.data.id, { is_available: !e.data.is_available })}
+                          picked={selecting ? picked.has(e.id) : null}
                         />
                       ) : (
                         <SeparatorEditor key={e.id} separator={e.data} />
@@ -252,6 +339,28 @@ export function MenuEditor({
           </>
         )}
       </div>
+
+      {pasteAsk && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setPasteAsk(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <p className="font-semibold">{t('repeatTitle')}</p>
+            <p className="mt-1 text-sm text-neutral-600">{t('repeatBody', { n: pasteAsk.repeats })}</p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <button onClick={() => void applyPaste(pasteAsk.groups, 'overwrite')} className="rounded-xl bg-neutral-900 px-3 py-2.5 text-left text-white">
+                <span className="block text-sm font-semibold">{t('overwrite')}</span>
+                <span className="block text-xs text-neutral-300">{t('overwriteHint')}</span>
+              </button>
+              <button onClick={() => void applyPaste(pasteAsk.groups, 'duplicate')} className="rounded-xl border border-neutral-300 px-3 py-2.5 text-left">
+                <span className="block text-sm font-semibold">{t('duplicate')}</span>
+                <span className="block text-xs text-neutral-500">{t('duplicateHint')}</span>
+              </button>
+            </div>
+            <button onClick={() => setPasteAsk(null)} className="mt-3 text-sm text-neutral-500 hover:text-neutral-900">
+              {t('cancel')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {drawerProduct && <ProductDrawer tenantId={tenantId} product={drawerProduct} onClose={() => setDrawer(null)} />}
       {drawerCategory && (
@@ -338,10 +447,13 @@ function ProductRow({
   product,
   onEdit,
   onToggleAvailable,
+  picked = null,
 }: {
   product: Product;
   onEdit: () => void;
   onToggleAvailable: () => void;
+  /** In select mode: whether this row is ticked; null outside it. */
+  picked?: boolean | null;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: product.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
@@ -350,11 +462,17 @@ function ProductRow({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 rounded-xl border border-neutral-200 bg-white p-1.5 ${product.is_available ? '' : 'opacity-60'}`}
+      className={`flex items-center gap-2 rounded-xl border bg-white p-1.5 ${picked ? 'border-neutral-900' : 'border-neutral-200'} ${product.is_available ? '' : 'opacity-60'}`}
     >
-      <button {...attributes} {...listeners} className="cursor-grab touch-none text-neutral-300">
-        <GripVertical className="h-4 w-4" />
-      </button>
+      {picked === null ? (
+        <button {...attributes} {...listeners} className="cursor-grab touch-none text-neutral-300">
+          <GripVertical className="h-4 w-4" />
+        </button>
+      ) : (
+        <button onClick={onEdit} className="text-neutral-700" aria-pressed={picked}>
+          {picked ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4 text-neutral-400" />}
+        </button>
+      )}
 
       {product.image_url ? (
         <Image src={product.image_url} alt="" width={36} height={36} className="h-9 w-9 shrink-0 rounded-lg object-cover" />

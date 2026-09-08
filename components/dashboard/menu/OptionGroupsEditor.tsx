@@ -7,10 +7,9 @@ import { CSS } from '@dnd-kit/utilities';
 import { Plus, X, Copy, ClipboardPaste, Check, Trash2, GripVertical } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { OptionGroup } from '@/lib/database.types';
+import { OPTION_CLIPBOARD_ALL as CLIP_ALL, OPTION_CLIPBOARD_GROUP as CLIP_GROUP } from '@/lib/menu-options';
 import { Input } from '@/components/ui';
 
-const CLIP_GROUP = 'kuik_clip_optiongroup';
-const CLIP_ALL = 'kuik_clip_optiongroups';
 const uid = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
 

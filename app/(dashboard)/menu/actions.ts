@@ -196,6 +196,23 @@ export async function updateProduct(
   revalidate(subdomain, customDomain);
 }
 
+/**
+ * Option groups pasted onto several products at once (the menu's
+ * multi-select). The legacy variants/modifiers are cleared like the drawer
+ * does, since the groups now describe the product.
+ */
+export async function setProductsOptionGroups(items: { id: string; option_groups: OptionGroup[] }[]) {
+  const { tenantId, subdomain, customDomain, supabase } = await ctx();
+  for (const it of items) {
+    await supabase
+      .from('products')
+      .update({ option_groups: it.option_groups, variants: [], modifiers: [], removables: [] })
+      .eq('id', it.id)
+      .eq('tenant_id', tenantId);
+  }
+  revalidate(subdomain, customDomain);
+}
+
 export async function deleteProduct(id: string) {
   const { subdomain, customDomain, supabase } = await ctx();
   await supabase.from('products').delete().eq('id', id);

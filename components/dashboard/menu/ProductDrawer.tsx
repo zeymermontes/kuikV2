@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import type { Product } from '@/lib/database.types';
@@ -27,6 +27,34 @@ export function ProductDrawer({
   const locale = useLocale();
   const [tags, setTags] = useState<string[]>(product.tags ?? []);
 
+  // Every field saves when it loses focus. The one edit that can be lost is
+  // the field being typed in when the drawer is closed from the overlay, the
+  // X or Escape: `dirty` is set by typing and cleared by the blur that saves,
+  // so closing with a dirty field inside asks first.
+  const body = useRef<HTMLDivElement>(null);
+  const dirty = useRef(false);
+  const [askUnsaved, setAskUnsaved] = useState(false);
+  const requestClose = useCallback(() => {
+    const active = document.activeElement as HTMLElement | null;
+    if (dirty.current && active && body.current?.contains(active)) {
+      setAskUnsaved(true);
+      return;
+    }
+    onClose();
+  }, [onClose]);
+  function saveAndClose() {
+    (document.activeElement as HTMLElement | null)?.blur(); // the blur handler saves
+    dirty.current = false;
+    setAskUnsaved(false);
+    onClose();
+  }
+  function discardAndClose() {
+    // Unmounting without a blur: the pending edit is never sent.
+    dirty.current = false;
+    setAskUnsaved(false);
+    onClose();
+  }
+
   function toggleTag(key: string) {
     const next = tags.includes(key) ? tags.filter((x) => x !== key) : [...tags, key];
     setTags(next);
@@ -36,7 +64,7 @@ export function ProductDrawer({
   return (
     <Drawer
       title={product.name || t('addProduct')}
-      onClose={onClose}
+      onClose={requestClose}
       footer={
         <button
           onClick={() => {
@@ -49,7 +77,34 @@ export function ProductDrawer({
         </button>
       }
     >
-      <div className="space-y-4">
+      <div
+        ref={body}
+        className="space-y-4"
+        onInput={() => {
+          dirty.current = true;
+        }}
+        onBlur={() => {
+          dirty.current = false;
+        }}
+      >
+        {askUnsaved && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setAskUnsaved(false)}>
+            <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <p className="font-semibold">{t('unsavedTitle')}</p>
+              <p className="mt-1 text-sm text-neutral-600">{t('unsavedBody')}</p>
+              <div className="mt-4 flex flex-col gap-2">
+                <Button onClick={saveAndClose}>{t('saveClose')}</Button>
+                {/* Pressing this must not move focus: the blur would save the very edit being discarded. */}
+                <Button variant="secondary" onPointerDown={(e) => e.preventDefault()} onClick={discardAndClose}>
+                  {t('discard')}
+                </Button>
+                <button onClick={() => setAskUnsaved(false)} className="py-1 text-sm text-neutral-500 hover:text-neutral-900">
+                  {t('keepEditing')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="flex flex-wrap gap-4">
           <Toggle
             label={t('available')}
