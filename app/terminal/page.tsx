@@ -1,7 +1,7 @@
 import { requireTenant } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { showDevFeatures } from '@/lib/features';
-import { canUsePos } from '@/lib/plan';
+import { canUseHost, canUsePos } from '@/lib/plan';
 import type { MemberRole } from '@/lib/database.types';
 import { TerminalHub, type HubRegister, type HubTile } from '@/components/pos/TerminalHub';
 import { DEFAULT_REGISTER } from '@/lib/pos/customer-screen';
@@ -63,7 +63,8 @@ export default async function TerminalPage() {
   const tiles = [
     posTile('pos'),
     posTile('kds'),
-    { key: 'host' } as HubTile, // requireReservations: every role
+    // Every role may open the host stand; the plan gate shows as a lock to the owner only, like the POS tiles.
+    canUseHost(subscription) ? ({ key: 'host' } as HubTile) : role === 'owner' || support ? ({ key: 'host', locked: true } as HubTile) : null,
     // The Pedidos board: restaurants the super admin switched it on for (0085).
     (board || dev) && has(SERVICE_ROLES) ? ({ key: 'orders' } as HubTile) : null,
     posTile('customer'),

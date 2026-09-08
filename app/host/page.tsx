@@ -9,6 +9,8 @@ import { HostApp } from '@/components/host/HostApp';
 import { getPendingSummary } from '@/app/(dashboard)/reservations/actions';
 import { demoAreas, demoCombinations, demoReservations, demoTables } from '@/lib/host/demo';
 import { branchFilter, resolveBranch } from '@/lib/branches';
+import { canUseHost } from '@/lib/plan';
+import { PosLocked } from '@/components/pos/PosLocked';
 import { DeviceBranchSync } from '@/components/pos/DeviceBranchSync';
 
 export const dynamic = 'force-dynamic';
@@ -23,6 +25,8 @@ export default async function HostPage({ searchParams }: { searchParams: Promise
   const locale = await getLocale();
   const { d, demo: demoParam, explain: explainParam, branch: branchParam } = await searchParams;
   const demo = !!demoParam;
+  // Pro only (lib/plan.ts); the demo stays open so anyone can look.
+  if (!demo && !canUseHost(ctx.subscription)) return <PosLocked title="Anfitrión" pro />;
   const branch = demo ? null : await resolveBranch(supabase, tenant.id, branchParam);
   const branchId = branch?.id ?? null;
   const explain = demo && !!explainParam;

@@ -392,7 +392,7 @@ Two tiers and one add-on ([lib/plan.ts](lib/plan.ts), prices and names in
 | | Sells | Gate |
 | --- | --- | --- |
 | **Menú** (`basic`) | menu, WhatsApp orders, online payment, reservations, design, reports | default |
-| **Restaurante** (`pro`) | + host stand, WhatsApp bot, loyalty, custom domain, advanced reports | `isPro` / `canUse(plan, feature)` |
+| **Restaurante** (`pro`) | + host stand, WhatsApp bot, loyalty, custom domain, advanced reports | `isPro` / `canUse(plan, feature)` / `canUseHost(sub)` |
 | **Sucursal** (per branch) | on either tier; 250/month on Menú, 499/month on Restaurante (`branch_amount_*`, 0082) | `lib/pricing.ts` |
 | **Punto de venta** (add-on `pos`) | register, KDS, printing, customer screen; joins either tier | `canUsePos(sub)` / `canUse(plan, 'pos', addons)` |
 

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { canUse, canUsePos, effectiveAddons, effectivePlan, feePercentFor } from '../lib/plan';
+import { canUse, canUsePos, effectiveAddons, effectivePlan, feePercentFor, canUseHost } from '../lib/plan';
 
 test('the point of sale is an add-on, not a tier', () => {
   assert.equal(canUse('pro', 'pos'), false);
@@ -22,4 +22,12 @@ test('the higher tier may pay a lower online-payment fee', () => {
   assert.equal(feePercentFor({ payment_fee_percent: 3, pro_payment_fee_percent: null }, 'pro'), 3);
   assert.equal(feePercentFor({ payment_fee_percent: 3, pro_payment_fee_percent: 1.5 }, 'pro'), 1.5);
   assert.equal(feePercentFor({ payment_fee_percent: 3, pro_payment_fee_percent: 1.5 }, 'basic'), 3);
+});
+
+test('the host stand is Pro; reservations stay on every tier', () => {
+  assert.equal(canUse('basic', 'host'), false);
+  assert.equal(canUse('pro', 'host'), true);
+  assert.equal(canUseHost({ status: 'trialing', plan: 'basic' }), true, 'the trial has everything');
+  assert.equal(canUseHost({ status: 'active', plan: 'basic' }), false);
+  assert.equal(canUseHost({ status: 'active', plan: 'pro' }), true);
 });

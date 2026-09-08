@@ -15,9 +15,10 @@ export type PlanTier = 'basic' | 'pro';
 export type Addon = 'pos';
 export const ADDONS: readonly Addon[] = ['pos'];
 
-export type Feature = 'custom_domain' | 'loyalty' | 'branches' | 'pro_reports' | 'pos' | 'wa_bots';
+export type Feature = 'custom_domain' | 'loyalty' | 'branches' | 'pro_reports' | 'pos' | 'wa_bots' | 'host';
 // Branches are on either tier, paid per branch (lib/pricing.ts, 0082).
-const PRO_ONLY: Feature[] = ['custom_domain', 'loyalty', 'pro_reports', 'wa_bots'];
+// The host stand (floor plan, walk-ins, seating) is Pro; reservations themselves are on both tiers.
+const PRO_ONLY: Feature[] = ['custom_domain', 'loyalty', 'pro_reports', 'wa_bots', 'host'];
 const ADDON_OF: Partial<Record<Feature, Addon>> = { pos: 'pos' };
 
 type SubLike = Pick<Subscription, 'status' | 'plan'> & { addons?: readonly string[] | null };
@@ -66,4 +67,9 @@ export function feePercentFor(
 ): number {
   if (plan === 'pro' && settings.pro_payment_fee_percent != null) return settings.pro_payment_fee_percent;
   return settings.payment_fee_percent;
+}
+
+/** The host stand: floor plan, walk-ins and seating (app/host). Reservations stay on every tier. */
+export function canUseHost(sub: SubLike): boolean {
+  return canUse(effectivePlan(sub), 'host', effectiveAddons(sub));
 }
