@@ -242,9 +242,10 @@ configurable footer (RFC, address…) and a thank-you.
 
 A restaurant that only takes orders on WhatsApp needs no board: its orders
 are not stored at all (`app/api/order` returns before the insert) and it
-never sees *Pedidos*. An owner or manager turns the board on under
-*Pedidos → Tablero de pedidos* (`tenant_ordering.orders_board`, migration
-0085, `lib/orders/board.ts`); it is off for new restaurants. With it on: WhatsApp orders are
+only sees *Pedidos* as an off-state page. An owner or manager turns the
+board on right there, or under *Cómo se ordena → Tablero de pedidos*
+(`tenant_ordering.orders_board`, migration 0085, `lib/orders/board.ts`); it is
+off for new restaurants. With it on: WhatsApp orders are
 stored, *Pedidos* appears in the sidebar and as a tile on the apps' hub, and
 a chime plus a toast announce each new order on the register, the kitchen
 screen, the host stand and the hub (`components/orders/NewOrderAlert.tsx`).

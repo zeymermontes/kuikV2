@@ -1279,7 +1279,11 @@
     "editErr_not_found": "The order no longer exists.",
     "save": "Save",
     "cancel": "Cancel",
-    "view": "View"
+    "view": "View",
+    "boardOffTitle": "The orders board is off",
+    "boardOffBody": "With the board on, every WhatsApp order is stored here, chimes at the register, kitchen and host stand, and can be accepted, edited or rejected. Off, the order only arrives on WhatsApp.",
+    "boardOn": "Turn the board on",
+    "boardOffAsk": "Ask the owner or a manager to turn it on from here."
   },
   "tables": {
     "title": "Table QR codes",

@@ -1279,7 +1279,11 @@
     "editErr_not_found": "El pedido ya no existe.",
     "save": "Guardar",
     "cancel": "Cancelar",
-    "view": "Ver"
+    "view": "Ver",
+    "boardOffTitle": "El tablero de pedidos está apagado",
+    "boardOffBody": "Con el tablero encendido, cada pedido de WhatsApp queda guardado aquí, suena en caja, cocina y anfitrión, y puedes aceptarlo, editarlo o rechazarlo. Apagado, el pedido llega solo por WhatsApp.",
+    "boardOn": "Encender el tablero",
+    "boardOffAsk": "Pide al dueño o al gerente que lo encienda desde aquí."
   },
   "tables": {
     "title": "QR por mesa",

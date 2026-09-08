@@ -1,5 +1,6 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { requireOrders, requireManager } from '@/lib/auth';
 import { getGateway, getPaymentAccount, isPaymentProvider } from '@/lib/payments';
 import { createClient } from '@/lib/supabase/server';
@@ -92,4 +93,14 @@ export async function updateOrder(id: string, input: { items: EditableLine[]; to
     .eq('id', id)
     .eq('tenant_id', tenant.id);
   return {};
+}
+
+/** Turn the Pedidos board on for this restaurant (0085); owners and managers, from the board's own off-state page. */
+export async function enableOrdersBoard(): Promise<void> {
+  const { tenant } = await requireManager();
+  const supabase = await createClient();
+  const { data } = await supabase.from('tenant_ordering').select('tenant_id').eq('tenant_id', tenant.id).maybeSingle();
+  if (data) await supabase.from('tenant_ordering').update({ orders_board: true }).eq('tenant_id', tenant.id);
+  else await supabase.from('tenant_ordering').insert({ tenant_id: tenant.id, orders_board: true });
+  revalidatePath('/orders');
 }

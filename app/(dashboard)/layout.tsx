@@ -16,7 +16,6 @@ import { getPendingSummary } from './reservations/actions';
 import { getHandoffCount } from './whatsapp/inbox/actions';
 import type { MemberRole } from '@/lib/database.types';
 import { exitSupport, exitCustomerView } from './admin/actions';
-import { ordersBoardEnabled } from '@/lib/orders/board';
 
 /**
  * The dashboard is installable; the public menu and marketing site are not.
@@ -57,10 +56,9 @@ export default async function DashboardLayout({
   // is really insurance against that list being narrowed later.
   const canSeeReservations = RESERVATION_ROLES.includes(ctx.role);
   const canSeeWhatsapp = ctx.role === 'owner' || ctx.role === 'manager';
-  const [pending, handoffs, ordersBoard] = await Promise.all([
+  const [pending, handoffs] = await Promise.all([
     canSeeReservations ? getPendingSummary() : Promise.resolve({ total: 0, days: [] }),
     canSeeWhatsapp ? getHandoffCount() : Promise.resolve({ total: 0 }),
-    ordersBoardEnabled(ctx.tenant.id),
   ]);
   const tAdmin = ctx.support || ctx.customerView ? await getTranslations('superAdmin') : null;
 
@@ -74,7 +72,6 @@ export default async function DashboardLayout({
           <Sidebar
             isSuperAdmin={ctx.user.profile.role === 'super_admin' && !ctx.customerView}
             showDevFeatures={showDevFeatures(ctx)}
-            ordersBoard={ordersBoard}
             role={ctx.role}
             menuUrl={tenantUrl(ctx.tenant.subdomain)}
             locale={ctx.user.profile.locale}
