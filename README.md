@@ -513,3 +513,17 @@ Everything is in [lib/seo.ts](lib/seo.ts) (pure, tested in
 
 - `.claude/skills/run-local` — boot the app and open tenant subdomains.
 - `.claude/skills/supabase-migration` — add a migration + RLS + regenerate types.
+
+## Product photos without background
+
+Uploading a product photo offers a cut-out preview (`components/dashboard/CutoutSheet.tsx`):
+the photo with its background removed, a sensitivity slider for the edge, and
+"keep the original". The cut runs on the device with `onnxruntime-web` (MIT)
+and ISNet (DIS "general use", Apache-2.0) quantised to int8 (`lib/media/segment.ts`);
+nothing is uploaded for it and nothing is billed. The model (~46 MB) and the
+runtime's wasm files live in the public `apps` bucket under `models/`
+(`scripts/publish-models.mjs`, which also documents how the model was made)
+and are kept in the browser's Cache API after the first download. The chosen
+result is uploaded as a WebP with alpha, like every other photo (WebP, 1280 px,
+≤ 0.6 MB, `lib/upload.ts`). `NEXT_PUBLIC_MODELS_BASE` overrides where the files
+are served from.

@@ -5,6 +5,10 @@ import Image from 'next/image';
 import { ImagePlus, Loader2, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { uploadImage } from '@/lib/upload';
+import { CutoutSheet } from './CutoutSheet';
+
+/** SVG and GIF are stored as they are; there is nothing to cut. */
+const PASSTHROUGH = /svg|gif/;
 
 export function ImageUploader({
   value,
@@ -12,16 +16,20 @@ export function ImageUploader({
   folder,
   onChange,
   shape = 'square',
+  cutout = false,
 }: {
   value: string | null;
   tenantId: string;
   folder: string;
   onChange: (url: string | null) => void;
   shape?: 'square' | 'wide' | 'circle';
+  /** After an upload, offer the photo with its background removed (product photos). */
+  cutout?: boolean;
 }) {
   const t = useTranslations('menuEditor');
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [cutoutOf, setCutoutOf] = useState<{ file: File; url: string } | null>(null);
 
   const wide = shape === 'wide';
   const sizeClass = wide
@@ -35,6 +43,8 @@ export function ImageUploader({
     try {
       const url = await uploadImage(file, tenantId, folder);
       onChange(url);
+      // The original is in place already; the cut, if taken, replaces it.
+      if (cutout && !PASSTHROUGH.test(file.type)) setCutoutOf({ file, url });
     } catch {
       // surfaced minimally; upload errors are rare and retryable
     } finally {
@@ -76,6 +86,19 @@ export function ImageUploader({
           </button>
         )}
       </div>
+
+      {cutoutOf && (
+        <CutoutSheet
+          file={cutoutOf.file}
+          src={cutoutOf.url}
+          tenantId={tenantId}
+          folder={folder}
+          onDone={(url) => {
+            setCutoutOf(null);
+            if (url) onChange(url);
+          }}
+        />
+      )}
 
       <input
         ref={inputRef}

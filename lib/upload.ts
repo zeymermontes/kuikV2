@@ -65,6 +65,19 @@ export async function uploadImage(file: File, tenantId: string, folder: string):
 }
 
 /**
+ * Uploads an image the dashboard already prepared (a WebP drawn on a canvas,
+ * say) without compressing it again. Returns the public URL.
+ */
+export async function uploadBlob(blob: Blob, tenantId: string, folder: string, ext: 'webp' | 'png'): Promise<string> {
+  if (blob.size > FILE_MAX) throw new UploadError('too_large');
+  const supabase = createClient();
+  const path = `${tenantId}/${folder}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from('media').upload(path, blob, { cacheControl: '3600', upsert: false, contentType: `image/${ext}` });
+  if (error) throw error;
+  return supabase.storage.from('media').getPublicUrl(path).data.publicUrl;
+}
+
+/**
  * Uploads a non-image file (a PDF menu, a font, a song) as-is to the public
  * `media` bucket. Returns the public URL.
  */

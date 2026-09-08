@@ -220,6 +220,7 @@ export function ProductDrawer({
             value={product.image_url}
             tenantId={tenantId}
             folder="products"
+            cutout
             onChange={(url) => updateProduct(product.id, { image_url: url })}
           />
         </div>
