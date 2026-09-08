@@ -270,7 +270,13 @@
     "moveGroupNone": "Los productos seleccionados no tienen grupos de opciones.",
     "moveFirst": "Al inicio",
     "moveLast": "Al final",
-    "moveApply": "Aplicar"
+    "moveApply": "Aplicar",
+    "editGroup": "Editar un grupo",
+    "editGroupTitle": "Editar un grupo en todos",
+    "editGroupBody": "Lo tienen {have} de los {n} productos seleccionados; los cambios se aplican a esos.",
+    "editGroupDiffers": "Esos productos tienen {k} versiones distintas de este grupo. Estás viendo la más común; al aplicar, quedará igual en todos.",
+    "editGroupApply": "Aplicar a {n} productos",
+    "deleteOption": "Eliminar opción"
   },
   "colorPicker": {
     "brightness": "Brillo",

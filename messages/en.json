@@ -270,7 +270,13 @@
     "moveGroupNone": "The selected products have no option groups.",
     "moveFirst": "To the top",
     "moveLast": "To the bottom",
-    "moveApply": "Apply"
+    "moveApply": "Apply",
+    "editGroup": "Edit a group",
+    "editGroupTitle": "Edit a group on all of them",
+    "editGroupBody": "{have} of the {n} selected products have it; the changes apply to those.",
+    "editGroupDiffers": "Those products carry {k} different versions of this group. You are looking at the most common one; applying makes them all the same.",
+    "editGroupApply": "Apply to {n} products",
+    "deleteOption": "Delete option"
   },
   "colorPicker": {
     "brightness": "Brightness",

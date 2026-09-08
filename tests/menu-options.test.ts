@@ -31,3 +31,9 @@ test('a group moves to the front or the back by name; products without it are le
   assert.deepEqual(moveGroupByName(groups, 'Extras', 'last').map((x) => x.name), ['Tamaño', 'Salsas', 'Extras']);
   assert.equal(moveGroupByName(groups, 'Leche', 'first'), groups);
 });
+
+test('editing a group on many products can also rename it: the old name is what gets replaced', () => {
+  const out = mergeOptionGroups([g('1', 'Tamaño'), g('2', 'Extras')], [g('x', 'Tamaños', 'chico')], 'overwrite', newId, 'tamaño');
+  assert.deepEqual(out.map((x) => x.name), ['Tamaños', 'Extras']);
+  assert.equal(out[0].options[0].name, 'chico');
+});

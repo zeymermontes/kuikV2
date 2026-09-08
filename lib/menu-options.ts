@@ -58,19 +58,27 @@ export function hasRepeatedGroups(existing: OptionGroup[], incoming: OptionGroup
  * everything, repeats included. Incoming groups always get fresh ids, so two
  * products never share one.
  */
-export function mergeOptionGroups(existing: OptionGroup[], incoming: OptionGroup[], mode: 'overwrite' | 'duplicate', newId: () => string): OptionGroup[] {
+export function mergeOptionGroups(
+  existing: OptionGroup[],
+  incoming: OptionGroup[],
+  mode: 'overwrite' | 'duplicate',
+  newId: () => string,
+  /** With one incoming group, the name of the existing group it replaces when it was renamed in the process. */
+  replaces?: string,
+): OptionGroup[] {
   const fresh = incoming.map((g) => ({ ...g, id: newId(), options: g.options.map((o) => ({ ...o })) }));
   if (mode === 'duplicate') return [...existing, ...fresh];
   const byName = new Map(fresh.map((g) => [groupKey(g.name), g] as const));
+  if (replaces && fresh.length === 1) byName.set(groupKey(replaces), fresh[0]);
   const replaced = new Set<string>();
   const out = existing.map((g) => {
     const key = groupKey(g.name);
     const next = byName.get(key);
-    if (!next || replaced.has(key)) return g;
-    replaced.add(key);
+    if (!next || replaced.has(next.id)) return g;
+    replaced.add(next.id);
     return next;
   });
-  return [...out, ...fresh.filter((g) => !replaced.has(groupKey(g.name)))];
+  return [...out, ...fresh.filter((g) => !replaced.has(g.id))];
 }
 
 export function optionKind(g: OptionGroup): OptionKind {
@@ -117,4 +125,22 @@ export function moveGroupByName(groups: OptionGroup[], name: string, to: 'first'
   if (hit.length === 0) return groups;
   const rest = groups.filter((g) => groupKey(g.name) !== key);
   return to === 'first' ? [...hit, ...rest] : [...rest, ...hit];
+}
+
+/** Whether the product has a group named `name` (case and spaces aside). */
+export function hasGroupNamed(groups: OptionGroup[], name: string): boolean {
+  const key = groupKey(name);
+  return groups.some((g) => groupKey(g.name) === key);
+}
+
+/** What makes two versions of a group "the same" across products: everything but the id. */
+export function groupSignature(g: OptionGroup): string {
+  return JSON.stringify({
+    name: g.name.trim(),
+    description: g.description ?? '',
+    kind: g.kind ?? 'dish',
+    required: g.required,
+    multiple: g.multiple,
+    options: g.options.map((o) => ({ name: o.name.trim(), price: o.price, available: o.available !== false })),
+  });
 }

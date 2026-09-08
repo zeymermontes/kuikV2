@@ -32,11 +32,12 @@ import {
   ClipboardPaste,
   Square,
   ArrowUpDown,
+  PencilLine,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import type { Category, OptionGroup, Product, Separator } from '@/lib/database.types';
-import { OPTION_CLIPBOARD_ALL, OPTION_CLIPBOARD_GROUP, hasRepeatedGroups, mergeOptionGroups, moveGroupByName, resolveOptionGroups } from '@/lib/menu-options';
+import { OPTION_CLIPBOARD_ALL, OPTION_CLIPBOARD_GROUP, groupSignature, hasGroupNamed, hasRepeatedGroups, mergeOptionGroups, moveGroupByName, resolveOptionGroups } from '@/lib/menu-options';
 import {
   addCategory,
   updateCategory,
@@ -49,6 +50,7 @@ import {
   setProductsOptionGroups,
 } from '@/app/(dashboard)/menu/actions';
 import { ProductDrawer } from './ProductDrawer';
+import { OptionGroupCard } from './OptionGroupsEditor';
 import { CategoryDrawer } from './CategoryDrawer';
 import { SeparatorEditor } from './SeparatorEditor';
 
@@ -121,6 +123,39 @@ export function MenuEditor({
       }
     return [...count.values()].sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
   })();
+  // "Change the price of Grande on every product": edit one version of the
+  // group and write it over the group of that name on each product that has it.
+  const [editAsk, setEditAsk] = useState<{ name: string; draft: OptionGroup; have: number; versions: number } | null>(null);
+  function beginEditGroup(name: string) {
+    const holders = pickedProducts.filter((p) => hasGroupNamed(resolveOptionGroups(p), name));
+    // The most common version is the starting point.
+    const count = new Map<string, { g: OptionGroup; n: number }>();
+    for (const p of holders) {
+      const g = resolveOptionGroups(p).find((x) => x.name.trim().toLowerCase() === name.trim().toLowerCase());
+      if (!g) continue;
+      const sig = groupSignature(g);
+      const cur = count.get(sig) ?? { g, n: 0 };
+      cur.n += 1;
+      count.set(sig, cur);
+    }
+    const best = [...count.values()].sort((a, b) => b.n - a.n)[0];
+    if (!best) return;
+    const draft: OptionGroup = { ...best.g, id: uid(), options: best.g.options.map((o) => ({ ...o })) };
+    setEditAsk({ name, draft, have: holders.length, versions: count.size });
+  }
+  async function applyEdit(name: string, draft: OptionGroup) {
+    setEditAsk(null);
+    const items = pickedProducts
+      .filter((p) => hasGroupNamed(resolveOptionGroups(p), name))
+      .map((p) => ({ id: p.id, option_groups: mergeOptionGroups(resolveOptionGroups(p), [{ ...draft, name: draft.name.trim() || name }], 'overwrite', uid, name) }));
+    if (items.length === 0) return;
+    const byId = new Map(items.map((it) => [it.id, it.option_groups]));
+    setProds((ps) => ps.map((p) => (byId.has(p.id) ? { ...p, option_groups: byId.get(p.id)!, variants: [], modifiers: [], removables: [] } : p)));
+    await setProductsOptionGroups(items);
+    setPasteDone(items.length);
+    setTimeout(() => setPasteDone(null), 3000);
+    stopSelecting();
+  }
   async function applyMove(name: string, to: 'first' | 'last') {
     setMoveAsk(null);
     const items = pickedProducts
@@ -351,6 +386,13 @@ export function MenuEditor({
                 >
                   <ArrowUpDown className="h-3.5 w-3.5" /> {t('moveGroup')}
                 </button>
+                <button
+                  disabled={picked.size === 0 || pickedGroupNames.length === 0}
+                  onClick={() => beginEditGroup(pickedGroupNames[0].name)}
+                  className="flex items-center gap-1 rounded-lg border border-neutral-300 bg-white px-2.5 py-1 font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-40"
+                >
+                  <PencilLine className="h-3.5 w-3.5" /> {t('editGroup')}
+                </button>
                 <span className="text-neutral-500">{t('pasteHint')}</span>
               </div>
             )}
@@ -447,6 +489,43 @@ export function MenuEditor({
             <button onClick={() => setMoveAsk(null)} className="mt-3 text-sm text-neutral-500 hover:text-neutral-900">
               {t('cancel')}
             </button>
+          </div>
+        </div>
+      )}
+
+      {editAsk && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setEditAsk(null)}>
+          <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="border-b border-neutral-100 px-5 py-4">
+              <p className="font-semibold">{t('editGroupTitle')}</p>
+              <select
+                value={editAsk.name}
+                onChange={(e) => beginEditGroup(e.target.value)}
+                className="mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              >
+                {pickedGroupNames.map((g) => (
+                  <option key={g.name} value={g.name}>
+                    {g.name} · {g.n}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-2 text-xs text-neutral-500">{t('editGroupBody', { have: editAsk.have, n: pickedProducts.length })}</p>
+              {editAsk.versions > 1 && <p className="mt-1 rounded-lg bg-amber-50 px-2 py-1.5 text-xs text-amber-800">{t('editGroupDiffers', { k: editAsk.versions })}</p>}
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              <OptionGroupCard group={editAsk.draft} onChange={(next) => setEditAsk({ ...editAsk, draft: next })} />
+            </div>
+            <div className="flex items-center justify-between gap-2 border-t border-neutral-100 px-5 py-3">
+              <button onClick={() => setEditAsk(null)} className="text-sm text-neutral-500 hover:text-neutral-900">
+                {t('cancel')}
+              </button>
+              <button
+                onClick={() => void applyEdit(editAsk.name, editAsk.draft)}
+                className="rounded-xl bg-neutral-900 px-4 py-2 text-sm font-semibold text-white"
+              >
+                {t('editGroupApply', { n: editAsk.have })}
+              </button>
+            </div>
           </div>
         </div>
       )}
