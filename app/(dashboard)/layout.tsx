@@ -15,7 +15,7 @@ import { StaffIntlProvider } from '@/components/intl/StaffIntlProvider';
 import { getPendingSummary } from './reservations/actions';
 import { getHandoffCount } from './whatsapp/inbox/actions';
 import type { MemberRole } from '@/lib/database.types';
-import { exitSupport } from './admin/actions';
+import { exitSupport, exitCustomerView } from './admin/actions';
 import { ordersBoardEnabled } from '@/lib/orders/board';
 
 /**
@@ -62,7 +62,7 @@ export default async function DashboardLayout({
     canSeeWhatsapp ? getHandoffCount() : Promise.resolve({ total: 0 }),
     ordersBoardEnabled(ctx.tenant.id),
   ]);
-  const tAdmin = ctx.support ? await getTranslations('superAdmin') : null;
+  const tAdmin = ctx.support || ctx.customerView ? await getTranslations('superAdmin') : null;
 
   return (
     <StaffIntlProvider>
@@ -72,7 +72,7 @@ export default async function DashboardLayout({
         <TerminalModeButton />
         <div className="flex min-h-screen bg-neutral-50">
           <Sidebar
-            isSuperAdmin={ctx.user.profile.role === 'super_admin'}
+            isSuperAdmin={ctx.user.profile.role === 'super_admin' && !ctx.customerView}
             showDevFeatures={showDevFeatures(ctx)}
             ordersBoard={ordersBoard}
             role={ctx.role}
@@ -85,7 +85,7 @@ export default async function DashboardLayout({
             activeTenantId={ctx.tenant.id}
             plan={effectivePlan(ctx.subscription)}
             addons={effectiveAddons(ctx.subscription)}
-            enforcePlan={ctx.support}
+            enforcePlan={ctx.support || ctx.customerView}
             pendingReservations={pending.total}
             pendingHandoffs={handoffs.total}
           />
@@ -99,6 +99,14 @@ export default async function DashboardLayout({
                   <button className="shrink-0 rounded-md bg-black/20 px-3 py-1 hover:bg-black/30">
                     {tAdmin('exitSupport')}
                   </button>
+                </form>
+              </div>
+            )}
+            {ctx.customerView && tAdmin && (
+              <div className="sticky top-0 z-20 flex items-center justify-between gap-3 bg-violet-600 px-4 py-2 text-sm font-medium text-white">
+                <span className="truncate">{tAdmin('customerViewBanner')}</span>
+                <form action={exitCustomerView}>
+                  <button className="shrink-0 rounded-md bg-black/20 px-3 py-1 hover:bg-black/30">{tAdmin('customerViewExit')}</button>
                 </form>
               </div>
             )}

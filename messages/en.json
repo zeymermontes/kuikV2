@@ -760,7 +760,9 @@
     "clipErr_invalid": "Clip does not accept that API key and secret. Check they belong to a production application.",
     "clipErr_other_gateway": "Another gateway is already connected. Disconnect it first.",
     "clipErr_not_offered": "Clip is not available right now.",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "ordersBoard": "Orders board",
+    "ordersBoardHint": "Stores every WhatsApp order in Orders, chimes at the register, kitchen and host stand, and adds the Orders tile in the app. Off, the order only arrives on WhatsApp and is not stored."
   },
   "reserve": {
     "title": "Reserve a table",
@@ -1705,8 +1707,9 @@
     "appsErr_missing": "That app has no published version yet.",
     "appsErr_failed": "Could not save; try again.",
     "appsNotPublished": "Not published",
-    "ordersBoard": "Orders board",
-    "ordersBoardHint": "Stores WhatsApp orders and shows Orders, the alerts at the register and kitchen, and the tile in the app. Off, the restaurant only gets the WhatsApp message."
+    "customerView": "View as customer",
+    "customerViewBanner": "Customer view: you see this restaurant as its owner does, with its plan and without admin tools.",
+    "customerViewExit": "Exit"
   },
   "menu": {
     "orderWhatsapp": "Order on WhatsApp",

@@ -547,12 +547,21 @@ export async function setAppMinVersion(app: ReleaseKey, minVersion: string | nul
   return res;
 }
 
-/** The Pedidos board for one restaurant (0085): stored WhatsApp orders, the board, live alerts, the hub tile. */
-export async function setOrdersBoard(tenantId: string, on: boolean): Promise<void> {
+// ── Customer view ───────────────────────────────────────────────────────────
+// A super admin sees more than any customer: the dev-only surfaces, the
+// admin link, every plan's items. This cookie hides all of that on their own
+// restaurants, so what they see is what a customer with that plan sees.
+const CUSTOMER_VIEW_COOKIE = 'kuik_customer_view';
+
+export async function enterCustomerView(): Promise<void> {
   await requireSuperAdmin();
-  const supabase = createAdminClient();
-  const { data } = await supabase.from('tenant_ordering').select('tenant_id').eq('tenant_id', tenantId).maybeSingle();
-  if (data) await supabase.from('tenant_ordering').update({ orders_board: on }).eq('tenant_id', tenantId);
-  else await supabase.from('tenant_ordering').insert({ tenant_id: tenantId, orders_board: on });
-  revalidatePath('/admin');
+  const cookieStore = await cookies();
+  cookieStore.set(CUSTOMER_VIEW_COOKIE, '1', { path: '/', maxAge: 60 * 60 * 8, sameSite: 'lax', httpOnly: true });
+  redirect('/dashboard');
+}
+
+export async function exitCustomerView(): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.delete(CUSTOMER_VIEW_COOKIE);
+  redirect('/dashboard');
 }

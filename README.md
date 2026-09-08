@@ -242,9 +242,9 @@ configurable footer (RFC, address…) and a thank-you.
 
 A restaurant that only takes orders on WhatsApp needs no board: its orders
 are not stored at all (`app/api/order` returns before the insert) and it
-never sees *Pedidos*. The super admin turns the board on per restaurant
-(*Admin → tenant row → Tablero de pedidos*, `tenant_ordering.orders_board`,
-migration 0085, `lib/orders/board.ts`). With it on: WhatsApp orders are
+never sees *Pedidos*. An owner or manager turns the board on under
+*Pedidos → Tablero de pedidos* (`tenant_ordering.orders_board`, migration
+0085, `lib/orders/board.ts`); it is off for new restaurants. With it on: WhatsApp orders are
 stored, *Pedidos* appears in the sidebar and as a tile on the apps' hub, and
 a chime plus a toast announce each new order on the register, the kitchen
 screen, the host stand and the hub (`components/orders/NewOrderAlert.tsx`).
@@ -321,6 +321,12 @@ directly while the guest waits on the confirmation, in case the
 notification lags. Refunds name the receipt. Kuik's fee cannot be withheld
 from a Clip payment; `applicationFee` is ignored there. Nothing to
 configure on Kuik's side; `CLIP_DISABLED=1` hides the option.
+
+**Customer view.** A super admin sees more than any customer: the dev-only
+surfaces, the admin link, every plan's items. *Ver como cliente* in the
+sidebar (cookie `kuik_customer_view`, `ctx.customerView`) strips their own
+dashboard down to what an owner on that plan gets; a banner up top exits.
+Support mode does the same on another restaurant.
 
 **Money flow (Stripe Connect, direct charges).** The
 restaurant is the merchant: it onboards on Stripe's hosted form from

@@ -760,7 +760,9 @@
     "clipErr_invalid": "Clip no acepta esa API key y clave secreta. Revisa que sean de una aplicación de producción.",
     "clipErr_other_gateway": "Ya hay otra pasarela conectada. Desconéctala primero.",
     "clipErr_not_offered": "Clip no está disponible en este momento.",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "ordersBoard": "Tablero de pedidos",
+    "ordersBoardHint": "Guarda cada pedido de WhatsApp en Pedidos, avisa con sonido en caja, cocina y anfitrión, y agrega el mosaico Pedidos en la app. Apagado, el pedido llega solo por WhatsApp y no se guarda."
   },
   "reserve": {
     "title": "Reservar mesa",
@@ -1705,8 +1707,9 @@
     "appsErr_missing": "Esa app aún no tiene versión publicada.",
     "appsErr_failed": "No se pudo guardar; inténtalo de nuevo.",
     "appsNotPublished": "Sin publicar",
-    "ordersBoard": "Tablero de pedidos",
-    "ordersBoardHint": "Guarda los pedidos de WhatsApp y muestra Pedidos, las alertas en caja y cocina, y el mosaico en la app. Apagado, el restaurante solo recibe el WhatsApp."
+    "customerView": "Ver como cliente",
+    "customerViewBanner": "Vista de cliente: ves este restaurante como lo ve su dueño, con su plan y sin herramientas de administrador.",
+    "customerViewExit": "Salir"
   },
   "menu": {
     "orderWhatsapp": "Ordenar por WhatsApp",

@@ -25,6 +25,8 @@ export function canUseDevFeatures(profile: Profile | null | undefined): boolean 
 export function showDevFeatures(ctx: {
   user: { profile: Profile };
   support: boolean;
+  /** "Ver como cliente": the same stripping, on the super admin's own restaurant. */
+  customerView?: boolean;
 }): boolean {
-  return canUseDevFeatures(ctx.user.profile) && !ctx.support;
+  return canUseDevFeatures(ctx.user.profile) && !ctx.support && !ctx.customerView;
 }

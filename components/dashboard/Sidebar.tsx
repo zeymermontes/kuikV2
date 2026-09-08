@@ -32,6 +32,7 @@ import {
   Tag,
   FileText,
   Package,
+  Eye,
 } from 'lucide-react';
 import { ChevronsUpDown, ChevronDown, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -41,6 +42,7 @@ import { signOut } from '@/app/(auth)/actions';
 import { setActiveTenant } from '@/app/(dashboard)/tenant-actions';
 import { LocaleSwitch } from './LocaleSwitch';
 import { GlobalSearch } from '@/components/dashboard/GlobalSearch';
+import { enterCustomerView } from '@/app/(dashboard)/admin/actions';
 import { InstallPrompt } from './InstallPrompt';
 import { PendingReservationsBadge } from './PendingReservationsBadge';
 import { HandoffBadge } from './HandoffBadge';
@@ -124,6 +126,7 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const t = useTranslations('nav');
+  const tSuper = useTranslations('superAdmin');
   const tDash = useTranslations('dashboard');
   const tAuth = useTranslations('auth');
   const [open, setOpen] = useState(false);
@@ -175,9 +178,17 @@ export function Sidebar({
         );
       })}
       {isSuperAdmin && (
-        <NavLink href="/admin" active={pathname.startsWith('/admin')} icon={Shield} onClick={() => setOpen(false)}>
-          {t('superAdmin')}
-        </NavLink>
+        <>
+          <NavLink href="/admin" active={pathname.startsWith('/admin')} icon={Shield} onClick={() => setOpen(false)}>
+            {t('superAdmin')}
+          </NavLink>
+          {/* Strip the dashboard down to what a customer sees; a banner up top brings it back. */}
+          <form action={enterCustomerView}>
+            <button type="submit" className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900">
+              <Eye className="h-4 w-4" /> {tSuper('customerView')}
+            </button>
+          </form>
+        </>
       )}
     </nav>
   );

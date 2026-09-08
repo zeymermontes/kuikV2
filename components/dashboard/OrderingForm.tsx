@@ -294,6 +294,12 @@ export function OrderingForm({
         </div>
       </Card>
 
+      {/* The Pedidos board (0085): off, WhatsApp orders are just the message. */}
+      <Card className="space-y-2" data-setting={t('ordersBoard')}>
+        <ToggleRow label={t('ordersBoard')} checked={o.orders_board === true} onChange={(v) => set('orders_board', v)} />
+        <p className="text-xs text-neutral-500">{t('ordersBoardHint')}</p>
+      </Card>
+
       {/* Order alerts: how the team hears about a paid order. */}
       <Card className="space-y-3" data-setting="order-alerts">
         <div>

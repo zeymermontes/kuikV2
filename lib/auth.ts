@@ -111,6 +111,8 @@ export interface TenantContext {
   subscription: Subscription;
   /** True when a super-admin is editing this tenant via support mode. */
   support: boolean;
+  /** A super-admin looking at their own restaurant as a customer would: no dev surfaces, no admin link, the plan enforced. */
+  customerView: boolean;
 }
 
 type TenantLoad =
@@ -136,6 +138,9 @@ const loadTenantContext = cache(async (): Promise<TenantLoad> => {
   const cookieStore = await cookies();
   const supportId =
     user.profile.role === 'super_admin' ? cookieStore.get('kuik_support')?.value : undefined;
+  // "Ver como cliente" (app/(dashboard)/admin/actions.ts): the super admin's
+  // own dashboard stripped down to what a customer on that plan gets.
+  const customerView = user.profile.role === 'super_admin' && cookieStore.get('kuik_customer_view')?.value === '1';
 
   let tenant: Tenant | null = null;
   let role: MemberRole = 'owner';
@@ -173,6 +178,7 @@ const loadTenantContext = cache(async (): Promise<TenantLoad> => {
       contact: contact!,
       subscription: subscription!,
       support,
+      customerView,
     },
   };
 });

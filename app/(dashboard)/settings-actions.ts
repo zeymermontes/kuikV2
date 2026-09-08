@@ -188,6 +188,7 @@ export async function updateOrdering(
     receipt_footer: string | null;
     order_alerts: Record<string, unknown>;
     pos_lock_after_sale: boolean;
+    orders_board: boolean;
   }>,
 ) {
   const { tenant } = await requireTenant();
