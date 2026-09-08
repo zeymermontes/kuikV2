@@ -258,7 +258,12 @@
     "unsavedBody": "El campo que estabas editando todavía no se guarda.",
     "saveClose": "Guardar y cerrar",
     "discard": "Cerrar sin guardar",
-    "keepEditing": "Seguir editando"
+    "keepEditing": "Seguir editando",
+    "catHide": "Ocultar en el menú",
+    "catShow": "Mostrar en el menú",
+    "catAddSub": "Agregar subcategoría",
+    "catSettings": "Ajustes de la categoría",
+    "catDelete": "Eliminar categoría"
   },
   "colorPicker": {
     "brightness": "Brillo",

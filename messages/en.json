@@ -258,7 +258,12 @@
     "unsavedBody": "The field you were editing is not saved yet.",
     "saveClose": "Save and close",
     "discard": "Close without saving",
-    "keepEditing": "Keep editing"
+    "keepEditing": "Keep editing",
+    "catHide": "Hide from the menu",
+    "catShow": "Show on the menu",
+    "catAddSub": "Add subcategory",
+    "catSettings": "Category settings",
+    "catDelete": "Delete category"
   },
   "colorPicker": {
     "brightness": "Brightness",

@@ -400,6 +400,7 @@ function CategoryRow({
   /** Only top-level categories can gain a subcategory (one level deep). */
   onAddSub?: () => void;
 }) {
+  const t = useTranslations('menuEditor');
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: category.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
 
@@ -423,18 +424,18 @@ function CategoryRow({
         <span className={`shrink-0 rounded-full px-1.5 text-[10px] ${selected ? 'bg-white/20' : 'bg-neutral-200 text-neutral-600'}`}>{count}</span>
       </button>
       <div className={`flex shrink-0 items-center ${selected ? '' : 'opacity-0 group-hover:opacity-100'}`}>
-        <IconBtn onClick={onToggleVisible} selected={selected}>
+        <IconBtn onClick={onToggleVisible} selected={selected} label={category.is_visible ? t('catHide') : t('catShow')}>
           {category.is_visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
         </IconBtn>
         {onAddSub && (
-          <IconBtn onClick={onAddSub} selected={selected}>
+          <IconBtn onClick={onAddSub} selected={selected} label={t('catAddSub')}>
             <ListPlus className="h-3.5 w-3.5" />
           </IconBtn>
         )}
-        <IconBtn onClick={onEdit} selected={selected}>
+        <IconBtn onClick={onEdit} selected={selected} label={t('catSettings')}>
           <Settings2 className="h-3.5 w-3.5" />
         </IconBtn>
-        <IconBtn onClick={onDelete} selected={selected} danger>
+        <IconBtn onClick={onDelete} selected={selected} danger label={t('catDelete')}>
           <Trash2 className="h-3.5 w-3.5" />
         </IconBtn>
       </div>
@@ -502,20 +503,25 @@ function ProductRow({
   );
 }
 
+/** An icon-only button: `label` is its tooltip and its name for screen readers. */
 function IconBtn({
   onClick,
   selected,
   danger,
+  label,
   children,
 }: {
   onClick: () => void;
   selected: boolean;
   danger?: boolean;
+  label: string;
   children: React.ReactNode;
 }) {
   return (
     <button
       onClick={onClick}
+      title={label}
+      aria-label={label}
       className={`rounded-md p-1 ${
         selected ? 'text-white/70 hover:text-white' : danger ? 'text-neutral-400 hover:text-red-500' : 'text-neutral-400 hover:text-neutral-700'
       }`}
