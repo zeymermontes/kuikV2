@@ -1257,7 +1257,27 @@
     "status_ready": "Listos",
     "advance_new": "Aceptar",
     "advance_preparing": "Listo",
-    "advance_ready": "Entregado"
+    "advance_ready": "Entregado",
+    "reject": "Rechazar",
+    "rejectTitle": "Rechazar el pedido #{code}",
+    "rejectBody": "El pedido sale del tablero. Si hay bot de WhatsApp, se le avisa al cliente con el motivo; si no, te damos el mensaje listo para enviar.",
+    "rejectReason": "Motivo (opcional): sin existencias, fuera de horario…",
+    "rejectPaidHint": "Este pedido ya está pagado. Rechazarlo no devuelve el dinero; usa «Reembolsar».",
+    "rejectedTell": "Pedido #{code} rechazado. Avísale al cliente.",
+    "customerMsgRejected": "Hola {name}, te escribimos de {restaurant}. No podemos tomar tu pedido #{code}{reason, select, other { por lo siguiente: {reason}} } Una disculpa.",
+    "edit": "Editar",
+    "edited": "Editado por el restaurante",
+    "editTitle": "Editar el pedido #{code}",
+    "editHint": "Cambia cantidades o quita líneas. El total se recalcula; puedes escribir otro.",
+    "editNote": "Nota",
+    "editTotal": "Total",
+    "editTotalHint": "Se recalcula con las líneas y conserva envío, propina o descuento del total original.",
+    "editErr_paid": "Un pedido ya pagado no se puede editar.",
+    "editErr_empty": "El pedido necesita al menos una línea.",
+    "editErr_not_found": "El pedido ya no existe.",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "view": "Ver"
   },
   "tables": {
     "title": "QR por mesa",
@@ -1684,7 +1704,9 @@
     "appsErr_ahead": "Es más nueva que la publicada; nadie podría actualizar.",
     "appsErr_missing": "Esa app aún no tiene versión publicada.",
     "appsErr_failed": "No se pudo guardar; inténtalo de nuevo.",
-    "appsNotPublished": "Sin publicar"
+    "appsNotPublished": "Sin publicar",
+    "ordersBoard": "Tablero de pedidos",
+    "ordersBoardHint": "Guarda los pedidos de WhatsApp y muestra Pedidos, las alertas en caja y cocina, y el mosaico en la app. Apagado, el restaurante solo recibe el WhatsApp."
   },
   "menu": {
     "orderWhatsapp": "Ordenar por WhatsApp",
@@ -2591,7 +2613,9 @@
     "branch": "Sucursal",
     "branchMain": "Sede principal",
     "branchHint": "Caja, cocina y anfitrión abren para esta sucursal. El dispositivo la recuerda.",
-    "customerRegisterOther": "Otra…"
+    "customerRegisterOther": "Otra…",
+    "orders": "Pedidos",
+    "ordersDesc": "Lo que llega del menú y de WhatsApp."
   },
   "shellUpdate": {
     "available": "Hay una versión nueva de la app ({version}).",

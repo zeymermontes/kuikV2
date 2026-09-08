@@ -546,3 +546,13 @@ export async function setAppMinVersion(app: ReleaseKey, minVersion: string | nul
   if (!res.error) revalidatePath('/admin');
   return res;
 }
+
+/** The Pedidos board for one restaurant (0085): stored WhatsApp orders, the board, live alerts, the hub tile. */
+export async function setOrdersBoard(tenantId: string, on: boolean): Promise<void> {
+  await requireSuperAdmin();
+  const supabase = createAdminClient();
+  const { data } = await supabase.from('tenant_ordering').select('tenant_id').eq('tenant_id', tenantId).maybeSingle();
+  if (data) await supabase.from('tenant_ordering').update({ orders_board: on }).eq('tenant_id', tenantId);
+  else await supabase.from('tenant_ordering').insert({ tenant_id: tenantId, orders_board: on });
+  revalidatePath('/admin');
+}

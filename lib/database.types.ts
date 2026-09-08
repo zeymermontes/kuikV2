@@ -357,6 +357,8 @@ export interface TenantOrdering {
   order_alerts: Record<string, unknown> | null;
   /** Ask for a PIN again after every closed sale (shared tablet). */
   pos_lock_after_sale: boolean;
+  /** The Pedidos board, live alerts and stored WhatsApp orders; the super admin turns it on (0085). */
+  orders_board: boolean;
   updated_at: string;
 }
 
@@ -754,7 +756,7 @@ export interface ReservationArea {
   created_at: string;
 }
 
-export type OrderStatus = 'new' | 'preparing' | 'ready' | 'done';
+export type OrderStatus = 'new' | 'preparing' | 'ready' | 'done' | 'rejected';
 
 export interface OrderRow {
   id: string;
@@ -793,6 +795,10 @@ export interface OrderRow {
   refund_ref: string | null;
   refunded_at: string | null;
   amount_refunded: number | null;
+  /** Why the restaurant turned it down (0085). */
+  reject_reason?: string | null;
+  /** Last time staff changed its lines or total (0085). */
+  edited_at?: string | null;
   created_at: string;
 }
 

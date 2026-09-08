@@ -11,6 +11,7 @@ import { LandingControls } from '@/components/dashboard/LandingControls';
 import { PricingSettings } from '@/components/dashboard/PricingSettings';
 import { AiPlatformSettings } from '@/components/dashboard/AiPlatformSettings';
 import { AppReleasesCard } from '@/components/dashboard/AppReleasesCard';
+import { OrdersBoardToggle } from '@/components/dashboard/OrdersBoardToggle';
 import { getAppReleases } from '@/lib/apps/releases';
 import { LandingAiPrompt } from '@/components/dashboard/LandingAiPrompt';
 import { listAiUsage } from './actions';
@@ -90,10 +91,12 @@ export default async function AdminPage() {
   const { data } = await supabase.rpc('admin_tenant_overview');
   const rows = (data ?? []) as Overview[];
   // Add-ons live on the subscription row; the overview RPC predates them.
-  const [{ data: addonRows }, pricing] = await Promise.all([
+  const [{ data: addonRows }, pricing, { data: boardRows }] = await Promise.all([
     createAdminClient().from('subscriptions').select('tenant_id, addons').in('tenant_id', rows.map((r) => r.tenant_id)),
     getPlatformSettings(),
+    createAdminClient().from('tenant_ordering').select('tenant_id, orders_board').in('tenant_id', rows.map((r) => r.tenant_id)),
   ]);
+  const boardOf = new Map(((boardRows ?? []) as { tenant_id: string; orders_board: boolean }[]).map((r) => [r.tenant_id, r.orders_board]));
   const addonsOf = new Map(((addonRows ?? []) as { tenant_id: string; addons: string[] | null }[]).map((r) => [r.tenant_id, r.addons ?? []]));
   const planNames = { basic: pricing.plan_name, pro: pricing.pro_name, pos: pricing.pos_addon_name };
   const plan = await getPlatformSettings();
@@ -212,6 +215,9 @@ export default async function AdminPage() {
                   </td>
                   <td className="px-4 py-3">
                     <PlanSelect tenantId={r.tenant_id} plan={r.plan ?? 'basic'} addons={addonsOf.get(r.tenant_id) ?? []} names={planNames} />
+                    <div className="mt-1.5">
+                      <OrdersBoardToggle tenantId={r.tenant_id} on={boardOf.get(r.tenant_id) ?? false} />
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-neutral-500">
                     {end ? new Date(end).toLocaleDateString() : '—'}

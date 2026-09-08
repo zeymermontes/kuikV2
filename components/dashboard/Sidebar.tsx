@@ -62,7 +62,8 @@ const NAV = [
   { group: 'ops', href: '/dashboard', icon: LayoutDashboard, key: 'dashboard', roles: ['owner', 'manager'] },
   { group: 'ops', href: '/reservations', icon: CalendarCheck, key: 'reservations', roles: ['owner', 'manager', 'cashier', 'waiter', 'host'] },
   { group: 'ops', href: '/host', icon: LayoutGrid, key: 'host', roles: ['owner', 'manager', 'cashier', 'waiter', 'host'] },
-  { group: 'ops', href: '/orders', icon: ClipboardList, key: 'orders', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true },
+  // `board: true`: only for restaurants whose Pedidos board the super admin turned on (0085), and dev accounts.
+  { group: 'ops', href: '/orders', icon: ClipboardList, key: 'orders', roles: ['owner', 'manager', 'cashier', 'waiter'], board: true },
   { group: 'ops', href: '/whatsapp', icon: MessageCircle, key: 'whatsapp', roles: ['owner', 'manager'] },
   { group: 'ops', href: '/pos', icon: Calculator, key: 'pos', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true, feature: 'pos' },
   { group: 'ops', href: '/kds', icon: Monitor, key: 'kds', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true },
@@ -90,6 +91,7 @@ const NAV = [
 export function Sidebar({
   isSuperAdmin,
   showDevFeatures,
+  ordersBoard = false,
   role,
   menuUrl,
   locale,
@@ -103,6 +105,8 @@ export function Sidebar({
 }: {
   isSuperAdmin: boolean;
   showDevFeatures: boolean;
+  /** The Pedidos board is on for this restaurant (lib/orders/board.ts). */
+  ordersBoard?: boolean;
   role: MemberRole;
   menuUrl: string;
   locale: string;
@@ -132,6 +136,7 @@ export function Sidebar({
     (item) =>
       (item.roles as readonly string[]).includes(role) &&
       (!('dev' in item && item.dev) || showDevFeatures) &&
+      (!('board' in item && item.board) || ordersBoard || showDevFeatures) &&
       (!('feature' in item && item.feature) || !enforcePlan || canUse(plan, item.feature as Feature, addons)),
   );
 

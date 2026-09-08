@@ -90,6 +90,10 @@ export async function POST(
   };
 
   if (!paying) {
+    // A WhatsApp order is only stored for restaurants with the board on
+    // (0085): the message itself is the order for the rest.
+    const { data: board } = await supabase.from('tenant_ordering').select('orders_board').eq('tenant_id', tenantId).maybeSingle();
+    if (!(board as { orders_board?: boolean } | null)?.orders_board) return NextResponse.json({ ok: true });
     const { data: logged } = await supabase.from('orders').insert(row).select('*').maybeSingle();
     // Off unless the restaurant asked for it: the guest's WhatsApp is the alert.
     if (logged) await notifyWhatsappOrder(logged as OrderRow);

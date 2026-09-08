@@ -1,16 +1,18 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Clock, UtensilsCrossed, ShoppingBag, Check, RefreshCw, CreditCard, BadgeCheck, Hourglass, AlertTriangle, Phone, MessageCircle, Undo2 } from 'lucide-react';
+import { Clock, UtensilsCrossed, ShoppingBag, Check, RefreshCw, CreditCard, BadgeCheck, Hourglass, AlertTriangle, Phone, MessageCircle, Undo2, Ban, Pencil, Minus, Plus } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import type { OrderRow, OrderStatus } from '@/lib/database.types';
 import { formatPrice, orderCode } from '@/lib/utils';
 import { createClient, channelName } from '@/lib/supabase/client';
-import { listOrders, setOrderStatus, refundOrder } from '@/app/(dashboard)/orders/actions';
+import { listOrders, setOrderStatus, refundOrder, rejectOrder, updateOrder } from '@/app/(dashboard)/orders/actions';
+import { retotal, type EditableLine } from '@/lib/orders/edit';
 import { buildWhatsappUrl } from '@/lib/whatsapp';
 import type { OrderAlerts } from '@/lib/orders/alerts';
 
 type Line = { name?: string; qty?: number; selections?: { name?: string }[] };
+type EditState = { order: OrderRow; lines: EditableLine[]; total: string; note: string; saving: boolean; error: string | null };
 
 /** Two rising notes, like the kitchen screen's. Audio may be blocked until the first tap; that is fine. */
 function chime() {
@@ -175,6 +177,46 @@ export function OrdersBoard({
 
   const time = (iso: string) => new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 
+  // ── Reject / edit ──────────────────────────────────────────────────────
+  const [rejecting, setRejecting] = useState<{ order: OrderRow; reason: string } | null>(null);
+  const [rejected, setRejected] = useState<OrderRow | null>(null); // for the one-tap WhatsApp after
+  const [editing, setEditing] = useState<EditState | null>(null);
+
+  function confirmReject() {
+    if (!rejecting) return;
+    const { order, reason } = rejecting;
+    setRejecting(null);
+    setOrders((cur) => cur.filter((x) => x.id !== order.id));
+    if (order.customer_phone && !botConnected) setRejected({ ...order, reject_reason: reason });
+    rejectOrder(order.id, reason).catch(() => {});
+  }
+
+  function beginEdit(o: OrderRow) {
+    const lines = ((o.items ?? []) as EditableLine[]).map((l) => ({ ...l, selections: l.selections?.map((x) => ({ ...x })) }));
+    setEditing({ order: o, lines, total: o.total != null ? String(o.total) : '', note: o.note ?? '', saving: false, error: null });
+  }
+  function editLine(i: number, delta: number) {
+    setEditing((e) => {
+      if (!e) return e;
+      const lines = e.lines.map((l, j) => (j === i ? { ...l, qty: Math.max(0, (l.qty ?? 1) + delta) } : l));
+      const total = retotal(e.order.total, (e.order.items ?? []) as EditableLine[], lines.filter((l) => (l.qty ?? 1) > 0));
+      return { ...e, lines, total: String(total) };
+    });
+  }
+  async function saveEdit() {
+    if (!editing) return;
+    const items = editing.lines.filter((l) => (l.qty ?? 1) > 0);
+    const total = editing.total.trim() === '' ? null : Number(editing.total);
+    setEditing({ ...editing, saving: true, error: null });
+    const res = await updateOrder(editing.order.id, { items, total, note: editing.note });
+    if (res.error) {
+      setEditing({ ...editing, saving: false, error: res.error });
+      return;
+    }
+    setOrders((cur) => cur.map((x) => (x.id === editing.order.id ? { ...x, items: items as OrderRow['items'], total, note: editing.note || null, edited_at: new Date().toISOString() } : x)));
+    setEditing(null);
+  }
+
   async function refund(o: OrderRow) {
     const amount = formatPrice(Number(o.amount_paid ?? o.total ?? 0), currency);
     if (!window.confirm(t('refundConfirm', { x: amount }))) return;
@@ -276,12 +318,30 @@ export function OrdersBoard({
                         </li>
                       ))}
                     </ul>
+                    {o.note && <p className="mt-1 text-xs text-neutral-500">{o.note}</p>}
+                    {o.edited_at && <p className="mt-1 text-[11px] text-amber-700">{t('edited')}</p>}
                     <button
                       onClick={() => advance(o, col.next)}
                       className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-neutral-900 py-2 text-sm font-semibold text-white"
                     >
                       <Check className="h-4 w-4" /> {t(`advance_${col.status}`)}
                     </button>
+                    <div className="mt-2 flex gap-2">
+                      {o.payment_status !== 'paid' && (
+                        <button
+                          onClick={() => beginEdit(o)}
+                          className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-neutral-300 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50"
+                        >
+                          <Pencil className="h-3.5 w-3.5" /> {t('edit')}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setRejecting({ order: o, reason: '' })}
+                        className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-red-200 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+                      >
+                        <Ban className="h-3.5 w-3.5" /> {t('reject')}
+                      </button>
+                    </div>
                     {o.customer_phone && !botConnected && o.status !== 'new' && (
                       <a
                         href={buildWhatsappUrl(
@@ -302,6 +362,102 @@ export function OrdersBoard({
           );
         })}
       </div>
+
+      {rejecting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setRejecting(null)}>
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <p className="font-semibold">{t('rejectTitle', { code: orderCode(rejecting.order.id) })}</p>
+            <p className="mt-1 text-sm text-neutral-600">{t('rejectBody')}</p>
+            <input
+              autoFocus
+              value={rejecting.reason}
+              onChange={(e) => setRejecting({ ...rejecting, reason: e.target.value })}
+              placeholder={t('rejectReason')}
+              className="mt-3 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+            />
+            {rejecting.order.payment_status === 'paid' && <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-xs text-amber-800">{t('rejectPaidHint')}</p>}
+            <div className="mt-4 flex gap-2">
+              <button onClick={confirmReject} className="flex-1 rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white">
+                {t('reject')}
+              </button>
+              <button onClick={() => setRejecting(null)} className="flex-1 rounded-xl border border-neutral-300 px-3 py-2 text-sm font-medium">
+                {t('cancel')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {rejected && rejected.customer_phone && (
+        <div className="fixed inset-x-3 bottom-3 z-50 mx-auto flex max-w-md items-center gap-3 rounded-2xl bg-neutral-900 px-4 py-3 text-sm text-white shadow-lg">
+          <span className="min-w-0 flex-1">{t('rejectedTell', { code: orderCode(rejected.id) })}</span>
+          <a
+            href={buildWhatsappUrl(rejected.customer_phone, t('customerMsgRejected', { name: rejected.customer_name ?? '', code: orderCode(rejected.id), restaurant: restaurantName, reason: rejected.reject_reason ?? '' }))}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => setRejected(null)}
+            className="flex shrink-0 items-center gap-1 rounded-lg bg-[#25D366] px-3 py-1.5 text-xs font-semibold text-white"
+          >
+            <MessageCircle className="h-3.5 w-3.5" /> {t('notifyCustomer')}
+          </a>
+          <button onClick={() => setRejected(null)} className="text-white/60 hover:text-white" aria-label={t('cancel')}>
+            ✕
+          </button>
+        </div>
+      )}
+
+      {editing && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4" onClick={() => setEditing(null)}>
+          <div className="flex max-h-[90vh] w-full max-w-md flex-col rounded-t-2xl bg-white shadow-xl sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="border-b border-neutral-100 px-5 py-3.5">
+              <p className="font-semibold">{t('editTitle', { code: orderCode(editing.order.id) })}</p>
+              <p className="text-xs text-neutral-500">{t('editHint')}</p>
+            </div>
+            <div className="flex-1 space-y-2 overflow-y-auto p-4">
+              {editing.lines.map((l, i) => (
+                <div key={i} className={`flex items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 text-sm ${(l.qty ?? 1) === 0 ? 'opacity-40' : ''}`}>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{l.name}</span>
+                    {l.selections && l.selections.length > 0 && <span className="block truncate text-xs text-neutral-400">{l.selections.map((x) => x.name).join(', ')}</span>}
+                  </span>
+                  <button onClick={() => editLine(i, -1)} className="rounded-lg border border-neutral-300 p-1" aria-label="−">
+                    <Minus className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="w-6 text-center font-semibold">{l.qty ?? 1}</span>
+                  <button onClick={() => editLine(i, 1)} className="rounded-lg border border-neutral-300 p-1" aria-label="+">
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+              <label className="block pt-2 text-sm">
+                <span className="text-xs font-medium text-neutral-600">{t('editNote')}</span>
+                <input value={editing.note} onChange={(e) => setEditing({ ...editing, note: e.target.value })} className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
+              </label>
+              <label className="block text-sm">
+                <span className="text-xs font-medium text-neutral-600">{t('editTotal')}</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  value={editing.total}
+                  onChange={(e) => setEditing({ ...editing, total: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                />
+                <span className="mt-1 block text-[11px] text-neutral-400">{t('editTotalHint')}</span>
+              </label>
+              {editing.error && <p className="rounded-lg bg-red-50 px-2 py-1.5 text-xs text-red-700">{t(`editErr_${editing.error}` as 'editErr_paid')}</p>}
+            </div>
+            <div className="flex gap-2 border-t border-neutral-100 p-4">
+              <button onClick={() => void saveEdit()} disabled={editing.saving} className="flex-1 rounded-xl bg-neutral-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                {t('save')}
+              </button>
+              <button onClick={() => setEditing(null)} className="flex-1 rounded-xl border border-neutral-300 px-3 py-2 text-sm font-medium">
+                {t('cancel')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

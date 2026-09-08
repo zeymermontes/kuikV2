@@ -1257,7 +1257,27 @@
     "status_ready": "Ready",
     "advance_new": "Accept",
     "advance_preparing": "Ready",
-    "advance_ready": "Delivered"
+    "advance_ready": "Delivered",
+    "reject": "Reject",
+    "rejectTitle": "Reject order #{code}",
+    "rejectBody": "The order leaves the board. With a WhatsApp bot the guest is told the reason; otherwise you get the message ready to send.",
+    "rejectReason": "Reason (optional): out of stock, closed…",
+    "rejectPaidHint": "This order is already paid. Rejecting it does not return the money; use “Refund”.",
+    "rejectedTell": "Order #{code} rejected. Let the guest know.",
+    "customerMsgRejected": "Hi {name}, this is {restaurant}. We cannot take your order #{code}{reason, select, other { for this reason: {reason}} } Sorry about that.",
+    "edit": "Edit",
+    "edited": "Edited by the restaurant",
+    "editTitle": "Edit order #{code}",
+    "editHint": "Change quantities or drop lines. The total is recomputed; you can type another.",
+    "editNote": "Note",
+    "editTotal": "Total",
+    "editTotalHint": "Recomputed from the lines, keeping the original total's delivery, tip or discount.",
+    "editErr_paid": "A paid order cannot be edited.",
+    "editErr_empty": "The order needs at least one line.",
+    "editErr_not_found": "The order no longer exists.",
+    "save": "Save",
+    "cancel": "Cancel",
+    "view": "View"
   },
   "tables": {
     "title": "Table QR codes",
@@ -1684,7 +1704,9 @@
     "appsErr_ahead": "Newer than the published one; nobody could update.",
     "appsErr_missing": "That app has no published version yet.",
     "appsErr_failed": "Could not save; try again.",
-    "appsNotPublished": "Not published"
+    "appsNotPublished": "Not published",
+    "ordersBoard": "Orders board",
+    "ordersBoardHint": "Stores WhatsApp orders and shows Orders, the alerts at the register and kitchen, and the tile in the app. Off, the restaurant only gets the WhatsApp message."
   },
   "menu": {
     "orderWhatsapp": "Order on WhatsApp",
@@ -2591,7 +2613,9 @@
     "branch": "Branch",
     "branchMain": "Main location",
     "branchHint": "Register, kitchen and host stand open for this branch. The device remembers it.",
-    "customerRegisterOther": "Other…"
+    "customerRegisterOther": "Other…",
+    "orders": "Orders",
+    "ordersDesc": "What comes in from the menu and WhatsApp."
   },
   "shellUpdate": {
     "available": "A new version of the app is out ({version}).",

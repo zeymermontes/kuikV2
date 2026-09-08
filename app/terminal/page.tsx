@@ -5,6 +5,7 @@ import { canUsePos } from '@/lib/plan';
 import type { MemberRole } from '@/lib/database.types';
 import { TerminalHub, type HubRegister, type HubTile } from '@/components/pos/TerminalHub';
 import { DEFAULT_REGISTER } from '@/lib/pos/customer-screen';
+import { ordersBoardEnabled } from '@/lib/orders/board';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,12 +41,13 @@ export default async function TerminalPage() {
   };
 
   const supabase = await createClient();
-  const [{ data: branchRows }, { data: shiftRows }] = await Promise.all([
+  const [{ data: branchRows }, { data: shiftRows }, board] = await Promise.all([
     supabase.from('branches').select('id, name, slug').eq('tenant_id', tenant.id).order('position'),
     // The registers this restaurant has run, per branch: every shift names
     // the register that opened it (0071) and its branch (0082). Recent
     // first, so a register renamed months ago drops off the list.
     supabase.from('register_shifts').select('register, branch_id').eq('tenant_id', tenant.id).order('opened_at', { ascending: false }).limit(400),
+    ordersBoardEnabled(tenant.id),
   ]);
   const branches = (branchRows ?? []) as { id: string; name: string; slug: string }[];
   const seen = new Set<string>();
@@ -62,6 +64,8 @@ export default async function TerminalPage() {
     posTile('pos'),
     posTile('kds'),
     { key: 'host' } as HubTile, // requireReservations: every role
+    // The Pedidos board: restaurants the super admin switched it on for (0085).
+    (board || dev) && has(SERVICE_ROLES) ? ({ key: 'orders' } as HubTile) : null,
     posTile('customer'),
     has(ADMIN_ROLES) ? ({ key: 'admin' } as HubTile) : null,
   ].filter((t): t is HubTile => t !== null);

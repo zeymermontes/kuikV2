@@ -9,14 +9,15 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { bridgeConfigured } from '@/lib/whatsapp/bridge';
 import { resolveOrderAlerts } from '@/lib/orders/alerts';
 import { listOrders } from './actions';
+import { ordersBoardEnabled } from '@/lib/orders/board';
 
 export const dynamic = 'force-dynamic';
 
 export default async function OrdersPage() {
   const ctx = await requireTenant();
   const { tenant, theme } = ctx;
-  // Orders is in development — super admin only.
-  if (!showDevFeatures(ctx)) redirect('/menu');
+  // The board is switched on per restaurant by the super admin (0085); dev accounts always see it.
+  if (!showDevFeatures(ctx) && !(await ordersBoardEnabled(tenant.id))) redirect('/menu');
   const t = await getTranslations('orders');
   const currency = resolveMenuSettings(theme.settings).currency;
   const supabase = await createClient();

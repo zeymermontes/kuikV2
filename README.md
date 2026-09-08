@@ -238,6 +238,22 @@ configurable footer (RFC, address…) and a thank-you.
   `realtime.messages` allow send/receive only to members who can operate the
   tenant's POS, so a guessed topic yields nothing.
 
+## The order board is opt-in
+
+A restaurant that only takes orders on WhatsApp needs no board: its orders
+are not stored at all (`app/api/order` returns before the insert) and it
+never sees *Pedidos*. The super admin turns the board on per restaurant
+(*Admin → tenant row → Tablero de pedidos*, `tenant_ordering.orders_board`,
+migration 0085, `lib/orders/board.ts`). With it on: WhatsApp orders are
+stored, *Pedidos* appears in the sidebar and as a tile on the apps' hub, and
+a chime plus a toast announce each new order on the register, the kitchen
+screen, the host stand and the hub (`components/orders/NewOrderAlert.tsx`).
+On the board an order can be **rejected** (status `rejected`, with a reason
+the bot sends the guest, or a one-tap WhatsApp message without a bot) or
+**edited** (quantities, dropped lines, a note, the total; unpaid orders only,
+`lib/orders/edit.ts` keeps delivery, tip or discount from the original total).
+Paid online orders always create their row, board or not.
+
 ## Online payment for menu orders
 
 The cart can take the money before the order reaches the restaurant. The

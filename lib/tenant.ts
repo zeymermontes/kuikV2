@@ -131,6 +131,7 @@ export const getTenantByHostKey = cache(
       receipt_footer: null,
       order_alerts: null,
       pos_lock_after_sale: false,
+      orders_board: false,
       updated_at: tenant.created_at,
     };
 

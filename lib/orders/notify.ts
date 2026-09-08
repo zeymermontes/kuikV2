@@ -48,6 +48,7 @@ const T = {
     guestPaid: (r: string, code: string) => `¡Recibimos tu pago! Tu pedido #${code} ya está con ${r}. Te avisamos cuando esté listo.`,
     guestAccepted: (r: string, code: string) => `${r} ya está preparando tu pedido #${code}. 👨‍🍳`,
     guestReady: (r: string, code: string) => `¡Tu pedido #${code} está listo! Te espera en ${r}. 🎉`,
+    guestRejected: (r: string, code: string, why?: string) => `${r} no puede tomar tu pedido #${code}${why ? `: ${why}` : ''}. Una disculpa. 🙏`,
   },
   en: {
     paidTitle: (code: string, total: string) => `Order paid #${code} · ${total}`,
@@ -62,6 +63,7 @@ const T = {
     guestPaid: (r: string, code: string) => `Payment received! Your order #${code} is with ${r}. We will let you know when it is ready.`,
     guestAccepted: (r: string, code: string) => `${r} is now preparing your order #${code}. 👨‍🍳`,
     guestReady: (r: string, code: string) => `Your order #${code} is ready! It is waiting for you at ${r}. 🎉`,
+    guestRejected: (r: string, code: string, why?: string) => `${r} cannot take your order #${code}${why ? `: ${why}` : ''}. Sorry about that. 🙏`,
   },
 };
 const tx = (locale: string) => (locale === 'en' ? T.en : T.es);
@@ -205,19 +207,21 @@ export async function notifyWhatsappOrder(o: OrderLike): Promise<void> {
  * stops); "preparing" and "ready" tell the guest through the bot when there
  * is one. Without a bot the board offers a one-tap wa.me link instead.
  */
-export async function onOrderStatus(orderId: string, tenantId: string, status: OrderStatus): Promise<void> {
+export async function onOrderStatus(orderId: string, tenantId: string, status: OrderStatus, reason?: string): Promise<void> {
   try {
     const sb = createAdminClient();
     const { data } = await sb.from('orders').select('id, tenant_id, customer_phone, accepted_at').eq('id', orderId).eq('tenant_id', tenantId).maybeSingle();
     const o = data as { id: string; tenant_id: string; customer_phone: string | null; accepted_at: string | null } | null;
     if (!o) return;
     if (status !== 'new' && !o.accepted_at) await sb.from('orders').update({ accepted_at: new Date().toISOString() }).eq('id', o.id);
-    if (!o.customer_phone || (status !== 'preparing' && status !== 'ready')) return;
+    if (!o.customer_phone || (status !== 'preparing' && status !== 'ready' && status !== 'rejected')) return;
     const ctx = await loadCtx(tenantId);
     if (!ctx || !ctx.bridge || !ctx.alerts.confirmCustomer) return;
     const t = tx(ctx.tenant.locale);
     const code = orderCode(o.id);
-    await waTo(tenantId, o.customer_phone, status === 'preparing' ? t.guestAccepted(ctx.tenant.name, code) : t.guestReady(ctx.tenant.name, code));
+    const text =
+      status === 'preparing' ? t.guestAccepted(ctx.tenant.name, code) : status === 'ready' ? t.guestReady(ctx.tenant.name, code) : t.guestRejected(ctx.tenant.name, code, reason);
+    await waTo(tenantId, o.customer_phone, text);
   } catch (e) {
     console.error('[order-alerts] status:', e instanceof Error ? e.message : e);
   }
