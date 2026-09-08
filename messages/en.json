@@ -263,7 +263,14 @@
     "catShow": "Show on the menu",
     "catAddSub": "Add subcategory",
     "catSettings": "Category settings",
-    "catDelete": "Delete category"
+    "catDelete": "Delete category",
+    "moveGroup": "Order a group",
+    "moveGroupTitle": "Move a group on all of them",
+    "moveGroupBody": "Pick the group and where it goes on the {n} selected products. Products without it are left alone.",
+    "moveGroupNone": "The selected products have no option groups.",
+    "moveFirst": "To the top",
+    "moveLast": "To the bottom",
+    "moveApply": "Apply"
   },
   "colorPicker": {
     "brightness": "Brightness",

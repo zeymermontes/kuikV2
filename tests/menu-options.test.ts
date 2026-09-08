@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { hasRepeatedGroups, mergeOptionGroups } from '../lib/menu-options';
+import { hasRepeatedGroups, mergeOptionGroups, moveGroupByName } from '../lib/menu-options';
 import type { OptionGroup } from '../lib/database.types';
 
 const g = (id: string, name: string, first = 'a'): OptionGroup => ({ id, name, required: false, multiple: true, options: [{ name: first, price: 0 }] });
@@ -23,4 +23,11 @@ test('duplicate keeps both, and never reuses the source ids', () => {
   const out = mergeOptionGroups([g('1', 'Extras')], [g('1', 'Extras')], 'duplicate', newId);
   assert.equal(out.length, 2);
   assert.notEqual(out[0].id, out[1].id);
+});
+
+test('a group moves to the front or the back by name; products without it are left as they are', () => {
+  const groups = [g('1', 'Extras'), g('2', 'Tamaño'), g('3', 'Salsas')];
+  assert.deepEqual(moveGroupByName(groups, 'tamaño', 'first').map((x) => x.name), ['Tamaño', 'Extras', 'Salsas']);
+  assert.deepEqual(moveGroupByName(groups, 'Extras', 'last').map((x) => x.name), ['Tamaño', 'Salsas', 'Extras']);
+  assert.equal(moveGroupByName(groups, 'Leche', 'first'), groups);
 });

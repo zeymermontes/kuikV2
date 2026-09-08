@@ -105,3 +105,16 @@ export function listOptionNames(products: Product[]): { name: string; count: num
   }
   return [...map.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
+
+/**
+ * The groups with every one named `name` moved to the front or the back,
+ * keeping the others in their order. Untouched (same array) when the product
+ * has no such group, so the caller can skip the write.
+ */
+export function moveGroupByName(groups: OptionGroup[], name: string, to: 'first' | 'last'): OptionGroup[] {
+  const key = groupKey(name);
+  const hit = groups.filter((g) => groupKey(g.name) === key);
+  if (hit.length === 0) return groups;
+  const rest = groups.filter((g) => groupKey(g.name) !== key);
+  return to === 'first' ? [...hit, ...rest] : [...rest, ...hit];
+}

@@ -31,11 +31,12 @@ import {
   CheckSquare,
   ClipboardPaste,
   Square,
+  ArrowUpDown,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import type { Category, OptionGroup, Product, Separator } from '@/lib/database.types';
-import { OPTION_CLIPBOARD_ALL, OPTION_CLIPBOARD_GROUP, hasRepeatedGroups, mergeOptionGroups, resolveOptionGroups } from '@/lib/menu-options';
+import { OPTION_CLIPBOARD_ALL, OPTION_CLIPBOARD_GROUP, hasRepeatedGroups, mergeOptionGroups, moveGroupByName, resolveOptionGroups } from '@/lib/menu-options';
 import {
   addCategory,
   updateCategory,
@@ -50,6 +51,9 @@ import {
 import { ProductDrawer } from './ProductDrawer';
 import { CategoryDrawer } from './CategoryDrawer';
 import { SeparatorEditor } from './SeparatorEditor';
+
+/** Ids for pasted groups; only ever called from event handlers. */
+const uid = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
 
 type Entry =
   | { kind: 'product'; id: string; data: Product }
@@ -101,7 +105,39 @@ export function MenuEditor({
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [pasteAsk, setPasteAsk] = useState<{ groups: OptionGroup[]; repeats: number } | null>(null);
   const [pasteDone, setPasteDone] = useState<number | null>(null);
-  const uid = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+  // "Move the Tamaño group to the top on every product": pick a name, pick an end.
+  const [moveAsk, setMoveAsk] = useState<{ name: string; to: 'first' | 'last' } | null>(null);
+  const pickedProducts = prods.filter((p) => picked.has(p.id));
+  // Group names across the ticked products, most common first.
+  const pickedGroupNames = (() => {
+    const count = new Map<string, { name: string; n: number }>();
+    for (const p of pickedProducts)
+      for (const g of resolveOptionGroups(p)) {
+        const key = g.name.trim().toLowerCase();
+        if (!key) continue;
+        const cur = count.get(key) ?? { name: g.name.trim(), n: 0 };
+        cur.n += 1;
+        count.set(key, cur);
+      }
+    return [...count.values()].sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
+  })();
+  async function applyMove(name: string, to: 'first' | 'last') {
+    setMoveAsk(null);
+    const items = pickedProducts
+      .map((p) => {
+        const groups = resolveOptionGroups(p);
+        const next = moveGroupByName(groups, name, to);
+        return next === groups ? null : { id: p.id, option_groups: next };
+      })
+      .filter((x): x is { id: string; option_groups: OptionGroup[] } => x !== null);
+    if (items.length === 0) return;
+    const byId = new Map(items.map((it) => [it.id, it.option_groups]));
+    setProds((ps) => ps.map((p) => (byId.has(p.id) ? { ...p, option_groups: byId.get(p.id)!, variants: [], modifiers: [], removables: [] } : p)));
+    await setProductsOptionGroups(items);
+    setPasteDone(items.length);
+    setTimeout(() => setPasteDone(null), 3000);
+    stopSelecting();
+  }
 
   function togglePick(id: string) {
     setPicked((cur) => {
@@ -308,6 +344,13 @@ export function MenuEditor({
                 >
                   <ClipboardPaste className="h-3.5 w-3.5" /> {t('pasteGroupTo')}
                 </button>
+                <button
+                  disabled={picked.size === 0}
+                  onClick={() => setMoveAsk({ name: pickedGroupNames[0]?.name ?? '', to: 'first' })}
+                  className="flex items-center gap-1 rounded-lg border border-neutral-300 bg-white px-2.5 py-1 font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-40"
+                >
+                  <ArrowUpDown className="h-3.5 w-3.5" /> {t('moveGroup')}
+                </button>
                 <span className="text-neutral-500">{t('pasteHint')}</span>
               </div>
             )}
@@ -356,6 +399,52 @@ export function MenuEditor({
               </button>
             </div>
             <button onClick={() => setPasteAsk(null)} className="mt-3 text-sm text-neutral-500 hover:text-neutral-900">
+              {t('cancel')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {moveAsk && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setMoveAsk(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <p className="font-semibold">{t('moveGroupTitle')}</p>
+            <p className="mt-1 text-sm text-neutral-600">{t('moveGroupBody', { n: pickedProducts.length })}</p>
+            {pickedGroupNames.length === 0 ? (
+              <p className="mt-3 text-sm text-neutral-500">{t('moveGroupNone')}</p>
+            ) : (
+              <>
+                <select
+                  value={moveAsk.name}
+                  onChange={(e) => setMoveAsk({ ...moveAsk, name: e.target.value })}
+                  className="mt-3 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                >
+                  {pickedGroupNames.map((g) => (
+                    <option key={g.name} value={g.name}>
+                      {g.name} · {g.n}
+                    </option>
+                  ))}
+                </select>
+                <div className="mt-3 flex overflow-hidden rounded-lg border border-neutral-300 text-sm">
+                  {(['first', 'last'] as const).map((to) => (
+                    <button
+                      key={to}
+                      onClick={() => setMoveAsk({ ...moveAsk, to })}
+                      className={`flex-1 px-3 py-2 ${moveAsk.to === to ? 'bg-neutral-900 text-white' : 'text-neutral-600'}`}
+                    >
+                      {to === 'first' ? t('moveFirst') : t('moveLast')}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => void applyMove(moveAsk.name, moveAsk.to)}
+                  className="mt-4 w-full rounded-xl bg-neutral-900 px-3 py-2.5 text-sm font-semibold text-white"
+                >
+                  {t('moveApply')}
+                </button>
+              </>
+            )}
+            <button onClick={() => setMoveAsk(null)} className="mt-3 text-sm text-neutral-500 hover:text-neutral-900">
               {t('cancel')}
             </button>
           </div>

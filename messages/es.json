@@ -263,7 +263,14 @@
     "catShow": "Mostrar en el menú",
     "catAddSub": "Agregar subcategoría",
     "catSettings": "Ajustes de la categoría",
-    "catDelete": "Eliminar categoría"
+    "catDelete": "Eliminar categoría",
+    "moveGroup": "Ordenar un grupo",
+    "moveGroupTitle": "Mover un grupo en todos",
+    "moveGroupBody": "Elige el grupo y a dónde va en los {n} productos seleccionados. Los que no lo tienen no cambian.",
+    "moveGroupNone": "Los productos seleccionados no tienen grupos de opciones.",
+    "moveFirst": "Al inicio",
+    "moveLast": "Al final",
+    "moveApply": "Aplicar"
   },
   "colorPicker": {
     "brightness": "Brillo",
