@@ -81,6 +81,7 @@ function ReleaseRow({ app, release }: { app: ReleaseKey; release: { version: str
             <Input
               value={value}
               onChange={(e) => setValue(e.target.value)}
+              data-setting={t('appsMin')}
               placeholder={t('appsMinNone')}
               inputMode="decimal"
               className="w-28"

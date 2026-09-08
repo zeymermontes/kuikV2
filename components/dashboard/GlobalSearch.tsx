@@ -71,7 +71,8 @@ export function GlobalSearch({
       .map((h) => {
         const title = norm(h.title);
         const score = title.startsWith(nq) ? 3 : title.includes(nq) ? 2 : norm(h.section).includes(nq) ? 1 : 0;
-        return { h, score: score + (h.kind === 'page' ? 0.5 : 0) };
+        // Pages rank above settings of the same strength; a page that did not match stays out.
+        return { h, score: score > 0 && h.kind === 'page' ? score + 0.5 : score };
       })
       .filter((x) => x.score > 0)
       .sort((a, b) => b.score - a.score);

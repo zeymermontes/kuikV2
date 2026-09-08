@@ -12,6 +12,7 @@ import { PricingSettings } from '@/components/dashboard/PricingSettings';
 import { AiPlatformSettings } from '@/components/dashboard/AiPlatformSettings';
 import { AppReleasesCard } from '@/components/dashboard/AppReleasesCard';
 import { OrdersBoardToggle } from '@/components/dashboard/OrdersBoardToggle';
+import { JumpToSetting } from '@/components/dashboard/JumpToSetting';
 import { getAppReleases } from '@/lib/apps/releases';
 import { LandingAiPrompt } from '@/components/dashboard/LandingAiPrompt';
 import { listAiUsage } from './actions';
@@ -128,6 +129,7 @@ export default async function AdminPage() {
 
   return (
     <div>
+      <JumpToSetting />
       <h1 className="mb-6 text-2xl font-bold">{t('title')}</h1>
 
       <div className="mb-6 grid grid-cols-3 gap-4">
@@ -167,14 +169,17 @@ export default async function AdminPage() {
         <AppReleasesCard releases={releases} />
       </div>
 
-      <Card className="overflow-x-auto p-0">
+      <Card className="overflow-x-auto p-0" data-setting={t('tenants')}>
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead className="border-b border-neutral-100 text-xs uppercase text-neutral-400">
             <tr>
               <th className="px-4 py-3">{t('tenants')}</th>
               <th className="px-4 py-3">{t('owner')}</th>
               <th className="px-4 py-3">{t('status')}</th>
-              <th className="px-4 py-3">{t('plan')}</th>
+              <th className="px-4 py-3">
+                {t('plan')}
+                <span className="block text-[10px] font-normal normal-case text-neutral-400">{t('ordersBoard')}</span>
+              </th>
               <th className="px-4 py-3">{t('trialEnds')}</th>
               <th className="px-4 py-3">{t('landing')}</th>
               <th className="px-4 py-3" />

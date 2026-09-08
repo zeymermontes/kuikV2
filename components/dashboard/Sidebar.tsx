@@ -140,7 +140,8 @@ export function Sidebar({
       (!('feature' in item && item.feature) || !enforcePlan || canUse(plan, item.feature as Feature, addons)),
   );
 
-  const searchPages = visible.map(({ href, key }) => ({ href, label: t(key) }));
+  // The super-admin page sits outside NAV; it joins the search the same way.
+  const searchPages = [...visible.map(({ href, key }) => ({ href, label: t(key) })), ...(isSuperAdmin ? [{ href: '/admin', label: t('superAdmin') }] : [])];
 
   const nav = (
     <nav className="-mx-1 flex flex-col gap-1 px-1">
