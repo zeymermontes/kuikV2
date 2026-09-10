@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { selectionGroups } from '@/lib/menu-options';
 import { useTranslations } from 'next-intl';
 import {
   Check, Printer, Volume2, VolumeX, Sun, Moon, Maximize2, Minimize2, RotateCcw, ChefHat, Flame, ListChecks, Timer,
@@ -341,7 +342,7 @@ export function KdsBoard({
                               <span className="min-w-0 flex-1">
                                 <span className={`block text-base font-bold leading-tight ${off ? 'line-through' : ''}`}>{i.name}</span>
                                 {i.selections && i.selections.length > 0 && (
-                                  <span className="mt-0.5 block text-sm font-medium text-sky-300">{i.selections.map((s) => `+ ${s.name}`).join('  ')}</span>
+                                  <span className="mt-0.5 block text-sm font-medium text-sky-300">{selectionGroups(i.selections).map((g) => (g.group ? `+ ${g.group}: ${g.names.join(', ')}` : `+ ${g.names.join(', ')}`)).join('  ')}</span>
                                 )}
                                 {i.note && (
                                   <span className="mt-1 block rounded bg-yellow-300 px-1.5 py-0.5 text-sm font-bold text-neutral-900">{i.note}</span>

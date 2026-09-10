@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { selectionsText } from '@/lib/menu-options';
 import { useTranslations } from 'next-intl';
 import { Check, Loader2, MessageCircle, Receipt as ReceiptIcon, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -150,7 +151,7 @@ export function PaidSheet({
                     <span className="min-w-0 flex-1">
                       {l.name}
                       {l.selections && l.selections.length > 0 && (
-                        <span className="block text-xs text-[var(--brand-text-secondary)]">{l.selections.map((s) => s.name).filter(Boolean).join(', ')}</span>
+                        <span className="block text-xs text-[var(--brand-text-secondary)]">{selectionsText(l.selections)}</span>
                       )}
                     </span>
                   </li>

@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { selectionsText } from '@/lib/menu-options';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { BadgeCheck, Hourglass, XCircle } from 'lucide-react';
@@ -77,7 +78,7 @@ export function Receipt({
               <span className="min-w-0 flex-1">
                 {l.name}
                 {l.selections && l.selections.length > 0 && (
-                  <span className="block text-xs text-[var(--brand-text-secondary)]">{l.selections.map((s) => s.name).filter(Boolean).join(', ')}</span>
+                  <span className="block text-xs text-[var(--brand-text-secondary)]">{selectionsText(l.selections)}</span>
                 )}
                 {l.note && <span className="block text-xs italic text-[var(--brand-text-secondary)]">{l.note}</span>}
               </span>

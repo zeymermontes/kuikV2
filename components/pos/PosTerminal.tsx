@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { selectionsText } from '@/lib/menu-options';
 import Link from 'next/link';
 import Image from 'next/image';
 import { QRCodeSVG } from 'qrcode.react';
@@ -310,7 +311,7 @@ function PosTerminalInner({
             name: i.name,
             qty: i.qty,
             total: i.line_total,
-            options: i.selections.map((s) => s.name).join(', '),
+            options: selectionsText(i.selections),
             image: i.product_id ? (imageOf.get(i.product_id) ?? null) : null,
           })),
           subtotal: selected.subtotal,

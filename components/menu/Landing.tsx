@@ -203,7 +203,7 @@ export function Landing({
               >
                 {p.image_url ? (
                   <div className="relative aspect-square w-full">
-                    <Image src={p.image_url} alt={p.name} fill className="object-cover" />
+                    <Image src={p.image_url} alt={p.name} fill className="object-contain" />
                   </div>
                 ) : (
                   <div className="flex aspect-square w-full items-center justify-center opacity-30">

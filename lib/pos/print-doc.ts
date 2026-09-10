@@ -11,6 +11,7 @@
 // run on the server (a job built from a webhook, say).
 
 import type { KitchenTicket, Payment, PosTab, RegisterShift, TabItem } from './types';
+import { selectionsText } from '../menu-options';
 
 export type PrintAlign = 'left' | 'center' | 'right';
 
@@ -44,8 +45,8 @@ export function kitchenDoc(ticket: KitchenTicket, locale: string): PrintDoc {
   ];
   for (const it of items) {
     lines.push({ t: 'text', v: `${it.qty}x ${it.name}`, bold: true, size: 2 });
-    const opts = (it.selections ?? []).map((s) => s.name).filter(Boolean);
-    if (opts.length) lines.push({ t: 'text', v: `   ${opts.join(', ')}` });
+    const opts = selectionsText(it.selections, ' / ');
+    if (opts) lines.push({ t: 'text', v: `   ${opts}` });
     if (it.note) lines.push({ t: 'text', v: `   * ${it.note}`, bold: true });
   }
   lines.push({ t: 'feed', n: 1 });
@@ -98,8 +99,8 @@ export function receiptDoc(tab: PosTab, items: TabItem[], payments: Payment[], o
   for (const i of items) {
     if (i.voided_at) continue;
     lines.push({ t: 'row', l: `${i.qty}x ${i.name}`, r: money(i.line_total) });
-    const opts = i.selections.map((s) => s.name).filter(Boolean);
-    if (opts.length) lines.push({ t: 'text', v: `   ${opts.join(', ')}` });
+    const opts = selectionsText(i.selections, ' / ');
+    if (opts) lines.push({ t: 'text', v: `   ${opts}` });
   }
   lines.push({ t: 'hr' });
 
@@ -244,8 +245,8 @@ export function onlineOrderDoc(o: OnlineOrderSlip): PrintDoc {
   lines.push({ t: 'hr' });
   for (const it of o.items) {
     lines.push({ t: 'text', v: `${it.qty ?? 1}x ${it.name ?? ''}`, bold: true });
-    const opts = (it.selections ?? []).map((s) => s.name).filter((x): x is string => !!x);
-    if (opts.length) lines.push({ t: 'text', v: `   ${opts.join(', ')}` });
+    const opts = selectionsText(it.selections, ' / ');
+    if (opts) lines.push({ t: 'text', v: `   ${opts}` });
     if (it.note) lines.push({ t: 'text', v: `   * ${it.note}`, bold: true });
   }
   lines.push({ t: 'hr' });

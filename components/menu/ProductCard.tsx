@@ -88,7 +88,7 @@ export function ProductCard({
           alt={product.name}
           width={px}
           height={px}
-          className={`shrink-0 object-cover ${IMAGE_SHAPE_CLASS[settings.imageShape]}`}
+          className={`shrink-0 object-contain ${IMAGE_SHAPE_CLASS[settings.imageShape]}`}
           style={{ width: px, height: px }}
         />
       );
@@ -124,7 +124,7 @@ export function ProductCard({
               alt={product.name}
               fill
               sizes="(max-width: 768px) 100vw, 768px"
-              className="object-cover"
+              className="object-contain"
             />
           </div>
         );

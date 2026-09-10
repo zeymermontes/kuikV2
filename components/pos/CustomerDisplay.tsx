@@ -136,7 +136,7 @@ export function CustomerDisplay({
                 <li key={l.id} className="flex items-center gap-4 border-b border-white/5 py-3">
                   <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-white/10">
                     {l.image ? (
-                      <Image src={l.image} alt={l.name} fill sizes="56px" className="object-cover" />
+                      <Image src={l.image} alt={l.name} fill sizes="56px" className="object-contain" />
                     ) : (
                       <div className="flex h-full items-center justify-center text-white/30">
                         <UtensilsCrossed className="h-6 w-6" />

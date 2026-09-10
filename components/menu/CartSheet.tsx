@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { selectionsText } from '@/lib/menu-options';
 import { X, Plus, Minus, Trash2, Copy, Check } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Tenant, TenantContact, TenantOrdering, ServiceType, PaymentMethod } from '@/lib/database.types';
@@ -295,7 +296,7 @@ export function CartSheet({
                       <span className="font-semibold" style={{ fontFamily: 'var(--font-product)' }}>{l.name}</span>
                       {(l.selections ?? []).length > 0 && (
                         <p className="text-xs text-[var(--brand-text-secondary)]">
-                          {(l.selections ?? []).map((o) => o.name).join(' · ')}
+                          {selectionsText(l.selections)}
                         </p>
                       )}
                     </div>

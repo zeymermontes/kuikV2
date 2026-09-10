@@ -34,7 +34,7 @@ import { enqueueUpsert } from '@/lib/pos/sync';
 import { fireToKitchen } from '@/lib/pos/kitchen';
 import { printKitchenTicket } from '@/lib/pos/printing';
 import { usePrinting } from './PrintingContext';
-import { hasOptions } from '@/lib/menu-options';
+import { hasOptions, selectionsText } from '@/lib/menu-options';
 import { PosModal } from './PosModal';
 import { AvailabilitySheet } from './AvailabilitySheet';
 import { soldOutCount, type SoldOutLocation } from '@/lib/pos/availability';
@@ -399,7 +399,7 @@ export function SaleScreen({
               <div key={it.id} className="flex gap-3 border-b border-neutral-100 py-3" data-help="pos_line">
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-neutral-100">
                   {prod?.image_url ? (
-                    <Image src={prod.image_url} alt={it.name} fill sizes="56px" className="object-cover" />
+                    <Image src={prod.image_url} alt={it.name} fill sizes="56px" className="object-contain" />
                   ) : (
                     <div className="flex h-full items-center justify-center text-neutral-300">
                       <UtensilsCrossed className="h-5 w-5" />
@@ -416,7 +416,7 @@ export function SaleScreen({
                     )}
                   </div>
                   {(it.selections.length > 0 || it.note) && (
-                    <p className="truncate text-xs text-neutral-400">{[...it.selections.map((s) => s.name), it.note].filter(Boolean).join(', ')}</p>
+                    <p className="truncate text-xs text-neutral-400">{[selectionsText(it.selections), it.note].filter(Boolean).join(' · ')}</p>
                   )}
                   <div className="mt-1.5 flex items-center justify-between">
                     <div className="flex items-center gap-1 rounded-full border border-neutral-200 px-1 py-0.5" data-help="pos_qty">
@@ -562,7 +562,7 @@ export function SaleScreen({
               >
                 <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-neutral-100">
                   {p.image_url ? (
-                    <Image src={p.image_url} alt={p.name} fill sizes={TILE_SIZES} className="object-cover transition group-hover:scale-105" />
+                    <Image src={p.image_url} alt={p.name} fill sizes={TILE_SIZES} className="object-contain transition group-hover:scale-105" />
                   ) : (
                     <div className="flex h-full items-center justify-center text-neutral-300">
                       <UtensilsCrossed className="h-8 w-8" />

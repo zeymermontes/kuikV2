@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { selectionsText } from '@/lib/menu-options';
 import { Clock, UtensilsCrossed, ShoppingBag, Check, RefreshCw, CreditCard, BadgeCheck, Hourglass, AlertTriangle, Phone, MessageCircle, Undo2, Ban, Pencil, Minus, Plus } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import type { OrderRow, OrderStatus } from '@/lib/database.types';
@@ -313,7 +314,7 @@ export function OrdersBoard({
                         <li key={i}>
                           <span className="font-medium">{l.qty ?? 1}×</span> {l.name}
                           {l.selections && l.selections.length > 0 && (
-                            <span className="text-neutral-400"> · {l.selections.map((s) => s.name).join(', ')}</span>
+                            <span className="text-neutral-400"> · {selectionsText(l.selections)}</span>
                           )}
                         </li>
                       ))}
@@ -418,7 +419,7 @@ export function OrdersBoard({
                 <div key={i} className={`flex items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 text-sm ${(l.qty ?? 1) === 0 ? 'opacity-40' : ''}`}>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{l.name}</span>
-                    {l.selections && l.selections.length > 0 && <span className="block truncate text-xs text-neutral-400">{l.selections.map((x) => x.name).join(', ')}</span>}
+                    {l.selections && l.selections.length > 0 && <span className="block truncate text-xs text-neutral-400">{selectionsText(l.selections)}</span>}
                   </span>
                   <button onClick={() => editLine(i, -1)} className="rounded-lg border border-neutral-300 p-1" aria-label="−">
                     <Minus className="h-3.5 w-3.5" />

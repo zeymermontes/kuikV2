@@ -7,6 +7,30 @@ export interface SelectedOption {
   price: number;
 }
 
+/** A cart line's choices folded back into their groups: "Tamaño" → ["Grande"], "Extras" → ["Queso", "Tocino"]. */
+export function selectionGroups(sel: readonly { group?: string | null; name?: string | null }[] | null | undefined): { group: string; names: string[] }[] {
+  const out: { group: string; names: string[] }[] = [];
+  for (const s of sel ?? []) {
+    if (!s.name) continue;
+    const group = s.group ?? '';
+    let e = out.find((x) => x.group === group);
+    if (!e) out.push((e = { group, names: [] }));
+    e.names.push(s.name);
+  }
+  return out;
+}
+
+/**
+ * The choices as one line that says what each one answers: "Tamaño: Grande ·
+ * Leche: Avena · Extras: Queso, Tocino". A bare "Avena" tells the barista
+ * nothing; the group name is the question.
+ */
+export function selectionsText(sel: readonly { group?: string | null; name?: string | null }[] | null | undefined, sep = ' · '): string {
+  return selectionGroups(sel)
+    .map((g) => (g.group ? `${g.group}: ${g.names.join(', ')}` : g.names.join(', ')))
+    .join(sep);
+}
+
 /**
  * The option groups to show for a product. Prefers the new dynamic
  * `option_groups`; falls back to synthesizing groups from the legacy
