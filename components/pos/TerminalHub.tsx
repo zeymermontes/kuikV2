@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { ChefHat, ClipboardList, LayoutDashboard, Lock, LogOut, MapPin, Monitor, Users, Wallet } from 'lucide-react';
 import { signOut } from '@/app/(auth)/actions';
+import { listRegisters } from '@/app/terminal/actions';
 import { DEFAULT_REGISTER, registerSlug } from '@/lib/pos/customer-screen';
 import { readDeviceBranch, registerScope, saveDeviceBranch, type DeviceBranch } from '@/lib/pos/branch';
 
@@ -82,7 +83,7 @@ export function TerminalHub({
   userName,
   tiles,
   branches = [],
-  registers = [],
+  registers: initialRegisters = [],
 }: {
   restaurantName: string;
   userName: string;
@@ -96,6 +97,9 @@ export function TerminalHub({
   const [register, setRegister] = useState('');
   // Typing a register that has not opened a shift yet (a brand-new tablet).
   const [otherRegister, setOtherRegister] = useState(false);
+  // Rendered on the server, refreshed when the panel opens: a register that
+  // opened its first shift after this page loaded is still offered.
+  const [registers, setRegisters] = useState(initialRegisters);
   const hasBranches = branches.length > 0;
   const branchId = useSyncExternalStore(subscribeBranch, rememberedBranchId, () => null);
   // A remembered branch that no longer exists reads as the main location;
@@ -115,6 +119,7 @@ export function TerminalHub({
         setRegister(localStorage.getItem(CUSTOMER_REGISTER_KEY) ?? '');
       } catch {}
     }
+    if (!askRegister) listRegisters().then(setRegisters).catch(() => {});
     setAskRegister((v) => !v);
   }
 

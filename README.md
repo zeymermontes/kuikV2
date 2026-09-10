@@ -404,6 +404,19 @@ removing a branch only updates the amount of the preapproval in force. Kuik's cu
 online payments can be lower on Restaurante (`pro_payment_fee_percent`).
 Extra restaurants on one account stay a separate line (`extra_amount`).
 
+## Registers from the office
+
+*Cajas* (`/registers`, owners and managers, POS add-on) lists the shifts
+open right now with their takings by method and tips, the last twenty
+closes with expected / counted / over-short, and two remote actions on the
+same `register_shifts` rows the terminals sync: **open** a register (name,
+branch, float; refused while that register already has an open shift there)
+and **close** one (the counted cash is asked for, defaulting to what the
+drawer should hold). The tablet sees either within a second over Realtime
+and the register starts or stops charging accordingly. The apps' hub asks
+the server for the register list again when the customer-screen panel
+opens, so a register that opened its first shift a minute ago is offered.
+
 ## Register operations (employees, customers, refunds, promotions)
 
 Everything a register does beyond ringing up, each behind its own migration

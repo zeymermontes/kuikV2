@@ -73,7 +73,8 @@
     "superAdmin": "Super Admin",
     "whatsapp": "WhatsApp",
     "host": "Host stand",
-    "tutorial": "Tutorials"
+    "tutorial": "Tutorials",
+    "registers": "Registers"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -2663,5 +2664,37 @@
     "cardBody": "A Kuik advisor builds it for you, professional and free. Message us on WhatsApp.",
     "cta": "Talk to an advisor",
     "later": "Not now"
+  },
+  "registers": {
+    "title": "Registers",
+    "subtitle": "The registers open right now, what they have taken, and the latest closes. Open or close a register from here; the tablet sees it at once.",
+    "hint": "Each register runs its own shift: opening float, sales and close. What you do here reaches the register in seconds.",
+    "refresh": "Refresh",
+    "openRegister": "Open a register",
+    "openTitle": "Open a register remotely",
+    "register": "Register",
+    "branch": "Branch",
+    "mainLocation": "Main location",
+    "openingCash": "Opening float",
+    "openHint": "Type the name as it appears on the tablet (Register → This register). The register can charge as soon as the app opens.",
+    "openConfirm": "Open",
+    "cancel": "Cancel",
+    "openNow": "Open now ({n})",
+    "noneOpen": "No registers are open.",
+    "openedAt": "Opened {x}",
+    "close": "Close",
+    "closePrompt": "Cash counted in the drawer. It should hold {x}. Leave it if nobody counted.",
+    "cashSales": "Cash",
+    "cardSales": "Card and other",
+    "tips": "Tips",
+    "inDrawer": "In the drawer: {x} · {n} payments",
+    "recentCloses": "Latest closes",
+    "closedAt": "Closed",
+    "expected": "Expected",
+    "counted": "Counted",
+    "overShort": "Over / short",
+    "err_already_open": "That register already has an open shift at that location.",
+    "err_invalid": "Check the name and the opening float.",
+    "err_not_open": "That shift is no longer open."
   }
 }

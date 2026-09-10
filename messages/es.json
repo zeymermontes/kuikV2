@@ -73,7 +73,8 @@
     "superAdmin": "Super Admin",
     "whatsapp": "WhatsApp",
     "host": "Anfitrión",
-    "tutorial": "Tutoriales"
+    "tutorial": "Tutoriales",
+    "registers": "Cajas"
   },
   "dashboard": {
     "title": "Panel",
@@ -2663,5 +2664,37 @@
     "cardBody": "Un asesor de Kuik te lo arma profesional y sin costo. Escríbenos por WhatsApp.",
     "cta": "Hablar con un asesor",
     "later": "Ahora no"
+  },
+  "registers": {
+    "title": "Cajas",
+    "subtitle": "Las cajas abiertas ahora, lo que llevan cobrado y los últimos cortes. Abre o cierra una caja desde aquí; la tablet lo ve al instante.",
+    "hint": "Cada caja lleva su turno: fondo de apertura, ventas y corte. Lo que hagas aquí se refleja en la caja en segundos.",
+    "refresh": "Actualizar",
+    "openRegister": "Abrir una caja",
+    "openTitle": "Abrir una caja a distancia",
+    "register": "Caja",
+    "branch": "Sucursal",
+    "mainLocation": "Sede principal",
+    "openingCash": "Fondo de apertura",
+    "openHint": "Escribe el nombre tal como aparece en la tablet (Caja → Esta caja). La caja podrá cobrar en cuanto abra la app.",
+    "openConfirm": "Abrir",
+    "cancel": "Cancelar",
+    "openNow": "Abiertas ahora ({n})",
+    "noneOpen": "No hay cajas abiertas.",
+    "openedAt": "Abierta {x}",
+    "close": "Cerrar",
+    "closePrompt": "Efectivo contado en el cajón. Debería haber {x}. Déjalo así si no se contó.",
+    "cashSales": "Efectivo",
+    "cardSales": "Tarjeta y otros",
+    "tips": "Propinas",
+    "inDrawer": "En cajón: {x} · {n} cobros",
+    "recentCloses": "Últimos cortes",
+    "closedAt": "Cierre",
+    "expected": "Esperado",
+    "counted": "Contado",
+    "overShort": "Diferencia",
+    "err_already_open": "Esa caja ya tiene un turno abierto en esa ubicación.",
+    "err_invalid": "Revisa el nombre y el fondo de apertura.",
+    "err_not_open": "Ese turno ya no está abierto."
   }
 }

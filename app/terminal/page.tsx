@@ -3,8 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { showDevFeatures } from '@/lib/features';
 import { canUseHost, canUsePos } from '@/lib/plan';
 import type { MemberRole } from '@/lib/database.types';
-import { TerminalHub, type HubRegister, type HubTile } from '@/components/pos/TerminalHub';
-import { DEFAULT_REGISTER } from '@/lib/pos/customer-screen';
+import { TerminalHub, type HubTile } from '@/components/pos/TerminalHub';
+import { listRegisters } from './actions';
 import { ordersBoardEnabled } from '@/lib/orders/board';
 
 export const dynamic = 'force-dynamic';
@@ -41,24 +41,12 @@ export default async function TerminalPage() {
   };
 
   const supabase = await createClient();
-  const [{ data: branchRows }, { data: shiftRows }, board] = await Promise.all([
+  const [{ data: branchRows }, registers, board] = await Promise.all([
     supabase.from('branches').select('id, name, slug').eq('tenant_id', tenant.id).order('position'),
-    // The registers this restaurant has run, per branch: every shift names
-    // the register that opened it (0071) and its branch (0082). Recent
-    // first, so a register renamed months ago drops off the list.
-    supabase.from('register_shifts').select('register, branch_id').eq('tenant_id', tenant.id).order('opened_at', { ascending: false }).limit(400),
+    listRegisters(),
     ordersBoardEnabled(tenant.id),
   ]);
   const branches = (branchRows ?? []) as { id: string; name: string; slug: string }[];
-  const seen = new Set<string>();
-  const registers: HubRegister[] = [];
-  for (const r of (shiftRows ?? []) as { register: string | null; branch_id: string | null }[]) {
-    const register = r.register ?? DEFAULT_REGISTER;
-    const key = `${r.branch_id ?? ''}:${register}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    registers.push({ branchId: r.branch_id ?? null, register });
-  }
 
   const tiles = [
     posTile('pos'),

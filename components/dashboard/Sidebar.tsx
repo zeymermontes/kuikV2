@@ -33,6 +33,7 @@ import {
   FileText,
   Package,
   Eye,
+  Wallet,
 } from 'lucide-react';
 import { ChevronsUpDown, ChevronDown, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -69,6 +70,7 @@ const NAV = [
   { group: 'ops', href: '/whatsapp', icon: MessageCircle, key: 'whatsapp', roles: ['owner', 'manager'] },
   { group: 'ops', href: '/pos', icon: Calculator, key: 'pos', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true, feature: 'pos' },
   { group: 'ops', href: '/kds', icon: Monitor, key: 'kds', roles: ['owner', 'manager', 'cashier', 'waiter'], dev: true },
+  { group: 'ops', href: '/registers', icon: Wallet, key: 'registers', roles: ['owner', 'manager'], dev: true, feature: 'pos' },
   // Menú y marca
   { group: 'brand', href: '/menu', icon: UtensilsCrossed, key: 'menu', roles: ['owner', 'manager', 'cashier', 'waiter', 'host'] },
   { group: 'brand', href: '/inventory', icon: Package, key: 'inventory', roles: ['owner', 'manager'] },
