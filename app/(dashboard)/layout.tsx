@@ -17,6 +17,8 @@ import { getHandoffCount } from './whatsapp/inbox/actions';
 import type { MemberRole } from '@/lib/database.types';
 import { exitSupport, exitCustomerView } from './admin/actions';
 import { invoicingVisible } from '@/lib/cfdi';
+import { fcmConfigured } from '@/lib/push/fcm';
+import { apnsConfigured } from '@/lib/push/apns';
 
 /**
  * The dashboard is installable; the public menu and marketing site are not.
@@ -65,7 +67,7 @@ export default async function DashboardLayout({
 
   return (
     <StaffIntlProvider>
-      <PwaProvider>
+      <PwaProvider nativePush={{ android: fcmConfigured(), ios: apnsConfigured() }}>
         <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />
         {/* Inside the native apps the dashboard is one tile of the hub; this is the way back. */}
         <TerminalModeButton />

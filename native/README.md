@@ -107,6 +107,11 @@ these when regenerating):
   mode, `WKAppBoundDomains`. `App.entitlements`: `aps-environment` (Xcode →
   Signing & Capabilities → Push Notifications does the same).
   `AppDelegate.swift`: forwards the APNs token to the push plugin.
+- **Push is opt-in on the web side.** `NativePush` only calls the plugin's
+  `register()` where Kuik has that platform's server keys (`fcmConfigured()`,
+  `apnsConfigured()`): a build without `google-services.json` throws inside
+  the plugin on `register()` and takes the whole app down, so the keys and the
+  config must land together, in a new build.
 - **mobile/android**: portrait. Push needs `app/google-services.json` from
   the Firebase project (git-ignored); the build applies the Google Services
   plugin only when the file exists.

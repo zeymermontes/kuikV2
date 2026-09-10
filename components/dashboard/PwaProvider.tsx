@@ -68,7 +68,7 @@ const iosStore = {
   },
 };
 
-export function PwaProvider({ children }: { children: React.ReactNode }) {
+export function PwaProvider({ children, nativePush }: { children: React.ReactNode; nativePush: { android: boolean; ios: boolean } }) {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
   const installed = useSyncExternalStore(standaloneStore.subscribe, standaloneStore.get, () => false);
   const isIos = useSyncExternalStore(iosStore.subscribe, iosStore.get, () => false);
@@ -124,7 +124,7 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <Ctx.Provider value={{ canInstall: Boolean(deferred), installed, isIos, install }}>
-      <NativePush />
+      <NativePush enabled={nativePush} />
       {children}
     </Ctx.Provider>
   );
