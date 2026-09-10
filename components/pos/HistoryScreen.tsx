@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { selectionsText } from '@/lib/menu-options';
+import { SelectionLines } from '@/components/menu/SelectionLines';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronDown, ChevronRight, Printer, Clock, RotateCcw, Search, Undo2 } from 'lucide-react';
@@ -215,7 +215,7 @@ function HistoryRow({
                 <span>
                   {it.qty}× {it.name}
                   {it.selections.length > 0 && (
-                    <span className="block whitespace-pre-line text-neutral-400">{selectionsText(it.selections, '\n')}</span>
+                    <SelectionLines selections={it.selections} className="text-neutral-400" strong="font-semibold text-neutral-600" />
                   )}
                 </span>
                 <span className="text-neutral-500">{formatPrice(it.line_total, currency, locale)}</span>

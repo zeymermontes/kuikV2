@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { selectionsText } from '@/lib/menu-options';
+import { selectionGroups } from '@/lib/menu-options';
 import Link from 'next/link';
 import Image from 'next/image';
 import { QRCodeSVG } from 'qrcode.react';
@@ -33,7 +33,7 @@ import {
   ExternalLink,
   Printer,
 } from 'lucide-react';
-import { posDb } from '@/lib/pos/db';
+import { posDb, type OutboxRow } from '@/lib/pos/db';
 import { startSync, nowISO, retryDead, enqueueUpsert, type SyncState } from '@/lib/pos/sync';
 import { openTab } from '@/lib/pos/tabs';
 import { openShift, closeShift } from '@/lib/pos/payments';
@@ -277,7 +277,17 @@ function PosTerminalInner({
     return { shift: all.find(own), otherOpen: all.filter((s) => !own(s)) };
   }, [openShifts, mySlug]);
   const shiftId = shift?.id ?? null;
-  const failed = useLiveQuery(() => db.outbox.where('status').equals('dead').count(), [db], 0);
+  const dead = useLiveQuery(() => db.outbox.where('status').equals('dead').toArray(), [db], [] as OutboxRow[]);
+  const failed = dead.length;
+  // The same rejection usually hits a run of rows: one line per reason, with its count.
+  const deadReasons = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const d of dead) {
+      const k = `${d.entity} · ${d.error ?? '?'}`;
+      m.set(k, (m.get(k) ?? 0) + 1);
+    }
+    return [...m.entries()];
+  }, [dead]);
   // Prints the agent could not do (printer off, out of paper): shown with a retry.
   const failedPrints = useLiveQuery(() => db.print_jobs.where('status').equals('failed').toArray(), [db], [] as PrintJob[]);
   const printCtx = useMemo(
@@ -311,7 +321,7 @@ function PosTerminalInner({
             name: i.name,
             qty: i.qty,
             total: i.line_total,
-            options: selectionsText(i.selections, '\n'),
+            options: selectionGroups(i.selections),
             image: i.product_id ? (imageOf.get(i.product_id) ?? null) : null,
           })),
           subtotal: selected.subtotal,
@@ -630,6 +640,16 @@ function PosTerminalInner({
                       {t('retry')}
                     </button>
                   </div>
+                )}
+                {deadReasons.length > 0 && (
+                  <ul className="mt-1 space-y-0.5 px-2 text-[11px] leading-snug text-red-700/80">
+                    {deadReasons.map(([k, n]) => (
+                      <li key={k} className="break-words">
+                        {n > 1 ? `${n}× ` : ''}
+                        {k}
+                      </li>
+                    ))}
+                  </ul>
                 )}
                 {failedPrints.length > 0 && (
                   <div className="mt-1 rounded-xl bg-red-50 px-2 py-1.5 text-red-700">

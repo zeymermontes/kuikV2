@@ -23,9 +23,17 @@ export interface DisplayLine {
   name: string;
   qty: number;
   total: number;
-  options: string;
+  /** The chosen options folded by group, so the screen can set the values in bold. */
+  options: { group: string; names: string[] }[];
   image: string | null;
 }
+
+/**
+ * One `sizes` for every product photo the register shows (tiles, cart,
+ * sheet, customer screen): the same value picks the same optimiser URL, so
+ * a photo is downloaded once and served from cache everywhere after.
+ */
+export const PRODUCT_IMAGE_SIZES = '(min-width:1024px) 16vw, 30vw';
 
 export interface DisplayState {
   phase: DisplayPhase;

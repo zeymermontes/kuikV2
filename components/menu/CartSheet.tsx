@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { selectionsText } from '@/lib/menu-options';
+import { SelectionLines } from '@/components/menu/SelectionLines';
 import { X, Plus, Minus, Trash2, Copy, Check } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Tenant, TenantContact, TenantOrdering, ServiceType, PaymentMethod } from '@/lib/database.types';
@@ -295,8 +295,8 @@ export function CartSheet({
                     <div className="min-w-0">
                       <span className="font-semibold" style={{ fontFamily: 'var(--font-product)' }}>{l.name}</span>
                       {(l.selections ?? []).length > 0 && (
-                        <p className="whitespace-pre-line text-xs text-[var(--brand-text-secondary)]">
-                          {selectionsText(l.selections, '\n')}
+                        <p className="text-xs text-[var(--brand-text-secondary)]">
+                          <SelectionLines selections={l.selections} />
                         </p>
                       )}
                     </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { selectionsText } from '@/lib/menu-options';
+import { SelectionLines } from '@/components/menu/SelectionLines';
 import { useTranslations } from 'next-intl';
 import { Check, Loader2, MessageCircle, Receipt as ReceiptIcon, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -151,7 +151,7 @@ export function PaidSheet({
                     <span className="min-w-0 flex-1">
                       {l.name}
                       {l.selections && l.selections.length > 0 && (
-                        <span className="block whitespace-pre-line text-xs text-[var(--brand-text-secondary)]">{selectionsText(l.selections, '\n')}</span>
+                        <SelectionLines selections={l.selections} className="text-xs text-[var(--brand-text-secondary)]" />
                       )}
                     </span>
                   </li>

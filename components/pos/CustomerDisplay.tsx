@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { Check, Maximize2, UtensilsCrossed } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
-import { IDLE_STATE, useDisplaySubscriber, type DisplayBrand, type DisplayState, type RemoteScope } from '@/lib/pos/customer-screen';
+import { IDLE_STATE, PRODUCT_IMAGE_SIZES, useDisplaySubscriber, type DisplayBrand, type DisplayState, type RemoteScope } from '@/lib/pos/customer-screen';
 
 /**
  * The second screen: what the guest sees while the cashier builds the sale.
@@ -136,7 +136,7 @@ export function CustomerDisplay({
                 <li key={l.id} className="flex items-center gap-4 border-b border-white/5 py-3">
                   <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-white/10">
                     {l.image ? (
-                      <Image src={l.image} alt={l.name} fill sizes="56px" className="object-contain" />
+                      <Image src={l.image} alt={l.name} fill sizes={PRODUCT_IMAGE_SIZES} className="object-contain" />
                     ) : (
                       <div className="flex h-full items-center justify-center text-white/30">
                         <UtensilsCrossed className="h-6 w-6" />
@@ -148,7 +148,16 @@ export function CustomerDisplay({
                       <span className="mr-2 text-neutral-400">{l.qty}×</span>
                       {l.name}
                     </p>
-                    {l.options && <p className="whitespace-pre-line text-sm leading-snug text-neutral-400">{l.options}</p>}
+                    {Array.isArray(l.options) && l.options.length > 0 && (
+                      <p className="text-sm leading-snug text-neutral-400">
+                        {l.options.map((g, i) => (
+                          <span key={i} className="block">
+                            {g.group ? `${g.group}: ` : ''}
+                            <span className="font-semibold text-neutral-200">{g.names.join(', ')}</span>
+                          </span>
+                        ))}
+                      </p>
+                    )}
                   </div>
                   <span className="text-lg font-semibold tabular-nums">{money(l.total)}</span>
                 </li>

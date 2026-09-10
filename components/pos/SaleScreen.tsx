@@ -34,7 +34,7 @@ import { enqueueUpsert } from '@/lib/pos/sync';
 import { fireToKitchen } from '@/lib/pos/kitchen';
 import { printKitchenTicket } from '@/lib/pos/printing';
 import { usePrinting } from './PrintingContext';
-import { hasOptions, selectionsText } from '@/lib/menu-options';
+import { hasOptions } from '@/lib/menu-options';
 import { PosModal } from './PosModal';
 import { AvailabilitySheet } from './AvailabilitySheet';
 import { soldOutCount, type SoldOutLocation } from '@/lib/pos/availability';
@@ -46,9 +46,9 @@ import type { FloorTable, Product } from '@/lib/database.types';
 import { FloorPlan } from '@/components/host/FloorPlan';
 import { FREE_TABLE_COLOR, type TableView } from '@/lib/host/model';
 import { ProductSheet } from '@/components/menu/ProductSheet';
-
-/** One `sizes` for the tiles and the sheet, so opening a product reuses the tile's already-loaded photo. */
-const TILE_SIZES = '(min-width:1024px) 16vw, 30vw';
+import { SelectionLines } from '@/components/menu/SelectionLines';
+import { PRODUCT_IMAGE_SIZES as TILE_SIZES } from '@/lib/pos/customer-screen';
+import { precacheProductImages } from '@/lib/pos/precache';
 import { PaymentSheet } from './PaymentSheet';
 
 /** What the payment sheet is doing, mirrored to the customer screen. */
@@ -241,6 +241,13 @@ export function SaleScreen({
   }
 
   // Barcode scanner / Enter in the search box: a single match is added straight away.
+  // Every product photo into the offline cache, so a tile the cashier has
+  // not scrolled to yet still shows without a network.
+  useEffect(() => {
+    if (printing.demo) return;
+    return precacheProductImages(menu.products.map((p) => p.image_url).filter((u): u is string => !!u), TILE_SIZES);
+  }, [menu.products, printing.demo]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Enter' || !(e.target instanceof HTMLInputElement) || !query.trim()) return;
@@ -399,7 +406,7 @@ export function SaleScreen({
               <div key={it.id} className="flex gap-3 border-b border-neutral-100 py-3" data-help="pos_line">
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-neutral-100">
                   {prod?.image_url ? (
-                    <Image src={prod.image_url} alt={it.name} fill sizes="56px" className="object-contain" />
+                    <Image src={prod.image_url} alt={it.name} fill sizes={TILE_SIZES} className="object-contain" />
                   ) : (
                     <div className="flex h-full items-center justify-center text-neutral-300">
                       <UtensilsCrossed className="h-5 w-5" />
@@ -415,9 +422,7 @@ export function SaleScreen({
                       </button>
                     )}
                   </div>
-                  {(it.selections.length > 0 || it.note) && (
-                    <p className="whitespace-pre-line text-xs leading-snug text-neutral-400">{[selectionsText(it.selections, '\n'), it.note].filter(Boolean).join('\n')}</p>
-                  )}
+                  <SelectionLines selections={it.selections} note={it.note} className="text-xs text-neutral-400" strong="font-semibold text-neutral-700" />
                   <div className="mt-1.5 flex items-center justify-between">
                     <div className="flex items-center gap-1 rounded-full border border-neutral-200 px-1 py-0.5" data-help="pos_qty">
                       <button onClick={() => !paid && setItemQty(db, it, it.qty - 1)} className="rounded-full p-1 hover:bg-neutral-100" disabled={paid}>
