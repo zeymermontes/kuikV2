@@ -215,7 +215,7 @@ function HistoryRow({
                 <span>
                   {it.qty}× {it.name}
                   {it.selections.length > 0 && (
-                    <span className="text-neutral-400"> · {selectionsText(it.selections)}</span>
+                    <span className="block whitespace-pre-line text-neutral-400">{selectionsText(it.selections, '\n')}</span>
                   )}
                 </span>
                 <span className="text-neutral-500">{formatPrice(it.line_total, currency, locale)}</span>

@@ -416,7 +416,7 @@ export function SaleScreen({
                     )}
                   </div>
                   {(it.selections.length > 0 || it.note) && (
-                    <p className="truncate text-xs text-neutral-400">{[selectionsText(it.selections), it.note].filter(Boolean).join(' · ')}</p>
+                    <p className="whitespace-pre-line text-xs leading-snug text-neutral-400">{[selectionsText(it.selections, '\n'), it.note].filter(Boolean).join('\n')}</p>
                   )}
                   <div className="mt-1.5 flex items-center justify-between">
                     <div className="flex items-center gap-1 rounded-full border border-neutral-200 px-1 py-0.5" data-help="pos_qty">

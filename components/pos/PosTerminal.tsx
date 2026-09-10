@@ -311,7 +311,7 @@ function PosTerminalInner({
             name: i.name,
             qty: i.qty,
             total: i.line_total,
-            options: selectionsText(i.selections),
+            options: selectionsText(i.selections, '\n'),
             image: i.product_id ? (imageOf.get(i.product_id) ?? null) : null,
           })),
           subtotal: selected.subtotal,

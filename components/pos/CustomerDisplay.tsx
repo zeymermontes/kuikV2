@@ -148,7 +148,7 @@ export function CustomerDisplay({
                       <span className="mr-2 text-neutral-400">{l.qty}×</span>
                       {l.name}
                     </p>
-                    {l.options && <p className="truncate text-sm text-neutral-400">{l.options}</p>}
+                    {l.options && <p className="whitespace-pre-line text-sm leading-snug text-neutral-400">{l.options}</p>}
                   </div>
                   <span className="text-lg font-semibold tabular-nums">{money(l.total)}</span>
                 </li>

@@ -295,8 +295,8 @@ export function CartSheet({
                     <div className="min-w-0">
                       <span className="font-semibold" style={{ fontFamily: 'var(--font-product)' }}>{l.name}</span>
                       {(l.selections ?? []).length > 0 && (
-                        <p className="text-xs text-[var(--brand-text-secondary)]">
-                          {selectionsText(l.selections)}
+                        <p className="whitespace-pre-line text-xs text-[var(--brand-text-secondary)]">
+                          {selectionsText(l.selections, '\n')}
                         </p>
                       )}
                     </div>

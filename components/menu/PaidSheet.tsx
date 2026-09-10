@@ -151,7 +151,7 @@ export function PaidSheet({
                     <span className="min-w-0 flex-1">
                       {l.name}
                       {l.selections && l.selections.length > 0 && (
-                        <span className="block text-xs text-[var(--brand-text-secondary)]">{selectionsText(l.selections)}</span>
+                        <span className="block whitespace-pre-line text-xs text-[var(--brand-text-secondary)]">{selectionsText(l.selections, '\n')}</span>
                       )}
                     </span>
                   </li>
