@@ -46,6 +46,9 @@ import type { FloorTable, Product } from '@/lib/database.types';
 import { FloorPlan } from '@/components/host/FloorPlan';
 import { FREE_TABLE_COLOR, type TableView } from '@/lib/host/model';
 import { ProductSheet } from '@/components/menu/ProductSheet';
+
+/** One `sizes` for the tiles and the sheet, so opening a product reuses the tile's already-loaded photo. */
+const TILE_SIZES = '(min-width:1024px) 16vw, 30vw';
 import { PaymentSheet } from './PaymentSheet';
 
 /** What the payment sheet is doing, mirrored to the customer screen. */
@@ -559,7 +562,7 @@ export function SaleScreen({
               >
                 <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-neutral-100">
                   {p.image_url ? (
-                    <Image src={p.image_url} alt={p.name} fill sizes="(min-width:1024px) 16vw, 30vw" className="object-cover transition group-hover:scale-105" />
+                    <Image src={p.image_url} alt={p.name} fill sizes={TILE_SIZES} className="object-cover transition group-hover:scale-105" />
                   ) : (
                     <div className="flex h-full items-center justify-center text-neutral-300">
                       <UtensilsCrossed className="h-8 w-8" />
@@ -632,6 +635,7 @@ export function SaleScreen({
           currency={currency}
           locale={locale}
           notePlaceholder={notePlaceholder}
+          photoBox={{ sizes: TILE_SIZES }}
           onClose={() => setSheetProduct(null)}
           onConfirm={async (line) => {
             const target = await ensureTab();
@@ -652,6 +656,7 @@ export function SaleScreen({
               currency={currency}
               locale={locale}
               notePlaceholder={notePlaceholder}
+              photoBox={{ sizes: TILE_SIZES }}
               initial={{ qty: editItem.qty, note: editItem.note, selections: editItem.selections }}
               onClose={() => setEditItem(null)}
               onConfirm={async (line) => {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { X, Plus, Minus } from 'lucide-react';
+import { X, Plus, Minus, UtensilsCrossed } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Product } from '@/lib/database.types';
 import type { CartLine } from '@/lib/whatsapp';
@@ -21,6 +21,7 @@ export function ProductSheet({
   readOnly = false,
   notePlaceholder,
   showOptionKind = true,
+  photoBox,
 }: {
   product: Product;
   /** The product's section design (CSS variables), so the sheet matches its card. */
@@ -42,6 +43,14 @@ export function ProductSheet({
   notePlaceholder?: string | null;
   /** Whether to print the "dish / drink / to go" tag next to each option group. */
   showOptionKind?: boolean;
+  /**
+   * Register mode: a fixed-height band for the photo, reserved before it
+   * arrives and even when there is none, so the options never jump under a
+   * finger. `sizes` should match the tile the cashier just tapped: the same
+   * `sizes` picks the same optimiser URL, so the browser reuses the bytes it
+   * already has instead of downloading a larger variant.
+   */
+  photoBox?: { sizes: string };
 }) {
   const t = useTranslations('menu');
   const groups = resolveOptionGroups(product);
@@ -119,21 +128,33 @@ export function ProductSheet({
         </button>
 
         <div className="flex-1 overflow-y-auto">
-          {product.image_url && (
-            <div
-              className="flex w-full justify-center overflow-hidden rounded-t-[var(--sheet-radius)] p-4"
-              style={{ backgroundColor: 'var(--brand-bg)' }}
-            >
-              {/* The whole photo, uncropped: a tall cup or a wide platter both fit. */}
-              <Image
-                src={product.image_url}
-                alt={product.name}
-                width={1200}
-                height={1200}
-                sizes="(max-width: 640px) 100vw, 512px"
-                className="h-auto max-h-[50dvh] w-auto max-w-full object-contain"
-              />
+          {photoBox ? (
+            <div className="relative h-44 w-full shrink-0 overflow-hidden rounded-t-[var(--sheet-radius)]" style={{ backgroundColor: 'var(--brand-bg)' }}>
+              {product.image_url ? (
+                <Image src={product.image_url} alt={product.name} fill sizes={photoBox.sizes} className="object-contain p-3" />
+              ) : (
+                <div className="flex h-full items-center justify-center" style={{ color: 'var(--brand-text-secondary)', opacity: 0.35 }}>
+                  <UtensilsCrossed className="h-10 w-10" />
+                </div>
+              )}
             </div>
+          ) : (
+            product.image_url && (
+              <div
+                className="flex w-full justify-center overflow-hidden rounded-t-[var(--sheet-radius)] p-4"
+                style={{ backgroundColor: 'var(--brand-bg)' }}
+              >
+                {/* The whole photo, uncropped: a tall cup or a wide platter both fit. */}
+                <Image
+                  src={product.image_url}
+                  alt={product.name}
+                  width={1200}
+                  height={1200}
+                  sizes="(max-width: 640px) 100vw, 512px"
+                  className="h-auto max-h-[50dvh] w-auto max-w-full object-contain"
+                />
+              </div>
+            )
           )}
 
           <div className="px-5 py-4">
