@@ -45,7 +45,6 @@ export function RegistersBoard({
     return () => {
       supabase.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId]);
 
   const money = (n: number) => formatPrice(n, currency);
