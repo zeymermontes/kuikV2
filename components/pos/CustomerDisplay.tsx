@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { Check, Maximize2, UtensilsCrossed } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
-import { IDLE_STATE, PRODUCT_IMAGE_SIZES, useDisplaySubscriber, type DisplayBrand, type DisplayState, type RemoteScope } from '@/lib/pos/customer-screen';
+import { IDLE_STATE, PRODUCT_IMAGE_SIZES, useDisplaySubscriber, type DisplayBrand, type DisplayLine, type DisplayState, type RemoteScope } from '@/lib/pos/customer-screen';
 
 /**
  * The second screen: what the guest sees while the cashier builds the sale.
@@ -148,9 +148,9 @@ export function CustomerDisplay({
                       <span className="mr-2 text-neutral-400">{l.qty}×</span>
                       {l.name}
                     </p>
-                    {Array.isArray(l.options) && l.options.length > 0 && (
+                    {optionGroups(l.options).length > 0 && (
                       <p className="text-sm leading-snug text-neutral-400">
-                        {l.options.map((g, i) => (
+                        {optionGroups(l.options).map((g, i) => (
                           <span key={i} className="block">
                             {g.group ? `${g.group}: ` : ''}
                             <span className="font-semibold text-neutral-200">{g.names.join(', ')}</span>
@@ -192,4 +192,18 @@ function Row({ label, value, accent }: { label: string; value: string; accent?: 
       <span className="tabular-nums">{value}</span>
     </div>
   );
+}
+
+/**
+ * A register that has not reloaded since the options became structured
+ * still sends them as text ("Tamaño: Chico\nLeche: Avena"); read both, so
+ * the two windows need not be refreshed together.
+ */
+function optionGroups(o: DisplayLine['options'] | string): { group: string; names: string[] }[] {
+  if (Array.isArray(o)) return o;
+  if (typeof o !== 'string' || !o) return [];
+  return o.split('\n').map((line) => {
+    const at = line.indexOf(': ');
+    return at > 0 ? { group: line.slice(0, at), names: [line.slice(at + 2)] } : { group: '', names: [line] };
+  });
 }
