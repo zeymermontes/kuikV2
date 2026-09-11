@@ -39,6 +39,8 @@ test('waIdCandidates offers both mexican forms', () => {
 
 test('a LID is not a phone: no fake "+263689785585894"', () => {
   assert.equal(isLid('263689785585894@lid'), true);
+  assert.equal(isLid('106498109755545:60@lid'), true);
+  assert.equal(phoneFromWaId('106498109755545:60@lid'), null);
   assert.equal(isLid('5215512345678'), false);
   assert.equal(phoneFromWaId('263689785585894@lid'), null);
   assert.equal(phoneFromWaId('5215512345678'), '+525512345678');

@@ -44,7 +44,8 @@ async function guestPhone(ctx: Pick<BotContext, 'tenantId' | 'waId'>): Promise<s
     .eq('wa_id', ctx.waId)
     .maybeSingle();
   const stored = (data as { phone_e164: string | null } | null)?.phone_e164 ?? null;
-  const lidDigits = ctx.waId.split('@')[0].replace(/\D/g, '');
+  // "106498109755545:60@lid": the id, then a device suffix that is not part of it.
+  const lidDigits = ctx.waId.split('@')[0].split(':')[0].replace(/\D/g, '');
   if (!stored || stored.startsWith('lid:') || stored.replace(/\D/g, '') === lidDigits) return null;
   return stored;
 }
