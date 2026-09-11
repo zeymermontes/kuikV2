@@ -2,7 +2,7 @@ import 'server-only';
 import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createReservation } from '@/lib/reservations/create';
-import { normalizeWaId } from '@/lib/phone';
+import { isLid, phoneFromWaId } from '@/lib/phone';
 import { sendToTenant } from '@/lib/push/send';
 
 /**
@@ -25,6 +25,28 @@ export interface BotContext {
   customerName?: string | null;
   /** Set while an AI turn is driving a flow run — lets tools close that run. */
   flowRunId?: string;
+}
+
+/**
+ * The guest's real phone for a booking: the wa_id when it is a number; for a
+ * LID chat, the number WhatsApp disclosed on the contact, if any; else none.
+ * Never the LID dressed up as a phone.
+ */
+async function guestPhone(ctx: Pick<BotContext, 'tenantId' | 'waId'>): Promise<string | null> {
+  const direct = phoneFromWaId(ctx.waId);
+  if (direct) return direct;
+  if (!isLid(ctx.waId)) return null;
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from('whatsapp_contacts')
+    .select('phone_e164')
+    .eq('tenant_id', ctx.tenantId)
+    .eq('wa_id', ctx.waId)
+    .maybeSingle();
+  const stored = (data as { phone_e164: string | null } | null)?.phone_e164 ?? null;
+  const lidDigits = ctx.waId.split('@')[0].replace(/\D/g, '');
+  if (!stored || stored.startsWith('lid:') || stored.replace(/\D/g, '') === lidDigits) return null;
+  return stored;
 }
 
 export interface ActionResult {
@@ -69,7 +91,7 @@ export async function botCreateReservation(
     areaId = (data as { id: string } | null)?.id ?? null;
   }
 
-  const phone = normalizeWaId(ctx.waId);
+  const phone = await guestPhone(ctx);
 
   const result = await createReservation(supabase, {
     tenantId: ctx.tenantId,
@@ -159,14 +181,14 @@ export interface OwnReservation {
  */
 export async function ownReservations(ctx: Pick<BotContext, 'tenantId' | 'conversationId' | 'waId'>): Promise<OwnReservation[]> {
   const supabase = createAdminClient();
-  const phone = normalizeWaId(ctx.waId);
+  const phone = await guestPhone(ctx);
   const { data } = await supabase
     .from('reservations')
     .select('id, customer_name, party_size, date, time, status, starts_at, note, area_id, whatsapp_conversation_id, phone_e164, phone')
     .eq('tenant_id', ctx.tenantId)
     .in('status', ['pending', 'confirmed', 'waiting', 'notified'])
     .gte('starts_at', new Date(Date.now() - 2 * 3_600_000).toISOString())
-    .or(`whatsapp_conversation_id.eq.${ctx.conversationId},phone_e164.eq.${phone},phone.eq.${phone}`)
+    .or(phone ? `whatsapp_conversation_id.eq.${ctx.conversationId},phone_e164.eq.${phone},phone.eq.${phone}` : `whatsapp_conversation_id.eq.${ctx.conversationId}`)
     .order('starts_at', { ascending: true })
     .limit(3);
   return ((data ?? []) as OwnReservation[]).map(({ id, customer_name, party_size, date, time, status, starts_at, note, area_id }) => ({
@@ -246,7 +268,7 @@ export async function botUpdateReservation(ctx: BotContext, args: UpdateReservat
   }
 
   const supabase = createAdminClient();
-  const phone = normalizeWaId(ctx.waId);
+  const phone = await guestPhone(ctx);
   const result = await createReservation(supabase, {
     tenantId: ctx.tenantId,
     branchId: ctx.branchId,

@@ -105,3 +105,20 @@ export function sameNumber(a: string | null, b: string | null, defaultIso = 'MX'
   const nb = toE164(b, defaultIso) ?? normalizeWaId(b);
   return Boolean(na) && na === nb;
 }
+
+/**
+ * A WhatsApp LID ("263689785585894@lid") addresses a chat by an opaque id,
+ * not a phone number. Running it through normalizeWaId mints a plausible
+ * fake ("+263689785585894") that then shows up as the guest's phone.
+ */
+export function isLid(waId: string): boolean {
+  return /@lid$/.test(waId ?? '');
+}
+
+/** The E.164 phone behind a wa_id, or null when the id is not a number at all. */
+export function phoneFromWaId(waId: string): string | null {
+  if (!waId || isLid(waId)) return null;
+  const e164 = normalizeWaId(waId);
+  return e164.length >= 9 ? e164 : null;
+}
+

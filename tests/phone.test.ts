@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { toE164, normalizeWaId, waIdCandidates, sameNumber } from '../lib/phone';
+import { toE164, normalizeWaId, waIdCandidates, sameNumber, isLid, phoneFromWaId } from '../lib/phone';
 
 test('mexican wa_id drops the WhatsApp 1', () => {
   assert.equal(normalizeWaId('5215512345678'), '+525512345678');
@@ -36,3 +36,11 @@ test('garbage is rejected rather than guessed', () => {
 test('waIdCandidates offers both mexican forms', () => {
   assert.deepEqual(waIdCandidates('+525512345678'), ['525512345678', '5215512345678']);
 });
+
+test('a LID is not a phone: no fake "+263689785585894"', () => {
+  assert.equal(isLid('263689785585894@lid'), true);
+  assert.equal(isLid('5215512345678'), false);
+  assert.equal(phoneFromWaId('263689785585894@lid'), null);
+  assert.equal(phoneFromWaId('5215512345678'), '+525512345678');
+});
+
