@@ -11,11 +11,12 @@ import { useLocale, useTranslations } from 'next-intl';
 import type { Reservation, ReservationArea, ReservationStatus } from '@/lib/database.types';
 import { createClient, channelName } from '@/lib/supabase/client';
 import { addDays } from '@/lib/time';
-import { digitsOnly } from '@/lib/utils';
 import {
   listDayReservations, listPendingReservations, setReservationStatus, markNotificationSent, type PendingSummary,
 } from '@/app/(dashboard)/reservations/actions';
 import { ReservationForm } from './ReservationForm';
+import { ChatSheet } from '@/components/host/ChatSheet';
+import { posThemeVars } from '@/lib/pos/theme';
 import { PushToggle } from './PushToggle';
 import { PendingNotifications } from './PendingNotifications';
 import { PendingStrip } from './PendingStrip';
@@ -78,6 +79,8 @@ export function ReservationsBoard({
   const [filter, setFilter] = useState<Filter>(initialFilter);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Reservation | null>(null);
+  // The WhatsApp chat with one guest, same panel the host stand uses.
+  const [chat, setChat] = useState<Reservation | null>(null);
   // Notices Kuik has written but that still need a human to press send.
   const [toSend, setToSend] = useState<Record<string, { href: string; notificationId: string }>>({});
   const [, start] = useTransition();
@@ -339,11 +342,10 @@ export function ReservationsBoard({
                                 <Phone className="h-3.5 w-3.5" /> {r.phone}
                               </a>
                             )}
-                            {r.phone && (
-                              <a href={`https://wa.me/${digitsOnly(r.phone)}`} target="_blank" rel="noreferrer"
-                                 aria-label="WhatsApp" className="flex items-center gap-1 text-green-700">
-                                <MessageCircle className="h-3.5 w-3.5" />
-                              </a>
+                            {(r.phone || r.whatsapp_conversation_id) && (
+                              <button type="button" onClick={() => setChat(r)} className="flex items-center gap-1 font-medium text-green-700">
+                                <MessageCircle className="h-3.5 w-3.5" /> {t('chat')}
+                              </button>
                             )}
                           </div>
                           {r.note && <p className="mt-1 text-sm text-neutral-500">{r.note}</p>}
@@ -399,6 +401,12 @@ export function ReservationsBoard({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {chat && (
+        <div style={posThemeVars({ primary_color: '#4f46e5', button_color: null, button_text_color: null })}>
+          <ChatSheet partyId={chat.id} name={chat.customer_name} phone={chat.phone} onClose={() => setChat(null)} />
         </div>
       )}
 

@@ -899,7 +899,8 @@
     "pendingSeeAll": "Ver la lista",
     "pendingNone": "No hay solicitudes pendientes 🎉",
     "editTitle": "Editar reservación",
-    "edit": "Editar"
+    "edit": "Editar",
+    "chat": "Chat"
   },
   "printing": {
     "agents": "Agente de impresión",
