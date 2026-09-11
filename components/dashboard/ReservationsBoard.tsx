@@ -7,13 +7,13 @@ import {
   ChevronLeft, ChevronRight, Clock, Users, Phone, Check, X, RefreshCw, Plus,
   MessageCircle, LayoutGrid,
 } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import type { Reservation, ReservationArea, ReservationStatus } from '@/lib/database.types';
 import { createClient, channelName } from '@/lib/supabase/client';
 import { addDays } from '@/lib/time';
 import { digitsOnly } from '@/lib/utils';
 import {
-  listDayReservations, setReservationStatus, markNotificationSent, type PendingSummary,
+  listDayReservations, listPendingReservations, setReservationStatus, markNotificationSent, type PendingSummary,
 } from '@/app/(dashboard)/reservations/actions';
 import { ReservationForm } from './ReservationForm';
 import { PushToggle } from './PushToggle';
@@ -52,6 +52,7 @@ export function ReservationsBoard({
   areas,
   slotMinutes,
   pendingSummary,
+  initialFilter = 'all',
 }: {
   tenantId: string;
   /** The day being viewed, "YYYY-MM-DD" in the restaurant's own timezone. */
@@ -63,12 +64,18 @@ export function ReservationsBoard({
   slotMinutes: number;
   /** Pending across ALL upcoming days — the day-scoped count is computed below. */
   pendingSummary: PendingSummary;
+  /** `?view=pending` opens straight on the cross-day list of requests. */
+  initialFilter?: Filter;
 }) {
   const t = useTranslations('reservations');
+  const locale = useLocale();
   const [rows, setRows] = useState<Reservation[]>(initial);
+  // The "por confirmar" view: every pending request whatever its day, so
+  // nobody has to page through the calendar to find them.
+  const [pendingRows, setPendingRows] = useState<Reservation[] | null>(null);
   const [live, setLive] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<Filter>('all');
+  const [filter, setFilter] = useState<Filter>(initialFilter);
   const [showForm, setShowForm] = useState(false);
   // Notices Kuik has written but that still need a human to press send.
   const [toSend, setToSend] = useState<Record<string, { href: string; notificationId: string }>>({});
@@ -79,6 +86,7 @@ export function ReservationsBoard({
     setRefreshing(true);
     try {
       setRows(await listDayReservations(day));
+      if (filter === 'pending') setPendingRows(await listPendingReservations());
     } catch {
       // keep what we have rather than blanking the screen mid-service
     } finally {
@@ -113,6 +121,12 @@ export function ReservationsBoard({
           }
           const row = payload.new as Reservation;
           apply(row);
+          // The cross-day list changes whenever any request does.
+          setPendingRows((cur) => {
+            if (cur === null) return cur;
+            const without = cur.filter((r) => r.id !== row.id);
+            return row.status === 'pending' ? [...without, row].sort((a, b) => a.starts_at.localeCompare(b.starts_at)) : without;
+          });
           // A brand-new request is the thing a hostess must not miss.
           if (payload.eventType === 'INSERT' && row.status === 'pending') {
             void chime();
@@ -178,19 +192,31 @@ export function ReservationsBoard({
     start(async () => markNotificationSent(item.notificationId));
   }
 
+  // Entering the pending view loads it; leaving keeps it around for the badge.
+  useEffect(() => {
+    if (filter !== 'pending' || pendingRows !== null) return;
+    listPendingReservations().then(setPendingRows).catch(() => setPendingRows([]));
+  }, [filter, pendingRows]);
+
   const visible = useMemo(
-    () => rows.filter((r) => filter === 'all' || r.status === filter),
-    [rows, filter],
+    () => (filter === 'pending' ? (pendingRows ?? []) : rows.filter((r) => filter === 'all' || r.status === filter)),
+    [rows, filter, pendingRows],
   );
+
+  const dayLabel = (iso: string) => {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+  };
 
   const slots = useMemo(() => {
     const bySlot = new Map<string, Reservation[]>();
     for (const r of visible) {
-      const key = slotOf(r.time, slotMinutes);
+      // Across days the key carries the date, so tonight and next Friday do not merge.
+      const key = filter === 'pending' ? `${r.date} ${slotOf(r.time, slotMinutes)}` : slotOf(r.time, slotMinutes);
       bySlot.set(key, [...(bySlot.get(key) ?? []), r]);
     }
     return [...bySlot.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [visible, slotMinutes]);
+  }, [visible, slotMinutes, filter]);
 
   const capByArea = useMemo(
     () => new Map(areas.filter((a) => a.max_covers != null).map((a) => [a.id, a.max_covers!])),
@@ -261,12 +287,16 @@ export function ReservationsBoard({
             className={`rounded-full px-3 py-1 text-sm ${
               filter === f ? 'bg-neutral-900 text-white' : 'border border-neutral-300 text-neutral-600'
             }`}>
-            {f === 'all' ? t('filter_all') : t(`status_${f}`)}
+            {f === 'all' ? t('filter_all') : f === 'pending' ? `${t('filter_pendingAll')}${pendingSummary.total > 0 ? ` (${pendingSummary.total})` : ''}` : t(`status_${f}`)}
           </button>
         ))}
       </div>
 
-      <PendingStrip tenantId={tenantId} initial={pendingSummary} currentDay={day} />
+      {filter === 'pending' ? (
+        <p className="mb-3 text-sm text-neutral-500">{t('pendingListHint')}</p>
+      ) : (
+        <PendingStrip tenantId={tenantId} initial={pendingSummary} currentDay={day} onShowAll={() => setFilter('pending')} />
+      )}
 
       <PendingNotifications
         day={day}
@@ -275,7 +305,7 @@ export function ReservationsBoard({
 
       {slots.length === 0 ? (
         <p className="rounded-2xl border border-neutral-200 py-12 text-center text-sm text-neutral-400">
-          {t('emptyDay')}
+          {filter === 'pending' ? (pendingRows === null ? t('connecting') : t('pendingNone')) : t('emptyDay')}
         </p>
       ) : (
         <div className="space-y-4">
@@ -293,7 +323,7 @@ export function ReservationsBoard({
             return (
               <div key={slot}>
                 <h3 className={`mb-1.5 flex items-center gap-2 text-sm font-semibold ${over ? 'text-amber-700' : 'text-neutral-500'}`}>
-                  <Clock className="h-4 w-4" /> {slot}
+                  <Clock className="h-4 w-4" /> {filter === 'pending' ? `${dayLabel(slot.slice(0, 10))} · ${slot.slice(11)}` : slot}
                   {over && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs">{t('overbookWarn')}</span>}
                 </h3>
                 <div className="space-y-2">

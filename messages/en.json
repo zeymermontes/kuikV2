@@ -893,7 +893,11 @@
     "openHost": "Open host stand",
     "hostProOnly": "The host stand (floor plan, waitlist, seating) comes with the Restaurante plan. The reservations on this page work the same on your plan.",
     "hostProCta": "Change plan",
-    "hostProDemo": "See the demo"
+    "hostProDemo": "See the demo",
+    "filter_pendingAll": "To confirm",
+    "pendingListHint": "Every request waiting for your yes or no, whatever its day. Confirm or decline right here; the guest is told on WhatsApp.",
+    "pendingSeeAll": "See the list",
+    "pendingNone": "No pending requests 🎉"
   },
   "printing": {
     "agents": "Print agent",

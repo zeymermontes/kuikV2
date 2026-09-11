@@ -23,6 +23,8 @@ export function PendingStrip({
   initial: PendingSummary;
   /** The day already on screen, so it isn't offered as somewhere to go. */
   currentDay: string;
+  /** Opens the cross-day list of every pending request. */
+  onShowAll?: () => void;
 }) {
   const t = useTranslations('reservations');
   const locale = useLocale();
@@ -73,10 +75,17 @@ export function PendingStrip({
 
   return (
     <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
-      <p className="flex items-center gap-1.5 text-sm font-semibold text-amber-900">
-        <Clock className="h-4 w-4" />
-        {t('pendingTitle', { count: summary.total })}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-amber-900">
+          <Clock className="h-4 w-4" />
+          {t('pendingTitle', { count: summary.total })}
+        </p>
+        {onShowAll && (
+          <button type="button" onClick={onShowAll} className="rounded-lg bg-amber-500 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-600">
+            {t('pendingSeeAll')}
+          </button>
+        )}
+      </div>
 
       {elsewhere.length === 0 ? (
         <p className="mt-0.5 text-xs text-amber-800">{t('pendingAllHere')}</p>

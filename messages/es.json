@@ -893,7 +893,11 @@
     "openHost": "Abrir vista de anfitrión",
     "hostProOnly": "El puesto de anfitrión (plano de mesas, lista de espera, sentadas) viene con el plan Restaurante. Las reservaciones de esta página funcionan igual en tu plan.",
     "hostProCta": "Cambiar de plan",
-    "hostProDemo": "Ver la demo"
+    "hostProDemo": "Ver la demo",
+    "filter_pendingAll": "Por confirmar",
+    "pendingListHint": "Todas las solicitudes que esperan tu confirmación, de cualquier día. Confirma o rechaza aquí mismo; al cliente se le avisa por WhatsApp.",
+    "pendingSeeAll": "Ver la lista",
+    "pendingNone": "No hay solicitudes pendientes 🎉"
   },
   "printing": {
     "agents": "Agente de impresión",

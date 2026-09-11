@@ -111,6 +111,21 @@ export async function listPendingNotifications(day: string): Promise<Reservation
   return (data ?? []) as ReservationNotification[];
 }
 
+/** Every request still waiting for a yes or no, whatever its day, soonest first. */
+export async function listPendingReservations(): Promise<Reservation[]> {
+  const { tenant } = await requireReservations();
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('reservations')
+    .select('*')
+    .eq('tenant_id', tenant.id)
+    .eq('status', 'pending')
+    .gte('starts_at', new Date(Date.now() - 2 * 3_600_000).toISOString())
+    .order('starts_at', { ascending: true })
+    .limit(200);
+  return (data ?? []) as Reservation[];
+}
+
 /** Re-read one day. Used by the refresh button and after a realtime reconnect. */
 export async function listDayReservations(day: string): Promise<Reservation[]> {
   const { tenant } = await requireReservations();

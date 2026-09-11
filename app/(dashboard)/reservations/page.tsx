@@ -16,12 +16,12 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 export default async function ReservationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ d?: string }>;
+  searchParams: Promise<{ d?: string; view?: string }>;
 }) {
   const { tenant, role, support, subscription } = await requireReservations();
   const t = await getTranslations('reservations');
   const supabase = await createClient();
-  const { d } = await searchParams;
+  const { d, view } = await searchParams;
 
   // "Today" means today AT THE RESTAURANT. Deriving it from the server clock
   // (UTC on Render) hid tonight's bookings from 18:00 Mexico time onward,
@@ -64,6 +64,7 @@ export default async function ReservationsPage({
         areas={(areas ?? []) as ReservationArea[]}
         slotMinutes={c?.reservation_slot_minutes ?? 30}
         pendingSummary={pending}
+        initialFilter={view === 'pending' ? 'pending' : 'all'}
       />
 
       {/* Only rendered for roles whose writes will actually persist. */}
