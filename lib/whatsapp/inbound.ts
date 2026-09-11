@@ -113,6 +113,22 @@ async function upsertConversation(
 
   const contactId = (contact as { id: string }).id;
 
+  // A number learned late (the bridge resolved the LID on a later message)
+  // reaches the bookings made while it was unknown, so the board and the
+  // notifications have it too.
+  if (phone) {
+    const e164 = normalizeWaId(phone);
+    await supabase
+      .from('reservations')
+      .update({ phone: e164, phone_e164: e164 })
+      .eq('tenant_id', tenantId)
+      .is('phone', null)
+      .in(
+        'whatsapp_conversation_id',
+        ((await supabase.from('whatsapp_conversations').select('id').eq('contact_id', contactId)).data ?? []).map((c) => (c as { id: string }).id),
+      );
+  }
+
   // The number knows which branch it belongs to (set at onboarding); the
   // conversation inherits it so the bot can answer with THAT branch's hours
   // and address instead of the main location's.

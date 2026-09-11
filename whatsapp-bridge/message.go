@@ -169,6 +169,15 @@ func (f *Forwarder) Handle(tenantID string, evt *events.Message, cli *whatsmeow.
 	if evt.Info.AddressingMode == types.AddressingModeLID {
 		if evt.Info.SenderAlt.Server == types.DefaultUserServer {
 			phone = evt.Info.SenderAlt.User
+		} else if cli != nil && cli.Store != nil && cli.Store.LIDs != nil {
+			// The message itself carried no phone, but whatsmeow keeps the
+			// LID ↔ phone pairs it has learned (contact sync, history sync,
+			// earlier messages). A regular of the restaurant is usually there.
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			if pn, err := cli.Store.LIDs.GetPNForLID(ctx, evt.Info.Sender); err == nil && !pn.IsEmpty() && pn.Server == types.DefaultUserServer {
+				phone = pn.User
+			}
+			cancel()
 		}
 	} else {
 		phone = evt.Info.Sender.User
