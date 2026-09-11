@@ -21,7 +21,8 @@ import {
   saveTable, moveTable, deleteTable, setTableServer, blockTable, saveHostSettings, saveCombination, deleteCombination,
   type HostDay, type PartyFields,
 } from '@/app/host/actions';
-import { markNotificationSent } from '@/app/(dashboard)/reservations/actions';
+import { getPendingSummary, markNotificationSent } from '@/app/(dashboard)/reservations/actions';
+import { RequestsSheet } from './RequestsSheet';
 import { ReservationForm } from '@/components/dashboard/ReservationForm';
 import { FloorPlan } from './FloorPlan';
 import { Timeline } from './Timeline';
@@ -40,6 +41,7 @@ type Sheet =
   | { kind: 'table'; id: string | null; at?: { x: number; y: number } }
   | { kind: 'settings' }
   | { kind: 'booking' }
+  | { kind: 'requests' }
   | null;
 
 /**
@@ -106,6 +108,8 @@ export function HostApp({
   const [query, setQuery] = useState('');
   const [toSend, setToSend] = useState<Record<string, { href: string; notificationId: string }>>({});
   const [toast, setToast] = useState<string | null>(null);
+  // Requests waiting anywhere in the calendar; the bell's number, kept live.
+  const [pendingCount, setPendingCount] = useState(pendingTotal);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 30_000);
@@ -145,6 +149,7 @@ export function HostApp({
           const without = cur.filter((r) => r.id !== row.id);
           return row.date === day ? [...without, row] : without;
         });
+        void getPendingSummary().then((s) => setPendingCount(s.total)).catch(() => {});
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'floor_tables', filter: `tenant_id=eq.${tenantId}` }, (payload) => {
         if (payload.eventType === 'DELETE') {
@@ -559,11 +564,13 @@ export function HostApp({
           <div className="ml-auto hidden min-w-0 flex-1 md:block md:max-w-xs">{search}</div>
           <div className="hidden md:block">{viewSwitch}</div>
           <div className="ml-auto flex items-center gap-1.5 md:ml-0">
-            {pendingTotal > 0 && (
-              <Link href="/reservations" className="relative rounded-lg bg-white/5 p-2 text-white/70" title={t('pendingOther', { n: pendingTotal })} data-help="host_pending">
+            {!demo && (
+              <button onClick={() => setSheet({ kind: 'requests' })} className="relative rounded-lg bg-white/5 p-2 text-white/70 hover:text-white" title={t('requestsTitle')} data-help="host_pending" aria-label={t('requestsTitle')}>
                 <Bell className="h-4 w-4" />
-                <span className="absolute -right-1 -top-1 min-w-[16px] rounded-full bg-amber-500 px-1 text-center text-[10px] font-bold text-white">{pendingTotal}</span>
-              </Link>
+                {pendingCount > 0 && (
+                  <span className="absolute -right-1 -top-1 min-w-[16px] rounded-full bg-amber-500 px-1 text-center text-[10px] font-bold text-white">{pendingCount}</span>
+                )}
+              </button>
             )}
             <button data-help="host_book" onClick={() => setSheet({ kind: 'booking' })} className={`${PRIMARY} !px-3 !py-2`} title={t('newBooking')}>
               <CalendarClock className="h-4 w-4" /> <span className="hidden lg:inline">{t('newBooking')}</span>
@@ -642,6 +649,16 @@ export function HostApp({
             start(() => updateParty(party.id, fields));
           }}
           onSendNotice={() => sendNotice(party.id)}
+        />
+      )}
+
+      {sheet?.kind === 'requests' && (
+        <RequestsSheet
+          tenantId={tenantId}
+          onClose={() => setSheet(null)}
+          onDecide={(id, status) => act(id, status)}
+          noticeFor={toSend}
+          onSendNotice={sendNotice}
         />
       )}
 

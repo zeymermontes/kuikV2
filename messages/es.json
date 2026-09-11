@@ -2360,7 +2360,10 @@
     "noTable": "Sin mesa",
     "prevDay": "Día anterior",
     "nextDay": "Día siguiente",
-    "keptWaiting": "Sigue en lista de espera: cotízale, siéntalo después o quítalo."
+    "keptWaiting": "Sigue en lista de espera: cotízale, siéntalo después o quítalo.",
+    "requestsTitle": "Solicitudes de reservación",
+    "requestsHint": "Por confirmar, de cualquier día. Al decidir, el cliente recibe el aviso por WhatsApp.",
+    "requestsNone": "No hay solicitudes pendientes 🎉"
   },
   "tutorial": {
     "title": "Tutoriales",

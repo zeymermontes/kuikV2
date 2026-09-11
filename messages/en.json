@@ -2360,7 +2360,10 @@
     "noTable": "No table",
     "prevDay": "Previous day",
     "nextDay": "Next day",
-    "keptWaiting": "Still on the waitlist: quote them, seat them later or remove them."
+    "keptWaiting": "Still on the waitlist: quote them, seat them later or remove them.",
+    "requestsTitle": "Reservation requests",
+    "requestsHint": "Waiting for a yes or no, whatever the day. The guest is told on WhatsApp when you decide.",
+    "requestsNone": "No pending requests 🎉"
   },
   "tutorial": {
     "title": "Tutorials",
