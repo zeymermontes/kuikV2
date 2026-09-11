@@ -152,81 +152,63 @@ export async function runFlowTurn(params: FlowTurnParams): Promise<boolean> {
       }));
 
     const books = flowBooks(graph);
-    const handled = await runAi({
-      ctx: { ...ctx, flowRunId: run.id }, text: turn.text, vars, goals: params.aiGoals,
-      reservationsEnabled: params.reservationsEnabled,
-      collecting: {
-        goalName: flow.name,
-        needed,
-        known: answers,
-        runId: run.id,
-        slots,
-        // A date the model is about to write down gets checked against the
-        // calendar first, so "el sábado" on a closed or full Saturday comes
-        // back as "ese día no" instead of a refusal after the name.
-        validate: books
-          ? async (datos) => {
-              const dateSlot = slots.find((s) => s.type === 'date');
-              const date = dateSlot ? datos[dateSlot.key] : undefined;
-              if (typeof date !== 'string' || date === answers[dateSlot!.key]) return { ok: true };
-              const partySlot = slots.find((s) => s.type === 'number');
-              const party = Number((partySlot && datos[partySlot.key]) ?? (partySlot && answers[partySlot.key]) ?? 1);
-              const status = await reservationDayStatus(supabase, { tenantId: conv.tenant_id, branchId: ctx.branchId, date, partySize: party });
-              return status.ok
-                ? { ok: true }
-                : { ok: false, key: dateSlot!.key, detail: `La fecha ${date} NO está disponible: ${dayUnavailableMessage(status.reason)}` };
-            }
-          : undefined,
-      },
-    });
+    const attempt = () =>
+      runAi({
+        ctx: { ...ctx, flowRunId: run!.id }, text: turn.text, vars, goals: params.aiGoals,
+        reservationsEnabled: params.reservationsEnabled,
+        collecting: {
+          goalName: flow!.name,
+          needed,
+          known: answers,
+          runId: run!.id,
+          slots,
+          // A date the model is about to write down gets checked against the
+          // calendar first, so "el sábado" on a closed or full Saturday comes
+          // back as "ese día no" instead of a refusal after the name.
+          validate: books
+            ? async (datos) => {
+                const dateSlot = slots.find((s) => s.type === 'date');
+                const date = dateSlot ? datos[dateSlot.key] : undefined;
+                if (typeof date !== 'string' || date === answers[dateSlot!.key]) return { ok: true };
+                const partySlot = slots.find((s) => s.type === 'number');
+                const party = Number((partySlot && datos[partySlot.key]) ?? (partySlot && answers[partySlot.key]) ?? 1);
+                const status = await reservationDayStatus(supabase, { tenantId: conv.tenant_id, branchId: ctx.branchId, date, partySize: party });
+                return status.ok
+                  ? { ok: true }
+                  : { ok: false, key: dateSlot!.key, detail: `La fecha ${date} NO está disponible: ${dayUnavailableMessage(status.reason)}` };
+              }
+            : undefined,
+        },
+      });
 
-    if (handled) {
-      await supabase
+    const touch = () =>
+      supabase
         .from('whatsapp_flow_runs')
-        .update({ last_inbound_at: new Date().toISOString(), nudge_count: 0, ...timerDues(flow) })
-        .eq('id', run.id)
+        .update({ last_inbound_at: new Date().toISOString(), nudge_count: 0, ...timerDues(flow!) })
+        .eq('id', run!.id)
         .eq('status', 'active');
-      return true;
-    }
 
-    // The model's turn failed — but did it finish the run first? Its
-    // `finalizar_flujo` (or `pasar_con_humano`) may have ended the run and
-    // then the closing reply timed out or got blocked. Restarting the script
-    // here re-asked "¿Confirmo…?" for a table already booked. Say the
-    // outcome ourselves instead.
-    const { data: endedRow } = await supabase
-      .from('whatsapp_flow_runs')
-      .select('status, action_result, answers')
-      .eq('id', run.id)
-      .maybeSingle();
-    const ended = endedRow as Pick<WhatsappFlowRun, 'status' | 'action_result' | 'answers'> | null;
-    if (ended && ended.status !== 'active') {
-      const replies: OutboundDraft[] = [...params.pendingReplies];
-      if (ended.status === 'completed') {
-        for (const r of Object.values(ended.action_result ?? {})) {
-          const res = r as { kind?: string; ok?: boolean; error?: string };
-          if (res.kind !== 'create_reservation') continue;
-          replies.push({
-            type: 'text',
-            body: res.ok
-              ? (await getCanned(supabase, conv.tenant_id, 'reservation_ok', vars)) || 'Tu solicitud quedó registrada. Te confirmamos en unos minutos.'
-              : reservationErrorMessage(String(res.error ?? 'failed')),
-          });
-        }
-        const anyFailed = Object.values(ended.action_result ?? {}).some((r) => (r as { ok?: boolean }).ok === false);
-        if (!anyFailed) replies.push(...completeGraph(graph, plainAnswers({ ...run, answers: ended.answers ?? run.answers }), { vars }).replies);
-      } else if (ended.status === 'handoff') {
-        const handoffMsg = await getCanned(supabase, conv.tenant_id, 'handoff', vars);
-        replies.push({ type: 'text', body: handoffMsg || 'Claro, en un momento te atiende una persona 🙋' });
+    // A failed turn is retried once (timeouts and 5xx are usually transient),
+    // and then a person takes over. The script is NOT the fallback for a
+    // model that failed mid-booking: it re-asked "¿Confirmo…?" for tables
+    // already booked and read a "sí" meant for the model as its own.
+    for (let tries = 0; tries < 2; tries++) {
+      if (await attempt()) {
+        await touch();
+        return true;
       }
-      if (replies.length > 0) await say(conv.id, replies);
-      return true;
+      if (await sayOutcomeIfEnded(supabase, run, graph, vars, params.pendingReplies)) return true;
     }
+    await botHandoff(ctx, 'ai_failed');
+    await endRun(supabase, run, 'handoff', 'ai_failed');
+    const handoffMsg = await getCanned(supabase, conv.tenant_id, 'handoff', vars);
+    await say(conv.id, [...params.pendingReplies, { type: 'text', body: handoffMsg || 'Un momento, en seguida te atiende una persona del restaurante 🙋' }]);
+    return true;
   }
 
   if (run.engine === 'ai') {
-    // Either the AI turn just failed, or AI got switched off / the plan
-    // lapsed mid-run. Degrade to the script VISIBLY (the inbox shows
+    // AI got switched off, or the plan lapsed, mid-run (a FAILED turn never
+    // lands here). Degrade to the script VISIBLY (the inbox shows
     // engine=linear) and resume at the first unanswered question — never
     // from the top: those answers are already stored.
     run = {
@@ -353,3 +335,46 @@ async function say(conversationId: string, drafts: OutboundDraft[]): Promise<voi
     }
   }
 }
+
+/**
+ * Did the model's turn end the run before its reply failed to go out?
+ * `finalizar_flujo` / `pasar_con_humano` may have run and then the closing
+ * reply timed out or got blocked. Say the outcome ourselves; true = done.
+ */
+async function sayOutcomeIfEnded(
+  supabase: Admin,
+  run: WhatsappFlowRun,
+  graph: FlowGraph,
+  vars: RenderVars,
+  pendingReplies: OutboundDraft[],
+): Promise<boolean> {
+  const { data: endedRow } = await supabase
+    .from('whatsapp_flow_runs')
+    .select('status, action_result, answers')
+    .eq('id', run.id)
+    .maybeSingle();
+  const ended = endedRow as Pick<WhatsappFlowRun, 'status' | 'action_result' | 'answers'> | null;
+  if (!ended || ended.status === 'active') return false;
+
+  const replies: OutboundDraft[] = [...pendingReplies];
+  if (ended.status === 'completed') {
+    for (const r of Object.values(ended.action_result ?? {})) {
+      const res = r as { kind?: string; ok?: boolean; error?: string };
+      if (res.kind !== 'create_reservation') continue;
+      replies.push({
+        type: 'text',
+        body: res.ok
+          ? (await getCanned(supabase, run.tenant_id, 'reservation_ok', vars)) || 'Tu solicitud quedó registrada. Te confirmamos en unos minutos.'
+          : reservationErrorMessage(String(res.error ?? 'failed')),
+      });
+    }
+    const anyFailed = Object.values(ended.action_result ?? {}).some((r) => (r as { ok?: boolean }).ok === false);
+    if (!anyFailed) replies.push(...completeGraph(graph, plainAnswers({ ...run, answers: ended.answers ?? run.answers }), { vars }).replies);
+  } else if (ended.status === 'handoff') {
+    const handoffMsg = await getCanned(supabase, run.tenant_id, 'handoff', vars);
+    replies.push({ type: 'text', body: handoffMsg || 'Claro, en un momento te atiende una persona 🙋' });
+  }
+  if (replies.length > 0) await say(run.conversation_id, replies);
+  return true;
+}
+
