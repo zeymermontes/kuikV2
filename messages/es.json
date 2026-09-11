@@ -2393,7 +2393,11 @@
     "originBot": "bot",
     "originStaff": "tú",
     "originSystem": "sistema",
-    "originCustomer": "cliente"
+    "originCustomer": "cliente",
+    "chatPhoto": "📷 Foto",
+    "chatAudio": "🎤 Audio",
+    "chatSticker": "Sticker",
+    "chatQuotedGone": "Mensaje anterior"
   },
   "tutorial": {
     "title": "Tutoriales",

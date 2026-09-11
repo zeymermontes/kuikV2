@@ -205,9 +205,15 @@ export async function notifyTableReady(id: string): Promise<GuestNotice> {
 
 export interface PartyChatMessage {
   id: string;
+  wa_message_id: string | null;
   direction: 'inbound' | 'outbound';
   origin: MessageOrigin;
+  type: string;
   body: string | null;
+  media_url: string | null;
+  media_mime: string | null;
+  /** The wa_message_id this one quotes, when it is a reply. */
+  replied_to_wa_id: string | null;
   status: string | null;
   created_at: string;
 }
@@ -257,7 +263,7 @@ export async function getPartyChat(reservationId: string): Promise<PartyChat> {
     admin.from('whatsapp_conversations').select('id, transport, window_expires_at, bot_enabled, handoff_at').eq('id', conversationId).eq('tenant_id', tenant.id).maybeSingle(),
     admin
       .from('whatsapp_messages')
-      .select('id, direction, origin, body, status, created_at')
+      .select('id, wa_message_id, direction, origin, type, body, media_url, media_mime, replied_to_wa_id, status, created_at')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: false })
       .limit(100),

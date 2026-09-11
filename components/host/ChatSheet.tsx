@@ -146,6 +146,8 @@ export function ChatSheet({
             const day = new Date(m.created_at).toLocaleDateString();
             const showDay = i === 0 || day !== new Date(chat.messages[i - 1].created_at).toLocaleDateString();
             const inbound = m.direction === 'inbound';
+            const quoted = m.replied_to_wa_id ? chat.messages.find((x) => x.wa_message_id === m.replied_to_wa_id) ?? null : null;
+            const sticker = m.type === 'sticker' && m.media_url;
             return (
               <div key={m.id}>
                 {showDay && (
@@ -155,11 +157,31 @@ export function ChatSheet({
                 )}
                 <div className={`flex ${inbound ? 'justify-start' : 'justify-end'}`}>
                   <div
-                    className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm ${
-                      inbound ? 'rounded-bl-sm bg-white/10 text-white' : 'rounded-br-sm bg-pos-accent text-pos-accent-text'
+                    className={`max-w-[85%] whitespace-pre-wrap rounded-2xl text-sm ${
+                      sticker ? 'bg-transparent' : `px-3 py-2 ${inbound ? 'rounded-bl-sm bg-white/10 text-white' : 'rounded-br-sm bg-pos-accent text-pos-accent-text'}`
                     }`}
                   >
-                    {m.body || <span className="italic opacity-60">{t('chatNonText')}</span>}
+                    {m.replied_to_wa_id && (
+                      <div className={`mb-1.5 rounded-lg border-l-2 px-2 py-1 text-xs ${inbound ? 'border-emerald-300 bg-black/20 text-white/70' : 'border-white/60 bg-black/10 opacity-80'}`}>
+                        <div className="truncate">{quoted ? summary(quoted, t) : t('chatQuotedGone')}</div>
+                      </div>
+                    )}
+                    {m.media_url && m.type === 'image' && (
+                      <a href={m.media_url} target="_blank" rel="noreferrer" className="mb-1 block">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={m.media_url} alt="" className="max-h-64 w-full rounded-xl object-cover" loading="lazy" />
+                      </a>
+                    )}
+                    {sticker && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={m.media_url!} alt="sticker" className="h-32 w-32 object-contain" loading="lazy" />
+                    )}
+                    {m.media_url && m.type === 'audio' && (
+                      <audio controls preload="none" src={m.media_url} className="mb-1 h-10 w-56 max-w-full" />
+                    )}
+                    {m.body
+                      ? m.body
+                      : !m.media_url && <span className="italic opacity-60">{summary(m, t)}</span>}
                     <div className={`mt-1 flex items-center gap-1 text-[10px] ${inbound ? 'text-white/40' : 'opacity-60'}`}>
                       <Origin origin={m.origin} />
                       <span>·</span>
@@ -176,6 +198,17 @@ export function ChatSheet({
       )}
     </Sheet>
   );
+}
+
+/** One line for a message shown as a quote or a placeholder: its text, or what kind of thing it was. */
+function summary(m: PartyChatMessage, t: ReturnType<typeof useTranslations>): string {
+  if (m.body) return m.body;
+  switch (m.type) {
+    case 'image': return t('chatPhoto');
+    case 'audio': return t('chatAudio');
+    case 'sticker': return t('chatSticker');
+    default: return t('chatNonText');
+  }
 }
 
 function Origin({ origin }: { origin: PartyChatMessage['origin'] }) {

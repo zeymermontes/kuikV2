@@ -43,17 +43,58 @@ type InboundPayload struct {
 	Timestamp int64  `json:"timestamp"`
 	IsGroup   bool   `json:"isGroup"`
 	FromMe    bool   `json:"fromMe"`
-	// Voice notes: the bytes travel base64'd so Kuik can transcribe them.
-	// Empty MediaB64 with a MediaType still gets forwarded — Kuik then knows
-	// to answer "no pude escuchar tu audio" instead of staying silent.
+	// Media — a voice note, a photo, a sticker — travels base64'd: Kuik
+	// transcribes audio and keeps all of it for the staff chat. Empty
+	// MediaB64 with a MediaType still gets forwarded — Kuik then knows to
+	// answer "no pude escuchar tu audio" instead of staying silent.
 	MediaType string `json:"mediaType,omitempty"`
 	MediaMime string `json:"mediaMime,omitempty"`
 	MediaB64  string `json:"mediaB64,omitempty"`
+	// The id of the message this one quotes ("reply"), when it does.
+	RepliedTo string `json:"repliedTo,omitempty"`
 }
 
 // Voice notes are opus at ~1.5 MB/minute; anything past this is a podcast,
-// not a booking request.
-const maxAudioBytes = 8 << 20
+// not a booking request. Photos are re-encoded by WhatsApp at ~100 KB–2 MB;
+// stickers are WebP of a few hundred KB.
+const (
+	maxAudioBytes = 8 << 20
+	maxImageBytes = 6 << 20
+)
+
+// mediaOf picks the downloadable part of a message the staff chat can show,
+// with its kind and mime. Video is left out on purpose: tens of megabytes
+// per message for something a host at the door will not watch.
+func mediaOf(msg *waE2E.Message) (kind, mime string, media whatsmeow.DownloadableMessage, size uint64) {
+	switch {
+	case msg.GetAudioMessage() != nil:
+		a := msg.GetAudioMessage()
+		return "audio", a.GetMimetype(), a, a.GetFileLength()
+	case msg.GetImageMessage() != nil:
+		i := msg.GetImageMessage()
+		return "image", i.GetMimetype(), i, i.GetFileLength()
+	case msg.GetStickerMessage() != nil:
+		st := msg.GetStickerMessage()
+		return "sticker", st.GetMimetype(), st, st.GetFileLength()
+	}
+	return "", "", nil, 0
+}
+
+// repliedTo is the quoted message's id, whichever shape carries the context.
+func repliedTo(msg *waE2E.Message) string {
+	var ctx *waE2E.ContextInfo
+	switch {
+	case msg.GetExtendedTextMessage() != nil:
+		ctx = msg.GetExtendedTextMessage().GetContextInfo()
+	case msg.GetImageMessage() != nil:
+		ctx = msg.GetImageMessage().GetContextInfo()
+	case msg.GetAudioMessage() != nil:
+		ctx = msg.GetAudioMessage().GetContextInfo()
+	case msg.GetStickerMessage() != nil:
+		ctx = msg.GetStickerMessage().GetContextInfo()
+	}
+	return ctx.GetStanzaID()
+}
 
 // extractText pulls readable text out of the several shapes WhatsApp uses.
 //
@@ -100,8 +141,9 @@ type Forwarder struct {
 // to the worker pool, so the socket goroutine only ever enqueues.
 type queueItem struct {
 	payload InboundPayload
-	// Set for a voice note: the worker downloads it through this client.
-	audio *waE2E.AudioMessage
+	// Set for media: the worker downloads it through this client.
+	media whatsmeow.DownloadableMessage
+	limit int
 	cli   *whatsmeow.Client
 }
 
@@ -127,17 +169,17 @@ func NewForwarder(url, secret string) *Forwarder {
 
 func (f *Forwarder) worker() {
 	for item := range f.queue {
-		if item.audio != nil && item.cli != nil {
+		if item.media != nil && item.cli != nil {
 			// Download on the WORKER, never the socket goroutine. A failure
 			// still forwards the payload — Kuik answers "couldn't listen"
 			// instead of leaving the diner on read.
-			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-			data, err := item.cli.Download(ctx, item.audio)
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			data, err := item.cli.Download(ctx, item.media)
 			cancel()
 			if err != nil {
-				log.Printf("audio download failed for %s: %v", item.payload.MessageID, err)
-			} else if len(data) > maxAudioBytes {
-				log.Printf("audio %s too large (%d bytes), forwarding without media", item.payload.MessageID, len(data))
+				log.Printf("%s download failed for %s: %v", item.payload.MediaType, item.payload.MessageID, err)
+			} else if len(data) > item.limit {
+				log.Printf("%s %s too large (%d bytes), forwarding without media", item.payload.MediaType, item.payload.MessageID, len(data))
 			} else {
 				item.payload.MediaB64 = base64.StdEncoding.EncodeToString(data)
 			}
@@ -154,10 +196,10 @@ func (f *Forwarder) Handle(tenantID string, evt *events.Message, cli *whatsmeow.
 		return
 	}
 	text := extractText(evt.Message)
-	audio := evt.Message.GetAudioMessage()
-	if strings.TrimSpace(text) == "" && audio == nil {
-		// Media without a caption, a reaction, a poll — nothing the bot can
-		// read. Logged because "nothing happened" needs a reason.
+	kind, mime, media, size := mediaOf(evt.Message)
+	if strings.TrimSpace(text) == "" && media == nil {
+		// A reaction, a poll, a video — nothing the bot can read or the
+		// staff chat shows. Logged because "nothing happened" needs a reason.
 		log.Printf("skipping message with no text from %s (type %s)", evt.Info.Sender.String(), evt.Info.Type)
 		return
 	}
@@ -193,14 +235,20 @@ func (f *Forwarder) Handle(tenantID string, evt *events.Message, cli *whatsmeow.
 		Timestamp: evt.Info.Timestamp.Unix(),
 		IsGroup:   evt.Info.IsGroup,
 		FromMe:    evt.Info.IsFromMe,
+		RepliedTo: repliedTo(evt.Message),
 	}
 
 	item := queueItem{payload: payload}
-	if audio != nil && strings.TrimSpace(text) == "" {
-		item.payload.MediaType = "audio"
-		item.payload.MediaMime = audio.GetMimetype()
-		if audio.GetFileLength() <= maxAudioBytes {
-			item.audio = audio
+	if media != nil {
+		limit := maxImageBytes
+		if kind == "audio" {
+			limit = maxAudioBytes
+		}
+		item.payload.MediaType = kind
+		item.payload.MediaMime = mime
+		if size <= uint64(limit) {
+			item.media = media
+			item.limit = limit
 			item.cli = cli
 		}
 	}

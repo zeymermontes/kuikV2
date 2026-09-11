@@ -4,6 +4,7 @@ import { normalizeWaId } from '@/lib/phone';
 import { windowExpiryFrom } from './window';
 import { runBot } from './bot';
 import { transcribeAudio } from './transcribe';
+import { downloadCloudMedia, storeInboundMedia } from './media';
 
 /**
  * Turns raw webhook payloads into conversations, messages and bot replies.
@@ -171,8 +172,19 @@ interface InboundMessage {
     button_reply?: { id?: string; title?: string };
     list_reply?: { id?: string; title?: string };
   };
-  /** Bridge voice notes: bytes travel base64'd for transcription. */
-  audio?: { mime?: string | null; dataB64?: string | null };
+  /** Media: the bridge sends the bytes base64'd; the Cloud API sends an id to fetch. */
+  audio?: InboundMedia;
+  image?: InboundMedia & { caption?: string | null };
+  sticker?: InboundMedia;
+  /** The message this one quotes. */
+  context?: { id?: string | null };
+}
+
+interface InboundMedia {
+  id?: string | null;
+  mime?: string | null;
+  mime_type?: string | null;
+  dataB64?: string | null;
 }
 
 async function handleInbound(supabase: Supabase, row: EventRow): Promise<void> {
@@ -206,25 +218,38 @@ async function handleInbound(supabase: Supabase, row: EventRow): Promise<void> {
     const replyId =
       msg.interactive?.button_reply?.id ?? msg.interactive?.list_reply?.id ?? null;
 
+    // Media: the bytes come with the message (bridge) or are fetched by id
+    // (Cloud API), then go to storage so the staff chat can show them.
+    const mediaKind = msg.type === 'audio' || msg.type === 'image' || msg.type === 'sticker' ? msg.type : null;
+    const media = mediaKind ? msg[mediaKind] : undefined;
+    let mediaMime = media?.mime ?? media?.mime_type ?? null;
+    let bytes: Buffer | null = media?.dataB64 ? Buffer.from(media.dataB64, 'base64') : null;
+    if (!bytes && media?.id && transport === 'cloud') {
+      const fetched = await downloadCloudMedia(phoneNumberId, media.id);
+      if (fetched) {
+        bytes = fetched.bytes;
+        mediaMime = fetched.mime ?? mediaMime;
+      }
+    }
+    if (msg.type === 'image' && msg.image?.caption) body = msg.image.caption;
+
     // A voice note becomes text right here, so everything downstream — flows,
     // AI, the inbox transcript — sees what the diner SAID. No transcript
     // (no key configured, download failed) leaves body empty; the bot then
     // answers that it couldn't listen instead of ignoring them.
     let audioUnreadable = false;
     if (msg.type === 'audio') {
-      const b64 = msg.audio?.dataB64;
-      const transcript = b64
-        ? await transcribeAudio(Buffer.from(b64, 'base64'), msg.audio?.mime ?? null)
-        : null;
+      const transcript = bytes ? await transcribeAudio(bytes, mediaMime) : null;
       if (transcript) body = transcript;
       else audioUnreadable = true;
     }
+    const mediaUrl = bytes && mediaKind ? await storeInboundMedia(tenantId, bytes, mediaMime) : null;
 
     // The base64 must NOT land in whatsapp_messages.payload — events get
     // purged at 30 days, messages don't, and a megabyte per voice note adds
     // up fast.
     const storedPayload: Record<string, unknown> = { ...(msg as unknown as Record<string, unknown>) };
-    if (msg.audio) storedPayload.audio = { mime: msg.audio.mime ?? null };
+    if (mediaKind && media) storedPayload[mediaKind] = { ...media, dataB64: undefined, mime: mediaMime };
 
     const { data: inserted } = await supabase
       .from('whatsapp_messages')
@@ -237,7 +262,10 @@ async function handleInbound(supabase: Supabase, row: EventRow): Promise<void> {
           origin: 'customer',
           type: msg.type,
           body,
-          media_mime: msg.audio?.mime ?? null,
+          media_id: media?.id ?? null,
+          media_url: mediaUrl,
+          media_mime: mediaKind ? mediaMime : null,
+          replied_to_wa_id: msg.context?.id ?? null,
           payload: storedPayload,
         },
         { onConflict: 'wa_message_id', ignoreDuplicates: true },
@@ -263,6 +291,10 @@ async function handleInbound(supabase: Supabase, row: EventRow): Promise<void> {
       .from('whatsapp_numbers')
       .update({ last_inbound_at: now.toISOString() })
       .eq('phone_number_id', phoneNumberId);
+
+    // A photo or a sticker with nothing said: kept for the staff chat, but
+    // there is no question in it for the bot to answer.
+    if (!body.trim() && !replyId && !audioUnreadable) continue;
 
     await runBot({
       tenantId, conversationId, text: body, replyId,

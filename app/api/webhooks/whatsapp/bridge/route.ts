@@ -41,6 +41,8 @@ export async function POST(req: NextRequest) {
     mediaType?: string;
     mediaMime?: string;
     mediaB64?: string;
+    /** Id of the message this one quotes. */
+    repliedTo?: string;
   };
   try {
     body = JSON.parse(raw);
@@ -83,21 +85,7 @@ export async function POST(req: NextRequest) {
         // go back to. `phone` is separate and often absent — LID addressing
         // exists precisely so the number is not disclosed.
         contacts: [{ wa_id: body.from, phone: body.phone ?? null, profile: { name: body.pushName ?? null } }],
-        messages: [
-          body.mediaType === 'audio'
-            ? {
-                id: body.messageId,
-                from: body.from,
-                type: 'audio',
-                audio: { mime: body.mediaMime ?? null, dataB64: body.mediaB64 ?? null },
-              }
-            : {
-                id: body.messageId,
-                from: body.from,
-                type: 'text',
-                text: { body: body.text ?? '' },
-              },
-        ],
+        messages: [bridgeMessage(body)],
         _transport: 'bridge',
       },
       status: 'pending',
@@ -108,4 +96,28 @@ export async function POST(req: NextRequest) {
   if (row) after(() => processEvents([(row as { id: string }).id]));
 
   return NextResponse.json({ ok: true });
+}
+
+/**
+ * One inbound message in the Cloud API's own shape, so the router downstream
+ * needs no idea which transport it came from. Media keeps the bytes the
+ * bridge already downloaded; a caption rides on the image like Meta's does.
+ */
+function bridgeMessage(body: {
+  messageId?: string; from?: string; text?: string;
+  mediaType?: string; mediaMime?: string; mediaB64?: string; repliedTo?: string;
+}): Record<string, unknown> {
+  const base: Record<string, unknown> = { id: body.messageId, from: body.from };
+  if (body.repliedTo) base.context = { id: body.repliedTo };
+  const media = { mime: body.mediaMime ?? null, dataB64: body.mediaB64 ?? null };
+  switch (body.mediaType) {
+    case 'audio':
+      return { ...base, type: 'audio', audio: media };
+    case 'image':
+      return { ...base, type: 'image', image: { ...media, caption: body.text || null } };
+    case 'sticker':
+      return { ...base, type: 'sticker', sticker: media };
+    default:
+      return { ...base, type: 'text', text: { body: body.text ?? '' } };
+  }
 }
