@@ -38,6 +38,11 @@ export async function getCanned(
 }
 
 /** Turn a refusal code from the booking RPC into something a diner can act on. */
+/** Refusals the diner cannot fix by picking another time: a person has to step in. */
+export function reservationErrorNeedsHuman(code: string): boolean {
+  return ['phone_required', 'note_required', 'missing_fields', 'party_out_of_range', 'failed', 'not_allowed', 'unknown_tenant'].includes(code);
+}
+
 export function reservationErrorMessage(code: string): string {
   switch (code) {
     case 'slot_full': return 'Ya no tenemos lugar a esa hora. ¿Probamos con otro horario?';
@@ -45,6 +50,9 @@ export function reservationErrorMessage(code: string): string {
     case 'too_far': return 'Esa fecha está demasiado lejos para reservar todavía.';
     case 'party_out_of_range': return 'Para ese número de personas, mejor te contactamos directamente.';
     case 'not_enabled': return 'Por ahora no estamos tomando reservaciones en línea.';
+    case 'phone_required': return 'Para registrarla necesitamos un número de teléfono. Un momento y te atiende una persona.';
+    case 'note_required': return 'Para registrarla nos falta un comentario o detalle. Un momento y te atiende una persona.';
+    case 'missing_fields': return 'Me faltó un dato para registrarla. Un momento y te atiende una persona.';
     default: return 'No pude registrar la reservación. Un momento y te atiende una persona.';
   }
 }

@@ -206,7 +206,7 @@ export async function runBot(turn: BotTurn): Promise<void> {
     supabase, conv, contactId: contact.id, botCtx: ctx, vars,
     turn: { text: turn.text, replyId: turn.replyId },
     flows, aiEnabled: aiAllowed, botsAllowed, aiGoals, wantsHuman,
-    pendingReplies: replies, reservationsEnabled, startFlow,
+    pendingReplies: replies, reservationsEnabled, startFlow, hasBookings: myReservations.length > 0,
   });
   if (handled) return;
 

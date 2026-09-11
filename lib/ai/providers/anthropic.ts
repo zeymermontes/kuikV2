@@ -17,9 +17,22 @@ export const anthropic: AIProvider = {
 
     for (const m of req.messages) {
       if (m.role === 'tool') {
+        // Several results answer one assistant turn as ONE user turn: the API
+        // wants roles to alternate.
+        const last = messages[messages.length - 1];
+        const block: Block = { type: 'tool_result', tool_use_id: m.toolCallId, content: m.content };
+        if (last && last.role === 'user' && Array.isArray(last.content) && last.content.some((b) => b.type === 'tool_result')) {
+          last.content.push(block);
+        } else {
+          messages.push({ role: 'user', content: [block] });
+        }
+      } else if (m.role === 'assistant' && m.toolCalls?.length) {
         messages.push({
-          role: 'user',
-          content: [{ type: 'tool_result', tool_use_id: m.toolCallId, content: m.content }],
+          role: 'assistant',
+          content: [
+            ...(m.content ? [{ type: 'text', text: m.content } as Block] : []),
+            ...m.toolCalls.map((c) => ({ type: 'tool_use', id: c.id, name: c.name, input: c.arguments ?? {} }) as Block),
+          ],
         });
       } else {
         messages.push({ role: m.role, content: m.content });

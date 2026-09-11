@@ -2,6 +2,7 @@ import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { runAi } from '@/lib/ai/run';
 import { matchGoal } from '../intent';
+import { normalizeText } from '../parse';
 import { sendMessage } from '../send';
 import { botHandoff, type BotContext } from '../actions';
 import type { RenderVars } from '../render';
@@ -9,7 +10,7 @@ import type { OutboundDraft, WhatsappFlow, WhatsappFlowRun } from '../types';
 import { completeGraph, flowBooks, promptDraft, resumeNodeId, slotByKey, spanishSlotParser, stepGraph, type GraphEngineCtx } from './engine';
 import type { FlowGraph } from './schema';
 import { slotsOf } from './schema';
-import { executeActions, getCanned, reservationErrorMessage } from './complete';
+import { executeActions, getCanned, reservationErrorMessage, reservationErrorNeedsHuman } from './complete';
 import { reservationDayStatus } from '@/lib/reservations/availability';
 import { dayUnavailableMessage } from '@/lib/reservations/day';
 import {
@@ -51,7 +52,13 @@ export interface FlowTurnParams {
   reservationsEnabled: boolean;
   /** Start THIS flow instead of matching triggers (the "change my booking" path). */
   startFlow?: WhatsappFlow;
+  /** The diner has upcoming bookings: "cambiar mi reserva" is about those, not a new one. */
+  hasBookings?: boolean;
 }
+
+/** "Change / cancel / how is my booking" — about an existing table, unless they say "otra". */
+const MANAGE_INTENT = /\b(cambiar|cambia|modificar|modifica|mover|mueve|cancelar|cancela|estado|status|mi reserva|mi reservacion|la reserva que)\b/;
+const NEW_INTENT = /\b(otra|nueva|ademas|tambien|segunda)\b/;
 
 /** The enabled flow that books a table, if the restaurant has one. */
 export async function findBookingFlow(supabase: Admin, flows: WhatsappFlow[]): Promise<WhatsappFlow | null> {
@@ -88,6 +95,14 @@ export async function runFlowTurn(params: FlowTurnParams): Promise<boolean> {
       const matched = matchGoal(params.flows, turn.text, turn.replyId);
       if (!matched) return false;
       flow = matched.goal as WhatsappFlow;
+      // "Quiero cambiar mi reserva" matched the booking flow by the word
+      // "reserva" and started a second booking. A diner with a table on the
+      // books talking about it is not booking: leave it to the manage path
+      // (the model's tools, or the scripted menu).
+      if (params.hasBookings && !turn.replyId && MANAGE_INTENT.test(normalizeText(turn.text)) && !NEW_INTENT.test(normalizeText(turn.text))) {
+        const g = await loadPublishedGraph(supabase, flow.id, flow.published_version);
+        if (g && flowBooks(g)) return false;
+      }
     }
 
     // A booking flow while reservations are off: say so NOW, before asking
@@ -198,7 +213,8 @@ export async function runFlowTurn(params: FlowTurnParams): Promise<boolean> {
               : reservationErrorMessage(String(res.error ?? 'failed')),
           });
         }
-        replies.push(...completeGraph(graph, plainAnswers({ ...run, answers: ended.answers ?? run.answers }), { vars }).replies);
+        const anyFailed = Object.values(ended.action_result ?? {}).some((r) => (r as { ok?: boolean }).ok === false);
+        if (!anyFailed) replies.push(...completeGraph(graph, plainAnswers({ ...run, answers: ended.answers ?? run.answers }), { vars }).replies);
       } else if (ended.status === 'handoff') {
         const handoffMsg = await getCanned(supabase, conv.tenant_id, 'handoff', vars);
         replies.push({ type: 'text', body: handoffMsg || 'Claro, en un momento te atiende una persona 🙋' });
@@ -280,9 +296,16 @@ export async function runFlowTurn(params: FlowTurnParams): Promise<boolean> {
   // Action outcomes ("tu solicitud quedó registrada") read best before the
   // end node's own closing line, which the engine hands over separately.
   const replies = [...params.pendingReplies, ...result.replies, ...executed.replies];
-  if (result.endBody) replies.push(result.endBody);
+  // A booking the server refused: the end node's "quedó registrada" would be
+  // a lie, so it stays unsaid; and when the refusal is not something the
+  // diner can fix by picking another time, a person takes over.
+  const refused = Object.values(executed.results).find((r) => (r as { kind?: string; ok?: boolean }).kind === 'create_reservation' && (r as { ok?: boolean }).ok === false) as { error?: string } | undefined;
+  if (result.endBody && !refused) replies.push(result.endBody);
 
-  if (result.outcome) {
+  if (refused && reservationErrorNeedsHuman(String(refused.error ?? 'failed'))) {
+    await botHandoff(ctx, 'booking_failed');
+    await endRun(supabase, run, 'handoff', `booking_${refused.error ?? 'failed'}`, executed.results);
+  } else if (result.outcome) {
     await endRun(
       supabase, run, result.outcome, 'flow_end',
       Object.keys(executed.results).length ? executed.results : undefined,

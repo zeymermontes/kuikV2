@@ -6,6 +6,13 @@ export interface ChatMessage {
   /** Set on role:'tool' — which call this is answering. */
   toolCallId?: string;
   toolName?: string;
+  /**
+   * Set on role:'assistant' — the calls the model made in that turn. Every
+   * provider requires this turn in the history BEFORE the tool results
+   * that answer it; results without it are a 400 ("must be a response to a
+   * preceding message with tool_calls").
+   */
+  toolCalls?: ToolCall[];
 }
 
 export interface ToolDef {

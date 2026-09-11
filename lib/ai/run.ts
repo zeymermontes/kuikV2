@@ -163,6 +163,7 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
             if (!verdict.ok) {
               if (!validated) {
                 validated = true;
+                messages.push({ role: 'assistant', content: res.text ?? '', toolCalls: [replyCall] });
                 messages.push({
                   role: 'tool',
                   content: `${verdict.detail} No la anotes en \`datos\`; díselo al cliente con esas palabras y pide otra fecha. Vuelve a llamar a responder.`,
@@ -199,6 +200,7 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
         }
         // Malformed arguments: hand the error back so it can correct itself,
         // rather than dropping the diner's turn on the floor.
+        messages.push({ role: 'assistant', content: res.text ?? '', toolCalls: [replyCall] });
         messages.push({
           role: 'tool',
           content: `Argumentos inválidos: ${parsed.error.message.slice(0, 200)}. Vuelve a llamar a responder.`,
@@ -209,6 +211,7 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
       }
 
       if (res.toolCalls.length > 0 && round < MAX_TOOL_ROUNDS) {
+        messages.push({ role: 'assistant', content: res.text ?? '', toolCalls: res.toolCalls });
         for (const call of res.toolCalls) {
           if (call.name === 'finalizar_flujo') finalized = true;
           const outcome = await runTool(call.name, call.arguments, turn.ctx, turn.vars);

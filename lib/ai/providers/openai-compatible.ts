@@ -20,7 +20,13 @@ export function openAiCompatible(id: ProviderId, defaultBaseUrl: string): AIProv
         ...req.messages.map((m) =>
           m.role === 'tool'
             ? { role: 'tool', tool_call_id: m.toolCallId, name: m.toolName, content: m.content }
-            : { role: m.role, content: m.content },
+            : m.role === 'assistant' && m.toolCalls?.length
+              ? {
+                  role: 'assistant',
+                  content: m.content || null,
+                  tool_calls: m.toolCalls.map((c) => ({ id: c.id, type: 'function', function: { name: c.name, arguments: JSON.stringify(c.arguments ?? {}) } })),
+                }
+              : { role: m.role, content: m.content },
         ),
       ];
 
