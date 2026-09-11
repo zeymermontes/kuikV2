@@ -24,7 +24,9 @@ import type { ChatMessage } from './types';
 // A booking turn can legitimately need several: look something up, write a
 // fact down, then answer. Three was too tight and truncated mid-booking.
 const MAX_TOOL_ROUNDS = 5;
-const TURN_TIMEOUT_MS = 12_000;
+// Finishing a flow is two model calls (finalizar_flujo, then the reply) plus
+// the booking itself; 12 s cut that short and the script restarted.
+const TURN_TIMEOUT_MS = 25_000;
 const MAX_REPLY_CHARS = 700;
 
 export interface AiTurn {
@@ -46,7 +48,15 @@ export interface AiTurn {
     runId?: string;
     /** The flow's slot definitions — they become the reply's `datos` schema. */
     slots?: FlowSlot[];
+    /**
+     * A last check on what the model wants to write down (a date on a closed
+     * day, say). A refusal goes back to the model as a tool error so it
+     * rewrites its reply; the value is not persisted.
+     */
+    validate?: (datos: Record<string, unknown>) => Promise<{ ok: true } | { ok: false; key: string; detail: string }>;
   };
+  /** Online reservations on for this restaurant; off = say so, do not collect. */
+  reservationsEnabled?: boolean;
 }
 
 /** @returns true when the AI answered; false to fall back to flows. */
@@ -98,6 +108,9 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
   const facts: string[] = [];
   let promptTokens = 0;
   let completionTokens = 0;
+  // One rewrite per turn on a refused value; the second time it is dropped
+  // silently rather than looping the model.
+  let validated = false;
 
   try {
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
@@ -128,8 +141,26 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
             datos?: Record<string, unknown>;
             datos_extra?: Record<string, string>;
           };
-          if (turn.collecting?.runId && (datos || datos_extra)) {
-            await persistRunAnswers(turn.collecting.runId, datos, datos_extra);
+          let toPersist = datos;
+          if (datos && turn.collecting?.validate) {
+            const verdict = await turn.collecting.validate(datos);
+            if (!verdict.ok) {
+              if (!validated) {
+                validated = true;
+                messages.push({
+                  role: 'tool',
+                  content: `${verdict.detail} No la anotes en \`datos\`; díselo al cliente con esas palabras y pide otra fecha. Vuelve a llamar a responder.`,
+                  toolCallId: replyCall.id,
+                  toolName: 'responder',
+                });
+                continue;
+              }
+              toPersist = { ...datos };
+              delete toPersist[verdict.key];
+            }
+          }
+          if (turn.collecting?.runId && (toPersist || datos_extra)) {
+            await persistRunAnswers(turn.collecting.runId, toPersist, datos_extra);
           }
           return finish(turn, provider, mensaje, facts, promptTokens, completionTokens, started);
         }
@@ -258,14 +289,26 @@ function buildSystemPrompt(turn: AiTurn, extra: string | null): string {
     '  dejando claro que es una sugerencia y no una regla del restaurante.',
     '- Puedes contestar una pregunta lateral a media reservación y luego retomar donde ibas.',
     '- Una pregunta a la vez. No pidas cuatro datos en el mismo mensaje.',
+    '- Si ofreces opciones numeradas y el cliente contesta solo con un número, es la',
+    '  opción con ese número en el orden en que se las diste.',
   ];
+
+  if (turn.reservationsEnabled === false) {
+    lines.push(
+      '',
+      'RESERVACIONES: por ahora el restaurante NO toma reservaciones por este medio.',
+      '- Si el cliente quiere reservar, dilo con claridad desde su primer mensaje sobre el tema.',
+      turn.vars.telefono ? `  Ofrece el teléfono ${turn.vars.telefono} o que alguien del restaurante le escriba.` : '  Ofrece que alguien del restaurante le escriba.',
+      '- No pidas fecha, hora ni número de personas.',
+    );
+  }
 
   if (turn.collecting) {
     const known = Object.entries(turn.collecting.known)
       .map(([k, v]) => `  - ${k}: ${JSON.stringify(v)}`)
       .join('\n');
     const missing = turn.collecting.needed
-      .map((n) => `  - ${n.key}${n.options?.length ? ` (opciones: ${n.options.join(', ')})` : ''}: ${n.prompt}`)
+      .map((n) => `  - ${n.key}${n.options?.length ? ` (opciones: ${n.options.map((o, i) => `${i + 1}) ${o}`).join(', ')})` : ''}: ${n.prompt}`)
       .join('\n');
 
     lines.push(
@@ -277,6 +320,7 @@ function buildSystemPrompt(turn: AiTurn, extra: string | null): string {
       '- SIEMPRE contesta llamando a `responder`. Es la única forma de hablarle al cliente.',
       '- En `datos` repite todo lo que ya confirmaste, no solo lo de este turno.',
       '  Si el cliente se corrige ("mejor 6"), manda el valor nuevo: reemplaza al anterior.',
+      '- Si una pregunta tiene opciones, ofrécelas numeradas; un número como respuesta es esa opción.',
       '- Las fechas van como YYYY-MM-DD y las horas como HH:MM de 24 horas.',
       '  Tradúcelas tú a partir de lo que dijo el cliente y de la fecha de hoy.',
       '- Cuando ya tengas todo, LEE EL RESUMEN al cliente y espera su confirmación.',

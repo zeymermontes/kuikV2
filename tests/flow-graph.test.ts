@@ -165,6 +165,29 @@ test('a tapped option leaves through its own edge', () => {
   assert.equal(picked.outcome, 'completed');
 });
 
+test('a typed number picks that option — linked devices send options as "1. Salón / 2. Terraza"', () => {
+  const first = stepGraph(AREAS, { currentNodeId: null, answers: {} }, { text: 'hola' });
+  const two = stepGraph(AREAS, first.state, { text: '2' });
+  assert.match(two.replies[0]?.body ?? '', /depende del clima/, '"2" is Terraza');
+  const one = stepGraph(AREAS, first.state, { text: '1.' });
+  assert.match(one.endBody?.body ?? '', /salon anotado/, '"1." is Salón');
+  const outOfRange = stepGraph(AREAS, first.state, { text: '7' });
+  assert.equal(outOfRange.state.currentNodeId, 'q_area', 'no such option: re-ask');
+});
+
+test('a typed title matches without accents, and by prefix', () => {
+  const first = stepGraph(AREAS, { currentNodeId: null, answers: {} }, { text: 'hola' });
+  assert.match(stepGraph(AREAS, first.state, { text: 'salon' }).endBody?.body ?? '', /salon anotado/);
+  assert.match(stepGraph(AREAS, first.state, { text: 'terr' }).replies[0]?.body ?? '', /depende del clima/);
+});
+
+test('"1" confirms and "2" declines the numbered summary', () => {
+  const yes = stepGraph(BOOKING, filledState(), { text: '1' }, ctx);
+  assert.equal(yes.actions[0]?.kind, 'create_reservation');
+  const no = stepGraph(BOOKING, filledState(), { text: '2' }, ctx);
+  assert.equal(no.outcome, 'canceled');
+});
+
 test('an option without its own edge takes the default exit', () => {
   const first = stepGraph(AREAS, { currentNodeId: null, answers: {} }, { text: 'hola' });
   const picked = stepGraph(AREAS, first.state, { text: '', replyId: 'salon' });

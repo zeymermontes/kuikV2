@@ -39,6 +39,11 @@ const CANNED: { key: string; body: string }[] = [
     key: 'reservation_ok',
     body: '¡Listo! Dejé tu solicitud registrada 📝 El restaurante te confirma en unos minutos.',
   },
+  {
+    // Said the moment a diner asks to book while online reservations are off.
+    key: 'reservations_off',
+    body: 'Por ahora no estamos tomando reservaciones por este medio 🙏 Escríbenos o llámanos al {{telefono}} y con gusto te ayudamos.',
+  },
 ];
 
 // The conversational defaults live in lib/whatsapp/flows/templates.ts as

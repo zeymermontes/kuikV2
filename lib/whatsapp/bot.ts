@@ -131,7 +131,7 @@ export async function runBot(turn: BotTurn): Promise<void> {
   // Four independent lookups; on the per-message hot path they must not run
   // serially. (The runnable graph is NOT fetched here — the runtime loads the
   // published snapshot only when a run actually starts or continues.)
-  const [ctx, { vars, open }, { data: subRow }, { data: flowRows }] = await Promise.all([
+  const [ctx, { vars, open, reservationsEnabled }, { data: subRow }, { data: flowRows }] = await Promise.all([
     buildContext(supabase, conv, contact.wa_id, contact.profile_name),
     buildVars(supabase, turn.tenantId, conv.branch_id),
     supabase
@@ -185,7 +185,7 @@ export async function runBot(turn: BotTurn): Promise<void> {
     supabase, conv, contactId: contact.id, botCtx: ctx, vars,
     turn: { text: turn.text, replyId: turn.replyId },
     flows, aiEnabled: aiAllowed, botsAllowed, aiGoals, wantsHuman,
-    pendingReplies: replies,
+    pendingReplies: replies, reservationsEnabled,
   });
   if (handled) return;
 
@@ -214,7 +214,7 @@ export async function runBot(turn: BotTurn): Promise<void> {
   }
 
   if (aiAllowed) {
-    const handledByAi = await runAi({ ctx, text: turn.text, vars, goals: aiGoals });
+    const handledByAi = await runAi({ ctx, text: turn.text, vars, goals: aiGoals, reservationsEnabled });
     if (handledByAi) return;
   }
 
@@ -312,10 +312,10 @@ async function buildVars(
   supabase: ReturnType<typeof createAdminClient>,
   tenantId: string,
   branchId: string | null,
-): Promise<{ vars: RenderVars; open: boolean }> {
+): Promise<{ vars: RenderVars; open: boolean; reservationsEnabled: boolean }> {
   const [{ data: tenant }, { data: contactRow }, { data: branchRow }] = await Promise.all([
     supabase.from('tenants').select('name, subdomain, custom_domain, timezone').eq('id', tenantId).maybeSingle(),
-    supabase.from('tenant_contact').select('address, maps_url, hours, whatsapp_phone').eq('tenant_id', tenantId).maybeSingle(),
+    supabase.from('tenant_contact').select('address, maps_url, hours, whatsapp_phone, reservations_enabled').eq('tenant_id', tenantId).maybeSingle(),
     branchId
       ? supabase.from('branches').select('address, maps_url, hours, whatsapp_phone').eq('id', branchId).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -323,7 +323,7 @@ async function buildVars(
 
   const t = tenant as { name: string; subdomain: string; custom_domain: string | null; timezone: string } | null;
   type ContactShape = { address: string | null; maps_url: string | null; hours: unknown; whatsapp_phone: string | null };
-  const main = contactRow as ContactShape | null;
+  const main = contactRow as (ContactShape & { reservations_enabled?: boolean | null }) | null;
   const branch = branchRow as ContactShape | null;
 
   // A number tied to a branch answers with THAT branch's facts, falling back
@@ -344,6 +344,7 @@ async function buildVars(
 
   return {
     open,
+    reservationsEnabled: Boolean(main?.reservations_enabled),
     vars: {
     restaurante: t?.name ?? '',
     horario_hoy: today

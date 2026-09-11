@@ -6,10 +6,12 @@ import { sendMessage } from '../send';
 import { botHandoff, type BotContext } from '../actions';
 import type { RenderVars } from '../render';
 import type { OutboundDraft, WhatsappFlow, WhatsappFlowRun } from '../types';
-import { resumeNodeId, spanishSlotParser, stepGraph, type GraphEngineCtx } from './engine';
+import { completeGraph, flowBooks, promptDraft, resumeNodeId, slotByKey, spanishSlotParser, stepGraph, type GraphEngineCtx } from './engine';
 import type { FlowGraph } from './schema';
 import { slotsOf } from './schema';
-import { executeActions, getCanned } from './complete';
+import { executeActions, getCanned, reservationErrorMessage } from './complete';
+import { reservationDayStatus } from '@/lib/reservations/availability';
+import { dayUnavailableMessage } from '@/lib/reservations/day';
 import {
   createRun, endRun, loadPublishedGraph, loadRun,
   mergeAnswers, plainAnswers, timerDues,
@@ -45,6 +47,8 @@ export interface FlowTurnParams {
   wantsHuman?: boolean;
   /** Say these first (e.g. the out-of-hours notice) on the scripted path. */
   pendingReplies: OutboundDraft[];
+  /** Online reservations switched on for this restaurant. */
+  reservationsEnabled: boolean;
 }
 
 /** @returns true when the turn was handled here; false = not a flow turn. */
@@ -70,6 +74,22 @@ export async function runFlowTurn(params: FlowTurnParams): Promise<boolean> {
     const matched = matchGoal(params.flows, turn.text, turn.replyId);
     if (!matched) return false;
     flow = matched.goal as WhatsappFlow;
+
+    // A booking flow while reservations are off: say so NOW, before asking
+    // for a party size, a date and a name only to refuse at the end. Same
+    // answer whichever engine would have driven.
+    if (!params.reservationsEnabled) {
+      const wanted = await loadPublishedGraph(supabase, flow.id, flow.published_version);
+      if (wanted && flowBooks(wanted)) {
+        const off = await getCanned(supabase, conv.tenant_id, 'reservations_off', vars);
+        await say(conv.id, [
+          ...params.pendingReplies,
+          { type: 'text', body: off || dayUnavailableMessage('not_enabled', vars.telefono) },
+        ]);
+        return true;
+      }
+    }
+
     const engine = flow.mode === 'ai' && params.aiEnabled ? 'ai' : 'linear';
     run = await createRun(supabase, {
       flow, conversationId: conv.id, contactId: params.contactId, engine,
@@ -101,14 +121,32 @@ export async function runFlowTurn(params: FlowTurnParams): Promise<boolean> {
         options: s.options?.map((o) => o.title),
       }));
 
+    const books = flowBooks(graph);
     const handled = await runAi({
       ctx: { ...ctx, flowRunId: run.id }, text: turn.text, vars, goals: params.aiGoals,
+      reservationsEnabled: params.reservationsEnabled,
       collecting: {
         goalName: flow.name,
         needed,
         known: answers,
         runId: run.id,
         slots,
+        // A date the model is about to write down gets checked against the
+        // calendar first, so "el sábado" on a closed or full Saturday comes
+        // back as "ese día no" instead of a refusal after the name.
+        validate: books
+          ? async (datos) => {
+              const dateSlot = slots.find((s) => s.type === 'date');
+              const date = dateSlot ? datos[dateSlot.key] : undefined;
+              if (typeof date !== 'string' || date === answers[dateSlot!.key]) return { ok: true };
+              const partySlot = slots.find((s) => s.type === 'number');
+              const party = Number((partySlot && datos[partySlot.key]) ?? (partySlot && answers[partySlot.key]) ?? 1);
+              const status = await reservationDayStatus(supabase, { tenantId: conv.tenant_id, branchId: ctx.branchId, date, partySize: party });
+              return status.ok
+                ? { ok: true }
+                : { ok: false, key: dateSlot!.key, detail: `La fecha ${date} NO está disponible: ${dayUnavailableMessage(status.reason)}` };
+            }
+          : undefined,
       },
     });
 
@@ -118,6 +156,39 @@ export async function runFlowTurn(params: FlowTurnParams): Promise<boolean> {
         .update({ last_inbound_at: new Date().toISOString(), nudge_count: 0, ...timerDues(flow) })
         .eq('id', run.id)
         .eq('status', 'active');
+      return true;
+    }
+
+    // The model's turn failed — but did it finish the run first? Its
+    // `finalizar_flujo` (or `pasar_con_humano`) may have ended the run and
+    // then the closing reply timed out or got blocked. Restarting the script
+    // here re-asked "¿Confirmo…?" for a table already booked. Say the
+    // outcome ourselves instead.
+    const { data: endedRow } = await supabase
+      .from('whatsapp_flow_runs')
+      .select('status, action_result, answers')
+      .eq('id', run.id)
+      .maybeSingle();
+    const ended = endedRow as Pick<WhatsappFlowRun, 'status' | 'action_result' | 'answers'> | null;
+    if (ended && ended.status !== 'active') {
+      const replies: OutboundDraft[] = [...params.pendingReplies];
+      if (ended.status === 'completed') {
+        for (const r of Object.values(ended.action_result ?? {})) {
+          const res = r as { kind?: string; ok?: boolean; error?: string };
+          if (res.kind !== 'create_reservation') continue;
+          replies.push({
+            type: 'text',
+            body: res.ok
+              ? (await getCanned(supabase, conv.tenant_id, 'reservation_ok', vars)) || 'Tu solicitud quedó registrada. Te confirmamos en unos minutos.'
+              : reservationErrorMessage(String(res.error ?? 'failed')),
+          });
+        }
+        replies.push(...completeGraph(graph, plainAnswers({ ...run, answers: ended.answers ?? run.answers }), { vars }).replies);
+      } else if (ended.status === 'handoff') {
+        const handoffMsg = await getCanned(supabase, conv.tenant_id, 'handoff', vars);
+        replies.push({ type: 'text', body: handoffMsg || 'Claro, en un momento te atiende una persona 🙋' });
+      }
+      if (replies.length > 0) await say(conv.id, replies);
       return true;
     }
   }
@@ -162,6 +233,33 @@ export async function runFlowTurn(params: FlowTurnParams): Promise<boolean> {
     { text: turn.text, replyId: turn.replyId },
     engineCtx,
   );
+
+  // A date just captured on a booking flow: is that day bookable at all?
+  // If not, say why and ask the same question again — the run stays put.
+  const dateCapture = result.captured.find((c) => slotByKey(graph, c.key)?.type === 'date');
+  if (dateCapture && flowBooks(graph)) {
+    const partyKey = slotsOf(graph).find((s) => s.type === 'number')?.key;
+    const status = await reservationDayStatus(supabase, {
+      tenantId: conv.tenant_id,
+      branchId: ctx.branchId,
+      date: String(dateCapture.value),
+      partySize: partyKey ? Number(result.state.answers[partyKey] ?? 1) : undefined,
+    });
+    if (!status.ok) {
+      const again = promptDraft(graph, run.current_node_id, answers, engineCtx);
+      await supabase
+        .from('whatsapp_flow_runs')
+        .update({ last_inbound_at: new Date().toISOString(), nudge_count: 0, ...timerDues(flow) })
+        .eq('id', run.id)
+        .eq('status', 'active');
+      await say(conv.id, [
+        ...params.pendingReplies,
+        { type: 'text', body: dayUnavailableMessage(status.reason, vars.telefono) },
+        ...(again ? [again] : []),
+      ]);
+      return true;
+    }
+  }
 
   const executed = await executeActions(supabase, ctx, result.actions, vars);
   // Action outcomes ("tu solicitud quedó registrada") read best before the

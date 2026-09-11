@@ -186,12 +186,31 @@ function coerce(slot: FlowSlot, raw: string, ctx: GraphEngineCtx): string | numb
   }
   if (slot.type === 'choice') {
     const opts = ctx.dynamicOptions?.[slot.key] ?? slot.options;
-    const match = opts?.find(
-      (o) => o.id === raw || o.title.toLowerCase() === raw.trim().toLowerCase(),
-    );
-    return match?.id ?? null;
+    return optionByAnswer(opts, raw)?.id ?? null;
   }
   return raw.trim() || null;
+}
+
+/**
+ * Which option a diner meant. A tapped row sends its id; a typed answer may
+ * be the title, the title without accents, or — on a linked device, where
+ * options go out as "1. Chico / 2. Grande" — just the number.
+ */
+export function optionByAnswer<T extends { id: string; title: string }>(opts: T[] | undefined, raw: string): T | null {
+  if (!opts?.length) return null;
+  const trimmed = raw.trim();
+  const byId = opts.find((o) => o.id === trimmed);
+  if (byId) return byId;
+  const num = trimmed.match(/^(\d{1,2})[.)]?$/);
+  if (num) return opts[Number(num[1]) - 1] ?? null;
+  const plain = normalizeText(trimmed);
+  if (!plain) return null;
+  return (
+    opts.find((o) => normalizeText(o.title) === plain) ??
+    // "grande" for "Grande 20oz", "chico 16" for "Chico 16oz".
+    opts.find((o) => normalizeText(o.title).startsWith(plain)) ??
+    null
+  );
 }
 
 function evalCondition(cond: BranchCondition, answers: GraphRunState['answers']): boolean {
@@ -261,9 +280,10 @@ export function stepGraph(
   } else if (current.type === 'confirm') {
     // Accents come off BEFORE matching: JS \b is ASCII-only, and "sí" has no
     // word boundary after the í — the single most common yes in Spanish.
+    // "1" / "2" answer the numbered buttons a linked device sends as text.
     const plain = normalizeText(input);
-    const yes = input === GRAPH_YES || /^(si|yes|correcto|confirmo|confirmar|ok|dale|va|claro)\b/.test(plain);
-    const no = input === GRAPH_NO || /^(no|cancela|cancelar|mejor no)\b/.test(plain);
+    const yes = input === GRAPH_YES || /^1[.)]?$/.test(plain) || /^(si|yes|correcto|confirmo|confirmar|ok|dale|va|claro)\b/.test(plain);
+    const no = input === GRAPH_NO || /^2[.)]?$/.test(plain) || /^(no|cancela|cancelar|mejor no)\b/.test(plain);
     if (yes) {
       next = targetOf(graph, current.id, HANDLE_YES);
     } else if (no) {
@@ -417,6 +437,19 @@ export function completeGraph(
  * waiting node (BFS from start) whose slot has no answer yet, resolving
  * branches that are already decidable along the way.
  */
+/** Whether walking this flow books a table — the flows that day availability applies to. */
+export function flowBooks(graph: FlowGraph): boolean {
+  return graph.nodes.some((n) => n.type === 'action' && n.data.kind === 'create_reservation');
+}
+
+/** The slot a question node captures, by key. */
+export function slotByKey(graph: FlowGraph, key: string): FlowSlot | null {
+  for (const node of graph.nodes) {
+    if (node.type === 'question' && node.data.slot.key === key) return node.data.slot;
+  }
+  return null;
+}
+
 export function resumeNodeId(graph: FlowGraph, answers: GraphRunState['answers']): string | null {
   const start = graph.nodes.find((n) => n.type === 'start');
   if (!start) return null;
