@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Reservation, ReservationArea } from '@/lib/database.types';
 import { Input, Textarea, Label, Button } from '@/components/ui';
+import { PhoneField } from '@/components/PhoneField';
 import { createReservationAction, updateReservationAction } from '@/app/(dashboard)/reservations/actions';
 
 /**
@@ -107,7 +108,7 @@ export function ReservationForm({
           </div>
           <div>
             <Label htmlFor="r-phone">{t('f_phone')}</Label>
-            <Input id="r-phone" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" />
+            <PhoneField id="r-phone" value={phone} onChange={setPhone} />
           </div>
           <div className="flex gap-3">
             <div className="flex-1">

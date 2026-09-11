@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { PhoneField } from '@/components/PhoneField';
 import { useTranslations } from 'next-intl';
 import type { FloorTable, ReservationArea } from '@/lib/database.types';
 import { PARTY_TAGS, QUOTE_CHOICES, type PartyTag } from '@/lib/host/model';
@@ -74,7 +75,7 @@ export function WalkInSheet({
           <input autoFocus className={INPUT} value={name} onChange={(e) => setName(e.target.value)} placeholder={t('walkIn')} />
         </Field>
         <Field label={t('f_phone')}>
-          <input className={INPUT} inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t('phoneHint')} />
+          <PhoneField dark value={phone} onChange={setPhone} placeholder={t('phoneHint')} />
         </Field>
         {!preTable && (
           <Field label={t('f_quote')}>

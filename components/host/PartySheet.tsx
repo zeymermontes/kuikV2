@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { PhoneField } from '@/components/PhoneField';
 import { useTranslations } from 'next-intl';
 import { Phone, MessageCircle, Pencil, Users, Clock, MapPin, ArrowRightLeft, Check } from 'lucide-react';
 import type { FloorTable, Reservation, ReservationArea, ReservationStatus, TableStatus } from '@/lib/database.types';
@@ -115,7 +116,7 @@ export function PartySheet({
             <input className={INPUT} value={f.customer_name ?? ''} onChange={(e) => setF({ ...f, customer_name: e.target.value })} />
           </Field>
           <Field label={t('f_phone')}>
-            <input className={INPUT} inputMode="tel" value={f.phone ?? ''} onChange={(e) => setF({ ...f, phone: e.target.value || null })} />
+            <PhoneField dark value={f.phone} onChange={(v) => setF({ ...f, phone: v || null })} />
           </Field>
           <div className="flex flex-wrap items-end gap-4">
             <Field label={t('f_party')}>
