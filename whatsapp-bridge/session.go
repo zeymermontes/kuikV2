@@ -458,12 +458,19 @@ func (m *Manager) Send(ctx context.Context, tenantID, to, text string) (string, 
 	// contact at @s.whatsapp.net fails with "no LID found". Only bare digits —
 	// e.g. a phone typed into the dashboard — get the default server appended.
 	target := strings.TrimPrefix(to, "+")
-	if !strings.Contains(target, "@") {
-		target += "@" + types.DefaultUserServer
-	}
-	jid, err := types.ParseJID(target)
-	if err != nil {
-		return "", fmt.Errorf("bad recipient: %w", err)
+	var jid types.JID
+	if strings.Contains(target, "@") {
+		parsed, err := types.ParseJID(target)
+		if err != nil {
+			return "", fmt.Errorf("bad recipient: %w", err)
+		}
+		jid = parsed
+	} else {
+		resolved, err := resolveNumber(ctx, s.Client, target)
+		if err != nil {
+			return "", err
+		}
+		jid = resolved
 	}
 
 	resp, err := s.Client.SendMessage(ctx, jid, textMessage(text))
@@ -471,6 +478,36 @@ func (m *Manager) Send(ctx context.Context, tenantID, to, text string) (string, 
 		return "", err
 	}
 	return resp.ID, nil
+}
+
+// resolveNumber asks WhatsApp which account a bare phone number belongs to.
+//
+// Sending to "<digits>@s.whatsapp.net" only works when whatsmeow already has
+// the LID for that number, and a diner the restaurant messages FIRST (a
+// walk-in typed at the door) has never been seen. The usync lookup fills the
+// LID cache and returns the canonical address. It also settles Mexico's
+// quirk: WhatsApp registers mobiles as 521…, the dialable number is 52…, and
+// which of the two the server recognises depends on the account, so both are
+// tried.
+func resolveNumber(ctx context.Context, cli *whatsmeow.Client, digits string) (types.JID, error) {
+	candidates := []string{"+" + digits}
+	if strings.HasPrefix(digits, "52") && len(digits) == 12 {
+		candidates = append(candidates, "+521"+digits[2:])
+	} else if strings.HasPrefix(digits, "521") && len(digits) == 13 {
+		candidates = append(candidates, "+52"+digits[3:])
+	}
+	for _, phone := range candidates {
+		results, err := cli.IsOnWhatsApp(ctx, []string{phone})
+		if err != nil {
+			return types.JID{}, fmt.Errorf("lookup %s: %w", phone, err)
+		}
+		for _, r := range results {
+			if r.IsIn && !r.JID.IsEmpty() {
+				return r.JID, nil
+			}
+		}
+	}
+	return types.JID{}, fmt.Errorf("%s is not on WhatsApp", digits)
 }
 
 // DisconnectAll closes every socket on shutdown, so the next instance does not
