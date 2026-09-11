@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { PHONE_COUNTRIES, joinPhone, splitPhone } from '@/lib/phone-countries';
+import { PHONE_COUNTRIES, joinPhone, phoneLooksValid, splitPhone } from '@/lib/phone-countries';
 
 /**
  * A phone number as two controls: the country (Mexico by default) and the
@@ -48,6 +48,9 @@ export function PhoneField({
     ? 'rounded-xl border border-white/10 bg-white/5 text-base text-white placeholder:text-white/30 focus:border-pos-accent focus:outline-none'
     : 'rounded-lg border border-neutral-300 text-sm outline-none transition focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10';
   const country = PHONE_COUNTRIES.find((c) => c.iso === parts.iso) ?? PHONE_COUNTRIES[0];
+  // A number that cannot exist in that country gets a red edge, not a block:
+  // the host may be typing a foreign number under the wrong flag.
+  const invalid = phoneLooksValid(parts.iso, parts.national) === false;
 
   return (
     <div className="flex gap-2">
@@ -77,7 +80,8 @@ export function PhoneField({
         value={parts.national}
         onChange={(e) => update(parts.iso, e.target.value.replace(/[^\d\s-]/g, ''))}
         placeholder={placeholder}
-        className={`${box} w-full min-w-0 px-3 py-2.5`}
+        aria-invalid={invalid || undefined}
+        className={`${box} w-full min-w-0 px-3 py-2.5 ${invalid ? '!border-red-400' : ''}`}
       />
     </div>
   );

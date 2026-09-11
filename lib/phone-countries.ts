@@ -7,6 +7,8 @@
  * in the office, and is what the tests exercise.
  */
 
+import { parsePhoneNumberFromString } from 'libphonenumber-js/min';
+
 export interface PhoneCountry {
   iso: string;
   dial: string;
@@ -77,10 +79,24 @@ function stripMarker(c: PhoneCountry, national: string): string {
   return n;
 }
 
-/** The two halves back into one E.164 string, or '' when nothing was typed. */
+/**
+ * The two halves back into one E.164 string, or '' when nothing was typed.
+ * libphonenumber does the joining when it recognises the number, so each
+ * country's own habits are handled — Argentina's "15" mobile prefix and "0"
+ * trunk, Spain's nine digits, the US area code — and only an unrecognised
+ * input falls back to dial code + digits, so nothing typed is ever lost.
+ */
 export function joinPhone(iso: string, national: string): string {
   const digits = national.replace(/\D/g, '');
   if (!digits) return '';
+  const parsed = parsePhoneNumberFromString(national, iso as never);
+  if (parsed?.isValid()) return parsed.number;
   const c = PHONE_COUNTRIES.find((x) => x.iso === iso) ?? PHONE_COUNTRIES[0];
   return `+${c.dial}${digits}`;
+}
+
+/** True when the national digits make a real number for that country; null while empty. */
+export function phoneLooksValid(iso: string, national: string): boolean | null {
+  if (!national.replace(/\D/g, '')) return null;
+  return parsePhoneNumberFromString(national, iso as never)?.isValid() ?? false;
 }

@@ -491,10 +491,17 @@ func (m *Manager) Send(ctx context.Context, tenantID, to, text string) (string, 
 // tried.
 func resolveNumber(ctx context.Context, cli *whatsmeow.Client, digits string) (types.JID, error) {
 	candidates := []string{"+" + digits}
-	if strings.HasPrefix(digits, "52") && len(digits) == 12 {
+	switch {
+	case strings.HasPrefix(digits, "52") && len(digits) == 12:
 		candidates = append(candidates, "+521"+digits[2:])
-	} else if strings.HasPrefix(digits, "521") && len(digits) == 13 {
+	case strings.HasPrefix(digits, "521") && len(digits) == 13:
 		candidates = append(candidates, "+52"+digits[3:])
+	// Argentina: mobiles carry a 9 after the country code on WhatsApp
+	// (+54 9 11 …); a number typed from a card or a landline habit lacks it.
+	case strings.HasPrefix(digits, "549") && len(digits) == 13:
+		candidates = append(candidates, "+54"+digits[3:])
+	case strings.HasPrefix(digits, "54") && len(digits) == 12:
+		candidates = append(candidates, "+549"+digits[2:])
 	}
 	for _, phone := range candidates {
 		results, err := cli.IsOnWhatsApp(ctx, []string{phone})
