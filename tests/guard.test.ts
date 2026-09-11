@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkGrounding } from '../lib/ai/guard';
+import { claimsBookingDone, checkGrounding } from '../lib/ai/guard';
 
 test('a price the tool returned passes', () => {
   assert.deepEqual(checkGrounding('Los camarones cuestan $320.', ['320']), { ok: true, invented: [] });
@@ -35,4 +35,12 @@ test('a reply with no money at all is fine', () => {
 test('pesos and mxn spellings are caught too', () => {
   assert.equal(checkGrounding('Son 450 pesos', ['320']).ok, false);
   assert.equal(checkGrounding('Son 450 MXN', ['320']).ok, false);
+});
+
+test('claimsBookingDone: the production reply, bold and all, counts; a question does not', () => {
+  assert.equal(claimsBookingDone('¡Gracias a ti, Daniel! Te dejo el resumen…\n\nQueda *registrada* como solicitud.'), true);
+  assert.equal(claimsBookingDone('Tu reservación quedó anotada, te avisamos.'), true);
+  assert.equal(claimsBookingDone('¡Listo! Tu solicitud está registrada.'), true);
+  assert.equal(claimsBookingDone('¿Te confirmo así la solicitud?'), false);
+  assert.equal(claimsBookingDone('¿Para cuántas personas sería la reservación?'), false);
 });

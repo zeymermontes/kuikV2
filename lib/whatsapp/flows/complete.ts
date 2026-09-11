@@ -147,7 +147,7 @@ export async function completeRunFromAi(
   runId: string,
   ctx: BotContext,
   vars: RenderVars,
-): Promise<{ ok: boolean; detail: string; closing?: string; facts: string[] }> {
+): Promise<{ ok: boolean; detail: string; closing?: string; facts: string[]; missing?: string[]; error?: string }> {
   const supabase = createAdminClient();
   const run = await loadRun(supabase, runId);
   if (!run) return { ok: false, detail: 'El flujo ya no está activo.', facts: [] };
@@ -168,6 +168,7 @@ export async function completeRunFromAi(
       ok: false,
       detail: `Todavía faltan datos requeridos: ${missing.join(', ')}. Pregúntalos y repórtalos en \`responder\` antes de finalizar.`,
       facts: [],
+      missing,
     };
   }
   const { replies, actions, outcome } = completeGraph(graph, answers, { vars });
@@ -189,6 +190,7 @@ export async function completeRunFromAi(
       ok: false,
       detail: `La acción del flujo falló: ${String(failed.error ?? 'error')}. Explícaselo al cliente y ofrece otra opción.`,
       facts,
+      error: String(failed.error ?? 'failed'),
     };
   }
 

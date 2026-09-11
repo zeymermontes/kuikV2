@@ -10,10 +10,11 @@ import { withinBudget, recordUsage } from './budget';
 import { persistRunAnswers } from '@/lib/whatsapp/flows/run-store';
 import type { FlowSlot } from '@/lib/whatsapp/flows/schema';
 import { toolDefinitions, runTool, buildReplySchema } from './tools';
-import { checkGrounding, GROUNDING_FALLBACK } from './guard';
+import { checkGrounding, claimsBookingDone, GROUNDING_FALLBACK } from './guard';
 import type { ChatMessage } from './types';
 import { buildRestaurantContext } from './context';
 import { describeReservation, type OwnReservation } from '@/lib/whatsapp/actions';
+import { completeRunFromAi, reservationErrorMessage } from '@/lib/whatsapp/flows/complete';
 
 /**
  * One AI turn.
@@ -123,6 +124,9 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
   // One rewrite per turn on a refused value; the second time it is dropped
   // silently rather than looping the model.
   let validated = false;
+  // Whether finalizar_flujo ran this turn — the only thing that makes
+  // "quedó registrada" true.
+  let finalized = false;
 
   try {
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
@@ -174,6 +178,23 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
           if (turn.collecting?.runId && (toPersist || datos_extra)) {
             await persistRunAnswers(turn.collecting.runId, toPersist, datos_extra);
           }
+          // The model told the diner the booking is in without calling the
+          // tool that books it (seen in production: a "registrada" summary
+          // and a run left active, no reservation). Words must match the
+          // database: do the finalisation here, or say what is missing.
+          if (turn.collecting?.runId && !finalized && claimsBookingDone(mensaje)) {
+            const done = await completeRunFromAi(turn.collecting.runId, turn.ctx, turn.vars);
+            facts.push(...done.facts);
+            if (!done.ok) {
+              const honest = done.missing?.length
+                ? `Para registrarla me falta: ${done.missing.join(', ')}. ¿Me lo compartes?`
+                : done.error
+                  ? reservationErrorMessage(done.error)
+                  : 'Todavía no pude registrar tu solicitud. Un momento y te atiende una persona.';
+              await logRun(turn, provider.id, provider.model, 'guard_blocked', promptTokens, completionTokens, started, 'claimed done without finalizar_flujo');
+              return finish(turn, provider, honest, facts, promptTokens, completionTokens, started);
+            }
+          }
           return finish(turn, provider, mensaje, facts, promptTokens, completionTokens, started);
         }
         // Malformed arguments: hand the error back so it can correct itself,
@@ -189,6 +210,7 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
 
       if (res.toolCalls.length > 0 && round < MAX_TOOL_ROUNDS) {
         for (const call of res.toolCalls) {
+          if (call.name === 'finalizar_flujo') finalized = true;
           const outcome = await runTool(call.name, call.arguments, turn.ctx, turn.vars);
           facts.push(...outcome.facts);
           messages.push({
@@ -350,8 +372,9 @@ function buildSystemPrompt(turn: AiTurn, extra: string | null, sheet = ''): stri
       '  Tradúcelas tú a partir de lo que dijo el cliente y de la fecha de hoy.',
       '- Cuando ya tengas todo, LEE EL RESUMEN al cliente y espera su confirmación.',
       turn.collecting.runId
-        ? '- Solo después de que confirme, llama a `finalizar_flujo`.'
-        : '- Solo después de que confirme, llama a `crear_reserva`.',
+        ? '- Solo después de que confirme, llama a `finalizar_flujo`. NUNCA digas que quedó registrada,'
+        : '- Solo después de que confirme, llama a `crear_reserva`. NUNCA digas que quedó registrada,',
+      '  anotada ni lista sin haber llamado esa herramienta en este mismo turno: hasta entonces no existe.',
     );
   } else {
     lines.push('', 'Puedes ayudar con:', options);

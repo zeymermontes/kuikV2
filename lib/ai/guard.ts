@@ -52,3 +52,14 @@ export function checkGrounding(reply: string, facts: string[]): GuardResult {
 
 export const GROUNDING_FALLBACK =
   'Para precios exactos, mejor consulta el menú: {{menu_url}}';
+
+/**
+ * Does this reply tell the diner their request is in? Used to catch a model
+ * that announces "quedó registrada" without having called the tool that
+ * registers it. WhatsApp bold (*registrada*) and accents are tolerated.
+ */
+export function claimsBookingDone(reply: string): boolean {
+  const plain = reply.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[*_~]/g, '').toLowerCase();
+  return /\b(quedo|queda|esta|ha quedado|quedara)\s+(registrad|anotad|agendad|apartad|reservad|confirmad)|\bregistre tu|\banote tu|\bya (quedo|esta) (lista|hecha|registrada)|\blisto[,!]? (tu )?(reserv|solicitud)/.test(plain);
+}
+
