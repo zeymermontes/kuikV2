@@ -15,6 +15,8 @@ import { CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 export function WhatsappDiagnostics({
   reachable,
   hasLiveSession,
+  sessionStatus = null,
+  sessionError = null,
   bridgeError,
   lastInboundAt,
   lastOutboundAt,
@@ -22,6 +24,9 @@ export function WhatsappDiagnostics({
 }: {
   reachable: boolean;
   hasLiveSession: boolean;
+  /** The bridge's own word for this restaurant's session when it is not connected. */
+  sessionStatus?: 'pairing' | 'connected' | 'disconnected' | 'error' | null;
+  sessionError?: string | null;
   bridgeError?: string;
   lastInboundAt: string | null;
   lastOutboundAt: string | null;
@@ -42,8 +47,12 @@ export function WhatsappDiagnostics({
     {
       label: t('diagSession'),
       ok: hasLiveSession,
-      value: hasLiveSession ? t('diagOk') : t('diagNoSession'),
-      hint: reachable && !hasLiveSession ? t('diagNoSessionHint') : undefined,
+      value: hasLiveSession
+        ? t('diagOk')
+        : sessionStatus
+          ? `${t(`diagStatus_${sessionStatus}`)}${sessionError ? ` · ${sessionError}` : ''}`
+          : t('diagNoSession'),
+      hint: reachable && !hasLiveSession ? (sessionStatus ? t('diagStuckHint') : t('diagNoSessionHint')) : undefined,
     },
     {
       label: t('diagLastInbound'),

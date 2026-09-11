@@ -88,6 +88,8 @@ export default async function WhatsappPage() {
         hasLiveSession={bridge.sessions.some(
           (x) => x.sessionId === tenant.id && x.status === 'connected',
         )}
+        sessionStatus={bridge.sessions.find((x) => x.sessionId === tenant.id)?.status ?? null}
+        sessionError={bridge.sessions.find((x) => x.sessionId === tenant.id)?.error ?? null}
         bridgeError={bridge.error}
         lastInboundAt={msgs.find((m) => m.direction === 'inbound')?.created_at ?? null}
         lastOutboundAt={msgs.find((m) => m.direction === 'outbound')?.created_at ?? null}

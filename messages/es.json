@@ -2219,7 +2219,12 @@
       "assistImporting": "Importando…",
       "assistImported": "{count, plural, one {Se importó 1 tema.} other {Se importaron # temas.}}",
       "assistParseError": "No encontré temas en el texto. Pega el bloque final tal como te lo dio la IA (líneas TEMA: y RESPUESTA:)."
-    }
+    },
+    "diagStatus_pairing": "vinculando (esperando QR)",
+    "diagStatus_connected": "conectada",
+    "diagStatus_disconnected": "desconectada",
+    "diagStatus_error": "error",
+    "diagStuckHint": "El puente tiene la sesión de este restaurante pero no está conectada. Pulsa el botón de reconectar; si sigue igual, vuelve a escanear el QR."
   },
   "host": {
     "title": "Anfitrión",

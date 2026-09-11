@@ -2219,7 +2219,12 @@
       "assistImporting": "Importing…",
       "assistImported": "{count, plural, one {Imported 1 topic.} other {Imported # topics.}}",
       "assistParseError": "No topics found in that text. Paste the final block exactly as the AI produced it (TOPIC: and ANSWER: lines)."
-    }
+    },
+    "diagStatus_pairing": "pairing (waiting for QR)",
+    "diagStatus_connected": "connected",
+    "diagStatus_disconnected": "disconnected",
+    "diagStatus_error": "error",
+    "diagStuckHint": "The bridge holds this restaurant's session but it is not connected. Press reconnect; if it stays like this, scan the QR again."
   },
   "host": {
     "title": "Host stand",
