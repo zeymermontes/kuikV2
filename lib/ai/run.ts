@@ -12,6 +12,7 @@ import type { FlowSlot } from '@/lib/whatsapp/flows/schema';
 import { toolDefinitions, runTool, buildReplySchema } from './tools';
 import { checkGrounding, GROUNDING_FALLBACK } from './guard';
 import type { ChatMessage } from './types';
+import { buildRestaurantContext } from './context';
 
 /**
  * One AI turn.
@@ -83,29 +84,37 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
   }
 
   // Recent history, so the model has the thread without being handed the whole
-  // conversation.
-  const { data: history } = await supabase
-    .from('whatsapp_messages')
-    .select('direction, origin, body')
-    .eq('conversation_id', turn.ctx.conversationId)
-    .order('created_at', { ascending: false })
-    .limit(10);
+  // conversation — and the restaurant's fact sheet, built alongside it.
+  const [{ data: history }, sheet] = await Promise.all([
+    supabase
+      .from('whatsapp_messages')
+      .select('direction, origin, body')
+      .eq('conversation_id', turn.ctx.conversationId)
+      .order('created_at', { ascending: false })
+      .limit(10),
+    buildRestaurantContext({
+      tenantId: turn.ctx.tenantId,
+      branchId: turn.ctx.branchId,
+      vars: turn.vars,
+      reservationsEnabled: turn.reservationsEnabled !== false,
+    }).catch(() => ({ text: '', facts: [] as string[] })),
+  ]);
 
   const messages: ChatMessage[] = ((history ?? []) as { direction: string; body: string | null }[])
     .reverse()
     .filter((m) => m.body)
     .map((m) => ({ role: m.direction === 'inbound' ? 'user' : 'assistant', content: m.body! }));
 
-  const system = buildSystemPrompt(turn, provider.systemExtra);
+  const system = buildSystemPrompt(turn, provider.systemExtra, sheet.text);
   // The reply schema is derived from the flow's own slots, so what the model
   // may write down is exactly what the restaurant drew on the canvas.
   const replySchema = buildReplySchema(turn.collecting?.slots);
   const tools = toolDefinitions(Boolean(turn.collecting), replySchema);
   const signal = AbortSignal.timeout(TURN_TIMEOUT_MS);
 
-  // Everything the tools actually returned this turn. The guard checks the
-  // model's reply against exactly this.
-  const facts: string[] = [];
+  // Everything the tools actually returned this turn, seeded with the sheet's
+  // own figures. The guard checks the model's reply against exactly this.
+  const facts: string[] = [...sheet.facts];
   let promptTokens = 0;
   let completionTokens = 0;
   // One rewrite per turn on a refused value; the second time it is dropped
@@ -256,7 +265,7 @@ async function finish(
   return true;
 }
 
-function buildSystemPrompt(turn: AiTurn, extra: string | null): string {
+function buildSystemPrompt(turn: AiTurn, extra: string | null, sheet = ''): string {
   const options = turn.goals
     .map((g) => `- ${g.name}${g.description ? `: ${g.description}` : ''}`)
     .join('\n');
@@ -267,10 +276,9 @@ function buildSystemPrompt(turn: AiTurn, extra: string | null): string {
     '',
     'REGLAS DURAS:',
     '- Responde SIEMPRE en español, breve y cordial, como mensaje de WhatsApp.',
-    '- Solo puedes afirmar hechos sobre el restaurante que te haya devuelto una herramienta.',
-    '  Puedes consultar: el menú y sus precios, los horarios, la ubicación, y la información',
-    '  adicional del restaurante con `consultar_info` (estacionamiento, mascotas, terraza,',
-    '  formas de pago, promociones y similares).',
+    '- Solo puedes afirmar hechos sobre el restaurante que estén en la FICHA de abajo o que',
+    '  te haya devuelto una herramienta. Para lo que la ficha no cubra, consulta: el menú',
+    '  completo con `buscar_menu` y la información adicional con `consultar_info`.',
     '- Antes de decir que no sabes algo, intenta `consultar_info`. Si tampoco ahí está,',
     '  NO lo inventes ni lo niegues: di que no tienes ese dato y ofrece preguntarle a',
     '  alguien del restaurante.',
@@ -292,6 +300,8 @@ function buildSystemPrompt(turn: AiTurn, extra: string | null): string {
     '- Si ofreces opciones numeradas y el cliente contesta solo con un número, es la',
     '  opción con ese número en el orden en que se las diste.',
   ];
+
+  if (sheet) lines.push('', sheet);
 
   if (turn.reservationsEnabled === false) {
     lines.push(
