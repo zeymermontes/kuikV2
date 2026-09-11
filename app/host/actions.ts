@@ -251,8 +251,11 @@ export async function getPartyChat(reservationId: string): Promise<PartyChat> {
   if (!party) return empty;
   const href = party.phone ? `https://wa.me/${digitsOnly(party.phone)}` : null;
 
-  let conversationId = await conversationForReservation(tenant.id, party);
-  if (!conversationId && party.phone) conversationId = await bridgeConversationFor(tenant.id, party.phone);
+  // The linked device knows the address this number chats under, and folds
+  // a chat opened by bare number into the one the bot already has — so ask
+  // it first; the booking's own link is the answer when there is no device.
+  let conversationId = party.phone ? await bridgeConversationFor(tenant.id, party.phone) : null;
+  if (!conversationId) conversationId = await conversationForReservation(tenant.id, party);
   if (!conversationId) return { ...empty, href };
 
   if (party.whatsapp_conversation_id !== conversationId) {

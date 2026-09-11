@@ -470,7 +470,7 @@ func (m *Manager) Send(ctx context.Context, tenantID, to, text string) (string, 
 		if err != nil {
 			return "", err
 		}
-		jid = resolved
+		jid = resolved.JID
 	}
 
 	resp, err := s.Client.SendMessage(ctx, jid, textMessage(text))
@@ -489,7 +489,7 @@ func (m *Manager) Send(ctx context.Context, tenantID, to, text string) (string, 
 // quirk: WhatsApp registers mobiles as 521…, the dialable number is 52…, and
 // which of the two the server recognises depends on the account, so both are
 // tried.
-func resolveNumber(ctx context.Context, cli *whatsmeow.Client, digits string) (types.JID, error) {
+func resolveNumber(ctx context.Context, cli *whatsmeow.Client, digits string) (types.IsOnWhatsAppResponse, error) {
 	candidates := []string{"+" + digits}
 	switch {
 	case strings.HasPrefix(digits, "52") && len(digits) == 12:
@@ -506,15 +506,38 @@ func resolveNumber(ctx context.Context, cli *whatsmeow.Client, digits string) (t
 	for _, phone := range candidates {
 		results, err := cli.IsOnWhatsApp(ctx, []string{phone})
 		if err != nil {
-			return types.JID{}, fmt.Errorf("lookup %s: %w", phone, err)
+			return types.IsOnWhatsAppResponse{}, fmt.Errorf("lookup %s: %w", phone, err)
 		}
 		for _, r := range results {
 			if r.IsIn && !r.JID.IsEmpty() {
-				return r.JID, nil
+				return r, nil
 			}
 		}
 	}
-	return types.JID{}, fmt.Errorf("%s is not on WhatsApp", digits)
+	return types.IsOnWhatsAppResponse{}, fmt.Errorf("%s is not on WhatsApp", digits)
+}
+
+// Resolve tells Kuik which address a phone number chats under — the LID when
+// the account uses LID addressing — so a chat the restaurant opens by number
+// is the SAME chat the diner's own messages arrive on, not a second one.
+func (m *Manager) Resolve(ctx context.Context, tenantID, digits string) (jid string, phone string, err error) {
+	s, ok := m.Get(tenantID)
+	if !ok {
+		return "", "", fmt.Errorf("no session for tenant")
+	}
+	if !s.Client.IsConnected() || !s.Client.IsLoggedIn() {
+		return "", "", fmt.Errorf("session not connected")
+	}
+	r, err := resolveNumber(ctx, s.Client, strings.TrimPrefix(digits, "+"))
+	if err != nil {
+		return "", "", err
+	}
+	if r.PhoneNumber.Server == types.DefaultUserServer {
+		phone = r.PhoneNumber.User
+	} else if r.JID.Server == types.DefaultUserServer {
+		phone = r.JID.User
+	}
+	return r.JID.String(), phone, nil
 }
 
 // DisconnectAll closes every socket on shutdown, so the next instance does not

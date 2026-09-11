@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { PhoneField } from '@/components/PhoneField';
 import { useTranslations } from 'next-intl';
-import { Phone, MessageCircle, Pencil, Users, Clock, MapPin, ArrowRightLeft, Check } from 'lucide-react';
+import { Phone, MessageCircle, Pencil, Users, Clock, MapPin, ArrowRightLeft, Check, Loader2 } from 'lucide-react';
 import type { FloorTable, Reservation, ReservationArea, ReservationStatus, TableStatus } from '@/lib/database.types';
 import {
   PARTY_STATUS_COLOR, PARTY_TAGS, QUOTE_CHOICES, TABLE_STATUS_COLOR, TABLE_STATUS_ORDER,
@@ -23,6 +23,7 @@ export function PartySheet({
   now,
   settings,
   noticeHref,
+  notifying = false,
   onClose,
   onStatus,
   onTableStatus,
@@ -40,6 +41,8 @@ export function PartySheet({
   settings: HostSettings;
   /** A confirm/cancel WhatsApp note waiting to be sent by a human. */
   noticeHref: string | null;
+  /** The table-ready note is being sent right now. */
+  notifying?: boolean;
   onClose: () => void;
   onStatus: (status: ReservationStatus) => void;
   onTableStatus: (s: TableStatus) => void;
@@ -289,8 +292,9 @@ export function PartySheet({
           {(s === 'waiting' || s === 'notified') && (
             <>
               <button onClick={onSeat} className={`${PRIMARY} col-span-2`}>{t('act_seat')}</button>
-              <button onClick={onNotify} className={GHOST}>
-                <MessageCircle className="h-4 w-4" /> {s === 'notified' ? t('act_notifyAgain') : t('act_tableReady')}
+              <button onClick={onNotify} disabled={notifying} className={GHOST}>
+                {notifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+                {notifying ? t('sending') : s === 'notified' ? t('act_notifyAgain') : t('act_tableReady')}
               </button>
               <button onClick={() => onStatus('cancelled')} className={`${GHOST} text-red-300`}>{t('act_remove')}</button>
             </>

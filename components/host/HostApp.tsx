@@ -111,6 +111,9 @@ export function HostApp({
   const [query, setQuery] = useState('');
   const [toSend, setToSend] = useState<Record<string, { href: string; notificationId: string }>>({});
   const [toast, setToast] = useState<string | null>(null);
+  // Parties whose WhatsApp note is on its way: the button says so and stays
+  // disabled, so an anxious tap doesn't send it three times.
+  const [notifying, setNotifying] = useState<Set<string>>(new Set());
   // Requests waiting anywhere in the calendar; the bell's number, kept live.
   const [pendingCount, setPendingCount] = useState(pendingTotal);
 
@@ -342,10 +345,22 @@ export function HostApp({
   }
 
   function tableReady(id: string) {
+    if (notifying.has(id)) return;
     patch(id, { status: 'notified', notified_at: new Date().toISOString() });
     if (demo) return;
+    setNotifying((cur) => new Set(cur).add(id));
     start(async () => {
-      afterNotice(id, await notifyTableReady(id));
+      try {
+        afterNotice(id, await notifyTableReady(id));
+      } catch {
+        setToast(t('noticeFailed'));
+      } finally {
+        setNotifying((cur) => {
+          const next = new Set(cur);
+          next.delete(id);
+          return next;
+        });
+      }
     });
   }
 
@@ -653,6 +668,7 @@ export function HostApp({
           now={now}
           settings={settings}
           noticeHref={toSend[party.id]?.href ?? null}
+          notifying={notifying.has(party.id)}
           onClose={() => setSheet(null)}
           onStatus={(s) => {
             act(party.id, s);

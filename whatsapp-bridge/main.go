@@ -219,6 +219,19 @@ func handleSessions(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"id": id})
 
+	case action == "resolve" && r.Method == http.MethodGet:
+		phone := strings.TrimSpace(r.URL.Query().Get("phone"))
+		if phone == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "missing phone"})
+			return
+		}
+		jid, pn, err := manager.Resolve(ctx, tenantID, phone)
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"jid": jid, "phone": pn})
+
 	case action == "" && r.Method == http.MethodPost:
 		session, err := manager.Start(ctx, tenantID)
 		if err != nil && session == nil {

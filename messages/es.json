@@ -2397,7 +2397,8 @@
     "chatPhoto": "📷 Foto",
     "chatAudio": "🎤 Audio",
     "chatSticker": "Sticker",
-    "chatQuotedGone": "Mensaje anterior"
+    "chatQuotedGone": "Mensaje anterior",
+    "sending": "Enviando…"
   },
   "tutorial": {
     "title": "Tutoriales",

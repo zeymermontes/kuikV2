@@ -68,6 +68,15 @@ export function stopSession(tenantId: string): Promise<{ ok: boolean }> {
   return call(`/sessions/${tenantId}`, { method: 'DELETE' });
 }
 
+/**
+ * Which address a phone number chats under on the linked device: the LID
+ * when the account uses LID addressing, else the phone JID. `phone` is the
+ * real number when WhatsApp discloses it.
+ */
+export function resolveBridgeNumber(tenantId: string, phone: string): Promise<{ jid: string; phone: string }> {
+  return call(`/sessions/${tenantId}/resolve?phone=${encodeURIComponent(phone.replace('+', ''))}`);
+}
+
 export interface BridgeSendResult {
   id: string;
 }
