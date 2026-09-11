@@ -43,7 +43,7 @@ func (r *Registry) Link(ctx context.Context, tenantID string, jid types.JID) err
 		insert into kuik_sessions (tenant_id, jid) values ($1, $2)
 		on conflict (tenant_id) do update
 		  set jid = excluded.jid, updated_at = now()
-	`, tenantID, jid.ToNonAD().String())
+	`, tenantID, jid.String())
 	return err
 }
 

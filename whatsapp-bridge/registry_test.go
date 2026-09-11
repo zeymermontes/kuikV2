@@ -45,10 +45,10 @@ func TestRegistryRoundTrip(t *testing.T) {
 	if !ok {
 		t.Fatal("paired tenant should resolve")
 	}
-	// Stored without the device suffix, so it matches the account rather than
-	// one particular linked device.
-	if got.String() != "5215512345678@s.whatsapp.net" {
-		t.Fatalf("expected the account JID, got %q", got.String())
+	// Stored WITH the device suffix: whatsmeow keys its device store by the
+	// full JID, and a lookup by the bare account finds nothing.
+	if got.String() != "5215512345678:12@s.whatsapp.net" {
+		t.Fatalf("expected the full device JID, got %q", got.String())
 	}
 
 	if _, found := r.All(ctx)[tenant]; !found {

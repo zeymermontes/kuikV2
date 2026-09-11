@@ -146,6 +146,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(ctx)
+	manager.DisconnectAll()
 }
 
 func handleHealth(w http.ResponseWriter, _ *http.Request) {

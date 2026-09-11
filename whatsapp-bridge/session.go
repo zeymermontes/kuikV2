@@ -103,14 +103,51 @@ const pairingWindow = 2 * time.Minute
 func (m *Manager) deviceForTenant(ctx context.Context, tenantID string) (*store.Device, error) {
 	if jid, ok := m.registry.JIDFor(ctx, tenantID); ok {
 		device, err := m.container.GetDevice(ctx, jid)
-		if err == nil && device != nil {
+		if err != nil {
+			// A database hiccup is not "the device is gone": unlinking here
+			// would turn one failed query into a forced re-pair.
+			return nil, err
+		}
+		if device == nil {
+			// whatsmeow keys devices by the FULL JID ("num:2@s.whatsapp.net")
+			// and rows written before the registry stored it that way carry
+			// the bare account. Match on the account instead of giving up —
+			// this was why every deploy used to end in a fresh QR.
+			device, err = m.deviceForAccount(ctx, jid)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if device != nil {
 			return device, nil
 		}
 		// The mapping outlived the device — a manual store wipe, say. Drop the
 		// stale row and pair again rather than failing forever.
+		m.logger.Warnf("no stored device for %s (%s); pairing again", tenantID, jid.String())
 		_ = m.registry.Unlink(ctx, tenantID)
 	}
 	return m.container.NewDevice(), nil
+}
+
+// deviceForAccount picks the stored device for an account JID, ignoring the
+// device suffix. The same phone may have been paired more than once (every
+// re-pair is a new linked device); the newest — highest device index — is the
+// one WhatsApp still honours, older ones were replaced.
+func (m *Manager) deviceForAccount(ctx context.Context, jid types.JID) (*store.Device, error) {
+	devices, err := m.container.GetAllDevices(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var best *store.Device
+	for _, d := range devices {
+		if d.ID == nil || d.ID.User != jid.User || d.ID.Server != jid.Server {
+			continue
+		}
+		if best == nil || d.ID.Device > best.ID.Device {
+			best = d
+		}
+	}
+	return best, nil
 }
 
 // Start brings a session up: reconnecting an already-paired device, or emitting
@@ -434,6 +471,20 @@ func (m *Manager) Send(ctx context.Context, tenantID, to, text string) (string, 
 		return "", err
 	}
 	return resp.ID, nil
+}
+
+// DisconnectAll closes every socket on shutdown, so the next instance does not
+// find a ghost of this one still holding the account.
+func (m *Manager) DisconnectAll() {
+	m.mu.RLock()
+	list := make([]*Session, 0, len(m.sessions))
+	for _, s := range m.sessions {
+		list = append(list, s)
+	}
+	m.mu.RUnlock()
+	for _, s := range list {
+		s.Client.Disconnect()
+	}
 }
 
 // RestoreAll reconnects every previously paired device on boot, so a redeploy
