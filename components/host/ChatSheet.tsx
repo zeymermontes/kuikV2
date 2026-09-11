@@ -29,7 +29,9 @@ export function ChatSheet({
   const [error, setError] = useState<string | null>(null);
   const [sending, startSend] = useTransition();
   const [, startBot] = useTransition();
-  const scroller = useRef<HTMLDivElement>(null);
+  // The sheet's body is what scrolls, not our list: an anchor at the end
+  // is scrolled into view on load and on every new message.
+  const bottom = useRef<HTMLDivElement>(null);
   const conversationId = chat?.conversationId ?? null;
 
   useEffect(() => {
@@ -63,7 +65,7 @@ export function ChatSheet({
   }, [conversationId]);
 
   useEffect(() => {
-    scroller.current?.scrollTo({ top: scroller.current.scrollHeight });
+    bottom.current?.scrollIntoView({ block: 'end' });
   }, [chat?.messages]);
 
   function send() {
@@ -138,7 +140,7 @@ export function ChatSheet({
       {chat === null ? (
         <p className="py-10 text-center text-sm text-white/50">…</p>
       ) : (
-        <div ref={scroller} className="space-y-1.5">
+        <div className="space-y-1.5">
           {chat.messages.length === 0 && <p className="py-10 text-center text-sm text-white/50">{t('chatEmpty')}</p>}
           {chat.messages.map((m, i) => {
             const day = new Date(m.created_at).toLocaleDateString();
@@ -169,6 +171,7 @@ export function ChatSheet({
               </div>
             );
           })}
+          <div ref={bottom} />
         </div>
       )}
     </Sheet>
