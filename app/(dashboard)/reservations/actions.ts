@@ -86,6 +86,74 @@ export async function setReservationStatus(
   };
 }
 
+/**
+ * Edit a booking from the office or the door: name, phone, party, date, time,
+ * area, note. A confirmed booking whose date, time or party moved gets its
+ * confirmation note again with the new details, through the same channel
+ * as a fresh confirmation (upsert on reservation_id + kind replaces the
+ * earlier row).
+ */
+export async function updateReservationAction(
+  id: string,
+  fields: { customer_name: string; phone: string | null; party_size: number; date: string; time: string; area_id: string | null; note: string | null },
+): Promise<{ ok: true; href?: string; notificationId?: string } | { ok: false; error: string }> {
+  const { tenant } = await requireReservations();
+  const supabase = await createClient();
+  const { data: before } = await supabase
+    .from('reservations')
+    .select('id, status, date, time, party_size')
+    .eq('id', id)
+    .eq('tenant_id', tenant.id)
+    .maybeSingle();
+  const prev = before as { status: ReservationStatus; date: string; time: string; party_size: number } | null;
+  if (!prev) return { ok: false, error: 'failed' };
+  if (!fields.customer_name.trim() || !fields.date || !fields.time || fields.party_size < 1) return { ok: false, error: 'missing_fields' };
+
+  const { data: rows, error } = await supabase
+    .from('reservations')
+    .update({ ...fields, customer_name: fields.customer_name.trim(), phone: fields.phone?.trim() || null, note: fields.note?.trim() || null })
+    .eq('id', id)
+    .eq('tenant_id', tenant.id)
+    .select('id, customer_name, phone, party_size, date, time, whatsapp_conversation_id');
+  if (error) return { ok: false, error: 'failed' };
+  revalidatePath('/reservations');
+
+  const reservation = rows?.[0] as (Reservation & { whatsapp_conversation_id?: string | null }) | undefined;
+  const moved = prev.date !== fields.date || prev.time.slice(0, 5) !== fields.time.slice(0, 5) || prev.party_size !== fields.party_size;
+  if (!reservation || prev.status !== 'confirmed' || !moved) return { ok: true };
+
+  const body = renderNotification('confirmed', tenant.locale, {
+    restaurant: tenant.name,
+    name: reservation.customer_name,
+    party: reservation.party_size,
+    date: reservation.date,
+    time: reservation.time,
+  });
+  const input = { tenant, reservation, kind: 'confirmed' as const, body };
+  const notifier = await getNotifier(input);
+  const result = await notifier.send(input);
+  if (result.status === 'skipped') return { ok: true };
+  const { data: note } = await supabase
+    .from('reservation_notifications')
+    .upsert(
+      {
+        tenant_id: tenant.id,
+        reservation_id: reservation.id,
+        kind: 'confirmed',
+        channel: result.href ? 'manual_wa' : notifier.channel,
+        status: result.status === 'sent' ? 'sent' : result.status === 'failed' ? 'failed' : 'queued',
+        body,
+        provider_id: result.providerId ?? null,
+        error: result.error ?? null,
+        sent_at: result.status === 'sent' ? new Date().toISOString() : null,
+      },
+      { onConflict: 'reservation_id,kind' },
+    )
+    .select('id')
+    .maybeSingle();
+  return { ok: true, href: result.href, notificationId: (note as { id: string } | null)?.id };
+}
+
 /** Mark a manually-sent note as delivered, once the staff member opened it. */
 export async function markNotificationSent(id: string): Promise<void> {
   const { tenant } = await requireReservations();

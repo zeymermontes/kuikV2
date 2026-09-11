@@ -897,7 +897,9 @@
     "filter_pendingAll": "To confirm",
     "pendingListHint": "Every request waiting for your yes or no, whatever its day. Confirm or decline right here; the guest is told on WhatsApp.",
     "pendingSeeAll": "See the list",
-    "pendingNone": "No pending requests 🎉"
+    "pendingNone": "No pending requests 🎉",
+    "editTitle": "Edit reservation",
+    "edit": "Edit"
   },
   "printing": {
     "agents": "Print agent",
@@ -2363,7 +2365,8 @@
     "keptWaiting": "Still on the waitlist: quote them, seat them later or remove them.",
     "requestsTitle": "Reservation requests",
     "requestsHint": "Waiting for a yes or no, whatever the day. The guest is told on WhatsApp when you decide.",
-    "requestsNone": "No pending requests 🎉"
+    "requestsNone": "No pending requests 🎉",
+    "f_date": "Date"
   },
   "tutorial": {
     "title": "Tutorials",

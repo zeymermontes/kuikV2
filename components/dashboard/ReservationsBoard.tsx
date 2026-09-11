@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ChevronLeft, ChevronRight, Clock, Users, Phone, Check, X, RefreshCw, Plus,
-  MessageCircle, LayoutGrid,
+  MessageCircle, LayoutGrid, Pencil,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { Reservation, ReservationArea, ReservationStatus } from '@/lib/database.types';
@@ -77,6 +77,7 @@ export function ReservationsBoard({
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<Filter>(initialFilter);
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Reservation | null>(null);
   // Notices Kuik has written but that still need a human to press send.
   const [toSend, setToSend] = useState<Record<string, { href: string; notificationId: string }>>({});
   const [, start] = useTransition();
@@ -377,6 +378,10 @@ export function ReservationsBoard({
                             className="flex items-center gap-1 rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-600">
                             <X className="h-4 w-4" /> {t('cancel')}
                           </button>
+                          <button onClick={() => setEditing(r)}
+                            className="flex items-center gap-1 rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-600">
+                            <Pencil className="h-4 w-4" /> {t('edit')}
+                          </button>
                         </div>
                       )}
 
@@ -395,6 +400,23 @@ export function ReservationsBoard({
             );
           })}
         </div>
+      )}
+
+      {editing && (
+        <ReservationForm
+          key={editing.id}
+          initial={editing}
+          areas={areas}
+          defaultDate={editing.date}
+          defaultTime={editing.time.slice(0, 5)}
+          onClose={() => setEditing(null)}
+          onCreated={refresh}
+          onSaved={(res) => {
+            if (res.href && res.notificationId) {
+              setToSend((cur) => ({ ...cur, [editing.id]: { href: res.href!, notificationId: res.notificationId! } }));
+            }
+          }}
+        />
       )}
 
       {showForm && (

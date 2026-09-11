@@ -3,9 +3,9 @@
 import { useState, useTransition } from 'react';
 import { X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import type { ReservationArea } from '@/lib/database.types';
+import type { Reservation, ReservationArea } from '@/lib/database.types';
 import { Input, Textarea, Label, Button } from '@/components/ui';
-import { createReservationAction } from '@/app/(dashboard)/reservations/actions';
+import { createReservationAction, updateReservationAction } from '@/app/(dashboard)/reservations/actions';
 
 /**
  * Booking a table from behind the counter — the phone rang, or someone walked
@@ -19,21 +19,27 @@ export function ReservationForm({
   defaultTime,
   onClose,
   onCreated,
+  initial,
+  onSaved,
 }: {
   areas: ReservationArea[];
   defaultDate: string;
   defaultTime: string;
   onClose: () => void;
   onCreated: () => void;
+  /** Editing an existing booking: the form opens filled and saves in place. */
+  initial?: Reservation;
+  /** After an edit: a note the staff still has to send by hand, if any. */
+  onSaved?: (r: { href?: string; notificationId?: string }) => void;
 }) {
   const t = useTranslations('reservations');
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [party, setParty] = useState(2);
-  const [date, setDate] = useState(defaultDate);
-  const [time, setTime] = useState(defaultTime);
-  const [areaId, setAreaId] = useState('');
-  const [note, setNote] = useState('');
+  const [name, setName] = useState(initial?.customer_name ?? '');
+  const [phone, setPhone] = useState(initial?.phone ?? '');
+  const [party, setParty] = useState(initial?.party_size ?? 2);
+  const [date, setDate] = useState(initial?.date ?? defaultDate);
+  const [time, setTime] = useState(initial?.time.slice(0, 5) ?? defaultTime);
+  const [areaId, setAreaId] = useState(initial?.area_id ?? '');
+  const [note, setNote] = useState(initial?.note ?? '');
   const [error, setError] = useState<string | null>(null);
   // Set once the slot came back full, so the button can offer to book anyway.
   const [overbook, setOverbook] = useState(false);
@@ -45,6 +51,25 @@ export function ReservationForm({
     if (!valid) return;
     setError(null);
     start(async () => {
+      if (initial) {
+        const result = await updateReservationAction(initial.id, {
+          customer_name: name,
+          phone: phone || null,
+          party_size: party,
+          date,
+          time,
+          area_id: areaId || null,
+          note: note || null,
+        });
+        if (result.ok) {
+          onSaved?.(result);
+          onCreated();
+          onClose();
+          return;
+        }
+        setError(result.error);
+        return;
+      }
       const result = await createReservationAction({
         customer_name: name,
         phone: phone || null,
@@ -73,7 +98,7 @@ export function ReservationForm({
         <button onClick={onClose} aria-label={t('cancel')} className="absolute right-3 top-3 rounded-full p-1.5 text-neutral-500 hover:bg-neutral-100">
           <X className="h-5 w-5" />
         </button>
-        <h2 className="mb-4 text-lg font-bold">{t('newTitle')}</h2>
+        <h2 className="mb-4 text-lg font-bold">{initial ? t('editTitle') : t('newTitle')}</h2>
 
         <div className="space-y-3">
           <div>

@@ -98,6 +98,8 @@ export interface PartyFields {
   party_size?: number;
   note?: string | null;
   tags?: string[];
+  /** "YYYY-MM-DD": moving a booking to another day from the door. */
+  date?: string;
   time?: string;
   area_id?: string | null;
   quoted_minutes?: number | null;

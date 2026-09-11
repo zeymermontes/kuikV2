@@ -56,7 +56,8 @@ export function PartySheet({
     party_size: party.party_size,
     note: party.note,
     tags: party.tags,
-    time: party.time,
+    date: party.date,
+    time: party.time.slice(0, 5),
     area_id: party.area_id,
     quoted_minutes: party.quoted_minutes,
     turn_minutes: party.turn_minutes,
@@ -119,9 +120,14 @@ export function PartySheet({
               <Stepper value={f.party_size ?? 1} onChange={(n) => setF({ ...f, party_size: n })} />
             </Field>
             {s !== 'waiting' && s !== 'notified' && (
-              <Field label={t('f_time')}>
-                <input type="time" className={INPUT} value={f.time ?? ''} onChange={(e) => setF({ ...f, time: e.target.value })} />
-              </Field>
+              <>
+                <Field label={t('f_date')}>
+                  <input type="date" className={INPUT} value={f.date ?? ''} onChange={(e) => setF({ ...f, date: e.target.value })} />
+                </Field>
+                <Field label={t('f_time')}>
+                  <input type="time" className={INPUT} value={f.time ?? ''} onChange={(e) => setF({ ...f, time: e.target.value })} />
+                </Field>
+              </>
             )}
           </div>
           {areas.length > 0 && (
