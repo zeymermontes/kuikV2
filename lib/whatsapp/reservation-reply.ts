@@ -1,6 +1,6 @@
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { sendToTenant } from '@/lib/push/send';
+import { alertStaff } from '@/lib/alerts';
 import { normalizeText } from './parse';
 import { sendMessage } from './send';
 
@@ -71,6 +71,16 @@ export async function handleReservationReply(
       type: 'text',
       body: `¡Gracias por confirmar! 🎉 Te esperamos el ${reservation.date} a las ${reservation.time}.`,
     }, 'bot');
+    // The guest said yes to the reminder: the floor hears it too.
+    await alertStaff({
+      tenantId: conv.tenant_id,
+      roles: ['owner', 'manager', 'host'],
+      kind: 'reservation_confirmed',
+      es: { title: 'Reservación confirmada por el cliente', body: `${reservation.customer_name} confirmó: ${reservation.date} ${reservation.time.slice(0, 5)}, ${reservation.party_size} personas.` },
+      en: { title: 'Reservation confirmed by the guest', body: `${reservation.customer_name} confirmed: ${reservation.date} ${reservation.time.slice(0, 5)}, ${reservation.party_size} people.` },
+      tag: `res-confirm-${reservation.id}`,
+      url: `/reservations?d=${reservation.date}`,
+    });
     return true;
   }
 
@@ -85,21 +95,15 @@ export async function handleReservationReply(
   }, 'bot');
 
   // The table is free again — that's news the floor wants right now.
-  await sendToTenant(conv.tenant_id, ['owner', 'manager', 'host'], (locale) =>
-    locale === 'en'
-      ? {
-          title: 'Reservation released',
-          body: `${reservation.customer_name} canceled: ${reservation.date} ${reservation.time}, ${reservation.party_size} people.`,
-          tag: `res-cancel-${reservation.id}`,
-          url: '/reservations',
-        }
-      : {
-          title: 'Reservación liberada',
-          body: `${reservation.customer_name} canceló: ${reservation.date} ${reservation.time}, ${reservation.party_size} personas.`,
-          tag: `res-cancel-${reservation.id}`,
-          url: '/reservations',
-        },
-  ).catch(() => {});
+  await alertStaff({
+    tenantId: conv.tenant_id,
+    roles: ['owner', 'manager', 'host'],
+    kind: 'reservation_cancelled',
+    en: { title: 'Reservation released', body: `${reservation.customer_name} canceled: ${reservation.date} ${reservation.time}, ${reservation.party_size} people.` },
+    es: { title: 'Reservación liberada', body: `${reservation.customer_name} canceló: ${reservation.date} ${reservation.time}, ${reservation.party_size} personas.` },
+    tag: `res-cancel-${reservation.id}`,
+    url: `/reservations?d=${reservation.date}`,
+  });
 
   return true;
 }

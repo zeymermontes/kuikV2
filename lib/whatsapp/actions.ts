@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createReservation } from '@/lib/reservations/create';
 import { isLid, phoneFromWaId } from '@/lib/phone';
-import { sendToTenant } from '@/lib/push/send';
+import { alertStaff } from '@/lib/alerts';
 
 /**
  * What a conversation can actually DO.
@@ -141,21 +141,16 @@ export async function botHandoff(ctx: BotContext, reason?: string): Promise<Acti
   // A handoff without a notification is a diner waiting for a human who
   // doesn't know they exist. Best-effort: the handoff stands even if no one
   // has push subscriptions.
-  await sendToTenant(ctx.tenantId, ['owner', 'manager'], (locale) =>
-    locale === 'en'
-      ? {
-          title: 'A customer is waiting on WhatsApp',
-          body: `${ctx.customerName || 'A customer'} asked for a person. The bot stepped aside.`,
-          tag: `wa-handoff-${ctx.conversationId}`,
-          url: `/whatsapp/inbox?c=${ctx.conversationId}`,
-        }
-      : {
-          title: 'Un cliente espera en WhatsApp',
-          body: `${ctx.customerName || 'Un cliente'} pidió hablar con una persona. El bot se hizo a un lado.`,
-          tag: `wa-handoff-${ctx.conversationId}`,
-          url: `/whatsapp/inbox?c=${ctx.conversationId}`,
-        },
-  ).catch(() => {});
+  await alertStaff({
+    tenantId: ctx.tenantId,
+    roles: ['owner', 'manager'],
+    kind: 'handoff',
+    en: { title: 'A customer is waiting on WhatsApp', body: `${ctx.customerName || 'A customer'} asked for a person. The bot stepped aside.` },
+    es: { title: 'Un cliente espera en WhatsApp', body: `${ctx.customerName || 'Un cliente'} pidió hablar con una persona. El bot se hizo a un lado.` },
+    tag: `wa-handoff-${ctx.conversationId}`,
+    url: `/whatsapp/inbox?c=${ctx.conversationId}`,
+    push: { requireInteraction: true },
+  });
 
   return { ok: true, message: 'handoff' };
 }
@@ -209,12 +204,16 @@ export function describeReservation(r: OwnReservation): string {
   return `${wd} ${r.date} a las ${r.time.slice(0, 5)}, ${r.party_size} persona${r.party_size === 1 ? '' : 's'}, a nombre de ${r.customer_name} — ${status}`;
 }
 
-async function notifyFloor(tenantId: string, title: { es: string; en: string }, body: { es: string; en: string }, tag: string): Promise<void> {
-  await sendToTenant(tenantId, ['owner', 'manager', 'host'], (locale) =>
-    locale === 'en'
-      ? { title: title.en, body: body.en, tag, url: '/reservations' }
-      : { title: title.es, body: body.es, tag, url: '/reservations' },
-  ).catch(() => {});
+async function notifyFloor(tenantId: string, kind: 'reservation_cancelled' | 'reservation_changed', title: { es: string; en: string }, body: { es: string; en: string }, tag: string): Promise<void> {
+  await alertStaff({
+    tenantId,
+    roles: ['owner', 'manager', 'host'],
+    kind,
+    es: { title: title.es, body: body.es },
+    en: { title: title.en, body: body.en },
+    tag,
+    url: kind === 'reservation_changed' ? '/reservations?view=pending' : '/reservations',
+  });
 }
 
 /** Cancel one of the chat's own bookings. */
@@ -235,6 +234,7 @@ export async function botCancelReservation(ctx: BotContext, reservationId: strin
 
   await notifyFloor(
     ctx.tenantId,
+    'reservation_cancelled',
     { es: 'Reservación cancelada por el cliente', en: 'Reservation canceled by the guest' },
     {
       es: `${r.customer_name} canceló: ${r.date} ${r.time.slice(0, 5)}, ${r.party_size} personas.`,
@@ -299,6 +299,7 @@ export async function botUpdateReservation(ctx: BotContext, args: UpdateReservat
   const fresh = (await ownReservations(ctx)).find((x) => x.id === result.id) ?? null;
   await notifyFloor(
     ctx.tenantId,
+    'reservation_changed',
     { es: 'Reservación cambiada por el cliente', en: 'Reservation changed by the guest' },
     {
       es: `${old.customer_name}: de ${old.date} ${old.time.slice(0, 5)} (${old.party_size}) a ${args.date ?? old.date} ${args.time ?? old.time.slice(0, 5)} (${args.party_size ?? old.party_size}). Queda pendiente.`,

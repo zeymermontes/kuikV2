@@ -1,6 +1,6 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { sendToTenant } from '@/lib/push/send';
+import { alertStaff } from '@/lib/alerts';
 import type { ReservationSource } from '@/lib/database.types';
 
 /**
@@ -104,45 +104,22 @@ export async function createReservation(
 }
 
 async function notifyStaff(input: CreateReservationInput, id: string): Promise<void> {
-  await sendToTenant(
-    input.tenantId,
-    ['owner', 'manager', 'cashier', 'host'],
-    (locale) => {
-      // Built per subscription so each device reads it in its owner's language.
-      const t = MESSAGES[locale === 'en' ? 'en' : 'es'];
-      return {
-        title: t.title,
-        body: t.body(input.customerName, input.partySize, input.date, input.time),
-        tag: `res-${id}`,
-        url: `/reservations?d=${input.date}`,
-        data: { reservationId: id },
-        actions: [
-          { action: 'confirm', title: t.confirm },
-          { action: 'cancel', title: t.decline },
-        ],
-      };
+  const es = { title: 'Nueva reservación', body: `${input.customerName} · ${input.partySize} personas · ${input.date} a las ${input.time}` };
+  const en = { title: 'New reservation', body: `${input.customerName} · ${input.partySize} guests · ${input.date} at ${input.time}` };
+  await alertStaff({
+    tenantId: input.tenantId,
+    roles: ['owner', 'manager', 'cashier', 'host'],
+    kind: 'reservation_new',
+    es, en,
+    tag: `res-${id}`,
+    url: '/reservations?view=pending',
+    push: {
+      data: { reservationId: id },
+      // Android shows the quick replies; iOS ignores them.
+      actions: [
+        { action: 'confirm', title: 'Confirmar' },
+        { action: 'cancel', title: 'Rechazar' },
+      ],
     },
-  );
+  });
 }
-
-/**
- * Deliberately not next-intl: this runs inside a fire-and-forget path that may
- * outlive the request's locale context, and pulling a full translator per
- * subscription would be heavier than the two strings involved.
- */
-const MESSAGES = {
-  es: {
-    title: 'Nueva reservación',
-    confirm: 'Confirmar',
-    decline: 'Rechazar',
-    body: (name: string, party: number, date: string, time: string) =>
-      `${name} · ${party} personas · ${date} a las ${time}`,
-  },
-  en: {
-    title: 'New reservation',
-    confirm: 'Confirm',
-    decline: 'Decline',
-    body: (name: string, party: number, date: string, time: string) =>
-      `${name} · ${party} guests · ${date} at ${time}`,
-  },
-} as const;

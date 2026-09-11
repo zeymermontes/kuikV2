@@ -6,6 +6,7 @@ import { StaffIntlProvider } from '@/components/intl/StaffIntlProvider';
 import { TerminalModeButton } from '@/components/pos/TerminalModeButton';
 import { ShellUpdateBanner } from '@/components/ShellUpdateBanner';
 import { NewOrderAlert } from '@/components/orders/NewOrderAlert';
+import { StaffAlerts } from '@/components/StaffAlerts';
 import { ordersBoardEnabled } from '@/lib/orders/board';
 import { SITE_URL } from '@/lib/seo';
 
@@ -27,6 +28,7 @@ export default async function KdsLayout({
       <div className="min-h-dvh">{children}</div>
       <TerminalModeButton />
       {ordersBoard && <NewOrderAlert tenantId={ctx.tenant.id} />}
+      <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} />
       <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />
     </StaffIntlProvider>
   );

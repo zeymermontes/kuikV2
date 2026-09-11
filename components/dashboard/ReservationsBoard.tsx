@@ -127,10 +127,7 @@ export function ReservationsBoard({
             const without = cur.filter((r) => r.id !== row.id);
             return row.status === 'pending' ? [...without, row].sort((a, b) => a.starts_at.localeCompare(b.starts_at)) : without;
           });
-          // A brand-new request is the thing a hostess must not miss.
-          if (payload.eventType === 'INSERT' && row.status === 'pending') {
-            void chime();
-          }
+          // The chime for a new request comes from StaffAlerts (every screen), not here.
         },
       )
       .subscribe((status) => {
@@ -421,28 +418,3 @@ function nextSlot(minutes: number): string {
   return `${String(Math.floor(capped / 60)).padStart(2, '0')}:${String(capped % 60).padStart(2, '0')}`;
 }
 
-/**
- * A short tone for a new request. Built with WebAudio rather than an asset so
- * it costs nothing to ship; wrapped because browsers reject audio until the
- * page has been interacted with, and a rejected chime must not throw.
- */
-async function chime(): Promise<void> {
-  try {
-    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return;
-    const ctx = new Ctx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.4);
-    osc.onended = () => void ctx.close();
-  } catch {
-    // Autoplay policy, no audio device — never worth breaking the board over.
-  }
-}

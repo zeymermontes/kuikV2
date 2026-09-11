@@ -7,6 +7,7 @@ import { effectivePlan, effectiveAddons } from '@/lib/plan';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { TrialBanner } from '@/components/dashboard/TrialBanner';
 import { PwaProvider } from '@/components/dashboard/PwaProvider';
+import { StaffAlerts } from '@/components/StaffAlerts';
 import { ShellUpdateBanner } from '@/components/ShellUpdateBanner';
 import { TerminalModeButton } from '@/components/pos/TerminalModeButton';
 import { AdvisorNotice } from '@/components/dashboard/AdvisorNotice';
@@ -69,6 +70,7 @@ export default async function DashboardLayout({
     <StaffIntlProvider>
       <PwaProvider nativePush={{ android: fcmConfigured(), ios: apnsConfigured() }}>
         <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />
+        <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} />
         {/* Inside the native apps the dashboard is one tile of the hub; this is the way back. */}
         <TerminalModeButton />
         <div className="flex min-h-screen bg-neutral-50">

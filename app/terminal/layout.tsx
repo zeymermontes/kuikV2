@@ -3,6 +3,7 @@ import { requireTenant } from '@/lib/auth';
 import { StaffIntlProvider } from '@/components/intl/StaffIntlProvider';
 import { ShellUpdateBanner } from '@/components/ShellUpdateBanner';
 import { NewOrderAlert } from '@/components/orders/NewOrderAlert';
+import { StaffAlerts } from '@/components/StaffAlerts';
 import { ordersBoardEnabled } from '@/lib/orders/board';
 import { NativePush } from '@/components/dashboard/NativePush';
 import { fcmConfigured } from '@/lib/push/fcm';
@@ -29,6 +30,7 @@ export default async function TerminalLayout({ children }: { children: React.Rea
       {/* The phone app registers for push here, since it may never open the dashboard. */}
       <NativePush enabled={{ android: fcmConfigured(), ios: apnsConfigured() }} />
       {ordersBoard && <NewOrderAlert tenantId={ctx.tenant.id} />}
+      <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} />
       <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />
     </StaffIntlProvider>
   );

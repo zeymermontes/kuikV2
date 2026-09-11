@@ -579,3 +579,15 @@ Two pixels, never on the same page (migration 0086):
 
 `components/MetaPixel.tsx` is the snippet; `lib/pixel.ts` validates ids (digits
 only, so nothing else reaches a `<script>`) and exposes `trackPixel()`.
+
+## Staff alerts (sound + push)
+
+Anything that needs a person — a new booking request, a guest confirming or
+cancelling from WhatsApp, a guest changing a booking, a WhatsApp handoff, a
+flow's "notify staff" step — goes through `alertStaff()` in `lib/alerts.ts`:
+one row in `staff_alerts` (migration 0087, in the Realtime publication) and
+one push to the roles named. `components/StaffAlerts.tsx`, mounted on the
+dashboard, host stand, register, kitchen and hub layouts, plays a chime and
+shows a toast for rows addressed to the reader's role; the push reaches the
+phones that are not looking (web push, FCM, APNs — see `lib/push`). Menu
+orders keep their own alert (`components/orders/NewOrderAlert.tsx`).
