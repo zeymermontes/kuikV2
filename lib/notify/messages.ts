@@ -25,7 +25,9 @@ export function longDate(iso: string, locale: string): string {
   const text = new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-MX', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
   });
-  return text.charAt(0).toUpperCase() + text.slice(1);
+  // "miércoles, 16 de septiembre" → "Miércoles 16 de septiembre", like the bot writes it.
+  const clean = locale === 'en' ? text : text.replace(',', '');
+  return clean.charAt(0).toUpperCase() + clean.slice(1);
 }
 
 /** "6:00 pm" from "18:00". */
