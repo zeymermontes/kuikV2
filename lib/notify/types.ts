@@ -1,6 +1,6 @@
 import type { Reservation } from '@/lib/database.types';
 
-export type NotificationKind = 'confirmed' | 'cancelled' | 'reminder_24h';
+export type NotificationKind = 'confirmed' | 'cancelled' | 'reminder_24h' | 'waitlist' | 'table_ready';
 export type NotificationChannel = 'manual_wa' | 'whatsapp_api' | 'none';
 
 export interface NotifyInput {
@@ -12,6 +12,8 @@ export interface NotifyInput {
   kind: NotificationKind;
   /** Already rendered and localised. */
   body: string;
+  /** Waitlist quote, for the template's variable. */
+  minutes?: number | null;
 }
 
 export interface NotifyResult {

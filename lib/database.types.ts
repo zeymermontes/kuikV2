@@ -699,10 +699,12 @@ export interface Reservation {
   tags: string[];
   /** Per-party override of the turn time; null = by party size. */
   turn_minutes: number | null;
+  /** The WhatsApp chat the booking was made in, or later tied to. */
+  whatsapp_conversation_id?: string | null;
   created_at: string;
 }
 
-export type NotificationKind = 'confirmed' | 'cancelled' | 'reminder_24h';
+export type NotificationKind = 'confirmed' | 'cancelled' | 'reminder_24h' | 'waitlist' | 'table_ready';
 
 export interface ReservationNotification {
   id: string;

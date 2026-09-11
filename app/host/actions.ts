@@ -7,6 +7,13 @@ import { createClient } from '@/lib/supabase/server';
 import { todayInTz, nowHHMMInTz } from '@/lib/time';
 import { digitsOnly } from '@/lib/utils';
 import { setReservationStatus } from '@/app/(dashboard)/reservations/actions';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { notifyGuest, type GuestNotice } from '@/lib/notify/guest';
+import { conversationForReservation } from '@/lib/notify/conversation-wa';
+import { bridgeConversationFor } from '@/lib/notify/bridge-conversation';
+import { sendMessage } from '@/lib/whatsapp/send';
+import { isWindowOpen, WindowClosedError } from '@/lib/whatsapp/window';
+import type { MessageOrigin } from '@/lib/whatsapp/types';
 import type {
   FloorTable, FloorCombination, Reservation, ReservationShift, ReservationStatus, TableShape, TableStatus,
 } from '@/lib/database.types';
@@ -118,6 +125,9 @@ export async function updateParty(id: string, fields: PartyFields): Promise<void
  * Someone at the door with no booking. Either onto the waitlist with a quote,
  * or straight to a table. Inserted directly rather than through the booking
  * RPC: walk-ins are exempt from every public rule by definition.
+ *
+ * A party that waits and left a number is told so right away ("you're on
+ * the waitlist, about N minutes"), on whatever channel the restaurant has.
  */
 export async function addWalkIn(input: {
   name: string;
@@ -130,7 +140,7 @@ export async function addWalkIn(input: {
   areaId?: string | null;
   /** The stand's branch; null is the main location. */
   branchId?: string | null;
-}): Promise<Reservation | null> {
+}): Promise<{ party: Reservation; notice: GuestNotice | null } | null> {
   const { tenant } = await requireReservations();
   const supabase = await createClient();
   const seatNow = !!input.tableIds && input.tableIds.length > 0;
@@ -159,15 +169,23 @@ export async function addWalkIn(input: {
     .select('*')
     .single();
   bump();
-  return (data as Reservation) ?? null;
+  const party = (data as Reservation) ?? null;
+  if (!party) return null;
+
+  let notice: GuestNotice | null = null;
+  if (!seatNow && party.phone) {
+    notice = await notifyGuest({ tenant, reservation: party, kind: 'waitlist', minutes: party.quoted_minutes }).catch(() => null);
+  }
+  return { party, notice };
 }
 
 /**
- * "Your table is ready" for a waitlist party, as a one-tap WhatsApp link the
- * host opens from the click (a popup only survives inside a click). Marks the
- * party notified so its row changes colour and the timer restarts.
+ * "Your table is ready" for a waitlist party. Goes out on its own when the
+ * restaurant has WhatsApp connected; otherwise comes back as the one-tap link
+ * the host opens. Marks the party notified so its row changes colour and the
+ * timer restarts.
  */
-export async function tableReadyLink(id: string): Promise<{ href: string | null }> {
+export async function notifyTableReady(id: string): Promise<GuestNotice> {
   const { tenant } = await requireReservations();
   const supabase = await createClient();
   const { data } = await supabase
@@ -175,16 +193,127 @@ export async function tableReadyLink(id: string): Promise<{ href: string | null 
     .update({ status: 'notified', notified_at: new Date().toISOString() })
     .eq('id', id)
     .eq('tenant_id', tenant.id)
-    .select('customer_name, phone')
+    .select('id, customer_name, phone, party_size, date, time, whatsapp_conversation_id')
     .maybeSingle();
   bump();
-  const row = data as { customer_name: string; phone: string | null } | null;
-  if (!row?.phone) return { href: null };
-  const text =
-    tenant.locale === 'en'
-      ? `Hi ${row.customer_name}, your table at ${tenant.name} is ready. See you now!`
-      : `Hola ${row.customer_name}, tu mesa en ${tenant.name} ya está lista. ¡Te esperamos!`;
-  return { href: `https://wa.me/${digitsOnly(row.phone)}?text=${encodeURIComponent(text)}` };
+  const row = data as Pick<Reservation, 'id' | 'customer_name' | 'phone' | 'party_size' | 'date' | 'time' | 'whatsapp_conversation_id'> | null;
+  if (!row || (!row.phone && !row.whatsapp_conversation_id)) return { status: 'skipped' };
+  return notifyGuest({ tenant, reservation: row, kind: 'table_ready' });
+}
+
+// ── The chat with a party ───────────────────────────────────────────────────
+
+export interface PartyChatMessage {
+  id: string;
+  direction: 'inbound' | 'outbound';
+  origin: MessageOrigin;
+  body: string | null;
+  status: string | null;
+  created_at: string;
+}
+
+export interface PartyChat {
+  conversationId: string | null;
+  messages: PartyChatMessage[];
+  /** False while the bot is paused (a person took the chat). */
+  botActive: boolean;
+  /** Whether a free-form reply can go out right now. */
+  canReply: boolean;
+  /** Why not, when it can't. */
+  reason: 'no_conversation' | 'window_closed' | null;
+  /** The one-tap link to answer from a phone instead. */
+  href: string | null;
+}
+
+/**
+ * The WhatsApp conversation behind a party, for the stand: the transcript,
+ * whether the bot is talking, and whether the host can answer from here.
+ * A walk-in the restaurant has never chatted with gets a chat opened on the
+ * linked device, so the first message can be the host's.
+ */
+export async function getPartyChat(reservationId: string): Promise<PartyChat> {
+  const { tenant } = await requireReservations();
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from('reservations')
+    .select('id, phone, whatsapp_conversation_id')
+    .eq('id', reservationId)
+    .eq('tenant_id', tenant.id)
+    .maybeSingle();
+  const party = data as { id: string; phone: string | null; whatsapp_conversation_id: string | null } | null;
+  const empty: PartyChat = { conversationId: null, messages: [], botActive: true, canReply: false, reason: 'no_conversation', href: null };
+  if (!party) return empty;
+  const href = party.phone ? `https://wa.me/${digitsOnly(party.phone)}` : null;
+
+  let conversationId = await conversationForReservation(tenant.id, party);
+  if (!conversationId && party.phone) conversationId = await bridgeConversationFor(tenant.id, party.phone);
+  if (!conversationId) return { ...empty, href };
+
+  if (party.whatsapp_conversation_id !== conversationId) {
+    await admin.from('reservations').update({ whatsapp_conversation_id: conversationId }).eq('id', party.id);
+  }
+
+  const [{ data: conv }, { data: rows }] = await Promise.all([
+    admin.from('whatsapp_conversations').select('id, transport, window_expires_at, bot_enabled, handoff_at').eq('id', conversationId).eq('tenant_id', tenant.id).maybeSingle(),
+    admin
+      .from('whatsapp_messages')
+      .select('id, direction, origin, body, status, created_at')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: false })
+      .limit(100),
+  ]);
+  const c = conv as { transport: 'cloud' | 'bridge'; window_expires_at: string | null; bot_enabled: boolean; handoff_at: string | null } | null;
+  if (!c) return { ...empty, href };
+  const canReply = c.transport === 'bridge' || isWindowOpen(c);
+  return {
+    conversationId,
+    messages: ((rows ?? []) as PartyChatMessage[]).reverse(),
+    botActive: c.bot_enabled && !c.handoff_at,
+    canReply,
+    reason: canReply ? null : 'window_closed',
+    href,
+  };
+}
+
+/**
+ * A host answering a diner from the stand. The bot steps aside on the first
+ * reply so it doesn't talk over a person; the stand can hand the chat back.
+ */
+export async function sendPartyMessage(conversationId: string, body: string): Promise<{ ok: boolean; error?: string }> {
+  const { tenant } = await requireReservations();
+  const text = body.trim();
+  if (!text) return { ok: false, error: 'empty' };
+  const admin = createAdminClient();
+  const { data } = await admin.from('whatsapp_conversations').select('id').eq('id', conversationId).eq('tenant_id', tenant.id).maybeSingle();
+  if (!data) return { ok: false, error: 'unknown_conversation' };
+  try {
+    const res = await sendMessage(conversationId, { type: 'text', body: text }, 'staff_dashboard');
+    if (!res.ok) return { ok: false, error: res.error ?? 'send_failed' };
+  } catch (err) {
+    return { ok: false, error: err instanceof WindowClosedError ? 'window_closed' : 'send_failed' };
+  }
+  await admin
+    .from('whatsapp_conversations')
+    .update({ bot_enabled: false, handoff_at: new Date().toISOString(), handoff_by: 'staff_dashboard' })
+    .eq('id', conversationId)
+    .eq('tenant_id', tenant.id)
+    .is('handoff_at', null);
+  return { ok: true };
+}
+
+/** Hand a party's chat back to the bot, or take it away. */
+export async function setPartyChatBot(conversationId: string, enabled: boolean): Promise<void> {
+  const { tenant } = await requireReservations();
+  const admin = createAdminClient();
+  await admin
+    .from('whatsapp_conversations')
+    .update(
+      enabled
+        ? { bot_enabled: true, handoff_at: null, handoff_by: null }
+        : { bot_enabled: false, handoff_at: new Date().toISOString(), handoff_by: 'staff_dashboard' },
+    )
+    .eq('id', conversationId)
+    .eq('tenant_id', tenant.id);
 }
 
 // ── Floor plan ─────────────────────────────────────────────────────────────

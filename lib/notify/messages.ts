@@ -16,6 +16,8 @@ type Vars = {
   party: number;
   date: string;
   time: string;
+  /** Waitlist quote in minutes; absent or 0 = no estimate given. */
+  minutes?: number | null;
 };
 
 /** "Miércoles 16 de septiembre de 2026" / "Wednesday, September 16, 2026" from "YYYY-MM-DD". */
@@ -39,14 +41,26 @@ export function clock12(hhmm: string): string {
   return `${hour}:${String(m || 0).padStart(2, '0')} ${suffix}`;
 }
 
-function card(v: Vars, locale: string, extra?: string): string {
-  const people = locale === 'en'
+function people(v: Vars, locale: string): string {
+  return locale === 'en'
     ? `${v.party} ${v.party === 1 ? 'person' : 'people'}`
     : `${v.party} ${v.party === 1 ? 'persona' : 'personas'}`;
+}
+
+/** The waitlist note's facts: the party, and the quote when one was given. */
+function waitCard(v: Vars, locale: string): string {
+  const lines = [`👥 ${people(v, locale)}`];
+  if (v.minutes && v.minutes > 0) {
+    lines.push(locale === 'en' ? `⏱️ Estimated wait: ${v.minutes} min` : `⏱️ Tiempo estimado: ${v.minutes} min`);
+  }
+  return lines.join('\n');
+}
+
+function card(v: Vars, locale: string, extra?: string): string {
   const lines = [
     `📅 ${longDate(v.date, locale)}`,
     `🕕 ${clock12(v.time)}`,
-    `👥 ${people}`,
+    `👥 ${people(v, locale)}`,
     `🙋 ${locale === 'en' ? 'Under the name of' : 'A nombre de'} ${v.name}`,
   ];
   if (extra) lines.push(extra);
@@ -60,6 +74,10 @@ const ES: Record<NotificationKind, (v: Vars) => string> = {
     `Hola ${v.name}. Lamentamos avisarte que *no pudimos tomar* tu reservación en *${v.restaurant}* 😔\n\n${card(v, 'es')}\n\n¿Buscamos otro horario?`,
   reminder_24h: (v) =>
     `¡Hola ${v.name}! Te recordamos tu reservación en *${v.restaurant}* mañana 🔔\n\n${card(v, 'es')}\n\nResponde *1* para confirmar o *2* si ya no puedes venir.`,
+  waitlist: (v) =>
+    `¡Hola ${v.name}! Ya estás en la *fila de espera* de *${v.restaurant}* ⏳\n\n${waitCard(v, 'es')}\n\nTe avisamos por aquí en cuanto tu lugar esté listo.`,
+  table_ready: (v) =>
+    `¡Hola ${v.name}! Tu lugar en *${v.restaurant}* ya está *listo* 🎉\n\n${waitCard({ ...v, minutes: null }, 'es')}\n\nPasa a la entrada y te sentamos. ¡Te esperamos!`,
 };
 
 const EN: Record<NotificationKind, (v: Vars) => string> = {
@@ -69,6 +87,10 @@ const EN: Record<NotificationKind, (v: Vars) => string> = {
     `Hi ${v.name}. We're sorry — we *couldn't take* your booking at *${v.restaurant}* 😔\n\n${card(v, 'en')}\n\nShall we look for another time?`,
   reminder_24h: (v) =>
     `Hi ${v.name}! A reminder about your table at *${v.restaurant}* tomorrow 🔔\n\n${card(v, 'en')}\n\nReply *1* to confirm or *2* if you can't make it.`,
+  waitlist: (v) =>
+    `Hi ${v.name}! You're on the *waitlist* at *${v.restaurant}* ⏳\n\n${waitCard(v, 'en')}\n\nWe'll message you here as soon as your table is ready.`,
+  table_ready: (v) =>
+    `Hi ${v.name}! Your table at *${v.restaurant}* is *ready* 🎉\n\n${waitCard({ ...v, minutes: null }, 'en')}\n\nCome to the entrance and we'll seat you. See you now!`,
 };
 
 export function renderNotification(

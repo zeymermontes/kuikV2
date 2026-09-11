@@ -18,3 +18,15 @@ test('a confirmation is laid out like the bot summary', () => {
   assert.match(reminder, /👥 1 persona\n/);
   assert.match(reminder, /Responde \*1\*/);
 });
+
+test('the door tells a waiting party the quote, and later that the table is ready', () => {
+  const wait = renderNotification('waitlist', 'es', { restaurant: 'Mar and Sea', name: 'Luis', party: 3, date: '2026-09-11', time: '14:00', minutes: 30 });
+  assert.match(wait, /\*fila de espera\*/);
+  assert.match(wait, /👥 3 personas\n⏱️ Tiempo estimado: 30 min/);
+  assert.match(wait, /Te avisamos por aquí/);
+  const noQuote = renderNotification('waitlist', 'en', { restaurant: 'Mar and Sea', name: 'Luis', party: 1, date: '2026-09-11', time: '14:00', minutes: null });
+  assert.doesNotMatch(noQuote, /Estimated wait/);
+  const ready = renderNotification('table_ready', 'es', { restaurant: 'Mar and Sea', name: 'Luis', party: 3, date: '2026-09-11', time: '14:00', minutes: 30 });
+  assert.match(ready, /ya está \*listo\* 🎉/);
+  assert.doesNotMatch(ready, /Tiempo estimado/);
+});

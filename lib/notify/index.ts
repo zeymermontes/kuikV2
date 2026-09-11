@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { manualWhatsapp } from './manual-wa';
 import { bridgeNotifier } from './bridge-wa';
 import { conversationForReservation, conversationNotifier } from './conversation-wa';
+import { bridgeConversationFor } from './bridge-conversation';
 import type { CustomerNotifier, NotifyInput, NotifyResult } from './types';
 
 export * from './types';
@@ -47,7 +48,12 @@ export async function getNotifier(input: NotifyInput): Promise<CustomerNotifier>
     .maybeSingle();
 
   const number = data as { mode: string; status: string } | null;
-  if (number?.mode === 'bridge') return bridgeNotifier;
+  if (number?.mode === 'bridge') {
+    // Open the chat first so the note is a real message in a transcript the
+    // host can read and answer; the bare send stays as the fallback.
+    const opened = await bridgeConversationFor(input.tenant.id, input.reservation.phone);
+    return opened ? conversationNotifier(opened) : bridgeNotifier;
+  }
 
   return manualWhatsapp;
 }

@@ -8,7 +8,6 @@ import {
   PARTY_STATUS_COLOR, PARTY_TAGS, QUOTE_CHOICES, TABLE_STATUS_COLOR, TABLE_STATUS_ORDER,
   elapsed, isLate, minutesSince, turnMinutesFor, type PartyTag,
 } from '@/lib/host/model';
-import { digitsOnly } from '@/lib/utils';
 import { Sheet, Field, Chip, Stepper, INPUT, PRIMARY, GHOST, DANGER, TAG_ICON, TABLE_STATUS_ICON, PARTY_STATUS_ICON } from './ui';
 import type { HostSettings } from './PartyList';
 import type { PartyFields } from '@/app/host/actions';
@@ -31,6 +30,7 @@ export function PartySheet({
   onNotify,
   onUpdate,
   onSendNotice,
+  onChat,
 }: {
   party: Reservation;
   tables: FloorTable[];
@@ -47,6 +47,8 @@ export function PartySheet({
   onNotify: () => void;
   onUpdate: (fields: PartyFields) => void;
   onSendNotice: () => void;
+  /** Open the WhatsApp chat with this party (read and answer from the stand). */
+  onChat: () => void;
 }) {
   const t = useTranslations('host');
   const [editing, setEditing] = useState(false);
@@ -223,12 +225,14 @@ export function PartySheet({
           </div>
         )}
 
-        {party.phone && (
+        {(party.phone || party.whatsapp_conversation_id) && (
           <div className="flex gap-2">
-            <a href={`tel:${party.phone}`} className={`${GHOST} flex-1`}><Phone className="h-4 w-4" /> {party.phone}</a>
-            <a href={`https://wa.me/${digitsOnly(party.phone)}`} target="_blank" rel="noreferrer" className={`${GHOST} bg-green-600/20 text-green-300`}>
-              <MessageCircle className="h-4 w-4" />
-            </a>
+            {party.phone && (
+              <a href={`tel:${party.phone}`} className={`${GHOST} flex-1`}><Phone className="h-4 w-4" /> {party.phone}</a>
+            )}
+            <button onClick={onChat} className={`${GHOST} ${party.phone ? '' : 'flex-1'} bg-green-600/20 text-green-300`}>
+              <MessageCircle className="h-4 w-4" /> {t('chat')}
+            </button>
           </div>
         )}
 

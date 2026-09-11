@@ -21,6 +21,8 @@ const TEMPLATE_FOR: Record<NotificationKind, string> = {
   confirmed: 'reserva_confirmada',
   cancelled: 'reserva_rechazada',
   reminder_24h: 'recordatorio_reserva_24h',
+  waitlist: 'fila_espera',
+  table_ready: 'mesa_lista',
 };
 
 /** The conversation behind a booking: the one it was made in, else the diner's number. */
@@ -32,11 +34,15 @@ export async function conversationForReservation(
   if (reservation.whatsapp_conversation_id) return reservation.whatsapp_conversation_id;
   if (!reservation.phone) return null;
   const e164 = toE164(reservation.phone) ?? normalizeWaId(reservation.phone);
+  // The same number can be two contacts (a LID chat resolved later, and a
+  // chat the restaurant opened by number): the one seen most recently wins.
   const { data: contact } = await supabase
     .from('whatsapp_contacts')
     .select('id')
     .eq('tenant_id', tenantId)
     .eq('phone_e164', e164)
+    .order('last_seen_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
   const contactId = (contact as { id: string } | null)?.id;
   if (!contactId) return null;
@@ -79,6 +85,7 @@ export function conversationNotifier(conversationId: string): CustomerNotifier {
         personas: String(input.reservation.party_size),
         fecha: input.reservation.date,
         hora: input.reservation.time.slice(0, 5),
+        minutos: String(input.minutes ?? ''),
       });
       if (tpl.ok) return { status: 'sent', providerId: tpl.waMessageId };
 

@@ -591,3 +591,17 @@ dashboard, host stand, register, kitchen and hub layouts, plays a chime and
 shows a toast for rows addressed to the reader's role; the push reaches the
 phones that are not looking (web push, FCM, APNs — see `lib/push`). Menu
 orders keep their own alert (`components/orders/NewOrderAlert.tsx`).
+
+## The door talks to the guest (waitlist, table ready, chat)
+
+The host stand tells a waiting party two things on WhatsApp through
+`notifyGuest()` in `lib/notify/guest.ts`: "you're on the waitlist, about N
+minutes" when a walk-in with a phone is registered, and "your table is ready"
+on **Mesa lista** (kinds `waitlist` / `table_ready`, migration 0089; template
+names `fila_espera` / `mesa_lista` on the Cloud API). With a linked device
+the note goes out on its own and opens the chat when the guest never wrote
+first (`lib/notify/bridge-conversation.ts`); without WhatsApp connected the
+stand gets the one-tap link as before. **Chat** on a party's sheet
+(`components/host/ChatSheet.tsx`) shows that conversation live and lets the
+host answer by hand; the first manual reply pauses the bot on that chat, and
+the sheet hands it back.

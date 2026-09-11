@@ -17,12 +17,14 @@ import {
   minutesSince, sectionOf, shiftAt, suggestSeating, tableViews, turnMinutesFor, type Section,
 } from '@/lib/host/model';
 import {
-  listHostDay, setPartyStatus, setTableStatus, moveParty, updateParty, addWalkIn, tableReadyLink,
+  listHostDay, setPartyStatus, setTableStatus, moveParty, updateParty, addWalkIn, notifyTableReady,
   saveTable, moveTable, deleteTable, setTableServer, blockTable, saveHostSettings, saveCombination, deleteCombination,
   type HostDay, type PartyFields,
 } from '@/app/host/actions';
 import { getPendingSummary, markNotificationSent } from '@/app/(dashboard)/reservations/actions';
+import type { GuestNotice } from '@/lib/notify/guest';
 import { RequestsSheet } from './RequestsSheet';
+import { ChatSheet } from './ChatSheet';
 import { ReservationForm } from '@/components/dashboard/ReservationForm';
 import { FloorPlan } from './FloorPlan';
 import { Timeline } from './Timeline';
@@ -42,6 +44,7 @@ type Sheet =
   | { kind: 'settings' }
   | { kind: 'booking' }
   | { kind: 'requests' }
+  | { kind: 'chat'; id: string }
   | null;
 
 /**
@@ -319,18 +322,36 @@ export function HostApp({
     start(() => markNotificationSent(item.notificationId));
   }
 
-  function notifyTableReady(id: string) {
+  // What came back from telling the diner something: sent on its own, a
+  // link a human still has to tap (kept on the sheet as a button), or nothing.
+  function afterNotice(id: string, n: GuestNotice | null) {
+    if (!n || n.status === 'skipped') {
+      setToast(t('noPhone'));
+      return;
+    }
+    if (n.status === 'sent') {
+      setToast(t('noticeSent'));
+      return;
+    }
+    if (n.href && n.notificationId) {
+      setToSend((cur) => ({ ...cur, [id]: { href: n.href!, notificationId: n.notificationId! } }));
+      setToast(t('noticeManual'));
+      return;
+    }
+    setToast(t('noticeFailed'));
+  }
+
+  function tableReady(id: string) {
     patch(id, { status: 'notified', notified_at: new Date().toISOString() });
     if (demo) return;
     start(async () => {
-      const { href } = await tableReadyLink(id);
-      if (href) window.open(href, '_blank');
-      else setToast(t('noPhone'));
+      afterNotice(id, await notifyTableReady(id));
     });
   }
 
   const href = (d: string) => `/host?d=${d}`;
   const party = sheet?.kind === 'party' ? reservations.find((r) => r.id === sheet.id) ?? null : null;
+  const chatParty = sheet?.kind === 'chat' ? reservations.find((r) => r.id === sheet.id) ?? null : null;
   const tableView = sheet?.kind === 'table' && sheet.id ? views.find((v) => v.table.id === sheet.id) ?? null : null;
   const roomCombos = combos.filter((c) => inRoom(c.area_id));
 
@@ -643,13 +664,18 @@ export function HostApp({
           }}
           onSeat={() => beginSeating(party.id)}
           onMove={() => beginSeating(party.id, true)}
-          onNotify={() => notifyTableReady(party.id)}
+          onNotify={() => tableReady(party.id)}
           onUpdate={(fields: PartyFields) => {
             patch(party.id, fields as Partial<Reservation>);
             start(() => updateParty(party.id, fields));
           }}
           onSendNotice={() => sendNotice(party.id)}
+          onChat={() => setSheet({ kind: 'chat', id: party.id })}
         />
+      )}
+
+      {sheet?.kind === 'chat' && chatParty && (
+        <ChatSheet partyId={chatParty.id} name={chatParty.customer_name} phone={chatParty.phone} onClose={() => setSheet({ kind: 'party', id: chatParty.id })} />
       )}
 
       {sheet?.kind === 'requests' && (
@@ -690,7 +716,7 @@ export function HostApp({
               return;
             }
             start(async () => {
-              const r = await addWalkIn({
+              const res = await addWalkIn({
                 name: input.name,
                 phone: input.phone,
                 party: input.party,
@@ -701,8 +727,10 @@ export function HostApp({
                 tableIds: input.seatNow ? tableIds : [],
                 branchId,
               });
-              if (!r) return;
+              if (!res) return;
+              const r = res.party;
               setReservations((cur) => [...cur.filter((x) => x.id !== r.id), r]);
+              if (res.notice) afterNotice(r.id, res.notice);
               if (pickLater) {
                 setSeating({ partyId: r.id, tableIds: [], move: false, fresh: true });
                 showFloor();
