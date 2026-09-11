@@ -18,6 +18,7 @@ export function PendingStrip({
   tenantId,
   initial,
   currentDay,
+  onShowAll,
 }: {
   tenantId: string;
   initial: PendingSummary;
