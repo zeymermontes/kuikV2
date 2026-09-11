@@ -1,11 +1,13 @@
 import Link from 'next/link';
 import { Logo } from './Logo';
 import { FEATURE_PAGES } from '@/lib/landing/features';
+import { KuikPixel } from '@/components/KuikPixel';
 
 /** The marketing site's footer. The feature pages are linked from every page so crawlers find them all from any entry point. */
 export function Footer({ loginLabel, ctaLabel }: { loginLabel: string; ctaLabel: string }) {
   return (
     <footer className="border-t border-neutral-100">
+      <KuikPixel />
       <div className="mx-auto flex max-w-6xl flex-col gap-8 px-5 py-12 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Link href="/" className="flex items-center gap-2.5" aria-label="Kuik, inicio">

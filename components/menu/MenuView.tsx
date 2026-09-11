@@ -42,6 +42,7 @@ import { SeparatorRow } from './SeparatorRow';
 import { CartBar } from './CartBar';
 import { CartSheet } from './CartSheet';
 import { PaidSheet } from './PaidSheet';
+import { trackPixel } from '@/lib/pixel';
 import { OpenStatus } from './OpenStatus';
 import { ReservationSheet } from './ReservationSheet';
 import { WhatsAppBubble } from './WhatsAppBubble';
@@ -171,6 +172,11 @@ export function MenuView({
 
   const currency = settings.currency;
   const locale = tenant.locale === 'en' ? 'en-US' : 'es-MX';
+  // The restaurant's Meta Pixel, when it has one: a product opened is a ViewContent.
+  useEffect(() => {
+    if (!activeProduct) return;
+    trackPixel('ViewContent', { content_name: activeProduct.name, content_ids: [activeProduct.id], content_type: 'product', value: activeProduct.price ?? undefined, currency });
+  }, [activeProduct, currency]);
   // Which channel this visit came through. The in-place route (/qr) says so
   // up front; a legacy table QR (/menu?mesa=N) is detected after mount.
   const [qrChannel, setQrChannel] = useState(channel === 'qr');

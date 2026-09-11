@@ -19,6 +19,8 @@ export interface PlatformSettings {
   /** What one branch adds per month, on each tier (0082). */
   branch_amount_basic: number;
   branch_amount_pro: number;
+  /** Kuik's Meta Pixel id, fired on kuik.mx and the sign-up flow (0086). */
+  meta_pixel_id: string | null;
 }
 
 // Fallback used if the platform_settings row hasn't been created yet.
@@ -35,6 +37,7 @@ const FALLBACK: PlatformSettings = {
   pos_addon_name: 'Punto de venta',
   branch_amount_basic: Number(process.env.MERCADOPAGO_BRANCH_BASIC_AMOUNT ?? '250'),
   branch_amount_pro: Number(process.env.MERCADOPAGO_BRANCH_PRO_AMOUNT ?? '499'),
+  meta_pixel_id: process.env.NEXT_PUBLIC_META_PIXEL_ID ?? null,
 };
 
 /**
@@ -47,7 +50,7 @@ export const getPlatformSettings = cache(async (): Promise<PlatformSettings> => 
     const supabase = createAdminClient();
     const query = supabase
       .from('platform_settings')
-      .select('plan_amount, plan_currency, plan_name, pro_amount, pro_name, extra_amount, payment_fee_percent, pro_payment_fee_percent, pos_addon_amount, pos_addon_name, branch_amount_basic, branch_amount_pro')
+      .select('plan_amount, plan_currency, plan_name, pro_amount, pro_name, extra_amount, payment_fee_percent, pro_payment_fee_percent, pos_addon_amount, pos_addon_name, branch_amount_basic, branch_amount_pro, meta_pixel_id')
       .eq('id', 1)
       .maybeSingle<PlatformSettings>();
     // Never let a slow DB hang the marketing page — fall back after 3s.
@@ -66,6 +69,7 @@ export const getPlatformSettings = cache(async (): Promise<PlatformSettings> => 
       pos_addon_name: d.pos_addon_name || FALLBACK.pos_addon_name,
       branch_amount_basic: Number(d.branch_amount_basic ?? FALLBACK.branch_amount_basic),
       branch_amount_pro: Number(d.branch_amount_pro ?? FALLBACK.branch_amount_pro),
+      meta_pixel_id: d.meta_pixel_id || FALLBACK.meta_pixel_id,
     };
   } catch {
     return FALLBACK;

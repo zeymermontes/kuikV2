@@ -1,5 +1,7 @@
 'use server';
 
+import { validPixelId } from '@/lib/pixel';
+
 import { isAddon } from '@/lib/plan';
 
 import { revalidatePath } from 'next/cache';
@@ -564,4 +566,21 @@ export async function exitCustomerView(): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.delete(CUSTOMER_VIEW_COOKIE);
   redirect('/dashboard');
+}
+
+/**
+ * Super-admin: Kuik's own Meta Pixel (0086). Digits only; empty removes it.
+ * Fires on kuik.mx, sign-in / sign-up and onboarding (components/KuikPixel.tsx).
+ */
+export async function updateMetaPixel(id: string): Promise<{ error?: string }> {
+  await requireSuperAdmin();
+  const clean = id.trim();
+  if (clean && !validPixelId(clean)) return { error: 'invalid' };
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from('platform_settings')
+    .upsert({ id: 1, meta_pixel_id: clean || null, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+  if (error) return { error: 'failed' };
+  revalidatePath('/', 'layout');
+  return {};
 }

@@ -563,3 +563,19 @@ and are kept in the browser's Cache API after the first download. The chosen
 result is uploaded as a WebP with alpha, like every other photo (WebP, 1280 px,
 ≤ 0.6 MB, `lib/upload.ts`). `NEXT_PUBLIC_MODELS_BASE` overrides where the files
 are served from.
+
+## Meta Pixel (Kuik's and each restaurant's)
+
+Two pixels, never on the same page (migration 0086):
+
+- **Kuik's** (`platform_settings.meta_pixel_id`, set in /admin): loads on kuik.mx
+  and its feature pages, sign-in / sign-up and onboarding (`components/KuikPixel.tsx`).
+  Fires `PageView` and `CompleteRegistration` when the onboarding form is sent.
+  `NEXT_PUBLIC_META_PIXEL_ID` is the fallback when the row has none.
+- **The restaurant's** (`tenants.meta_pixel_id`, set by the owner under Contacto):
+  loads on its public menu site. Fires `PageView` (also on in-app navigation),
+  `ViewContent` when a product sheet opens, `InitiateCheckout` when the WhatsApp
+  order is sent, `Purchase` when an online payment is confirmed.
+
+`components/MetaPixel.tsx` is the snippet; `lib/pixel.ts` validates ids (digits
+only, so nothing else reaches a `<script>`) and exposes `trackPixel()`.

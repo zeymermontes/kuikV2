@@ -253,6 +253,8 @@ export interface Tenant {
   /** Default country for phone normalisation (lib/phone.ts). */
   country_iso: string;
   is_published: boolean;
+  /** The restaurant's own Meta Pixel, fired on its public menu site (0086). */
+  meta_pixel_id: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -12,7 +12,7 @@ function tenant(over: Partial<FullTenant['tenant']> = {}, contact: Partial<FullT
   return {
     tenant: {
       id: 't1', owner_id: 'u', name: 'Kavaa', subdomain: 'kavaa', custom_domain: null, custom_domain_status: 'none',
-      locale: 'es', timezone: 'America/Mexico_City', country_iso: 'MX', is_published: true, created_at: '', updated_at: '', ...over,
+      locale: 'es', timezone: 'America/Mexico_City', country_iso: 'MX', is_published: true, meta_pixel_id: null, created_at: '', updated_at: '', ...over,
     },
     theme: { slogan: 'matcha & coffee', logo_url: 'https://x/logo.png', cover_image_url: null, show_prices: true, settings: {} } as FullTenant['theme'],
     contact: {

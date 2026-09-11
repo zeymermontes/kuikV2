@@ -9,6 +9,7 @@ import { themeVars as buildThemeVars, DARK } from '@/lib/theme-vars';
 import { CUSTOM_FONT } from '@/lib/config';
 import { BackgroundMusic } from '@/components/menu/BackgroundMusic';
 import { tenantDescription, tenantOrigin } from '@/lib/seo';
+import { MetaPixel } from '@/components/MetaPixel';
 
 type Params = { tenant: string };
 
@@ -150,6 +151,7 @@ export default async function TenantLayout({
   return (
     <PublicIntlProvider locale={locale} messages={messages} timeZone={timeZone}>
       <HtmlLang locale={locale} />
+      <MetaPixel id={data.tenant.meta_pixel_id} />
       {theme.custom_font_url && (
         <style>{`@font-face{font-family:'${CUSTOM_FONT}';src:url('${theme.custom_font_url}');font-display:swap;}`}</style>
       )}

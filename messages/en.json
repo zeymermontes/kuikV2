@@ -1319,7 +1319,13 @@
     "instagram": "Instagram",
     "facebook": "Facebook",
     "website": "Website",
-    "email": "Email"
+    "email": "Email",
+    "pixelTitle": "Meta Pixel",
+    "pixelHint": "Paste your Meta (Facebook and Instagram) pixel ID and your public menu will log visits, products viewed, orders sent and online payments, to measure your ads and build audiences.",
+    "pixelSave": "Save",
+    "pixelSaved": "Saved. Live on your menu within a minute.",
+    "pixelInvalid": "A pixel ID is digits only (15 or 16 of them).",
+    "pixelFailed": "Could not save. Try again."
   },
   "domain": {
     "title": "Custom domain",
@@ -1717,7 +1723,13 @@
     "appsNotPublished": "Not published",
     "customerView": "View as customer",
     "customerViewBanner": "Customer view: you see this restaurant as its owner does, with its plan and without admin tools.",
-    "customerViewExit": "Exit"
+    "customerViewExit": "Exit",
+    "pixelTitle": "Kuik's Meta Pixel",
+    "pixelHint": "Loads on kuik.mx, sign-in, sign-up and restaurant onboarding. Logs PageView and CompleteRegistration. Restaurant menus use their own pixel, never this one.",
+    "pixelSave": "Save",
+    "pixelSaved": "Saved",
+    "pixelInvalid": "Digits only (15 or 16 of them).",
+    "pixelFailed": "Could not save."
   },
   "menu": {
     "orderWhatsapp": "Order on WhatsApp",

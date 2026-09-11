@@ -7,6 +7,7 @@ import { requireTenant } from '@/lib/auth';
 import type { ServiceType, LoyaltyType, PaymentMethod, PrintReceiptMode } from '@/lib/database.types';
 import type { MenuSettings } from '@/lib/menu-settings';
 import { getPreset, presetSettings } from '@/lib/menu-presets';
+import { validPixelId } from '@/lib/pixel';
 
 export async function updateTheme(
   fields: Partial<{
@@ -225,4 +226,23 @@ export async function updateContact(
     .eq('tenant_id', tenant.id);
   revalidatePath('/contact');
   revalidateTenant(tenant.subdomain, tenant.custom_domain);
+}
+
+/**
+ * The restaurant's own Meta Pixel (0086), fired on its public menu site.
+ * Digits only; empty removes it.
+ */
+export async function updateMetaPixelId(id: string): Promise<{ error?: string }> {
+  const { tenant } = await requireTenant();
+  const clean = id.trim();
+  if (clean && !validPixelId(clean)) return { error: 'invalid' };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('tenants')
+    .update({ meta_pixel_id: clean || null, updated_at: new Date().toISOString() })
+    .eq('id', tenant.id);
+  if (error) return { error: 'failed' };
+  revalidatePath('/contact');
+  revalidateTenant(tenant.subdomain, tenant.custom_domain);
+  return {};
 }

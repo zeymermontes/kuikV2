@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import { StaffIntlProvider } from '@/components/intl/StaffIntlProvider';
+import { KuikPixel } from '@/components/KuikPixel';
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <StaffIntlProvider>
+      <KuikPixel />
       <main className="flex min-h-screen flex-col items-center justify-center bg-neutral-50 px-5 py-10">
         <Link href="/" className="mb-8 text-2xl font-bold tracking-tight">
           Kuik

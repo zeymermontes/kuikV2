@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { trackPixel } from '@/lib/pixel';
 import { SelectionLines } from '@/components/menu/SelectionLines';
 import { useTranslations } from 'next-intl';
 import { Check, Loader2, MessageCircle, Receipt as ReceiptIcon, X } from 'lucide-react';
@@ -67,6 +68,7 @@ export function PaidSheet({
         if (d.ok) setOrder(d);
         if (d.ok && d.payment_status === 'paid') {
           setStatus('paid');
+          trackPixel('Purchase', { value: d.amount_paid ?? d.total ?? 0, currency });
           return;
         }
         if (d.ok && (d.payment_status === 'failed' || d.payment_status === 'refunded')) {
@@ -89,7 +91,7 @@ export function PaidSheet({
       stopped = true;
       if (timer) clearTimeout(timer);
     };
-  }, [tenantId, orderId]);
+  }, [tenantId, orderId, currency]);
 
   const code = orderCode(orderId);
   const phone = saved?.phone ?? fallbackPhone;

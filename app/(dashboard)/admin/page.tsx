@@ -11,6 +11,8 @@ import { LandingControls } from '@/components/dashboard/LandingControls';
 import { PricingSettings } from '@/components/dashboard/PricingSettings';
 import { AiPlatformSettings } from '@/components/dashboard/AiPlatformSettings';
 import { AppReleasesCard } from '@/components/dashboard/AppReleasesCard';
+import { PixelSettings } from '@/components/dashboard/PixelSettings';
+import { updateMetaPixel } from './actions';
 import { JumpToSetting } from '@/components/dashboard/JumpToSetting';
 import { getAppReleases } from '@/lib/apps/releases';
 import { LandingAiPrompt } from '@/components/dashboard/LandingAiPrompt';
@@ -164,6 +166,14 @@ export default async function AdminPage() {
 
       <div className="mb-6">
         <AppReleasesCard releases={releases} />
+      </div>
+
+      <div className="mb-6">
+        <PixelSettings
+          initial={plan.meta_pixel_id}
+          save={updateMetaPixel}
+          labels={{ title: t('pixelTitle'), hint: t('pixelHint'), label: t('pixelTitle'), save: t('pixelSave'), saved: t('pixelSaved'), invalid: t('pixelInvalid'), failed: t('pixelFailed') }}
+        />
       </div>
 
       <Card className="overflow-x-auto p-0" data-setting={t('tenants')}>

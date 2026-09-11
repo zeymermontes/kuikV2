@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { ROOT_DOMAIN } from '@/lib/config';
 import { COUNTRIES, DEFAULT_COUNTRY, dialFor } from '@/lib/countries';
 import { createTenant, type OnboardingResult } from './actions';
+import { trackPixel } from '@/lib/pixel';
 import { Field, Input, Button } from '@/components/ui';
 
 const ERROR_KEYS = new Set(['subdomainTaken', 'subdomainInvalid', 'name', 'needPro']);
@@ -29,6 +30,7 @@ export default function OnboardingPage() {
     <main className="flex min-h-screen items-center justify-center bg-neutral-50 px-5 py-10">
       <form
         action={action}
+        onSubmit={() => trackPixel('CompleteRegistration')}
         className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-7 shadow-sm"
       >
         <h1 className="mb-6 text-xl font-bold">{t('title')}</h1>

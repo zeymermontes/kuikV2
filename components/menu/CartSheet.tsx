@@ -12,6 +12,7 @@ import {
   lineUnitPrice,
   type CartLine,
 } from '@/lib/whatsapp';
+import { trackPixel } from '@/lib/pixel';
 import { formatPrice } from '@/lib/utils';
 import { applyPromotions, hasCoupons } from '@/lib/promotions';
 import type { Promotion } from '@/lib/database.types';
@@ -260,6 +261,7 @@ export function CartSheet({
       // Logging failure must not block the order.
     }
 
+    trackPixel('InitiateCheckout', { value: total, currency, num_items: lines.reduce((n, l) => n + l.qty, 0) });
     window.open(buildWhatsappUrl(contact.whatsapp_phone, message), '_blank');
     setSending(false);
   }

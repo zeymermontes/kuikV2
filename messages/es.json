@@ -1319,7 +1319,13 @@
     "instagram": "Instagram",
     "facebook": "Facebook",
     "website": "Sitio web",
-    "email": "Correo"
+    "email": "Correo",
+    "pixelTitle": "Meta Pixel",
+    "pixelHint": "Pega el ID de tu píxel de Meta (Facebook e Instagram) y tu menú público registrará visitas, productos vistos, pedidos enviados y pagos en línea, para medir tus anuncios y crear públicos.",
+    "pixelSave": "Guardar",
+    "pixelSaved": "Guardado. Se activa en tu menú en un minuto.",
+    "pixelInvalid": "El ID del píxel son solo números (15 o 16 dígitos).",
+    "pixelFailed": "No se pudo guardar. Intenta de nuevo."
   },
   "domain": {
     "title": "Dominio personalizado",
@@ -1717,7 +1723,13 @@
     "appsNotPublished": "Sin publicar",
     "customerView": "Ver como cliente",
     "customerViewBanner": "Vista de cliente: ves este restaurante como lo ve su dueño, con su plan y sin herramientas de administrador.",
-    "customerViewExit": "Salir"
+    "customerViewExit": "Salir",
+    "pixelTitle": "Meta Pixel de Kuik",
+    "pixelHint": "Se carga en kuik.mx, en el inicio de sesión, el registro y el alta del restaurante. Registra PageView y CompleteRegistration. Los menús de los restaurantes usan el píxel de cada uno, nunca este.",
+    "pixelSave": "Guardar",
+    "pixelSaved": "Guardado",
+    "pixelInvalid": "Solo números (15 o 16 dígitos).",
+    "pixelFailed": "No se pudo guardar."
   },
   "menu": {
     "orderWhatsapp": "Ordenar por WhatsApp",
