@@ -1,7 +1,7 @@
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendToTenant } from '@/lib/push/send';
-import { botCreateReservation, botHandoff, type BotContext } from '../actions';
+import { botCancelReservation, botCreateReservation, botHandoff, type BotContext } from '../actions';
 import { renderTemplate, type RenderVars } from '../render';
 import type { OutboundDraft } from '../types';
 import { completeGraph, type GraphActionRequest } from './engine';
@@ -88,6 +88,17 @@ export async function executeActions(
               || renderTemplate('Tu solicitud quedó registrada. Te confirmamos en unos minutos.', vars)
             : reservationErrorMessage(String(outcome.data?.error ?? 'failed')),
         });
+        // "Change my booking" made this a replacement: the old table goes
+        // back on the floor now that the new request is in.
+        if (outcome.ok) {
+          const { data: convRow } = await supabase.from('whatsapp_conversations').select('state').eq('id', ctx.conversationId).maybeSingle();
+          const replace = ((convRow as { state?: { replace?: string } } | null)?.state?.replace) ?? null;
+          if (replace) {
+            const released = await botCancelReservation(ctx, replace);
+            await supabase.from('whatsapp_conversations').update({ state: {} }).eq('id', ctx.conversationId);
+            if (released.ok) replies.push({ type: 'text', body: 'Y cancelé la reservación anterior 👍' });
+          }
+        }
         break;
       }
       case 'handoff': {

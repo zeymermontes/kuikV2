@@ -8,7 +8,7 @@ export interface NotifyInput {
   reservation: Pick<
     Reservation,
     'id' | 'customer_name' | 'phone' | 'party_size' | 'date' | 'time'
-  >;
+  > & { whatsapp_conversation_id?: string | null };
   kind: NotificationKind;
   /** Already rendered and localised. */
   body: string;

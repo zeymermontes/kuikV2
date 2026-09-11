@@ -2,6 +2,7 @@ import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { manualWhatsapp } from './manual-wa';
 import { bridgeNotifier } from './bridge-wa';
+import { conversationForReservation, conversationNotifier } from './conversation-wa';
 import type { CustomerNotifier, NotifyInput, NotifyResult } from './types';
 
 export * from './types';
@@ -25,6 +26,12 @@ const noChannel: CustomerNotifier = {
  * with no other change. The reminder cron in particular needs no edit at all.
  */
 export async function getNotifier(input: NotifyInput): Promise<CustomerNotifier> {
+  // A diner who has chatted with the restaurant gets the note in that chat,
+  // whichever transport carries it — free-form inside the window, template
+  // outside it, the manual link as the last resort.
+  const conversationId = await conversationForReservation(input.tenant.id, input.reservation);
+  if (conversationId) return conversationNotifier(conversationId);
+
   if (!input.reservation.phone) return noChannel;
 
   // A linked device is the restaurant's own account sending a message, so

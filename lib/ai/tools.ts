@@ -4,7 +4,7 @@ import { getMenu } from '@/lib/tenant';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { formatPrice } from '@/lib/utils';
 import { normalizeText } from '@/lib/whatsapp/parse';
-import { botCreateReservation, botHandoff, CreateReservationInput, type BotContext } from '@/lib/whatsapp/actions';
+import { botCancelReservation, botCreateReservation, botHandoff, botUpdateReservation, CreateReservationInput, UpdateReservationInput, describeReservation, type BotContext, type OwnReservation } from '@/lib/whatsapp/actions';
 import { completeRunFromAi } from '@/lib/whatsapp/flows/complete';
 import { endRun, loadRun } from '@/lib/whatsapp/flows/run-store';
 import type { FlowSlot } from '@/lib/whatsapp/flows/schema';
@@ -33,6 +33,10 @@ const Empty = z.object({});
 
 const Handoff = z.object({
   motivo: z.string().max(200).optional(),
+});
+
+const CancelReservation = z.object({
+  reservation_id: z.string().uuid().describe('El id de la reservación del cliente, tal como aparece en RESERVACIONES DEL CLIENTE.'),
 });
 
 /** The booking fields, reused by both the reply schema and the create action. */
@@ -141,6 +145,8 @@ export const TOOL_SCHEMAS = {
   crear_reserva: CreateReservationInput,
   pasar_con_humano: Handoff,
   finalizar_flujo: Empty,
+  cancelar_reserva: CancelReservation,
+  modificar_reserva: UpdateReservationInput,
 } as const;
 
 export type ToolName = keyof typeof TOOL_SCHEMAS;
@@ -151,7 +157,7 @@ export type ToolName = keyof typeof TOOL_SCHEMAS;
  * @param replySchema - the run's own reply schema (slots from its flow graph);
  *   defaults to the fixed booking shape.
  */
-export function toolDefinitions(collecting = false, replySchema: z.ZodType = Reply): ToolDef[] {
+export function toolDefinitions(collecting = false, replySchema: z.ZodType = Reply, manageable = false): ToolDef[] {
   const base: ToolDef[] = [
     {
       name: 'buscar_menu',
@@ -193,6 +199,24 @@ export function toolDefinitions(collecting = false, replySchema: z.ZodType = Rep
       parameters: toJsonSchema(Handoff),
     },
   ];
+
+  if (manageable) {
+    base.push(
+      {
+        name: 'cancelar_reserva',
+        description:
+          'Cancela una reservación del cliente (de la lista RESERVACIONES DEL CLIENTE). Llámala SOLO después de que el cliente confirme que quiere cancelarla.',
+        parameters: toJsonSchema(CancelReservation),
+      },
+      {
+        name: 'modificar_reserva',
+        description:
+          'Cambia fecha, hora, número de personas o nombre de una reservación del cliente. Manda solo los campos que cambian. ' +
+          'Queda como solicitud pendiente de confirmar de nuevo. Llámala SOLO después de leer el cambio al cliente y recibir su sí.',
+        parameters: toJsonSchema(UpdateReservationInput),
+      },
+    );
+  }
 
   if (collecting) {
     // During a flow run the ONLY way to commit is finalizar_flujo — it walks
@@ -365,6 +389,30 @@ export async function runTool(
       }
       const result = await completeRunFromAi(ctx.flowRunId, ctx, vars);
       return { content: result.detail, facts: result.facts };
+    }
+
+    case 'cancelar_reserva': {
+      const { reservation_id } = parsed.data as z.infer<typeof CancelReservation>;
+      const result = await botCancelReservation(ctx, reservation_id);
+      if (!result.ok) return { content: 'No encontré esa reservación entre las del cliente, o ya no está activa.', facts: [] };
+      const r = result.data?.reservation as OwnReservation;
+      return { content: `Reservación cancelada: ${describeReservation(r)}. Confírmaselo al cliente.`, facts: extractNumbers(describeReservation(r)) };
+    }
+
+    case 'modificar_reserva': {
+      const args = parsed.data as z.infer<typeof UpdateReservationInput>;
+      const result = await botUpdateReservation(ctx, args);
+      if (!result.ok) {
+        const why = result.message === 'not_found'
+          ? 'No encontré esa reservación entre las del cliente.'
+          : result.message === 'nothing_to_change'
+            ? 'No indicaste ningún cambio.'
+            : `No se pudo hacer el cambio: ${result.message}. Explícaselo al cliente y ofrece otra opción; la reservación original sigue igual.`;
+        return { content: why, facts: [] };
+      }
+      const r = result.data?.reservation as OwnReservation | null;
+      const text = r ? describeReservation(r) : 'cambio aplicado';
+      return { content: `Reservación actualizada: ${text}. Queda pendiente de que el restaurante la confirme; díselo al cliente.`, facts: extractNumbers(text) };
     }
 
     case 'pasar_con_humano': {

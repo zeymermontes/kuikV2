@@ -36,11 +36,11 @@ export async function setReservationStatus(
     .update({ status })
     .eq('id', id)
     .eq('tenant_id', tenant.id)
-    .select('id, customer_name, phone, party_size, date, time');
+    .select('id, customer_name, phone, party_size, date, time, whatsapp_conversation_id');
 
   revalidatePath('/reservations');
 
-  const reservation = rows?.[0] as Reservation | undefined;
+  const reservation = rows?.[0] as (Reservation & { whatsapp_conversation_id?: string | null }) | undefined;
   const kind = status === 'confirmed' ? 'confirmed' : status === 'cancelled' ? 'cancelled' : null;
   if (!reservation || !kind) return {};
 
@@ -66,10 +66,13 @@ export async function setReservationStatus(
         tenant_id: tenant.id,
         reservation_id: reservation.id,
         kind,
-        channel: notifier.channel,
-        status: notifier.automatic ? 'sent' : 'queued',
+        // The chat notifier falls back to the one-tap link when nothing automatic is left.
+        channel: result.href ? 'manual_wa' : notifier.channel,
+        status: result.status === 'sent' ? 'sent' : result.status === 'failed' ? 'failed' : 'queued',
         body,
-        sent_at: notifier.automatic ? new Date().toISOString() : null,
+        provider_id: result.providerId ?? null,
+        error: result.error ?? null,
+        sent_at: result.status === 'sent' ? new Date().toISOString() : null,
       },
       { onConflict: 'reservation_id,kind' },
     )

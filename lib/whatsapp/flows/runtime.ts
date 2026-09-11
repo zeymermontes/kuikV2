@@ -49,6 +49,17 @@ export interface FlowTurnParams {
   pendingReplies: OutboundDraft[];
   /** Online reservations switched on for this restaurant. */
   reservationsEnabled: boolean;
+  /** Start THIS flow instead of matching triggers (the "change my booking" path). */
+  startFlow?: WhatsappFlow;
+}
+
+/** The enabled flow that books a table, if the restaurant has one. */
+export async function findBookingFlow(supabase: Admin, flows: WhatsappFlow[]): Promise<WhatsappFlow | null> {
+  for (const flow of flows) {
+    const graph = await loadPublishedGraph(supabase, flow.id, flow.published_version);
+    if (graph && flowBooks(graph)) return flow;
+  }
+  return null;
 }
 
 /** @returns true when the turn was handled here; false = not a flow turn. */
@@ -71,9 +82,13 @@ export async function runFlowTurn(params: FlowTurnParams): Promise<boolean> {
     // Starting a flow is the Pro feature; finishing one you already began is
     // grace (cutting a diner off mid-booking punishes them, not the tenant).
     if (!params.botsAllowed) return false;
-    const matched = matchGoal(params.flows, turn.text, turn.replyId);
-    if (!matched) return false;
-    flow = matched.goal as WhatsappFlow;
+    if (params.startFlow) {
+      flow = params.startFlow;
+    } else {
+      const matched = matchGoal(params.flows, turn.text, turn.replyId);
+      if (!matched) return false;
+      flow = matched.goal as WhatsappFlow;
+    }
 
     // A booking flow while reservations are off: say so NOW, before asking
     // for a party size, a date and a name only to refuse at the end. Same

@@ -13,6 +13,7 @@ import { toolDefinitions, runTool, buildReplySchema } from './tools';
 import { checkGrounding, GROUNDING_FALLBACK } from './guard';
 import type { ChatMessage } from './types';
 import { buildRestaurantContext } from './context';
+import { describeReservation, type OwnReservation } from '@/lib/whatsapp/actions';
 
 /**
  * One AI turn.
@@ -58,6 +59,8 @@ export interface AiTurn {
   };
   /** Online reservations on for this restaurant; off = say so, do not collect. */
   reservationsEnabled?: boolean;
+  /** The diner's own upcoming bookings: readable, changeable and cancelable through tools. */
+  reservations?: OwnReservation[];
 }
 
 /** @returns true when the AI answered; false to fall back to flows. */
@@ -109,12 +112,12 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
   // The reply schema is derived from the flow's own slots, so what the model
   // may write down is exactly what the restaurant drew on the canvas.
   const replySchema = buildReplySchema(turn.collecting?.slots);
-  const tools = toolDefinitions(Boolean(turn.collecting), replySchema);
+  const tools = toolDefinitions(Boolean(turn.collecting), replySchema, (turn.reservations?.length ?? 0) > 0);
   const signal = AbortSignal.timeout(TURN_TIMEOUT_MS);
 
   // Everything the tools actually returned this turn, seeded with the sheet's
   // own figures. The guard checks the model's reply against exactly this.
-  const facts: string[] = [...sheet.facts];
+  const facts: string[] = [...sheet.facts, ...(turn.reservations ?? []).flatMap((r) => describeReservation(r).match(/\d+/g) ?? [])];
   let promptTokens = 0;
   let completionTokens = 0;
   // One rewrite per turn on a refused value; the second time it is dropped
@@ -302,6 +305,18 @@ function buildSystemPrompt(turn: AiTurn, extra: string | null, sheet = ''): stri
   ];
 
   if (sheet) lines.push('', sheet);
+
+  if (turn.reservations?.length) {
+    lines.push(
+      '',
+      'RESERVACIONES DEL CLIENTE (las suyas; puedes decirle su estado sin consultar nada):',
+      ...turn.reservations.map((r) => `- id ${r.id}: ${describeReservation(r)}`),
+      '- Si pregunta por su reserva, contesta con estos datos. "Pendiente" significa que el restaurante aún no la confirma.',
+      '- Si quiere cancelarla: confirma con él y llama a `cancelar_reserva`.',
+      '- Si quiere cambiar fecha, hora, personas o nombre: repite el cambio, espera su sí y llama a `modificar_reserva`.',
+      '- Si quiere OTRA reservación además de esta, es una nueva.',
+    );
+  }
 
   if (turn.reservationsEnabled === false) {
     lines.push(

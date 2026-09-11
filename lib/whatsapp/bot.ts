@@ -8,9 +8,10 @@ import { rateLimit, bucketKey } from '@/lib/rate-limit';
 import { canUse, effectivePlan } from '@/lib/plan';
 import { buildMenu, matchesAnyKeyword } from './intent';
 import { renderTemplate, type RenderVars } from './render';
-import { botHandoff, type BotContext } from './actions';
+import { botHandoff, describeReservation, ownReservations, type BotContext } from './actions';
 import { sendMessage } from './send';
-import { runFlowTurn } from './flows/runtime';
+import { findBookingFlow, runFlowTurn } from './flows/runtime';
+import { handleManageReservation } from './manage-reservation';
 import { endRun } from './flows/run-store';
 import { handleReservationReply } from './reservation-reply';
 import { runAi } from '@/lib/ai/run';
@@ -45,7 +46,7 @@ export async function runBot(turn: BotTurn): Promise<void> {
 
   const { data: convRow } = await supabase
     .from('whatsapp_conversations')
-    .select('id, tenant_id, branch_id, phone_number_id, bot_enabled, handoff_at, active_flow_run_id, reservation_id, contact:whatsapp_contacts(id, wa_id, opted_out, is_blocked, profile_name)')
+    .select('id, tenant_id, branch_id, phone_number_id, bot_enabled, handoff_at, active_flow_run_id, reservation_id, state, contact:whatsapp_contacts(id, wa_id, opted_out, is_blocked, profile_name)')
     .eq('id', turn.conversationId)
     .maybeSingle();
   if (!convRow) return;
@@ -53,7 +54,7 @@ export async function runBot(turn: BotTurn): Promise<void> {
   const conv = convRow as unknown as {
     id: string; tenant_id: string; branch_id: string | null; phone_number_id: string;
     bot_enabled: boolean; handoff_at: string | null; active_flow_run_id: string | null;
-    reservation_id: string | null;
+    reservation_id: string | null; state: Record<string, unknown> | null;
     contact: { id: string; wa_id: string; opted_out: boolean; is_blocked: boolean; profile_name: string | null }
            | { id: string; wa_id: string; opted_out: boolean; is_blocked: boolean; profile_name: string | null }[];
   };
@@ -159,6 +160,10 @@ export async function runBot(turn: BotTurn): Promise<void> {
   const flows = (flowRows ?? []) as unknown as WhatsappFlow[];
   const aiGoals = flows.map((f) => ({ key: f.key, name: f.name, description: f.description }));
 
+  // The diner's own upcoming bookings: the model reads them, the script
+  // offers change / cancel, the greeting mentions the next one.
+  const myReservations = await ownReservations(ctx);
+
   // "Pásame con una persona": with AI on, the MODEL reads the whole message
   // and decides (it has the pasar_con_humano tool and the context to tell a
   // request from a mention). The deterministic shortcut only fires when no AI
@@ -180,12 +185,28 @@ export async function runBot(turn: BotTurn): Promise<void> {
     if (away) replies.push({ type: 'text', body: away });
   }
 
+  // An existing booking, handled by script when no model will read the
+  // message (or when a button from the greeting says exactly what they want).
+  let startFlow: WhatsappFlow | undefined;
+  if (!conv.active_flow_run_id && (!aiAllowed || (turn.replyId ?? '').startsWith('resv:') || conv.state?.manage)) {
+    const managed = await handleManageReservation(supabase, ctx, conv, { text: turn.text, replyId: turn.replyId }, myReservations);
+    if (managed.handled && !('startBooking' in managed)) return;
+    if (managed.handled) {
+      startFlow = (await findBookingFlow(supabase, flows)) ?? undefined;
+      if (!startFlow) {
+        await botHandoff(ctx, 'reservation_change');
+        await say(conv.id, [{ type: 'text', body: 'Para cambiarla, en un momento te atiende una persona del restaurante 🙋' }]);
+        return;
+      }
+    }
+  }
+
   // Active run, or a flow whose triggers match: the runtime takes it from here.
   const handled = await runFlowTurn({
     supabase, conv, contactId: contact.id, botCtx: ctx, vars,
     turn: { text: turn.text, replyId: turn.replyId },
     flows, aiEnabled: aiAllowed, botsAllowed, aiGoals, wantsHuman,
-    pendingReplies: replies, reservationsEnabled,
+    pendingReplies: replies, reservationsEnabled, startFlow,
   });
   if (handled) return;
 
@@ -205,7 +226,11 @@ export async function runBot(turn: BotTurn): Promise<void> {
 
   if (isFirstTurn) {
     const greeting = await canned(supabase, turn.tenantId, 'greeting', vars);
-    const body = greeting || renderTemplate('¡Hola! ¿En qué te puedo ayudar?', vars);
+    let body = greeting || renderTemplate('¡Hola! ¿En qué te puedo ayudar?', vars);
+    // A returning diner with a table on the books hears about it first.
+    if (myReservations.length > 0) {
+      body += `\n\nTienes una reservación: ${describeReservation(myReservations[0])}. Escribe *reserva* si quieres cambiarla o cancelarla.`;
+    }
     replies.push(menuButtons.length
       ? { type: 'interactive', body, buttons: menuButtons }
       : { type: 'text', body });
@@ -214,7 +239,7 @@ export async function runBot(turn: BotTurn): Promise<void> {
   }
 
   if (aiAllowed) {
-    const handledByAi = await runAi({ ctx, text: turn.text, vars, goals: aiGoals, reservationsEnabled });
+    const handledByAi = await runAi({ ctx, text: turn.text, vars, goals: aiGoals, reservationsEnabled, reservations: myReservations });
     if (handledByAi) return;
   }
 
