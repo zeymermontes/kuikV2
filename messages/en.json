@@ -1332,7 +1332,9 @@
     "pixelSave": "Save",
     "pixelSaved": "Saved. Live on your menu within a minute.",
     "pixelInvalid": "A pixel ID is digits only (15 or 16 of them).",
-    "pixelFailed": "Could not save. Try again."
+    "pixelFailed": "Could not save. Try again.",
+    "businessName": "Business name",
+    "businessNameHint": "Shown on the menu, in the bot's messages and in reservation notices."
   },
   "domain": {
     "title": "Custom domain",

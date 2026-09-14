@@ -4,10 +4,10 @@ import { useTranslations } from 'next-intl';
 import type { TenantContact } from '@/lib/database.types';
 import { Card, Field, Input, Label } from '@/components/ui';
 import { HoursEditor } from '@/components/dashboard/HoursEditor';
-import { updateContact } from '@/app/(dashboard)/settings-actions';
+import { updateContact, renameTenant } from '@/app/(dashboard)/settings-actions';
 import { digitsOnly } from '@/lib/utils';
 
-export function ContactForm({ contact }: { contact: TenantContact }) {
+export function ContactForm({ contact, name }: { contact: TenantContact; name: string }) {
   const t = useTranslations('contact');
 
   const text = [
@@ -21,6 +21,18 @@ export function ContactForm({ contact }: { contact: TenantContact }) {
 
   return (
     <Card className="max-w-xl">
+      <Field label={t('businessName')}>
+        <Input
+          defaultValue={name}
+          maxLength={80}
+          onBlur={(e) => {
+            const next = e.target.value.trim();
+            if (next && next !== name) void renameTenant(next);
+          }}
+        />
+        <p className="mt-1 text-xs text-neutral-500">{t('businessNameHint')}</p>
+      </Field>
+
       <Field label={t('whatsapp')}>
         <Input
           defaultValue={contact.whatsapp_phone ?? ''}

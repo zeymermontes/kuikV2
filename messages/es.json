@@ -1332,7 +1332,9 @@
     "pixelSave": "Guardar",
     "pixelSaved": "Guardado. Se activa en tu menú en un minuto.",
     "pixelInvalid": "El ID del píxel son solo números (15 o 16 dígitos).",
-    "pixelFailed": "No se pudo guardar. Intenta de nuevo."
+    "pixelFailed": "No se pudo guardar. Intenta de nuevo.",
+    "businessName": "Nombre del negocio",
+    "businessNameHint": "Así aparece en el menú, en los mensajes del bot y en los avisos de reservación."
   },
   "domain": {
     "title": "Dominio personalizado",

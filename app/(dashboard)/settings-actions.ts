@@ -229,6 +229,26 @@ export async function updateContact(
 }
 
 /**
+ * The business's name, as it appears on the menu, the bot's messages and the
+ * receipts. Set at onboarding and, until now, nowhere else — a restaurant
+ * that rebrands ("Mar and Sea" → "Mar&sea") could not follow through.
+ */
+export async function renameTenant(name: string): Promise<{ error?: string }> {
+  const { tenant } = await requireTenant();
+  const clean = name.trim().slice(0, 80);
+  if (clean.length < 2) return { error: 'invalid' };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('tenants')
+    .update({ name: clean, updated_at: new Date().toISOString() })
+    .eq('id', tenant.id);
+  if (error) return { error: 'failed' };
+  revalidatePath('/', 'layout');
+  revalidateTenant(tenant.subdomain, tenant.custom_domain);
+  return {};
+}
+
+/**
  * The restaurant's own Meta Pixel (0086), fired on its public menu site.
  * Digits only; empty removes it.
  */
