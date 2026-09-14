@@ -15,6 +15,7 @@ export const dynamic = 'force-dynamic';
 // let the person in.
 const SERVICE_ROLES: MemberRole[] = ['owner', 'manager', 'cashier', 'waiter'];
 const ADMIN_ROLES: MemberRole[] = ['owner', 'manager'];
+const CHAT_ROLES: MemberRole[] = ['owner', 'manager', 'cashier', 'host'];
 
 /**
  * The hub: the first screen of both native apps on every launch, and where
@@ -55,6 +56,8 @@ export default async function TerminalPage() {
     canUseHost(subscription) ? ({ key: 'host' } as HubTile) : role === 'owner' || support ? ({ key: 'host', locked: true } as HubTile) : null,
     // The Pedidos board: restaurants the super admin switched it on for (0085).
     (board || dev) && has(SERVICE_ROLES) ? ({ key: 'orders' } as HubTile) : null,
+    // WhatsApp: whoever minds the chats (a person answering what the bot hands over).
+    has(CHAT_ROLES) ? ({ key: 'chats' } as HubTile) : null,
     posTile('customer'),
     has(ADMIN_ROLES) ? ({ key: 'admin' } as HubTile) : null,
   ].filter((t): t is HubTile => t !== null);

@@ -17,7 +17,7 @@ import {
   minutesSince, sectionOf, shiftAt, suggestSeating, tableViews, turnMinutesFor, type Section,
 } from '@/lib/host/model';
 import {
-  listHostDay, setPartyStatus, setTableStatus, moveParty, updateParty, addWalkIn, notifyTableReady,
+  listHostDay, setPartyStatus, setTableStatus, moveParty, updateParty, addWalkIn, notifyTableReady, countHandoffChats,
   saveTable, moveTable, deleteTable, setTableServer, blockTable, saveHostSettings, saveCombination, deleteCombination,
   type HostDay, type PartyFields,
 } from '@/app/host/actions';
@@ -45,6 +45,7 @@ type Sheet =
   | { kind: 'booking' }
   | { kind: 'requests' }
   | { kind: 'chat'; id: string }
+  | { kind: 'handoffChat'; conversationId: string; name: string; phone: string | null }
   | null;
 
 /**
@@ -116,6 +117,23 @@ export function HostApp({
   const [notifying, setNotifying] = useState<Set<string>>(new Set());
   // Requests waiting anywhere in the calendar; the bell's number, kept live.
   const [pendingCount, setPendingCount] = useState(pendingTotal);
+  // WhatsApp chats parked waiting for a person — the bell counts them too.
+  const [handoffCount, setHandoffCount] = useState(0);
+  useEffect(() => {
+    if (demo) return;
+    let cancelled = false;
+    const load = () => countHandoffChats().then((n) => !cancelled && setHandoffCount(n)).catch(() => {});
+    load();
+    const supabase = createClient();
+    const channel = supabase
+      .channel(channelName(`host-handoffs-${tenantId}`))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'whatsapp_conversations', filter: `tenant_id=eq.${tenantId}` }, load)
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [tenantId, demo]);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 30_000);
@@ -603,8 +621,8 @@ export function HostApp({
             {!demo && (
               <button onClick={() => setSheet({ kind: 'requests' })} className="relative rounded-lg bg-white/5 p-2 text-white/70 hover:text-white" title={t('requestsTitle')} data-help="host_pending" aria-label={t('requestsTitle')}>
                 <Bell className="h-4 w-4" />
-                {pendingCount > 0 && (
-                  <span className="absolute -right-1 -top-1 min-w-[16px] rounded-full bg-amber-500 px-1 text-center text-[10px] font-bold text-white">{pendingCount}</span>
+                {pendingCount + handoffCount > 0 && (
+                  <span className="absolute -right-1 -top-1 min-w-[16px] rounded-full bg-amber-500 px-1 text-center text-[10px] font-bold text-white">{pendingCount + handoffCount}</span>
                 )}
               </button>
             )}
@@ -701,7 +719,12 @@ export function HostApp({
           onDecide={(id, status) => act(id, status)}
           noticeFor={toSend}
           onSendNotice={sendNotice}
+          onOpenChat={(c) => setSheet({ kind: 'handoffChat', conversationId: c.conversationId, name: c.name, phone: c.phone })}
         />
+      )}
+
+      {sheet?.kind === 'handoffChat' && (
+        <ChatSheet conversationId={sheet.conversationId} name={sheet.name} phone={sheet.phone} onClose={() => setSheet({ kind: 'requests' })} />
       )}
 
       {sheet?.kind === 'walkin' && (

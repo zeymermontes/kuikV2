@@ -148,7 +148,7 @@ export async function executeActions(
         // conversation keeps flowing, staff just get pointed at it.
         await alertStaff({
           tenantId: ctx.tenantId,
-          roles: ['owner', 'manager'],
+          roles: ['owner', 'manager', 'host'],
           kind: 'flow_notify',
           en: { title: 'The bot flagged a conversation', body: `${ctx.customerName || 'A customer'} reached a step your flow wants you to see.` },
           es: { title: 'El bot te dejó un aviso', body: `${ctx.customerName || 'Un cliente'} llegó a un paso que tu flujo marca como importante.` },

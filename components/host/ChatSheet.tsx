@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { Bot, MessageCircle, Send, Sparkles, User } from 'lucide-react';
 import { createClient, channelName } from '@/lib/supabase/client';
-import { getPartyChat, sendPartyMessage, setPartyChatBot, type PartyChat, type PartyChatMessage } from '@/app/host/actions';
+import { getChat, sendPartyMessage, setPartyChatBot, type PartyChat, type PartyChatMessage } from '@/app/host/actions';
 import { Sheet, GHOST, PRIMARY } from './ui';
 
 /**
@@ -14,11 +14,15 @@ import { Sheet, GHOST, PRIMARY } from './ui';
  */
 export function ChatSheet({
   partyId,
+  conversationId: givenConversationId,
   name,
   phone,
   onClose,
 }: {
-  partyId: string;
+  /** Open by booking… */
+  partyId?: string;
+  /** …or straight by conversation (a diner waiting for a person, booking or not). */
+  conversationId?: string;
   name: string;
   phone: string | null;
   onClose: () => void;
@@ -36,13 +40,13 @@ export function ChatSheet({
 
   useEffect(() => {
     let cancelled = false;
-    getPartyChat(partyId)
+    getChat({ partyId, conversationId: givenConversationId })
       .then((c) => !cancelled && setChat(c))
       .catch(() => !cancelled && setChat({ conversationId: null, messages: [], botActive: true, canReply: false, reason: 'no_conversation', href: null }));
     return () => {
       cancelled = true;
     };
-  }, [partyId]);
+  }, [partyId, givenConversationId]);
 
   // New messages (the diner's reply, the bot's answer) land as they happen.
   useEffect(() => {

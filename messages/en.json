@@ -74,7 +74,8 @@
     "whatsapp": "WhatsApp",
     "host": "Host stand",
     "tutorial": "Tutorials",
-    "registers": "Registers"
+    "registers": "Registers",
+    "chats": "Chats"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -2404,7 +2405,12 @@
     "chatAudio": "🎤 Audio",
     "chatSticker": "Sticker",
     "chatQuotedGone": "Earlier message",
-    "sending": "Sending…"
+    "sending": "Sending…",
+    "handoffTitle": "Chats waiting for a person",
+    "handoffNone": "Nobody is waiting on WhatsApp.",
+    "handoffSince": "Waiting for {x}",
+    "openChat": "Open chat",
+    "requestsSection": "Reservation requests"
   },
   "tutorial": {
     "title": "Tutorials",
@@ -2686,7 +2692,9 @@
     "branchHint": "Register, kitchen and host stand open for this branch. The device remembers it.",
     "customerRegisterOther": "Other…",
     "orders": "Orders",
-    "ordersDesc": "What comes in from the menu and WhatsApp."
+    "ordersDesc": "What comes in from the menu and WhatsApp.",
+    "chats": "WhatsApp",
+    "chatsDesc": "Answer the chats the bot hands to a person."
   },
   "shellUpdate": {
     "available": "A new version of the app is out ({version}).",
@@ -2756,5 +2764,16 @@
     "err_already_open": "That register already has an open shift at that location.",
     "err_invalid": "Check the name and the opening float.",
     "err_not_open": "That shift is no longer open."
+  },
+  "chats": {
+    "title": "Chats",
+    "waiting": "Waiting for a person",
+    "all": "Recent",
+    "empty": "No conversations yet.",
+    "emptyWaiting": "Nobody is waiting on WhatsApp 🎉",
+    "search": "Search name or phone…",
+    "waitingSince": "waiting for {x}",
+    "bot": "bot",
+    "noWhatsapp": "Connect WhatsApp in the dashboard to see conversations here."
   }
 }

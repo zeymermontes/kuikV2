@@ -61,6 +61,8 @@ export interface FlowTurnParams {
 /** "Change / cancel / how is my booking" — about an existing table, unless they say "otra". */
 const MANAGE_INTENT = /\b(cambiar|cambia|modificar|modifica|mover|mueve|cancelar|cancela|estado|status|mi reserva|mi reservacion|la reserva que)\b/;
 const NEW_INTENT = /\b(otra|nueva|ademas|tambien|segunda)\b/;
+/** Just the word — "reserva", "mi reservación" — from someone who already has one: ask, don't book. */
+const BARE_BOOKING = /^(la |mi |una )?(reserva|reservacion|reservaciones)$/;
 
 /** The enabled flow that books a table, if the restaurant has one. */
 export async function findBookingFlow(supabase: Admin, flows: WhatsappFlow[]): Promise<WhatsappFlow | null> {
@@ -101,7 +103,8 @@ export async function runFlowTurn(params: FlowTurnParams): Promise<boolean> {
       // "reserva" and started a second booking. A diner with a table on the
       // books talking about it is not booking: leave it to the manage path
       // (the model's tools, or the scripted menu).
-      if (params.hasBookings && !turn.replyId && MANAGE_INTENT.test(normalizeText(turn.text)) && !NEW_INTENT.test(normalizeText(turn.text))) {
+      const said = normalizeText(turn.text);
+      if (params.hasBookings && !turn.replyId && !NEW_INTENT.test(said) && (MANAGE_INTENT.test(said) || BARE_BOOKING.test(said))) {
         const g = await loadPublishedGraph(supabase, flow.id, flow.published_version);
         if (g && flowBooks(g)) return false;
       }

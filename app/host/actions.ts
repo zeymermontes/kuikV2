@@ -14,6 +14,7 @@ import { bridgeConversationFor } from '@/lib/notify/bridge-conversation';
 import { sendMessage } from '@/lib/whatsapp/send';
 import { isWindowOpen, WindowClosedError } from '@/lib/whatsapp/window';
 import type { MessageOrigin } from '@/lib/whatsapp/types';
+import { isLid } from '@/lib/phone';
 import type {
   FloorTable, FloorCombination, Reservation, ReservationShift, ReservationStatus, TableShape, TableStatus,
 } from '@/lib/database.types';
@@ -238,29 +239,44 @@ export interface PartyChat {
  * linked device, so the first message can be the host's.
  */
 export async function getPartyChat(reservationId: string): Promise<PartyChat> {
+  return getChat({ partyId: reservationId });
+}
+
+/**
+ * A chat by its booking or by the conversation itself (a diner waiting for a
+ * person who may have no booking at all).
+ */
+export async function getChat(input: { partyId?: string; conversationId?: string }): Promise<PartyChat> {
   const { tenant } = await requireReservations();
   const admin = createAdminClient();
-  const { data } = await admin
-    .from('reservations')
-    .select('id, phone, whatsapp_conversation_id')
-    .eq('id', reservationId)
-    .eq('tenant_id', tenant.id)
-    .maybeSingle();
-  const party = data as { id: string; phone: string | null; whatsapp_conversation_id: string | null } | null;
   const empty: PartyChat = { conversationId: null, messages: [], botActive: true, canReply: false, reason: 'no_conversation', href: null };
-  if (!party) return empty;
-  const href = party.phone ? `https://wa.me/${digitsOnly(party.phone)}` : null;
 
-  // The linked device knows the address this number chats under, and folds
-  // a chat opened by bare number into the one the bot already has — so ask
-  // it first; the booking's own link is the answer when there is no device.
-  let conversationId = party.phone ? await bridgeConversationFor(tenant.id, party.phone) : null;
-  if (!conversationId) conversationId = await conversationForReservation(tenant.id, party);
-  if (!conversationId) return { ...empty, href };
+  let conversationId: string | null = input.conversationId ?? null;
+  let href: string | null = null;
 
-  if (party.whatsapp_conversation_id !== conversationId) {
-    await admin.from('reservations').update({ whatsapp_conversation_id: conversationId }).eq('id', party.id);
+  if (!conversationId && input.partyId) {
+    const { data } = await admin
+      .from('reservations')
+      .select('id, phone, whatsapp_conversation_id')
+      .eq('id', input.partyId)
+      .eq('tenant_id', tenant.id)
+      .maybeSingle();
+    const party = data as { id: string; phone: string | null; whatsapp_conversation_id: string | null } | null;
+    if (!party) return empty;
+    href = party.phone ? `https://wa.me/${digitsOnly(party.phone)}` : null;
+
+    // The linked device knows the address this number chats under, and folds
+    // a chat opened by bare number into the one the bot already has — so ask
+    // it first; the booking's own link is the answer when there is no device.
+    conversationId = party.phone ? await bridgeConversationFor(tenant.id, party.phone) : null;
+    if (!conversationId) conversationId = await conversationForReservation(tenant.id, party);
+    if (!conversationId) return { ...empty, href };
+
+    if (party.whatsapp_conversation_id !== conversationId) {
+      await admin.from('reservations').update({ whatsapp_conversation_id: conversationId }).eq('id', party.id);
+    }
   }
+  if (!conversationId) return empty;
 
   const [{ data: conv }, { data: rows }] = await Promise.all([
     admin.from('whatsapp_conversations').select('id, transport, window_expires_at, bot_enabled, handoff_at').eq('id', conversationId).eq('tenant_id', tenant.id).maybeSingle(),
@@ -282,6 +298,79 @@ export async function getPartyChat(reservationId: string): Promise<PartyChat> {
     reason: canReply ? null : 'window_closed',
     href,
   };
+}
+
+export interface HandoffChat {
+  conversationId: string;
+  name: string;
+  phone: string | null;
+  /** When the bot stepped aside. */
+  since: string;
+  /** The diner's last words, for the row. */
+  lastText: string | null;
+  lastAt: string | null;
+  reservationId: string | null;
+}
+
+/**
+ * Conversations parked waiting for a person — the diner asked for one, the
+ * AI decided so, or the team paused the bot — and nobody has picked up. The
+ * dashboard's inbox shows them to managers; the door sees them too, because
+ * the host is usually the one person actually looking at a screen.
+ */
+export async function listHandoffChats(): Promise<HandoffChat[]> {
+  const { tenant } = await requireReservations();
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from('whatsapp_conversations')
+    .select('id, handoff_at, reservation_id, last_inbound_at, contact:whatsapp_contacts(profile_name, phone_e164, wa_id)')
+    .eq('tenant_id', tenant.id)
+    .not('handoff_at', 'is', null)
+    .order('handoff_at', { ascending: false })
+    .limit(50);
+  const rows = (data ?? []) as unknown as {
+    id: string; handoff_at: string; reservation_id: string | null; last_inbound_at: string | null;
+    contact: { profile_name: string | null; phone_e164: string; wa_id: string } | { profile_name: string | null; phone_e164: string; wa_id: string }[] | null;
+  }[];
+  if (rows.length === 0) return [];
+
+  const { data: last } = await admin
+    .from('whatsapp_messages')
+    .select('conversation_id, body, type, created_at')
+    .in('conversation_id', rows.map((r) => r.id))
+    .eq('direction', 'inbound')
+    .order('created_at', { ascending: false })
+    .limit(200);
+  const lastBy = new Map<string, { body: string | null; type: string; created_at: string }>();
+  for (const m of (last ?? []) as { conversation_id: string; body: string | null; type: string; created_at: string }[]) {
+    if (!lastBy.has(m.conversation_id)) lastBy.set(m.conversation_id, m);
+  }
+
+  return rows.map((r) => {
+    const contact = Array.isArray(r.contact) ? r.contact[0] : r.contact;
+    const phone = contact?.phone_e164 && !contact.phone_e164.startsWith('lid:') && !isLid(contact.phone_e164.replace('+', '')) ? contact.phone_e164 : null;
+    const m = lastBy.get(r.id);
+    return {
+      conversationId: r.id,
+      name: contact?.profile_name || phone || 'Cliente',
+      phone,
+      since: r.handoff_at,
+      lastText: m ? (m.body || (m.type === 'image' ? '📷' : m.type === 'audio' ? '🎤' : m.type === 'sticker' ? 'Sticker' : null)) : null,
+      lastAt: m?.created_at ?? r.last_inbound_at,
+      reservationId: r.reservation_id,
+    };
+  });
+}
+
+export async function countHandoffChats(): Promise<number> {
+  const { tenant } = await requireReservations();
+  const admin = createAdminClient();
+  const { count } = await admin
+    .from('whatsapp_conversations')
+    .select('id', { count: 'exact', head: true })
+    .eq('tenant_id', tenant.id)
+    .not('handoff_at', 'is', null);
+  return count ?? 0;
 }
 
 /**

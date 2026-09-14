@@ -74,7 +74,8 @@
     "whatsapp": "WhatsApp",
     "host": "Anfitrión",
     "tutorial": "Tutoriales",
-    "registers": "Cajas"
+    "registers": "Cajas",
+    "chats": "Chats"
   },
   "dashboard": {
     "title": "Panel",
@@ -2404,7 +2405,12 @@
     "chatAudio": "🎤 Audio",
     "chatSticker": "Sticker",
     "chatQuotedGone": "Mensaje anterior",
-    "sending": "Enviando…"
+    "sending": "Enviando…",
+    "handoffTitle": "Chats esperando a una persona",
+    "handoffNone": "Nadie espera en WhatsApp.",
+    "handoffSince": "Esperando desde hace {x}",
+    "openChat": "Abrir chat",
+    "requestsSection": "Solicitudes de reservación"
   },
   "tutorial": {
     "title": "Tutoriales",
@@ -2686,7 +2692,9 @@
     "branchHint": "Caja, cocina y anfitrión abren para esta sucursal. El dispositivo la recuerda.",
     "customerRegisterOther": "Otra…",
     "orders": "Pedidos",
-    "ordersDesc": "Lo que llega del menú y de WhatsApp."
+    "ordersDesc": "Lo que llega del menú y de WhatsApp.",
+    "chats": "WhatsApp",
+    "chatsDesc": "Contestar los chats que el bot pasa a una persona."
   },
   "shellUpdate": {
     "available": "Hay una versión nueva de la app ({version}).",
@@ -2756,5 +2764,16 @@
     "err_already_open": "Esa caja ya tiene un turno abierto en esa ubicación.",
     "err_invalid": "Revisa el nombre y el fondo de apertura.",
     "err_not_open": "Ese turno ya no está abierto."
+  },
+  "chats": {
+    "title": "Chats",
+    "waiting": "Esperando a una persona",
+    "all": "Recientes",
+    "empty": "No hay conversaciones todavía.",
+    "emptyWaiting": "Nadie espera en WhatsApp 🎉",
+    "search": "Buscar nombre o teléfono…",
+    "waitingSince": "esperando desde hace {x}",
+    "bot": "bot",
+    "noWhatsapp": "Conecta WhatsApp en el panel para ver aquí las conversaciones."
   }
 }

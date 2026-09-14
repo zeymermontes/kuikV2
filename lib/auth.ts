@@ -248,6 +248,9 @@ export const requireOwner = cache(async (): Promise<TenantContext> => {
 /** Guards manager+ pages: full menu editing, branches, imports. */
 export const requireManager = requireRole('owner', 'manager');
 
+/** The WhatsApp chats app. Mirrors can_use_whatsapp() in 0049. */
+export const requireChats = requireRole('owner', 'manager', 'cashier', 'host');
+
 /** Revenue, orders and analytics. Mirrors can_view_sales() in 0043. */
 export const requireAnalytics = requireRole('owner', 'manager');
 

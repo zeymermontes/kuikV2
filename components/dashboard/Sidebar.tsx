@@ -65,6 +65,7 @@ const NAV = [
   { group: 'ops', href: '/dashboard', icon: LayoutDashboard, key: 'dashboard', roles: ['owner', 'manager'] },
   { group: 'ops', href: '/reservations', icon: CalendarCheck, key: 'reservations', roles: ['owner', 'manager', 'cashier', 'waiter', 'host'] },
   { group: 'ops', href: '/host', icon: LayoutGrid, key: 'host', roles: ['owner', 'manager', 'cashier', 'waiter', 'host'], feature: 'host' },
+  { group: 'ops', href: '/chats', icon: MessageCircle, key: 'chats', roles: ['owner', 'manager', 'cashier', 'host'] },
   // Always listed: with the board off (0085) the page itself offers the switch.
   { group: 'ops', href: '/orders', icon: ClipboardList, key: 'orders', roles: ['owner', 'manager', 'cashier', 'waiter'] },
   { group: 'ops', href: '/whatsapp', icon: MessageCircle, key: 'whatsapp', roles: ['owner', 'manager'] },

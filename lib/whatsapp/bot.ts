@@ -239,7 +239,9 @@ export async function runBot(turn: BotTurn): Promise<void> {
     let body = greeting || renderTemplate('¡Hola! ¿En qué te puedo ayudar?', vars);
     // A returning diner with a table on the books hears about it first.
     if (myReservations.length > 0) {
-      body += `\n\nTienes una reservación: ${describeReservation(myReservations[0])}. Escribe *reserva* si quieres cambiarla o cancelarla.`;
+      // No "type X to…": a person says what they want and the model (or the
+      // scripted manage path) understands it. A magic word reads as a form.
+      body += `\n\nTienes una reservación: ${describeReservation(myReservations[0])}. Si quieres cambiarla o cancelarla, solo dímelo.`;
     }
     replies.push(withMenu(body));
     await say(conv.id, replies);

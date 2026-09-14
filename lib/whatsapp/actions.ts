@@ -143,7 +143,7 @@ export async function botHandoff(ctx: BotContext, reason?: string): Promise<Acti
   // has push subscriptions.
   await alertStaff({
     tenantId: ctx.tenantId,
-    roles: ['owner', 'manager'],
+    roles: ['owner', 'manager', 'host'],
     kind: 'handoff',
     en: { title: 'A customer is waiting on WhatsApp', body: `${ctx.customerName || 'A customer'} asked for a person. The bot stepped aside.` },
     es: { title: 'Un cliente espera en WhatsApp', body: `${ctx.customerName || 'Un cliente'} pidió hablar con una persona. El bot se hizo a un lado.` },

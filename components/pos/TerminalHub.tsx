@@ -4,13 +4,13 @@ import { useMemo, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { ChefHat, ClipboardList, LayoutDashboard, Lock, LogOut, MapPin, Monitor, Users, Wallet } from 'lucide-react';
+import { ChefHat, ClipboardList, LayoutDashboard, Lock, LogOut, MapPin, MessageCircle, Monitor, Users, Wallet } from 'lucide-react';
 import { signOut } from '@/app/(auth)/actions';
 import { listRegisters } from '@/app/terminal/actions';
 import { DEFAULT_REGISTER, registerSlug } from '@/lib/pos/customer-screen';
 import { readDeviceBranch, registerScope, saveDeviceBranch, type DeviceBranch } from '@/lib/pos/branch';
 
-export type HubKey = 'pos' | 'kds' | 'host' | 'orders' | 'customer' | 'admin';
+export type HubKey = 'pos' | 'kds' | 'host' | 'orders' | 'chats' | 'customer' | 'admin';
 
 export interface HubTile {
   key: HubKey;
@@ -43,6 +43,7 @@ const ICONS: Record<HubKey, typeof Wallet> = {
   kds: ChefHat,
   host: Users,
   orders: ClipboardList,
+  chats: MessageCircle,
   customer: Monitor,
   admin: LayoutDashboard,
 };
@@ -52,6 +53,7 @@ const HREFS: Record<Exclude<HubKey, 'customer'>, string> = {
   kds: '/kds',
   host: '/host',
   orders: '/orders',
+  chats: '/chats',
   admin: '/dashboard',
 };
 
@@ -204,7 +206,7 @@ export function TerminalHub({
               </button>
             );
           }
-          const href = key === 'admin' || key === 'orders' ? HREFS[key] : opsHref(HREFS[key], branch, hasBranches);
+          const href = key === 'admin' || key === 'orders' || key === 'chats' ? HREFS[key] : opsHref(HREFS[key], branch, hasBranches);
           return (
             <Link key={key} href={href} className={tileClass}>
               {body}
