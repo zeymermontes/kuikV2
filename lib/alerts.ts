@@ -24,6 +24,30 @@ export interface StaffAlertText {
   body: string;
 }
 
+/**
+ * What the app icon should count for this restaurant: booking requests
+ * waiting for a yes or no, guests asking to cancel or who cancelled unseen,
+ * and WhatsApp chats parked for a person. Same arithmetic as the host's
+ * bell, so the phone and the stand agree.
+ */
+export async function pendingBadge(tenantId: string): Promise<number> {
+  const supabase = createAdminClient();
+  const [{ count: bookings }, { count: chats }] = await Promise.all([
+    supabase
+      .from('reservations')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
+      .or('status.eq.pending,and(status.in.(confirmed,waiting,notified),cancel_requested_at.not.is.null),and(status.eq.cancelled,cancelled_by.eq.guest,cancel_seen_at.is.null)')
+      .gte('starts_at', new Date().toISOString()),
+    supabase
+      .from('whatsapp_conversations')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
+      .not('handoff_at', 'is', null),
+  ]);
+  return (bookings ?? 0) + (chats ?? 0);
+}
+
 export async function alertStaff(params: {
   tenantId: string;
   roles: MemberRole[];

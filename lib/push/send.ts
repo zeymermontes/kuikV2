@@ -43,6 +43,8 @@ export interface PushPayload {
   data?: Record<string, unknown>;
   /** Keep the notification on screen until the person acts on it (Android/desktop). */
   requireInteraction?: boolean;
+  /** What the app icon should count: things still waiting for a person. */
+  badge?: number;
 }
 
 type Row = { id: string; endpoint: string; p256dh: string; auth: string; locale: string };

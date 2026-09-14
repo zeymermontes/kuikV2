@@ -109,6 +109,13 @@ self.addEventListener('push', (event) => {
     requireInteraction: Boolean(data.requireInteraction),
   };
 
+  // The icon's number: what is still waiting for a person, as counted by
+  // the server when it sent the push.
+  if (typeof data.badge === 'number' && 'setAppBadge' in self.navigator) {
+    const p = data.badge > 0 ? self.navigator.setAppBadge(data.badge) : self.navigator.clearAppBadge();
+    if (p && p.catch) p.catch(() => {});
+  }
+
   event.waitUntil(self.registration.showNotification(title, options));
 });
 

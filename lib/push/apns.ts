@@ -81,6 +81,7 @@ export function sendApns(token: string, payload: PushPayload): Promise<ApnsResul
       sound: 'default',
       'thread-id': payload.tag ?? 'kuik',
       'mutable-content': 0,
+      ...(payload.badge !== undefined ? { badge: payload.badge } : {}),
     },
     url: payload.url ?? null,
     tag: payload.tag ?? null,

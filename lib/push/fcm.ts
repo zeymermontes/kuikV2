@@ -93,7 +93,11 @@ export async function sendFcm(token: string, payload: PushPayload): Promise<FcmR
     android: {
       priority: 'high',
       ttl: '1800s',
-      notification: { channel_id: 'kuik', tag: payload.tag, sound: 'default' },
+      notification: {
+        channel_id: 'kuik', tag: payload.tag, sound: 'default',
+        // The launcher's dot or number on the icon, where the launcher shows one.
+        ...(payload.badge !== undefined ? { notification_count: payload.badge } : {}),
+      },
     },
   };
   const res = await fetch(`https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`, {
