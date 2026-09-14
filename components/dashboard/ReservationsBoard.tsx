@@ -12,7 +12,7 @@ import type { Reservation, ReservationArea, ReservationStatus } from '@/lib/data
 import { createClient, channelName } from '@/lib/supabase/client';
 import { addDays } from '@/lib/time';
 import {
-  listDayReservations, listPendingReservations, setReservationStatus, keepReservation, markNotificationSent, type PendingSummary,
+  listDayReservations, listPendingReservations, setReservationStatus, keepReservation, ackCancellation, markNotificationSent, type PendingSummary,
 } from '@/app/(dashboard)/reservations/actions';
 import { ReservationForm } from './ReservationForm';
 import { ChatSheet } from '@/components/host/ChatSheet';
@@ -164,6 +164,14 @@ export function ReservationsBoard({
     setRows(clear);
     setPendingRows((cur) => (cur ? cur.filter((r) => r.id !== row.id) : cur));
     start(async () => keepReservation(row.id));
+  }
+
+  /** "Got it" on a booking the guest cancelled over WhatsApp. */
+  function ack(row: Reservation) {
+    const seen = new Date().toISOString();
+    setRows((cur) => cur.map((r) => (r.id === row.id ? { ...r, cancel_seen_at: seen } : r)));
+    setPendingRows((cur) => (cur ? cur.filter((r) => r.id !== row.id) : cur));
+    start(async () => ackCancellation(row.id));
   }
 
   function setStatus(row: Reservation, status: ReservationStatus) {
@@ -365,6 +373,11 @@ export function ReservationsBoard({
                               {t('cancelRequested')}
                             </span>
                           )}
+                          {r.status === 'cancelled' && r.cancelled_by === 'guest' && (
+                            <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                              {t('cancelledByGuest')}
+                            </span>
+                          )}
                           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_TONE[r.status]}`}>
                             {t(`status_${r.status}`)}
                           </span>
@@ -376,6 +389,15 @@ export function ReservationsBoard({
                         </div>
                       </div>
 
+                      {r.status === 'cancelled' && r.cancelled_by === 'guest' && !r.cancel_seen_at && (
+                        <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-red-200 bg-red-50 p-2">
+                          <p className="text-sm text-red-800">{t('cancelledByGuestHint')}</p>
+                          <button onClick={() => ack(r)}
+                            className="flex shrink-0 items-center gap-1 rounded-lg bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white">
+                            <Check className="h-4 w-4" /> {t('ack')}
+                          </button>
+                        </div>
+                      )}
                       {r.cancel_requested_at && r.status !== 'cancelled' ? (
                         <div className="mt-2 rounded-lg border border-red-200 bg-red-50 p-2">
                           <p className="mb-2 text-sm text-red-800">{t('cancelRequestedHint')}</p>

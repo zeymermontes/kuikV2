@@ -34,6 +34,7 @@ export function PartySheet({
   onSendNotice,
   onChat,
   onKeep,
+  onAck,
 }: {
   party: Reservation;
   tables: FloorTable[];
@@ -56,6 +57,8 @@ export function PartySheet({
   onChat: () => void;
   /** The guest asked to cancel over WhatsApp; the host keeps the booking. */
   onKeep: () => void;
+  /** "Got it" on a booking the guest cancelled over WhatsApp. */
+  onAck: () => void;
 }) {
   const t = useTranslations('host');
   const [editing, setEditing] = useState(false);
@@ -272,6 +275,16 @@ export function PartySheet({
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* ── The guest cancelled over WhatsApp; the door just needs to know ── */}
+        {s === 'cancelled' && party.cancelled_by === 'guest' && (
+          <div className="mb-3 rounded-2xl border border-red-400/40 bg-red-500/10 p-3">
+            <p className="text-sm font-semibold text-red-200">{t('cancelledByGuest')}</p>
+            {!party.cancel_seen_at && (
+              <button onClick={onAck} className={`${GHOST} mt-2 w-full`}><Check className="h-4 w-4" /> {t('act_ack')}</button>
+            )}
           </div>
         )}
 

@@ -907,7 +907,10 @@
     "cancelRequested": "Asks to cancel",
     "cancelRequestedHint": "The guest asked to cancel over WhatsApp. Confirming tells them; keeping it sends nothing.",
     "confirmCancel": "Confirm cancellation",
-    "keepReservation": "Keep"
+    "keepReservation": "Keep",
+    "cancelledByGuest": "Guest cancelled",
+    "cancelledByGuestHint": "Cancelled over WhatsApp; the table is free.",
+    "ack": "Got it"
   },
   "printing": {
     "agents": "Print agent",
@@ -2429,7 +2432,10 @@
     "cancelRequestedShort": "Asks to cancel",
     "cancelRequestedHint": "Asked over WhatsApp. Confirming tells them; keeping it sends nothing.",
     "act_confirmCancel": "Confirm cancellation",
-    "act_keep": "Keep"
+    "act_keep": "Keep",
+    "cancelledByGuest": "Cancelled over WhatsApp",
+    "act_ack": "Got it",
+    "guestCancelledToast": "{name} cancelled their reservation over WhatsApp"
   },
   "tutorial": {
     "title": "Tutorials",

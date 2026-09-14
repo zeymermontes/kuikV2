@@ -6,7 +6,7 @@ import { requireReservations, requireManager } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { todayInTz, nowHHMMInTz } from '@/lib/time';
 import { digitsOnly } from '@/lib/utils';
-import { setReservationStatus, keepReservation } from '@/app/(dashboard)/reservations/actions';
+import { setReservationStatus, keepReservation, ackCancellation } from '@/app/(dashboard)/reservations/actions';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { notifyGuest, type GuestNotice } from '@/lib/notify/guest';
 import { conversationForReservation } from '@/lib/notify/conversation-wa';
@@ -88,6 +88,12 @@ export async function setPartyStatus(
 /** "No, keep it": the guest's cancellation request is dismissed, the booking stands. */
 export async function keepParty(id: string): Promise<void> {
   await keepReservation(id);
+  bump();
+}
+
+/** "Got it": the guest's WhatsApp cancellation leaves the bell. */
+export async function ackCancelledParty(id: string): Promise<void> {
+  await ackCancellation(id);
   bump();
 }
 

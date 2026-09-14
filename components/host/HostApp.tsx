@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -17,7 +17,7 @@ import {
   minutesSince, sectionOf, shiftAt, suggestSeating, tableViews, turnMinutesFor, type Section,
 } from '@/lib/host/model';
 import {
-  listHostDay, setPartyStatus, setTableStatus, moveParty, updateParty, addWalkIn, notifyTableReady, countHandoffChats, keepParty,
+  listHostDay, setPartyStatus, setTableStatus, moveParty, updateParty, addWalkIn, notifyTableReady, countHandoffChats, keepParty, ackCancelledParty,
   saveTable, moveTable, deleteTable, setTableServer, blockTable, saveHostSettings, saveCombination, deleteCombination,
   type HostDay, type PartyFields,
 } from '@/app/host/actions';
@@ -117,6 +117,10 @@ export function HostApp({
   const [notifying, setNotifying] = useState<Set<string>>(new Set());
   // Requests waiting anywhere in the calendar; the bell's number, kept live.
   const [pendingCount, setPendingCount] = useState(pendingTotal);
+  // The realtime handler reads the translator through a ref, so a new `t`
+  // never re-subscribes the channel.
+  const tRef = useRef(t);
+  useEffect(() => { tRef.current = t; }, [t]);
   // WhatsApp chats parked waiting for a person — the bell counts them too.
   const [handoffCount, setHandoffCount] = useState(0);
   useEffect(() => {
@@ -169,6 +173,11 @@ export function HostApp({
           return;
         }
         const row = payload.new as Reservation;
+        // A diner cancelling over WhatsApp: say so on screen, whatever day it was for.
+        const before = (payload.old as Partial<Reservation> | null)?.status;
+        if (row.status === 'cancelled' && row.cancelled_by === 'guest' && !row.cancel_seen_at && before !== 'cancelled') {
+          setToast(tRef.current('guestCancelledToast', { name: row.customer_name }));
+        }
         setReservations((cur) => {
           const without = cur.filter((r) => r.id !== row.id);
           return row.date === day ? [...without, row] : without;
@@ -249,6 +258,13 @@ export function HostApp({
   // ── Actions (optimistic where it matters) ────────────────────────────────
   function patch(id: string, p: Partial<Reservation>) {
     setReservations((cur) => cur.map((r) => (r.id === id ? { ...r, ...p } : r)));
+  }
+
+  /** "Got it" on a booking the guest cancelled over WhatsApp. */
+  function ackCancel(id: string) {
+    patch(id, { cancel_seen_at: new Date().toISOString() });
+    setPendingCount((n) => Math.max(0, n - 1));
+    start(() => ackCancelledParty(id));
   }
 
   /** Dismiss the guest's "please cancel": the booking stays. */
@@ -712,6 +728,7 @@ export function HostApp({
           onSendNotice={() => sendNotice(party.id)}
           onChat={() => setSheet({ kind: 'chat', id: party.id })}
           onKeep={() => keep(party.id)}
+          onAck={() => ackCancel(party.id)}
         />
       )}
 
@@ -725,6 +742,7 @@ export function HostApp({
           onClose={() => setSheet(null)}
           onDecide={(id, status) => act(id, status)}
           onKeep={keep}
+          onAck={ackCancel}
           noticeFor={toSend}
           onSendNotice={sendNotice}
           onOpenChat={(c) => setSheet({ kind: 'handoffChat', conversationId: c.conversationId, name: c.name, phone: c.phone })}

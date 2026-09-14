@@ -907,7 +907,10 @@
     "cancelRequested": "Pide cancelar",
     "cancelRequestedHint": "El cliente pidió cancelar por WhatsApp. Al confirmar se le avisa; si la mantienes, no se le manda nada.",
     "confirmCancel": "Confirmar cancelación",
-    "keepReservation": "Mantener"
+    "keepReservation": "Mantener",
+    "cancelledByGuest": "Canceló el cliente",
+    "cancelledByGuestHint": "Canceló por WhatsApp; la mesa quedó libre.",
+    "ack": "Enterado"
   },
   "printing": {
     "agents": "Agente de impresión",
@@ -2429,7 +2432,10 @@
     "cancelRequestedShort": "Pide cancelar",
     "cancelRequestedHint": "Lo pidió por WhatsApp. Al confirmar se le avisa; si la mantienes, no se le manda nada.",
     "act_confirmCancel": "Confirmar cancelación",
-    "act_keep": "Mantener"
+    "act_keep": "Mantener",
+    "cancelledByGuest": "Canceló por WhatsApp",
+    "act_ack": "Enterado",
+    "guestCancelledToast": "{name} canceló su reservación por WhatsApp"
   },
   "tutorial": {
     "title": "Tutoriales",

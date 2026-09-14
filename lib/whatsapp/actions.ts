@@ -264,7 +264,7 @@ export async function botCancelReservation(ctx: BotContext, reservationId: strin
 
   const { data } = await supabase
     .from('reservations')
-    .update({ status: 'cancelled', cancel_requested_at: null })
+    .update({ status: 'cancelled', cancelled_by: 'guest', cancel_requested_at: null })
     .eq('id', r.id)
     .eq('tenant_id', ctx.tenantId)
     .in('status', ['pending', 'confirmed', 'waiting', 'notified'])

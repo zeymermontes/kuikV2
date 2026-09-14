@@ -31,10 +31,13 @@ export async function setReservationStatus(
   const { tenant } = await requireReservations();
   const supabase = await createClient();
 
-  // Any decision settles a pending "please cancel" from the guest.
+  // Any decision settles a pending "please cancel" from the guest; a
+  // cancellation made here is by definition already seen by the floor.
+  const patch: Record<string, unknown> = { status, cancel_requested_at: null };
+  if (status === 'cancelled') Object.assign(patch, { cancelled_by: 'staff', cancel_seen_at: new Date().toISOString() });
   const { data: rows } = await supabase
     .from('reservations')
-    .update({ status, cancel_requested_at: null })
+    .update(patch)
     .eq('id', id)
     .eq('tenant_id', tenant.id)
     .select('id, customer_name, phone, party_size, date, time, whatsapp_conversation_id');
@@ -100,6 +103,19 @@ export async function keepReservation(id: string): Promise<void> {
     .update({ cancel_requested_at: null })
     .eq('id', id)
     .eq('tenant_id', tenant.id);
+  revalidatePath('/reservations');
+}
+
+/** "Got it": a guest's WhatsApp cancellation leaves the bell. */
+export async function ackCancellation(id: string): Promise<void> {
+  const { tenant } = await requireReservations();
+  const supabase = await createClient();
+  await supabase
+    .from('reservations')
+    .update({ cancel_seen_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('tenant_id', tenant.id)
+    .eq('status', 'cancelled');
   revalidatePath('/reservations');
 }
 
@@ -198,10 +214,15 @@ export async function listPendingNotifications(day: string): Promise<Reservation
 
 /** Every request still waiting for a yes or no, whatever its day, soonest first. */
 /**
- * What the bell counts: a request waiting for a yes or no, or a live booking
- * whose guest asked to cancel and nobody has decided yet.
+ * What the bell counts: a request waiting for a yes or no, a live booking
+ * whose guest asked to cancel and nobody has decided yet, or a booking the
+ * guest cancelled over WhatsApp that nobody has acknowledged.
  */
-const NEEDS_DECISION = 'status.eq.pending,and(status.in.(confirmed,waiting,notified),cancel_requested_at.not.is.null)';
+const NEEDS_DECISION = [
+  'status.eq.pending',
+  'and(status.in.(confirmed,waiting,notified),cancel_requested_at.not.is.null)',
+  'and(status.eq.cancelled,cancelled_by.eq.guest,cancel_seen_at.is.null)',
+].join(',');
 
 export async function listPendingReservations(): Promise<Reservation[]> {
   const { tenant } = await requireReservations();

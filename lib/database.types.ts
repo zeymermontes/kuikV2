@@ -705,6 +705,10 @@ export interface Reservation {
   whatsapp_conversation_id?: string | null;
   /** The guest asked to cancel over WhatsApp; a host still has to decide. */
   cancel_requested_at?: string | null;
+  /** Who cancelled: the diner over WhatsApp, or a staff member. */
+  cancelled_by?: 'guest' | 'staff' | null;
+  /** A guest cancellation stays in the bell until someone acknowledges it. */
+  cancel_seen_at?: string | null;
   created_at: string;
 }
 
