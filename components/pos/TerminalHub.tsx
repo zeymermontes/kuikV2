@@ -1,12 +1,14 @@
 'use client';
 
-import { useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { ChefHat, ClipboardList, LayoutDashboard, Lock, LogOut, MapPin, MessageCircle, Monitor, Users, Wallet } from 'lucide-react';
 import { signOut } from '@/app/(auth)/actions';
-import { listRegisters } from '@/app/terminal/actions';
+import { hubCounts, listRegisters } from '@/app/terminal/actions';
+import { createClient, channelName } from '@/lib/supabase/client';
+import type { PendingCounts } from '@/lib/pending-counts';
 import { DEFAULT_REGISTER, registerSlug } from '@/lib/pos/customer-screen';
 import { readDeviceBranch, registerScope, saveDeviceBranch, type DeviceBranch } from '@/lib/pos/branch';
 
@@ -81,20 +83,55 @@ function opsHref(path: string, branch: DeviceBranch | null, hasBranches: boolean
  * (lib/pos/branch.ts) and every operations tile opens for it.
  */
 export function TerminalHub({
+  tenantId,
   restaurantName,
   userName,
   tiles,
   branches = [],
   registers: initialRegisters = [],
+  counts: initialCounts,
 }: {
+  tenantId?: string;
   restaurantName: string;
   userName: string;
   tiles: HubTile[];
   branches?: DeviceBranch[];
   registers?: HubRegister[];
+  /** What waits for a person, per product: the tiles' badges. */
+  counts?: PendingCounts;
 }) {
   const t = useTranslations('terminal');
   const router = useRouter();
+
+  // The badges stay live while the hub sits open on a tablet: any change to
+  // a booking or a chat re-counts (throttled — a burst is one query).
+  const [counts, setCounts] = useState<PendingCounts>(initialCounts ?? { bookings: 0, chats: 0 });
+  const recountTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!tenantId) return;
+    const recount = () => {
+      if (recountTimer.current) return;
+      recountTimer.current = setTimeout(() => {
+        recountTimer.current = null;
+        hubCounts().then(setCounts).catch(() => {});
+      }, 1500);
+    };
+    const supabase = createClient();
+    const channel = supabase
+      .channel(channelName(`hub-counts-${tenantId}`))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations', filter: `tenant_id=eq.${tenantId}` }, recount)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'whatsapp_conversations', filter: `tenant_id=eq.${tenantId}` }, recount)
+      .subscribe();
+    // Coming back to the tab after a while: the numbers may be stale.
+    const onVisible = () => { if (document.visibilityState === 'visible') recount(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', onVisible);
+      if (recountTimer.current) clearTimeout(recountTimer.current);
+    };
+  }, [tenantId]);
+  const badgeOf: Partial<Record<HubKey, number>> = { host: counts.bookings, chats: counts.chats };
   const [askRegister, setAskRegister] = useState(false);
   const [register, setRegister] = useState('');
   // Typing a register that has not opened a shift yet (a brand-new tablet).
@@ -181,11 +218,21 @@ export function TerminalHub({
       <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {tiles.map(({ key, locked }) => {
           const Icon = ICONS[key];
+          const badge = locked ? 0 : (badgeOf[key] ?? 0);
           const body = (
             <>
               <span className="flex w-full items-start justify-between">
                 <Icon className="h-7 w-7" />
                 {locked && <Lock className="h-4 w-4 text-neutral-500" aria-label={t('locked')} />}
+                {badge > 0 && (
+                  <span
+                    className="min-w-[22px] rounded-full bg-amber-500 px-1.5 py-0.5 text-center text-xs font-bold text-white"
+                    aria-label={t(key === 'chats' ? 'pendingChats' : 'pendingBookings', { n: badge })}
+                    title={t(key === 'chats' ? 'pendingChats' : 'pendingBookings', { n: badge })}
+                  >
+                    {badge > 99 ? '99+' : badge}
+                  </span>
+                )}
               </span>
               <span>
                 <span className="block font-semibold">{t(key)}</span>

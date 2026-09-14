@@ -2725,7 +2725,9 @@
     "orders": "Pedidos",
     "ordersDesc": "Lo que llega del menú y de WhatsApp.",
     "chats": "WhatsApp",
-    "chatsDesc": "Contestar los chats que el bot pasa a una persona."
+    "chatsDesc": "Contestar los chats que el bot pasa a una persona.",
+    "pendingBookings": "{n, plural, one {# reservación espera decisión} other {# reservaciones esperan decisión}}",
+    "pendingChats": "{n, plural, one {# chat espera a una persona} other {# chats esperan a una persona}}"
   },
   "shellUpdate": {
     "available": "Hay una versión nueva de la app ({version}).",

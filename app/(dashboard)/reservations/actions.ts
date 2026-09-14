@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { revalidateTenant } from '@/lib/revalidate';
 import { createReservation, type CreateReservationResult } from '@/lib/reservations/create';
 import { getNotifier, renderNotification } from '@/lib/notify';
+import { NEEDS_DECISION } from '@/lib/pending-counts';
 import type {
   Reservation, ReservationArea, ReservationStatus, ReservationNotification,
 } from '@/lib/database.types';
@@ -218,11 +219,7 @@ export async function listPendingNotifications(day: string): Promise<Reservation
  * whose guest asked to cancel and nobody has decided yet, or a booking the
  * guest cancelled over WhatsApp that nobody has acknowledged.
  */
-const NEEDS_DECISION = [
-  'status.eq.pending',
-  'and(status.in.(confirmed,waiting,notified),cancel_requested_at.not.is.null)',
-  'and(status.eq.cancelled,cancelled_by.eq.guest,cancel_seen_at.is.null)',
-].join(',');
+// (The filter itself lives in lib/pending-counts.ts, shared with the hub and the push badge.)
 
 export async function listPendingReservations(): Promise<Reservation[]> {
   const { tenant } = await requireReservations();

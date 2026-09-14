@@ -2725,7 +2725,9 @@
     "orders": "Orders",
     "ordersDesc": "What comes in from the menu and WhatsApp.",
     "chats": "WhatsApp",
-    "chatsDesc": "Answer the chats the bot hands to a person."
+    "chatsDesc": "Answer the chats the bot hands to a person.",
+    "pendingBookings": "{n, plural, one {# booking awaits a decision} other {# bookings await a decision}}",
+    "pendingChats": "{n, plural, one {# chat is waiting for a person} other {# chats are waiting for a person}}"
   },
   "shellUpdate": {
     "available": "A new version of the app is out ({version}).",

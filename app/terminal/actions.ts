@@ -4,6 +4,13 @@ import { requireTenant } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { DEFAULT_REGISTER } from '@/lib/pos/customer-screen';
 import type { HubRegister } from '@/components/pos/TerminalHub';
+import { pendingCounts, type PendingCounts } from '@/lib/pending-counts';
+
+/** The hub's tile badges: what waits at the door and in the chats. */
+export async function hubCounts(): Promise<PendingCounts> {
+  const { tenant } = await requireTenant();
+  return pendingCounts(tenant.id);
+}
 
 /**
  * The registers this restaurant has run, per branch: every shift names the

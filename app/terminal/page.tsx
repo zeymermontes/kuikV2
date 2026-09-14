@@ -6,6 +6,7 @@ import type { MemberRole } from '@/lib/database.types';
 import { TerminalHub, type HubTile } from '@/components/pos/TerminalHub';
 import { listRegisters } from './actions';
 import { ordersBoardEnabled } from '@/lib/orders/board';
+import { pendingCounts } from '@/lib/pending-counts';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,10 +43,11 @@ export default async function TerminalPage() {
   };
 
   const supabase = await createClient();
-  const [{ data: branchRows }, registers, board] = await Promise.all([
+  const [{ data: branchRows }, registers, board, counts] = await Promise.all([
     supabase.from('branches').select('id, name, slug').eq('tenant_id', tenant.id).order('position'),
     listRegisters(),
     ordersBoardEnabled(tenant.id),
+    pendingCounts(tenant.id).catch(() => ({ bookings: 0, chats: 0 })),
   ]);
   const branches = (branchRows ?? []) as { id: string; name: string; slug: string }[];
 
@@ -64,11 +66,13 @@ export default async function TerminalPage() {
 
   return (
     <TerminalHub
+      tenantId={tenant.id}
       restaurantName={tenant.name}
       userName={user.profile.full_name || user.email || ''}
       tiles={tiles}
       branches={branches}
       registers={registers}
+      counts={counts}
     />
   );
 }
