@@ -9,7 +9,7 @@
 // so /pos pages keep their own worker. This file still bails out of /pos
 // requests explicitly, to cover the window before that worker activates.
 
-const CACHE = 'kuik-app-v2';
+const CACHE = 'kuik-app-v3';
 // Only ever evict our own caches — see the matching note in sw-pos.js.
 const OWNED_PREFIX = 'kuik-app-';
 
@@ -26,6 +26,16 @@ self.addEventListener('activate', (event) => {
     })(),
   );
 });
+
+// What a navigation gets when the network is down and nothing is cached. A
+// real page with a retry, in Kuik's words — returning Response.error() here
+// hands the person Chrome's own "This page couldn't load" screen, which
+// inside the phone app reads as the app being broken.
+const OFFLINE_HTML = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Kuik</title>
+<style>body{margin:0;background:#111114;color:#fff;font:16px system-ui;display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center}main{padding:24px;max-width:360px}h1{font-size:20px;margin:0 0 8px}p{color:#a3a3a3;margin:0 0 20px}button{background:#fff;color:#000;border:0;border-radius:12px;padding:12px 22px;font-weight:600;font-size:15px}</style></head>
+<body><main><h1>Sin conexión</h1><p>No se pudo abrir esta pantalla. Revisa el Wi-Fi o los datos y vuelve a intentar.</p><button onclick="location.reload()">Reintentar</button></main></body></html>`;
+const offlinePage = () =>
+  new Response(OFFLINE_HTML, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
 
 // In local development the worker exists only so push can be tested; caching
 // anything would mean serving stale Turbopack bundles.
@@ -62,7 +72,7 @@ self.addEventListener('fetch', (event) => {
           const hit = await caches.match(req);
           if (usable(hit)) return hit;
           const shell = await caches.match('/reservations');
-          return usable(shell) ? shell : Response.error();
+          return usable(shell) ? shell : offlinePage();
         }),
     );
     return;
