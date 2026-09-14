@@ -2224,7 +2224,11 @@
     "diagStatus_connected": "connected",
     "diagStatus_disconnected": "disconnected",
     "diagStatus_error": "error",
-    "diagStuckHint": "The bridge holds this restaurant's session but it is not connected. Press reconnect; if it stays like this, scan the QR again."
+    "diagStuckHint": "The bridge holds this restaurant's session but it is not connected. Press reconnect; if it stays like this, scan the QR again.",
+    "field_intake": "How it asks for booking details",
+    "hint_intake": "One at a time (name, then date…) or everything in one message, then only what is missing.",
+    "intake_one": "One at a time",
+    "intake_all": "All at once"
   },
   "host": {
     "title": "Host stand",

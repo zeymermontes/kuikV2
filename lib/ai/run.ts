@@ -41,10 +41,12 @@ export interface AiTurn {
    * Present when the model is running a booking rather than answering a
    * question — it then leads the conversation instead of the scripted flow.
    */
+  /** One question per message (default) or every missing detail in one list. */
+  intake?: 'one_by_one' | 'all_at_once';
   collecting?: {
     goalName: string;
     /** What still has to be established, in the order the restaurant wrote. */
-    needed: { key: string; prompt: string; options?: string[] }[];
+    needed: { key: string; prompt: string; options?: string[]; optional?: boolean }[];
     /** What has already been pinned down. */
     known: Record<string, unknown>;
     /** The flow run being driven; where answers persist and how the turn ends. */
@@ -324,7 +326,9 @@ function buildSystemPrompt(turn: AiTurn, extra: string | null, sheet = ''): stri
     '  consulta lo que sí puedas (horarios, menú) y ofrece una recomendación razonable,',
     '  dejando claro que es una sugerencia y no una regla del restaurante.',
     '- Puedes contestar una pregunta lateral a media reservación y luego retomar donde ibas.',
-    '- Una pregunta a la vez. No pidas cuatro datos en el mismo mensaje.',
+    turn.intake === 'all_at_once'
+      ? '- Para una reservación, pide en UN solo mensaje todos los datos que falten, como lista con viñetas (uno por línea). Si el cliente contesta solo algunos, pide únicamente los que sigan faltando.'
+      : '- Una pregunta a la vez. No pidas cuatro datos en el mismo mensaje.',
     '- Si ofreces opciones numeradas y el cliente contesta solo con un número, es la',
     '  opción con ese número en el orden en que se las diste.',
   ];
@@ -358,7 +362,7 @@ function buildSystemPrompt(turn: AiTurn, extra: string | null, sheet = ''): stri
       .map(([k, v]) => `  - ${k}: ${JSON.stringify(v)}`)
       .join('\n');
     const missing = turn.collecting.needed
-      .map((n) => `  - ${n.key}${n.options?.length ? ` (opciones: ${n.options.map((o, i) => `${i + 1}) ${o}`).join(', ')})` : ''}: ${n.prompt}`)
+      .map((n) => `  - ${n.key}${n.optional ? ' (opcional)' : ''}${n.options?.length ? ` (opciones: ${n.options.map((o, i) => `${i + 1}) ${o}`).join(', ')})` : ''}: ${n.prompt}`)
       .join('\n');
 
     lines.push(
@@ -371,6 +375,7 @@ function buildSystemPrompt(turn: AiTurn, extra: string | null, sheet = ''): stri
       '- En `datos` repite todo lo que ya confirmaste, no solo lo de este turno.',
       '  Si el cliente se corrige ("mejor 6"), manda el valor nuevo: reemplaza al anterior.',
       '- Si una pregunta tiene opciones, ofrécelas numeradas; un número como respuesta es esa opción.',
+      '- Un dato marcado (opcional) se pregunta una vez; si el cliente dice que no o no contesta, sigue sin él.',
       '- Las fechas van como YYYY-MM-DD y las horas como HH:MM de 24 horas.',
       '  Tradúcelas tú a partir de lo que dijo el cliente y de la fecha de hoy.',
       '- Cuando ya tengas todo, LEE EL RESUMEN al cliente y espera su confirmación.',

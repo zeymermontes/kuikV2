@@ -54,6 +54,8 @@ export interface FlowTurnParams {
   startFlow?: WhatsappFlow;
   /** The diner has upcoming bookings: "cambiar mi reserva" is about those, not a new one. */
   hasBookings?: boolean;
+  /** How the model asks for a booking's details: one thing per message, or the whole list at once. */
+  intake?: 'one_by_one' | 'all_at_once';
 }
 
 /** "Change / cancel / how is my booking" — about an existing table, unless they say "otra". */
@@ -143,12 +145,15 @@ export async function runFlowTurn(params: FlowTurnParams): Promise<boolean> {
 
   if (aiEligible) {
     const slots = slotsOf(graph);
+    // Optional slots are asked too (an occasion, a preference) — they just
+    // never hold the booking up when the diner has nothing to add.
     const needed = slots
-      .filter((s) => s.required !== false && answers[s.key] === undefined)
+      .filter((s) => answers[s.key] === undefined)
       .map((s) => ({
         key: s.key,
         prompt: promptFor(graph, s.key) ?? s.label,
         options: s.options?.map((o) => o.title),
+        optional: s.required === false,
       }));
 
     const books = flowBooks(graph);
@@ -156,6 +161,7 @@ export async function runFlowTurn(params: FlowTurnParams): Promise<boolean> {
       runAi({
         ctx: { ...ctx, flowRunId: run!.id }, text: turn.text, vars, goals: params.aiGoals,
         reservationsEnabled: params.reservationsEnabled,
+        intake: params.intake,
         collecting: {
           goalName: flow!.name,
           needed,

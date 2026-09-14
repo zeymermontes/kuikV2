@@ -71,10 +71,12 @@ export async function runBot(turn: BotTurn): Promise<void> {
     handoff_keywords: string[]; optout_keywords: string[];
     max_bot_replies_per_hour: number; max_bot_replies_per_day: number;
     greet_cooldown_seconds: number;
+    ai_intake?: 'one_by_one' | 'all_at_once' | null;
   } | null;
   if (!settings?.enabled || !settings.bot_enabled) return;
 
   const resetSeconds = settings.greet_cooldown_seconds ?? 21600;
+  const intake = settings.ai_intake ?? 'one_by_one';
 
   // A human is on this conversation — usually because the owner replied from
   // their own phone. Say nothing... while the conversation is HOT. After the
@@ -206,7 +208,7 @@ export async function runBot(turn: BotTurn): Promise<void> {
     supabase, conv, contactId: contact.id, botCtx: ctx, vars,
     turn: { text: turn.text, replyId: turn.replyId },
     flows, aiEnabled: aiAllowed, botsAllowed, aiGoals, wantsHuman,
-    pendingReplies: replies, reservationsEnabled, startFlow, hasBookings: myReservations.length > 0,
+    pendingReplies: replies, reservationsEnabled, startFlow, hasBookings: myReservations.length > 0, intake,
   });
   if (handled) return;
 
@@ -220,9 +222,17 @@ export async function runBot(turn: BotTurn): Promise<void> {
     !conv.active_flow_run_id &&
     (await isNewConversation(supabase, conv.id, resetSeconds));
 
-  // The menu buttons start flows, so a basic tenant's greeting goes without
-  // them — a button that silently does nothing reads as a broken bot.
-  const menuButtons = botsAllowed ? buildMenu(flows).slice(0, 3) : [];
+  // The menu options start flows, so a basic tenant's greeting goes without
+  // them — a button that silently does nothing reads as a broken bot. Up to
+  // three ride as buttons; more become a list (a numbered list on a linked
+  // device), so a restaurant's six doors all show, not the first three.
+  const menuOptions = botsAllowed ? buildMenu(flows) : [];
+  const withMenu = (body: string): OutboundDraft =>
+    menuOptions.length === 0
+      ? { type: 'text', body }
+      : menuOptions.length <= 3
+        ? { type: 'interactive', body, buttons: menuOptions }
+        : { type: 'interactive', body, list: { button: 'Ver opciones', sections: [{ rows: menuOptions }] } };
 
   if (isFirstTurn) {
     const greeting = await canned(supabase, turn.tenantId, 'greeting', vars);
@@ -231,15 +241,13 @@ export async function runBot(turn: BotTurn): Promise<void> {
     if (myReservations.length > 0) {
       body += `\n\nTienes una reservación: ${describeReservation(myReservations[0])}. Escribe *reserva* si quieres cambiarla o cancelarla.`;
     }
-    replies.push(menuButtons.length
-      ? { type: 'interactive', body, buttons: menuButtons }
-      : { type: 'text', body });
+    replies.push(withMenu(body));
     await say(conv.id, replies);
     return;
   }
 
   if (aiAllowed) {
-    const handledByAi = await runAi({ ctx, text: turn.text, vars, goals: aiGoals, reservationsEnabled, reservations: myReservations });
+    const handledByAi = await runAi({ ctx, text: turn.text, vars, goals: aiGoals, reservationsEnabled, reservations: myReservations, intake });
     if (handledByAi) return;
   }
 
@@ -255,9 +263,7 @@ export async function runBot(turn: BotTurn): Promise<void> {
   // Never guess. Offer the menu, which always works.
   const fallback = await canned(supabase, turn.tenantId, 'fallback', vars);
   const body = fallback || renderTemplate('¿En qué te puedo ayudar?', vars);
-  replies.push(menuButtons.length
-    ? { type: 'interactive', body, buttons: menuButtons }
-    : { type: 'text', body });
+  replies.push(withMenu(body));
   await say(conv.id, replies);
 }
 

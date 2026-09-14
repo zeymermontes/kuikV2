@@ -12,6 +12,7 @@ interface Settings {
   enabled: boolean;
   bot_enabled: boolean;
   ai_enabled: boolean;
+  ai_intake?: 'one_by_one' | 'all_at_once';
   away_enabled: boolean;
   max_bot_replies_per_hour: number;
   max_bot_replies_per_day: number;
@@ -87,6 +88,24 @@ export function BotSettings({
             <Switch on={s[key]} onClick={() => patch({ [key]: !s[key] } as Partial<Settings>)} label={t(label)} />
           </div>
         ))}
+
+        {s.ai_enabled && (
+          <div className="flex items-start justify-between gap-3 border-t border-neutral-200 pt-3">
+            <div>
+              <span className="text-sm font-medium">{t('field_intake')}</span>
+              <p className="text-xs text-neutral-500">{t('hint_intake')}</p>
+            </div>
+            <select
+              value={s.ai_intake ?? 'one_by_one'}
+              onChange={(e) => patch({ ai_intake: e.target.value as 'one_by_one' | 'all_at_once' })}
+              className="rounded-lg border border-neutral-300 px-2 py-1.5 text-sm"
+              aria-label={t('field_intake')}
+            >
+              <option value="one_by_one">{t('intake_one')}</option>
+              <option value="all_at_once">{t('intake_all')}</option>
+            </select>
+          </div>
+        )}
 
         <div className="grid gap-3 border-t border-neutral-200 pt-3 sm:grid-cols-2">
           {([

@@ -2224,7 +2224,11 @@
     "diagStatus_connected": "conectada",
     "diagStatus_disconnected": "desconectada",
     "diagStatus_error": "error",
-    "diagStuckHint": "El puente tiene la sesión de este restaurante pero no está conectada. Pulsa el botón de reconectar; si sigue igual, vuelve a escanear el QR."
+    "diagStuckHint": "El puente tiene la sesión de este restaurante pero no está conectada. Pulsa el botón de reconectar; si sigue igual, vuelve a escanear el QR.",
+    "field_intake": "Cómo pide los datos de una reservación",
+    "hint_intake": "Uno por uno (nombre, luego fecha…) o todo junto en un solo mensaje, y después solo lo que falte.",
+    "intake_one": "Uno por uno",
+    "intake_all": "Todo junto"
   },
   "host": {
     "title": "Anfitrión",

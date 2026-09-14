@@ -49,7 +49,7 @@ export async function buildRestaurantContext(params: {
     supabase.from('tenants').select('timezone, locale').eq('id', tenantId).maybeSingle(),
     supabase
       .from('tenant_contact')
-      .select('hours, reservation_slot_minutes, reservation_max_party, reservation_lead_minutes, reservation_max_days, reservation_required')
+      .select('hours, reservation_shifts, reservation_slot_minutes, reservation_max_party, reservation_lead_minutes, reservation_max_days, reservation_required')
       .eq('tenant_id', tenantId)
       .maybeSingle(),
     branchId ? supabase.from('branches').select('name, hours').eq('id', branchId).maybeSingle() : Promise.resolve({ data: null }),
@@ -60,7 +60,8 @@ export async function buildRestaurantContext(params: {
 
   const tz = (tenant as { timezone: string | null } | null)?.timezone ?? null;
   const c = contact as {
-    hours: unknown; reservation_slot_minutes: number | null; reservation_max_party: number | null;
+    hours: unknown; reservation_shifts: { name: string; start: string; end: string }[] | null;
+    reservation_slot_minutes: number | null; reservation_max_party: number | null;
     reservation_lead_minutes: number | null; reservation_max_days: number | null; reservation_required: Record<string, boolean> | null;
   } | null;
   const b = branch as { name: string; hours: unknown } | null;
@@ -85,6 +86,10 @@ export async function buildRestaurantContext(params: {
     lines.push('- Horario semanal:');
     for (const [i, d] of week.entries()) lines.push(`  ${DAY_SHORT[i]}: ${d.closed ? 'cerrado' : `${d.open}–${d.close}`}`);
   }
+  // The day's services ("Desayuno 8–12, Comida y cena 12–23"): what a diner
+  // means by "para desayunar" and what the host stand books by.
+  const shifts = (c?.reservation_shifts ?? []).filter((x) => x && x.name && x.start && x.end);
+  if (shifts.length > 0) lines.push(`- Turnos: ${shifts.map((x) => `${x.name} ${x.start}–${x.end}`).join(' · ')}`);
   if (vars.direccion) lines.push(`- Dirección: ${vars.direccion}${vars.mapa ? ` · Mapa: ${vars.mapa}` : ''}`);
   if (vars.telefono) lines.push(`- Teléfono / WhatsApp: ${vars.telefono}`);
   if (vars.menu_url) lines.push(`- Menú digital: ${vars.menu_url}`);

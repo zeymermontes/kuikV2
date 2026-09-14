@@ -11,6 +11,7 @@ export async function saveWhatsappSettings(patch: {
   enabled?: boolean;
   bot_enabled?: boolean;
   ai_enabled?: boolean;
+  ai_intake?: 'one_by_one' | 'all_at_once';
   away_enabled?: boolean;
   handoff_keywords?: string[];
   max_bot_replies_per_hour?: number;

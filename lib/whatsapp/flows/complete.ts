@@ -65,6 +65,28 @@ export interface ActionsOutcome {
   handoff: boolean;
 }
 
+/** Slots a booking flow captures beyond the table itself. */
+const STANDARD_SLOTS = new Set(['customer_name', 'party_size', 'date', 'time', 'area', 'phone', 'email', 'note']);
+
+/**
+ * What the host reads on the booking: the flow's note slot, plus anything
+ * else the restaurant chose to ask — an occasion ("cumpleaños"), a seating
+ * preference — each on its own line, so a custom question is never captured
+ * and then lost.
+ */
+export function reservationNote(args: Record<string, unknown>): string | undefined {
+  const lines: string[] = [];
+  if (typeof args.note === 'string' && args.note.trim()) lines.push(args.note.trim());
+  for (const [key, value] of Object.entries(args)) {
+    if (STANDARD_SLOTS.has(key) || value == null || value === '') continue;
+    const text = typeof value === 'string' ? value.trim() : String(value);
+    if (!text || /^(no|ninguna|ninguno|nada|n\/a)\.?$/i.test(text)) continue;
+    lines.push(`${key.replace(/_/g, ' ')}: ${text}`);
+  }
+  const note = lines.join('\n');
+  return note ? note.slice(0, 300) : undefined;
+}
+
 export async function executeActions(
   supabase: Admin,
   ctx: BotContext,
@@ -85,6 +107,7 @@ export async function executeActions(
           date: String(a.date ?? ctx.today),
           time: String(a.time ?? '20:00'),
           area: a.area !== undefined ? String(a.area) : undefined,
+          note: reservationNote(a),
         });
         results[action.nodeId] = outcome.ok
           ? { kind: action.kind, ok: true, reservation_id: outcome.data?.id }
