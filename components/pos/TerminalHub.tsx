@@ -9,6 +9,8 @@ import { signOut } from '@/app/(auth)/actions';
 import { hubCounts, listRegisters } from '@/app/terminal/actions';
 import { createClient, channelName } from '@/lib/supabase/client';
 import type { PendingCounts } from '@/lib/pending-counts';
+import { PUSH_RETRY_EVENT, PUSH_STATUS_EVENT, readPushStatus, type PushStatus } from '@/components/dashboard/NativePush';
+import { shell } from '@/lib/native/shell';
 import { DEFAULT_REGISTER, registerSlug } from '@/lib/pos/customer-screen';
 import { readDeviceBranch, registerScope, saveDeviceBranch, type DeviceBranch } from '@/lib/pos/branch';
 
@@ -39,6 +41,24 @@ const subscribeBranch = (cb: () => void) => {
   };
 };
 const rememberedBranchId = () => readDeviceBranch()?.id ?? null;
+
+// The push status as an external store: one cached object (a fresh parse per
+// read would re-render forever), updated by the event NativePush fires.
+let pushCache: PushStatus | null | undefined;
+const subscribePushStatus = (cb: () => void) => {
+  if (shell() !== 'mobile') return () => {};
+  if (pushCache === undefined) {
+    pushCache = readPushStatus();
+    cb();
+  }
+  const onStatus = (e: Event) => {
+    pushCache = (e as CustomEvent<PushStatus>).detail;
+    cb();
+  };
+  window.addEventListener(PUSH_STATUS_EVENT, onStatus);
+  return () => window.removeEventListener(PUSH_STATUS_EVENT, onStatus);
+};
+const pushStatusSnapshot = () => (shell() === 'mobile' ? (pushCache ?? null) : null);
 
 const ICONS: Record<HubKey, typeof Wallet> = {
   pos: Wallet,
@@ -132,6 +152,10 @@ export function TerminalHub({
     };
   }, [tenantId]);
   const badgeOf: Partial<Record<HubKey, number>> = { host: counts.bookings, chats: counts.chats };
+
+  // The phone app's push registration, in one line: the answer to "why am I
+  // not getting notifications" without a debugger on the phone.
+  const pushStatus = useSyncExternalStore(subscribePushStatus, pushStatusSnapshot, () => null);
   const [askRegister, setAskRegister] = useState(false);
   const [register, setRegister] = useState('');
   // Typing a register that has not opened a shift yet (a brand-new tablet).
@@ -326,6 +350,21 @@ export function TerminalHub({
             {t('go')}
           </button>
         </form>
+      )}
+
+      {pushStatus && (
+        <p className="mt-6 flex flex-wrap items-center gap-x-2 text-xs text-neutral-500">
+          <span className={`h-2 w-2 rounded-full ${pushStatus.state === 'registered' ? 'bg-emerald-500' : pushStatus.state === 'registering' ? 'bg-amber-400' : 'bg-red-500'}`} />
+          <span>
+            {t('pushLabel')}: {t(`push_${pushStatus.state}`)}
+            {pushStatus.state === 'error' ? ` (${pushStatus.detail})` : ''}
+          </span>
+          {pushStatus.state !== 'registered' && pushStatus.state !== 'off' && pushStatus.state !== 'no_plugin' && (
+            <button type="button" onClick={() => window.dispatchEvent(new Event(PUSH_RETRY_EVENT))} className="underline decoration-dotted hover:text-white">
+              {t('pushRetry')}
+            </button>
+          )}
+        </p>
       )}
 
       <div className="mt-8 flex items-center justify-between gap-3">

@@ -2734,7 +2734,15 @@
     "chats": "WhatsApp",
     "chatsDesc": "Contestar los chats que el bot pasa a una persona.",
     "pendingBookings": "{n, plural, one {# reservación espera decisión} other {# reservaciones esperan decisión}}",
-    "pendingChats": "{n, plural, one {# chat espera a una persona} other {# chats esperan a una persona}}"
+    "pendingChats": "{n, plural, one {# chat espera a una persona} other {# chats esperan a una persona}}",
+    "pushLabel": "Notificaciones",
+    "push_off": "no configuradas en el servidor",
+    "push_no_plugin": "esta versión de la app no las soporta",
+    "push_denied": "sin permiso (actívalas en Ajustes del teléfono)",
+    "push_registering": "registrando…",
+    "push_registered": "activas en este teléfono",
+    "push_error": "error",
+    "pushRetry": "Reintentar"
   },
   "shellUpdate": {
     "available": "Hay una versión nueva de la app ({version}).",
