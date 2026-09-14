@@ -15,9 +15,14 @@ import { RunPanel } from './RunPanel';
 
 export interface InboxMessage {
   id: string;
+  wa_message_id?: string | null;
   direction: 'inbound' | 'outbound';
   origin: MessageOrigin;
+  type?: string;
   body: string | null;
+  media_url?: string | null;
+  media_mime?: string | null;
+  replied_to_wa_id?: string | null;
   status: string | null;
   created_at: string;
 }
@@ -30,7 +35,7 @@ export interface InboxFlowRef {
 }
 
 /**
- * Read-only inbox: conversations | transcript | run state. Desktop is three
+ * Inbox: conversations | transcript (with a reply box) | run state. Desktop is three
  * panes; mobile shows one at a time (the run panel becomes a bottom sheet).
  * New messages arrive live over the whatsapp_messages realtime channel — the
  * same one the boards already use.
@@ -101,7 +106,7 @@ export function InboxShell({
 
   return (
     <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
-      <div className="grid h-[calc(100dvh-14rem)] min-h-[420px] lg:grid-cols-[320px_1fr_340px]">
+      <div className="grid h-[calc(100dvh-7.5rem)] min-h-[420px] lg:grid-cols-[300px_minmax(0,1fr)_320px]">
         {/* Conversations */}
         <div className={cn('min-h-0 border-neutral-200 lg:border-r', selectedId && 'hidden lg:block')}>
           <ConversationList
@@ -129,7 +134,7 @@ export function InboxShell({
                   <PanelRightOpen className="h-4 w-4" />
                 </button>
               </div>
-              <Transcript messages={live} />
+              <Transcript messages={live} conversationId={selectedId} onSent={refresh} />
             </>
           ) : (
             <div className="flex flex-1 items-center justify-center text-sm text-neutral-400">

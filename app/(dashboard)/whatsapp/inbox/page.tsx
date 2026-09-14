@@ -49,7 +49,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
     const [{ data: msgRows }, { data: runRows }, { data: convRow }] = await Promise.all([
       supabase
         .from('whatsapp_messages')
-        .select('id, direction, origin, body, status, created_at')
+        .select('id, wa_message_id, direction, origin, type, body, media_url, media_mime, replied_to_wa_id, status, created_at')
         .eq('conversation_id', sp.c)
         .eq('tenant_id', tenant.id)
         .order('created_at', { ascending: false })
@@ -74,10 +74,11 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="mb-1 text-2xl font-bold">{t('title')}</h1>
-        <p className="text-sm text-neutral-500">{t('subtitle')}</p>
+    // Full width: three panes need the whole screen, not the reading column.
+    <div className="space-y-2" data-full-bleed>
+      <div className="flex items-baseline gap-3 px-1">
+        <h1 className="text-xl font-bold">{t('title')}</h1>
+        <p className="hidden text-sm text-neutral-500 md:block">{t('subtitle')}</p>
       </div>
       <InboxShell
         tenantId={tenant.id}

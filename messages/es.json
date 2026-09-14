@@ -2153,7 +2153,7 @@
     },
     "inbox": {
       "title": "Inbox del bot",
-      "subtitle": "Las conversaciones de tus clientes con el bot: qué respondieron y hasta dónde llegaron. Solo lectura.",
+      "subtitle": "Las conversaciones de tus clientes con el bot, y dónde una persona retoma.",
       "back": "Conversaciones",
       "pickConversation": "Elige una conversación",
       "runTitle": "Estado del flujo",
@@ -2198,7 +2198,15 @@
       "pausedByStaff": "Pausado por el equipo desde Kuik.",
       "pausedByHandoff": "Un cliente pidió atención humana o el equipo tomó el chat.",
       "pauseBot": "Pausar bot",
-      "resumeBot": "Reactivar bot"
+      "resumeBot": "Reactivar bot",
+      "replyPlaceholder": "Escribe una respuesta…",
+      "send": "Enviar",
+      "replyHint": "Al responder, el bot se pausa en este chat; reactívalo desde el panel de la derecha.",
+      "windowClosed": "Pasaron más de 24 h desde su último mensaje; WhatsApp solo permite plantillas. Respóndele desde tu teléfono.",
+      "sendFailed": "No se pudo enviar",
+      "quotedGone": "Mensaje anterior",
+      "photo": "📷 Foto",
+      "audio": "🎤 Audio"
     },
     "flowsLink": "Flujos del bot",
     "flowsLinkHint": "Diseña en el lienzo qué pregunta el bot, qué hace con las respuestas y cuándo insiste o cierra.",

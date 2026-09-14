@@ -2153,7 +2153,7 @@
     },
     "inbox": {
       "title": "Bot inbox",
-      "subtitle": "Your customers' conversations with the bot: what they answered and how far they got. Read-only.",
+      "subtitle": "Your guests' conversations with the bot, and where a person takes over.",
       "back": "Conversations",
       "pickConversation": "Pick a conversation",
       "runTitle": "Flow state",
@@ -2198,7 +2198,15 @@
       "pausedByStaff": "Paused by the team from Kuik.",
       "pausedByHandoff": "A customer asked for a human or the team took the chat.",
       "pauseBot": "Pause bot",
-      "resumeBot": "Resume bot"
+      "resumeBot": "Resume bot",
+      "replyPlaceholder": "Type a reply…",
+      "send": "Send",
+      "replyHint": "Replying pauses the bot on this chat; resume it from the panel on the right.",
+      "windowClosed": "More than 24 h since their last message; WhatsApp only allows templates now. Reply from your phone.",
+      "sendFailed": "Could not send",
+      "quotedGone": "Earlier message",
+      "photo": "📷 Photo",
+      "audio": "🎤 Audio"
     },
     "flowsLink": "Bot flows",
     "flowsLinkHint": "Design on the canvas what the bot asks, what it does with the answers, and when it nudges or closes.",
