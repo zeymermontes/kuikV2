@@ -12,7 +12,7 @@ import type { Reservation, ReservationArea, ReservationStatus } from '@/lib/data
 import { createClient, channelName } from '@/lib/supabase/client';
 import { addDays } from '@/lib/time';
 import {
-  listDayReservations, listPendingReservations, setReservationStatus, markNotificationSent, type PendingSummary,
+  listDayReservations, listPendingReservations, setReservationStatus, keepReservation, markNotificationSent, type PendingSummary,
 } from '@/app/(dashboard)/reservations/actions';
 import { ReservationForm } from './ReservationForm';
 import { ChatSheet } from '@/components/host/ChatSheet';
@@ -158,8 +158,17 @@ export function ReservationsBoard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [day]);
 
+  /** The guest asked to cancel over WhatsApp; the restaurant keeps the table. */
+  function keep(row: Reservation) {
+    const clear = (list: Reservation[]) => list.map((r) => (r.id === row.id ? { ...r, cancel_requested_at: null } : r));
+    setRows(clear);
+    setPendingRows((cur) => (cur ? cur.filter((r) => r.id !== row.id) : cur));
+    start(async () => keepReservation(row.id));
+  }
+
   function setStatus(row: Reservation, status: ReservationStatus) {
-    setRows((cur) => cur.map((r) => (r.id === row.id ? { ...r, status } : r)));
+    setRows((cur) => cur.map((r) => (r.id === row.id ? { ...r, status, cancel_requested_at: null } : r)));
+    setPendingRows((cur) => (cur ? cur.filter((r) => r.id !== row.id) : cur));
 
     start(async () => {
       const result = await setReservationStatus(row.id, status);
@@ -351,6 +360,11 @@ export function ReservationsBoard({
                           {r.note && <p className="mt-1 text-sm text-neutral-500">{r.note}</p>}
                         </div>
                         <div className="flex shrink-0 flex-col items-end gap-1">
+                          {r.cancel_requested_at && r.status !== 'cancelled' && (
+                            <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                              {t('cancelRequested')}
+                            </span>
+                          )}
                           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_TONE[r.status]}`}>
                             {t(`status_${r.status}`)}
                           </span>
@@ -362,7 +376,21 @@ export function ReservationsBoard({
                         </div>
                       </div>
 
-                      {r.status !== 'cancelled' && (
+                      {r.cancel_requested_at && r.status !== 'cancelled' ? (
+                        <div className="mt-2 rounded-lg border border-red-200 bg-red-50 p-2">
+                          <p className="mb-2 text-sm text-red-800">{t('cancelRequestedHint')}</p>
+                          <div className="flex gap-2">
+                            <button onClick={() => setStatus(r, 'cancelled')}
+                              className="flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white">
+                              <X className="h-4 w-4" /> {t('confirmCancel')}
+                            </button>
+                            <button onClick={() => keep(r)}
+                              className="flex items-center gap-1 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700">
+                              <Check className="h-4 w-4" /> {t('keepReservation')}
+                            </button>
+                          </div>
+                        </div>
+                      ) : r.status !== 'cancelled' && (
                         <div className="flex gap-2 pt-2">
                           {r.status === 'pending' && (
                             <button onClick={() => setStatus(r, 'confirmed')}

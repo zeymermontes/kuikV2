@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { PhoneField } from '@/components/PhoneField';
 import { useTranslations } from 'next-intl';
-import { Phone, MessageCircle, Pencil, Users, Clock, MapPin, ArrowRightLeft, Check, Loader2 } from 'lucide-react';
+import { Phone, MessageCircle, Pencil, Users, Clock, MapPin, ArrowRightLeft, Check, Loader2, X } from 'lucide-react';
 import type { FloorTable, Reservation, ReservationArea, ReservationStatus, TableStatus } from '@/lib/database.types';
 import {
   PARTY_STATUS_COLOR, PARTY_TAGS, QUOTE_CHOICES, TABLE_STATUS_COLOR, TABLE_STATUS_ORDER,
@@ -33,6 +33,7 @@ export function PartySheet({
   onUpdate,
   onSendNotice,
   onChat,
+  onKeep,
 }: {
   party: Reservation;
   tables: FloorTable[];
@@ -53,6 +54,8 @@ export function PartySheet({
   onSendNotice: () => void;
   /** Open the WhatsApp chat with this party (read and answer from the stand). */
   onChat: () => void;
+  /** The guest asked to cancel over WhatsApp; the host keeps the booking. */
+  onKeep: () => void;
 }) {
   const t = useTranslations('host');
   const [editing, setEditing] = useState(false);
@@ -268,6 +271,18 @@ export function PartySheet({
                   </button>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* ── The guest asked to cancel; the door decides ── */}
+        {party.cancel_requested_at && s !== 'cancelled' && (
+          <div className="mb-3 rounded-2xl border border-red-400/40 bg-red-500/10 p-3">
+            <p className="text-sm font-semibold text-red-200">{t('cancelRequested')}</p>
+            <p className="mt-0.5 text-xs text-white/60">{t('cancelRequestedHint')}</p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button onClick={() => onStatus('cancelled')} className={DANGER}><X className="h-4 w-4" /> {t('act_confirmCancel')}</button>
+              <button onClick={onKeep} className={GHOST}><Check className="h-4 w-4" /> {t('act_keep')}</button>
             </div>
           </div>
         )}

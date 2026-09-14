@@ -384,6 +384,8 @@ export interface TenantContact {
   reservation_max_days: number;
   /** Skip the pending step and confirm public requests automatically. */
   reservation_auto_confirm: boolean;
+  /** A cancellation asked over WhatsApp waits for a host to confirm it. */
+  reservation_cancel_confirm: boolean;
   /** Service periods shown at the host stand; null = app defaults. */
   reservation_shifts: ReservationShift[] | null;
   /** Turn time in minutes keyed by party size ("1".."8", larger falls back to the biggest); null = defaults. */
@@ -701,6 +703,8 @@ export interface Reservation {
   turn_minutes: number | null;
   /** The WhatsApp chat the booking was made in, or later tied to. */
   whatsapp_conversation_id?: string | null;
+  /** The guest asked to cancel over WhatsApp; a host still has to decide. */
+  cancel_requested_at?: string | null;
   created_at: string;
 }
 

@@ -78,6 +78,7 @@ export default async function ReservationsPage({
             reservation_lead_minutes: c?.reservation_lead_minutes ?? 60,
             reservation_max_days: c?.reservation_max_days ?? 60,
             reservation_auto_confirm: c?.reservation_auto_confirm ?? false,
+            reservation_cancel_confirm: c?.reservation_cancel_confirm ?? false,
           }}
           areas={(areas ?? []) as ReservationArea[]}
         />

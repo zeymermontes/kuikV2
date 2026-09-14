@@ -901,7 +901,13 @@
     "pendingNone": "No hay solicitudes pendientes 🎉",
     "editTitle": "Editar reservación",
     "edit": "Editar",
-    "chat": "Chat"
+    "chat": "Chat",
+    "field_cancelConfirm": "Confirmar cancelaciones a mano",
+    "cancelConfirmHint": "Si un cliente cancela por WhatsApp, la reservación se mantiene hasta que un anfitrión confirme la cancelación.",
+    "cancelRequested": "Pide cancelar",
+    "cancelRequestedHint": "El cliente pidió cancelar por WhatsApp. Al confirmar se le avisa; si la mantienes, no se le manda nada.",
+    "confirmCancel": "Confirmar cancelación",
+    "keepReservation": "Mantener"
   },
   "printing": {
     "agents": "Agente de impresión",
@@ -2418,7 +2424,12 @@
     "handoffNone": "Nadie espera en WhatsApp.",
     "handoffSince": "Esperando desde hace {x}",
     "openChat": "Abrir chat",
-    "requestsSection": "Solicitudes de reservación"
+    "requestsSection": "Solicitudes de reservación",
+    "cancelRequested": "El cliente pide cancelar",
+    "cancelRequestedShort": "Pide cancelar",
+    "cancelRequestedHint": "Lo pidió por WhatsApp. Al confirmar se le avisa; si la mantienes, no se le manda nada.",
+    "act_confirmCancel": "Confirmar cancelación",
+    "act_keep": "Mantener"
   },
   "tutorial": {
     "title": "Tutoriales",

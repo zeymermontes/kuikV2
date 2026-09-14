@@ -901,7 +901,13 @@
     "pendingNone": "No pending requests 🎉",
     "editTitle": "Edit reservation",
     "edit": "Edit",
-    "chat": "Chat"
+    "chat": "Chat",
+    "field_cancelConfirm": "Confirm cancellations by hand",
+    "cancelConfirmHint": "When a guest cancels over WhatsApp, the booking stays until a host confirms the cancellation.",
+    "cancelRequested": "Asks to cancel",
+    "cancelRequestedHint": "The guest asked to cancel over WhatsApp. Confirming tells them; keeping it sends nothing.",
+    "confirmCancel": "Confirm cancellation",
+    "keepReservation": "Keep"
   },
   "printing": {
     "agents": "Print agent",
@@ -2418,7 +2424,12 @@
     "handoffNone": "Nobody is waiting on WhatsApp.",
     "handoffSince": "Waiting for {x}",
     "openChat": "Open chat",
-    "requestsSection": "Reservation requests"
+    "requestsSection": "Reservation requests",
+    "cancelRequested": "Guest asks to cancel",
+    "cancelRequestedShort": "Asks to cancel",
+    "cancelRequestedHint": "Asked over WhatsApp. Confirming tells them; keeping it sends nothing.",
+    "act_confirmCancel": "Confirm cancellation",
+    "act_keep": "Keep"
   },
   "tutorial": {
     "title": "Tutorials",

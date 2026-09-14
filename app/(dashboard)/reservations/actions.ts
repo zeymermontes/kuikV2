@@ -31,9 +31,10 @@ export async function setReservationStatus(
   const { tenant } = await requireReservations();
   const supabase = await createClient();
 
+  // Any decision settles a pending "please cancel" from the guest.
   const { data: rows } = await supabase
     .from('reservations')
-    .update({ status })
+    .update({ status, cancel_requested_at: null })
     .eq('id', id)
     .eq('tenant_id', tenant.id)
     .select('id, customer_name, phone, party_size, date, time, whatsapp_conversation_id');
@@ -84,6 +85,22 @@ export async function setReservationStatus(
     notificationId: (note as { id: string } | null)?.id,
     sent: result.status === 'sent',
   };
+}
+
+/**
+ * The guest asked to cancel over WhatsApp and the restaurant says no: the
+ * booking stays as it was. The host tells the guest from the chat if they
+ * want to explain.
+ */
+export async function keepReservation(id: string): Promise<void> {
+  const { tenant } = await requireReservations();
+  const supabase = await createClient();
+  await supabase
+    .from('reservations')
+    .update({ cancel_requested_at: null })
+    .eq('id', id)
+    .eq('tenant_id', tenant.id);
+  revalidatePath('/reservations');
 }
 
 /**
@@ -180,6 +197,12 @@ export async function listPendingNotifications(day: string): Promise<Reservation
 }
 
 /** Every request still waiting for a yes or no, whatever its day, soonest first. */
+/**
+ * What the bell counts: a request waiting for a yes or no, or a live booking
+ * whose guest asked to cancel and nobody has decided yet.
+ */
+const NEEDS_DECISION = 'status.eq.pending,and(status.in.(confirmed,waiting,notified),cancel_requested_at.not.is.null)';
+
 export async function listPendingReservations(): Promise<Reservation[]> {
   const { tenant } = await requireReservations();
   const supabase = await createClient();
@@ -187,7 +210,7 @@ export async function listPendingReservations(): Promise<Reservation[]> {
     .from('reservations')
     .select('*')
     .eq('tenant_id', tenant.id)
-    .eq('status', 'pending')
+    .or(NEEDS_DECISION)
     .gte('starts_at', new Date(Date.now() - 2 * 3_600_000).toISOString())
     .order('starts_at', { ascending: true })
     .limit(200);
@@ -274,6 +297,7 @@ export async function setReservationPolicy(policy: {
   reservation_lead_minutes?: number;
   reservation_max_days?: number;
   reservation_auto_confirm?: boolean;
+  reservation_cancel_confirm?: boolean;
 }): Promise<void> {
   const { tenant } = await requireManager();
   const supabase = await createClient();
@@ -350,7 +374,7 @@ export async function getPendingSummary(): Promise<PendingSummary> {
     .from('reservations')
     .select('date')
     .eq('tenant_id', tenant.id)
-    .eq('status', 'pending')
+    .or(NEEDS_DECISION)
     .gte('starts_at', new Date().toISOString())
     .order('starts_at', { ascending: true });
 

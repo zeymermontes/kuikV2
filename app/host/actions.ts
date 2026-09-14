@@ -6,7 +6,7 @@ import { requireReservations, requireManager } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { todayInTz, nowHHMMInTz } from '@/lib/time';
 import { digitsOnly } from '@/lib/utils';
-import { setReservationStatus } from '@/app/(dashboard)/reservations/actions';
+import { setReservationStatus, keepReservation } from '@/app/(dashboard)/reservations/actions';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { notifyGuest, type GuestNotice } from '@/lib/notify/guest';
 import { conversationForReservation } from '@/lib/notify/conversation-wa';
@@ -83,6 +83,12 @@ export async function setPartyStatus(
   await supabase.from('reservations').update(patch).eq('id', id).eq('tenant_id', tenant.id);
   bump();
   return {};
+}
+
+/** "No, keep it": the guest's cancellation request is dismissed, the booking stands. */
+export async function keepParty(id: string): Promise<void> {
+  await keepReservation(id);
+  bump();
 }
 
 export async function setTableStatus(id: string, tableStatus: TableStatus): Promise<void> {

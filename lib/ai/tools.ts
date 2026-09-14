@@ -205,7 +205,7 @@ export function toolDefinitions(collecting = false, replySchema: z.ZodType = Rep
       {
         name: 'cancelar_reserva',
         description:
-          'Cancela una reservación del cliente (de la lista RESERVACIONES DEL CLIENTE). Llámala SOLO después de que el cliente confirme que quiere cancelarla.',
+          'Cancela una reservación del cliente (de la lista RESERVACIONES DEL CLIENTE), o registra la solicitud si el restaurante confirma las cancelaciones a mano. Llámala SOLO después de que el cliente confirme que quiere cancelarla.',
         parameters: toJsonSchema(CancelReservation),
       },
       {
@@ -396,6 +396,12 @@ export async function runTool(
       const result = await botCancelReservation(ctx, reservation_id);
       if (!result.ok) return { content: 'No encontré esa reservación entre las del cliente, o ya no está activa.', facts: [] };
       const r = result.data?.reservation as OwnReservation;
+      if (result.message === 'requested') {
+        return {
+          content: `Solicitud de cancelación registrada para: ${describeReservation(r)}. El restaurante la confirma en breve. Dile al cliente que recibiste su solicitud y que le avisas por aquí en cuanto quede cancelada; NO digas que ya está cancelada.`,
+          facts: extractNumbers(describeReservation(r)),
+        };
+      }
       return { content: `Reservación cancelada: ${describeReservation(r)}. Confírmaselo al cliente.`, facts: extractNumbers(describeReservation(r)) };
     }
 

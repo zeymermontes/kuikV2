@@ -341,7 +341,8 @@ function buildSystemPrompt(turn: AiTurn, extra: string | null, sheet = ''): stri
       'RESERVACIONES DEL CLIENTE (las suyas; puedes decirle su estado sin consultar nada):',
       ...turn.reservations.map((r) => `- id ${r.id}: ${describeReservation(r)}`),
       '- Si pregunta por su reserva, contesta con estos datos. "Pendiente" significa que el restaurante aún no la confirma.',
-      '- Si quiere cancelarla: confirma con él y llama a `cancelar_reserva`.',
+      '- Si quiere cancelarla: confirma con él y llama a `cancelar_reserva`. Si la herramienta responde que quedó como SOLICITUD, dile que el restaurante la confirma en breve y que le avisas por aquí; no digas que ya está cancelada.',
+      '- Si ya dice "CANCELACIÓN SOLICITADA", no vuelvas a llamar `cancelar_reserva`: el restaurante la está revisando.',
       '- Si quiere cambiar fecha, hora, personas o nombre: repite el cambio, espera su sí y llama a `modificar_reserva`.',
       '- Si quiere OTRA reservación además de esta, es una nueva.',
     );

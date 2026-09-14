@@ -165,6 +165,9 @@ export function PartyList({
                             const T = TAG_ICON[tag as PartyTag];
                             return T ? <T key={tag} className="h-3.5 w-3.5 shrink-0 text-amber-300" /> : null;
                           })}
+                          {r.cancel_requested_at && r.status !== 'cancelled' && (
+                            <span className="shrink-0 rounded-full bg-red-500/20 px-1.5 text-[10px] font-semibold text-red-300">{t('cancelRequestedShort')}</span>
+                          )}
                           {r.note && <StickyNote className="h-3.5 w-3.5 shrink-0 text-white/40" />}
                           {r.phone && <Phone className="h-3 w-3 shrink-0 text-white/30" />}
                         </span>

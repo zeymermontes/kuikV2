@@ -19,7 +19,7 @@ const isRequired = (req: ReqConfig, key: keyof ReqConfig) =>
 type Policy = Pick<
   TenantContact,
   'reservation_slot_minutes' | 'reservation_max_party' | 'reservation_lead_minutes'
-  | 'reservation_max_days' | 'reservation_auto_confirm'
+  | 'reservation_max_days' | 'reservation_auto_confirm' | 'reservation_cancel_confirm'
 >;
 
 function Switch({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
@@ -163,6 +163,17 @@ export function ReservationsSettings({
                     on={pol.reservation_auto_confirm}
                     onClick={() => savePolicy({ reservation_auto_confirm: !pol.reservation_auto_confirm })}
                     label={t('field_autoConfirm')}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm">{t('field_cancelConfirm')}</span>
+                    <p className="text-xs text-neutral-500">{t('cancelConfirmHint')}</p>
+                  </div>
+                  <Switch
+                    on={pol.reservation_cancel_confirm}
+                    onClick={() => savePolicy({ reservation_cancel_confirm: !pol.reservation_cancel_confirm })}
+                    label={t('field_cancelConfirm')}
                   />
                 </div>
               </div>

@@ -17,7 +17,7 @@ import {
   minutesSince, sectionOf, shiftAt, suggestSeating, tableViews, turnMinutesFor, type Section,
 } from '@/lib/host/model';
 import {
-  listHostDay, setPartyStatus, setTableStatus, moveParty, updateParty, addWalkIn, notifyTableReady, countHandoffChats,
+  listHostDay, setPartyStatus, setTableStatus, moveParty, updateParty, addWalkIn, notifyTableReady, countHandoffChats, keepParty,
   saveTable, moveTable, deleteTable, setTableServer, blockTable, saveHostSettings, saveCombination, deleteCombination,
   type HostDay, type PartyFields,
 } from '@/app/host/actions';
@@ -251,9 +251,15 @@ export function HostApp({
     setReservations((cur) => cur.map((r) => (r.id === id ? { ...r, ...p } : r)));
   }
 
+  /** Dismiss the guest's "please cancel": the booking stays. */
+  function keep(id: string) {
+    patch(id, { cancel_requested_at: null });
+    start(() => keepParty(id));
+  }
+
   function act(id: string, status: ReservationStatus, opts: { tableIds?: string[] } = {}) {
     const nowIso = new Date().toISOString();
-    const p: Partial<Reservation> = { status };
+    const p: Partial<Reservation> = { status, cancel_requested_at: null };
     if (status === 'arrived' || status === 'partial') p.arrived_at = nowIso;
     if (status === 'seated') Object.assign(p, { seated_at: nowIso, table_status: 'seated', finished_at: null, ...(opts.tableIds ? { table_ids: opts.tableIds } : {}) });
     if (status === 'finished') p.finished_at = nowIso;
@@ -705,6 +711,7 @@ export function HostApp({
           }}
           onSendNotice={() => sendNotice(party.id)}
           onChat={() => setSheet({ kind: 'chat', id: party.id })}
+          onKeep={() => keep(party.id)}
         />
       )}
 
@@ -717,6 +724,7 @@ export function HostApp({
           tenantId={tenantId}
           onClose={() => setSheet(null)}
           onDecide={(id, status) => act(id, status)}
+          onKeep={keep}
           noticeFor={toSend}
           onSendNotice={sendNotice}
           onOpenChat={(c) => setSheet({ kind: 'handoffChat', conversationId: c.conversationId, name: c.name, phone: c.phone })}

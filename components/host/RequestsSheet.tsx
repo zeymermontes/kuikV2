@@ -19,6 +19,7 @@ export function RequestsSheet({
   tenantId,
   onClose,
   onDecide,
+  onKeep,
   noticeFor,
   onSendNotice,
   onOpenChat,
@@ -26,6 +27,8 @@ export function RequestsSheet({
   tenantId: string;
   onClose: () => void;
   onDecide: (id: string, status: 'confirmed' | 'cancelled') => void;
+  /** The guest asked to cancel over WhatsApp; the host keeps the booking. */
+  onKeep: (id: string) => void;
   /** Reservation ids whose WhatsApp note still needs a tap (no automatic channel). */
   noticeFor: Record<string, { href: string }>;
   onSendNotice: (id: string) => void;
@@ -72,6 +75,11 @@ export function RequestsSheet({
     // Optimistic: the row leaves the list; Realtime confirms a moment later.
     setRows((cur) => (cur ?? []).filter((x) => x.id !== r.id));
     onDecide(r.id, status);
+  }
+  function keep(r: Reservation) {
+    setBusy((cur) => new Set(cur).add(r.id));
+    setRows((cur) => (cur ?? []).filter((x) => x.id !== r.id));
+    onKeep(r.id);
   }
 
   const pendingNotices = Object.keys(noticeFor);
@@ -128,9 +136,10 @@ export function RequestsSheet({
       ) : (
         <ul className="space-y-3">
           {rows.map((r) => (
-            <li key={r.id} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+            <li key={r.id} className={`rounded-2xl border p-3 ${r.cancel_requested_at ? 'border-red-400/40 bg-red-500/10' : 'border-white/10 bg-white/5'}`}>
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
+                  {r.cancel_requested_at && <p className="text-xs font-semibold uppercase tracking-wide text-red-300">{t('cancelRequested')}</p>}
                   <p className="truncate font-semibold">{r.customer_name}</p>
                   <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/70">
                     <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {dayLabel(r.date)} · {r.time.slice(0, 5)}</span>
@@ -143,14 +152,25 @@ export function RequestsSheet({
                 </div>
                 {r.source && <span className="shrink-0 text-[11px] text-white/40">{t(`source_${r.source}`)}</span>}
               </div>
-              <div className="mt-3 flex gap-2">
-                <button disabled={busy.has(r.id)} onClick={() => decide(r, 'confirmed')} className={`${PRIMARY} flex-1`}>
-                  <Check className="h-4 w-4" /> {t('act_confirm')}
-                </button>
-                <button disabled={busy.has(r.id)} onClick={() => decide(r, 'cancelled')} className={`${DANGER} flex-1`}>
-                  <X className="h-4 w-4" /> {t('act_decline')}
-                </button>
-              </div>
+              {r.cancel_requested_at ? (
+                <div className="mt-3 flex gap-2">
+                  <button disabled={busy.has(r.id)} onClick={() => decide(r, 'cancelled')} className={`${DANGER} flex-1`}>
+                    <X className="h-4 w-4" /> {t('act_confirmCancel')}
+                  </button>
+                  <button disabled={busy.has(r.id)} onClick={() => keep(r)} className={`${PRIMARY} flex-1`}>
+                    <Check className="h-4 w-4" /> {t('act_keep')}
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-3 flex gap-2">
+                  <button disabled={busy.has(r.id)} onClick={() => decide(r, 'confirmed')} className={`${PRIMARY} flex-1`}>
+                    <Check className="h-4 w-4" /> {t('act_confirm')}
+                  </button>
+                  <button disabled={busy.has(r.id)} onClick={() => decide(r, 'cancelled')} className={`${DANGER} flex-1`}>
+                    <X className="h-4 w-4" /> {t('act_decline')}
+                  </button>
+                </div>
+              )}
             </li>
           ))}
         </ul>

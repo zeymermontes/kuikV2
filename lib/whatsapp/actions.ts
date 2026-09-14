@@ -167,6 +167,8 @@ export interface OwnReservation {
   starts_at: string | null;
   note: string | null;
   area_id: string | null;
+  /** The guest already asked to cancel; the restaurant has not decided yet. */
+  cancel_requested_at?: string | null;
 }
 
 /**
@@ -180,15 +182,15 @@ export async function ownReservations(ctx: Pick<BotContext, 'tenantId' | 'conver
   const phone = await guestPhone(ctx);
   const { data } = await supabase
     .from('reservations')
-    .select('id, customer_name, party_size, date, time, status, starts_at, note, area_id, whatsapp_conversation_id, phone_e164, phone')
+    .select('id, customer_name, party_size, date, time, status, starts_at, note, area_id, cancel_requested_at, whatsapp_conversation_id, phone_e164, phone')
     .eq('tenant_id', ctx.tenantId)
     .in('status', ['pending', 'confirmed', 'waiting', 'notified'])
     .gte('starts_at', new Date(Date.now() - 2 * 3_600_000).toISOString())
     .or(phone ? `whatsapp_conversation_id.eq.${ctx.conversationId},phone_e164.eq.${phone},phone.eq.${phone}` : `whatsapp_conversation_id.eq.${ctx.conversationId}`)
     .order('starts_at', { ascending: true })
     .limit(3);
-  return ((data ?? []) as OwnReservation[]).map(({ id, customer_name, party_size, date, time, status, starts_at, note, area_id }) => ({
-    id, customer_name, party_size, date, time, status, starts_at, note, area_id,
+  return ((data ?? []) as OwnReservation[]).map(({ id, customer_name, party_size, date, time, status, starts_at, note, area_id, cancel_requested_at }) => ({
+    id, customer_name, party_size, date, time, status, starts_at, note, area_id, cancel_requested_at,
   }));
 }
 
@@ -198,7 +200,8 @@ const DAY_SHORT = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
 export function describeReservation(r: OwnReservation): string {
   const wd = DAY_SHORT[(new Date(`${r.date}T12:00:00Z`).getUTCDay() + 6) % 7];
   const status =
-    r.status === 'confirmed' ? 'CONFIRMADA por el restaurante'
+    r.cancel_requested_at ? 'CANCELACIÓN SOLICITADA, el restaurante la está confirmando'
+    : r.status === 'confirmed' ? 'CONFIRMADA por el restaurante'
     : r.status === 'pending' ? 'PENDIENTE de confirmar por el restaurante'
     : r.status;
   return `${wd} ${r.date} a las ${r.time.slice(0, 5)}, ${r.party_size} persona${r.party_size === 1 ? '' : 's'}, a nombre de ${r.customer_name} — ${status}`;
@@ -216,16 +219,52 @@ async function notifyFloor(tenantId: string, kind: 'reservation_cancelled' | 're
   });
 }
 
-/** Cancel one of the chat's own bookings. */
+/**
+ * Cancel one of the chat's own bookings — or, when the restaurant wants a
+ * say (reservation_cancel_confirm), record the request and leave the table
+ * held until a host cancels or keeps it from the stand. The guest hears the
+ * outcome through the usual cancellation note.
+ */
 export async function botCancelReservation(ctx: BotContext, reservationId: string): Promise<ActionResult> {
   const mine = await ownReservations(ctx);
   const r = mine.find((x) => x.id === reservationId);
   if (!r) return { ok: false, message: 'not_found' };
 
   const supabase = createAdminClient();
+  const { data: contact } = await supabase
+    .from('tenant_contact')
+    .select('reservation_cancel_confirm')
+    .eq('tenant_id', ctx.tenantId)
+    .maybeSingle();
+  const needsHost = Boolean((contact as { reservation_cancel_confirm?: boolean } | null)?.reservation_cancel_confirm);
+
+  if (needsHost) {
+    // Asked twice: same answer, no second alert.
+    if (r.cancel_requested_at) return { ok: true, message: 'requested', data: { reservation: r } };
+    const { data } = await supabase
+      .from('reservations')
+      .update({ cancel_requested_at: new Date().toISOString() })
+      .eq('id', r.id)
+      .eq('tenant_id', ctx.tenantId)
+      .in('status', ['pending', 'confirmed', 'waiting', 'notified'])
+      .select('id');
+    if (!data || data.length === 0) return { ok: false, message: 'not_found' };
+    await notifyFloor(
+      ctx.tenantId,
+      'reservation_cancelled',
+      { es: 'El cliente pide cancelar su reservación', en: 'Guest asks to cancel their reservation' },
+      {
+        es: `${r.customer_name} quiere cancelar: ${r.date} ${r.time.slice(0, 5)}, ${r.party_size} personas. Confírmalo o mantenla.`,
+        en: `${r.customer_name} wants to cancel: ${r.date} ${r.time.slice(0, 5)}, ${r.party_size} people. Confirm or keep it.`,
+      },
+      `res-cancel-req-${r.id}`,
+    );
+    return { ok: true, message: 'requested', data: { reservation: { ...r, cancel_requested_at: new Date().toISOString() } } };
+  }
+
   const { data } = await supabase
     .from('reservations')
-    .update({ status: 'cancelled' })
+    .update({ status: 'cancelled', cancel_requested_at: null })
     .eq('id', r.id)
     .eq('tenant_id', ctx.tenantId)
     .in('status', ['pending', 'confirmed', 'waiting', 'notified'])
