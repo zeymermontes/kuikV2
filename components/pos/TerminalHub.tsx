@@ -10,7 +10,7 @@ import { hubCounts, listRegisters } from '@/app/terminal/actions';
 import { createClient, channelName } from '@/lib/supabase/client';
 import type { PendingCounts } from '@/lib/pending-counts';
 import { PUSH_RETRY_EVENT, PUSH_STATUS_EVENT, readPushStatus, type PushStatus } from '@/components/dashboard/NativePush';
-import { shell } from '@/lib/native/shell';
+import { shell, shellVersion } from '@/lib/native/shell';
 import { DEFAULT_REGISTER, registerSlug } from '@/lib/pos/customer-screen';
 import { readDeviceBranch, registerScope, saveDeviceBranch, type DeviceBranch } from '@/lib/pos/branch';
 
@@ -59,6 +59,9 @@ const subscribePushStatus = (cb: () => void) => {
   return () => window.removeEventListener(PUSH_STATUS_EVENT, onStatus);
 };
 const pushStatusSnapshot = () => (shell() === 'mobile' ? (pushCache ?? null) : null);
+const noopSubscribe = () => () => {};
+// The installed app's version, from its user-agent token; null in a browser.
+const installedVersion = () => (shell() === 'browser' ? null : shellVersion());
 
 const ICONS: Record<HubKey, typeof Wallet> = {
   pos: Wallet,
@@ -156,6 +159,7 @@ export function TerminalHub({
   // The phone app's push registration, in one line: the answer to "why am I
   // not getting notifications" without a debugger on the phone.
   const pushStatus = useSyncExternalStore(subscribePushStatus, pushStatusSnapshot, () => null);
+  const appVersion = useSyncExternalStore(noopSubscribe, installedVersion, () => null);
   const [askRegister, setAskRegister] = useState(false);
   const [register, setRegister] = useState('');
   // Typing a register that has not opened a shift yet (a brand-new tablet).
@@ -368,7 +372,10 @@ export function TerminalHub({
       )}
 
       <div className="mt-8 flex items-center justify-between gap-3">
-        <span className="truncate text-sm text-neutral-500">{userName}</span>
+        <span className="min-w-0 truncate text-sm text-neutral-500">
+          {userName}
+          {appVersion && <span className="text-neutral-600"> · {t('appVersion', { v: appVersion })}</span>}
+        </span>
         <button
           type="button"
           onClick={() => void signOut()}

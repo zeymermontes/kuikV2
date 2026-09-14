@@ -2742,7 +2742,8 @@
     "push_registering": "registrando…",
     "push_registered": "activas en este teléfono",
     "push_error": "error",
-    "pushRetry": "Reintentar"
+    "pushRetry": "Reintentar",
+    "appVersion": "App {v}"
   },
   "shellUpdate": {
     "available": "Hay una versión nueva de la app ({version}).",
