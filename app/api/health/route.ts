@@ -2,8 +2,16 @@
 // touching Supabase, so deploys never fail because the landing/DB is slow.
 // `commit` says which build answers (Render sets RENDER_GIT_COMMIT), so a
 // deploy can be confirmed from outside without a dashboard.
+import { fcmConfigured } from '@/lib/push/fcm';
+import { apnsConfigured } from '@/lib/push/apns';
+
 export const dynamic = 'force-dynamic';
 
 export function GET() {
-  return Response.json({ ok: true, commit: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? null });
+  return Response.json({
+    ok: true,
+    commit: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? null,
+    // Whether the phone apps can register for native push: env-only, no I/O.
+    push: { fcm: fcmConfigured(), apns: apnsConfigured() },
+  });
 }

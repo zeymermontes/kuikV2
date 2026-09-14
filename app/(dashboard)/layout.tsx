@@ -9,7 +9,7 @@ import { TrialBanner } from '@/components/dashboard/TrialBanner';
 import { PwaProvider } from '@/components/dashboard/PwaProvider';
 import { StaffAlerts } from '@/components/StaffAlerts';
 import { ShellUpdateBanner } from '@/components/ShellUpdateBanner';
-import { TerminalModeButton } from '@/components/pos/TerminalModeButton';
+import { ShellBackButton } from '@/components/pos/ShellBackButton';
 import { AdvisorNotice } from '@/components/dashboard/AdvisorNotice';
 import { SITE_URL } from '@/lib/seo';
 import { StaffIntlProvider } from '@/components/intl/StaffIntlProvider';
@@ -72,7 +72,7 @@ export default async function DashboardLayout({
         <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />
         <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} />
         {/* Inside the native apps the dashboard is one tile of the hub; this is the way back. */}
-        <TerminalModeButton />
+        <ShellBackButton />
         <div className="flex min-h-screen bg-neutral-50">
           <Sidebar
             isSuperAdmin={ctx.user.profile.role === 'super_admin' && !ctx.customerView}

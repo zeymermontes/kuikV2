@@ -2221,7 +2221,11 @@
       "sendFailed": "Could not send",
       "quotedGone": "Earlier message",
       "photo": "📷 Photo",
-      "audio": "🎤 Audio"
+      "audio": "🎤 Audio",
+      "resumeAsk": "Should the bot answer the guest’s last message?",
+      "resumeAndAnswer": "Resume and answer",
+      "resumeOnly": "Just resume",
+      "cancel": "Cancel"
     },
     "flowsLink": "Bot flows",
     "flowsLinkHint": "Design on the canvas what the bot asks, what it does with the answers, and when it nudges or closes.",
@@ -2441,7 +2445,10 @@
     "act_keep": "Keep",
     "cancelledByGuest": "Cancelled over WhatsApp",
     "act_ack": "Got it",
-    "guestCancelledToast": "{name} cancelled their reservation over WhatsApp"
+    "guestCancelledToast": "{name} cancelled their reservation over WhatsApp",
+    "resumeAsk": "Answer what is pending?",
+    "resumeAndAnswer": "Yes, answer",
+    "resumeOnly": "Just resume"
   },
   "tutorial": {
     "title": "Tutorials",

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { requireReservations } from '@/lib/auth';
 import { StaffIntlProvider } from '@/components/intl/StaffIntlProvider';
-import { TerminalModeButton } from '@/components/pos/TerminalModeButton';
+import { ShellBackButton } from '@/components/pos/ShellBackButton';
 import { ShellUpdateBanner } from '@/components/ShellUpdateBanner';
 import { NewOrderAlert } from '@/components/orders/NewOrderAlert';
 import { StaffAlerts } from '@/components/StaffAlerts';
@@ -20,7 +20,7 @@ export default async function HostLayout({ children }: { children: React.ReactNo
   return (
     <StaffIntlProvider>
       <div className="min-h-dvh">{children}</div>
-      <TerminalModeButton />
+      <ShellBackButton />
       {ordersBoard && <NewOrderAlert tenantId={ctx.tenant.id} />}
       <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} />
       <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />

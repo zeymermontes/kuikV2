@@ -47,13 +47,15 @@ export async function getHandoffCount(): Promise<{ total: number }> {
 export async function setConversationBot(input: {
   conversationId: string;
   enabled: boolean;
+  /** On resume: also answer the diner's last unanswered message. */
+  answer?: boolean;
 }): Promise<{ ok: boolean }> {
   const { tenant, subscription } = await requireManager();
   if (!canUse(effectivePlan(subscription), 'wa_bots')) return { ok: false };
 
   if (input.enabled) {
     // Back to the bot — and it answers whatever the diner left unanswered.
-    await resumeBot(tenant.id, input.conversationId);
+    await resumeBot(tenant.id, input.conversationId, Boolean(input.answer));
     revalidatePath('/whatsapp/inbox');
     return { ok: true };
   }

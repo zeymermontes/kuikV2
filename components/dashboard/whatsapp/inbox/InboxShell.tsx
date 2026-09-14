@@ -103,6 +103,8 @@ export function InboxShell({
   }, [tenantId, refresh]);
 
   const latestRun = runs[0] ?? null;
+  // The diner spoke last: resuming the bot can also mean answering them.
+  const lastIsInbound = live.length > 0 && live[live.length - 1].direction === 'inbound';
 
   return (
     <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
@@ -147,7 +149,7 @@ export function InboxShell({
         <div className="hidden min-h-0 overflow-y-auto border-l border-neutral-200 lg:block">
           {selectedId && (
             <>
-              {selectedConv && <BotToggle conv={selectedConv} />}
+              {selectedConv && <BotToggle conv={selectedConv} pendingReply={lastIsInbound} />}
               <RunPanel runs={runs} flows={flows} />
             </>
           )}
@@ -165,7 +167,7 @@ export function InboxShell({
                 <X className="h-5 w-5" />
               </button>
             </div>
-            {selectedConv && <BotToggle conv={selectedConv} />}
+            {selectedConv && <BotToggle conv={selectedConv} pendingReply={lastIsInbound} />}
             <RunPanel runs={runs} flows={flows} />
           </div>
         </div>
@@ -174,18 +176,40 @@ export function InboxShell({
   );
 }
 
-/** The release valve for a handoff: hand the conversation back to the bot. */
-function BotToggle({ conv }: { conv: SelectedConv }) {
+/**
+ * The release valve for a handoff: hand the conversation back to the bot.
+ * When the diner's last message is still unanswered, resuming asks whether
+ * the bot should answer it or just wake up for the next one.
+ */
+function BotToggle({ conv, pendingReply }: { conv: SelectedConv; pendingReply: boolean }) {
   const t = useTranslations('whatsapp.inbox');
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [asking, setAsking] = useState(false);
 
-  const toggle = (enabled: boolean) => startTransition(async () => {
-    await setConversationBot({ conversationId: conv.id, enabled });
+  const toggle = (enabled: boolean, answer = false) => startTransition(async () => {
+    setAsking(false);
+    await setConversationBot({ conversationId: conv.id, enabled, answer });
     router.refresh();
   });
 
   const active = conv.bot_enabled && !conv.handoff_at;
+  if (!active && asking) {
+    return (
+      <div className="border-b border-neutral-100 bg-amber-50/60 px-4 py-3 text-xs">
+        <p className="font-semibold">{t('resumeAsk')}</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <button disabled={pending} onClick={() => toggle(true, true)} className="rounded-full bg-neutral-900 px-3 py-1.5 font-semibold text-white hover:bg-neutral-700 disabled:opacity-50">
+            {t('resumeAndAnswer')}
+          </button>
+          <button disabled={pending} onClick={() => toggle(true, false)} className="rounded-full border border-neutral-300 bg-white px-3 py-1.5 font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-50">
+            {t('resumeOnly')}
+          </button>
+          <button onClick={() => setAsking(false)} className="px-2 py-1.5 text-neutral-500 hover:text-neutral-800">{t('cancel')}</button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className={cn(
       'flex items-center justify-between gap-2 border-b border-neutral-100 px-4 py-3',
@@ -204,7 +228,7 @@ function BotToggle({ conv }: { conv: SelectedConv }) {
       </div>
       <button
         disabled={pending}
-        onClick={() => toggle(!active)}
+        onClick={() => (active ? toggle(false) : pendingReply ? setAsking(true) : toggle(true))}
         className={cn(
           'shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50',
           active

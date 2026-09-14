@@ -2221,7 +2221,11 @@
       "sendFailed": "No se pudo enviar",
       "quotedGone": "Mensaje anterior",
       "photo": "📷 Foto",
-      "audio": "🎤 Audio"
+      "audio": "🎤 Audio",
+      "resumeAsk": "¿Que el bot conteste el último mensaje del cliente?",
+      "resumeAndAnswer": "Reactivar y responder",
+      "resumeOnly": "Solo reactivar",
+      "cancel": "Cancelar"
     },
     "flowsLink": "Flujos del bot",
     "flowsLinkHint": "Diseña en el lienzo qué pregunta el bot, qué hace con las respuestas y cuándo insiste o cierra.",
@@ -2441,7 +2445,10 @@
     "act_keep": "Mantener",
     "cancelledByGuest": "Canceló por WhatsApp",
     "act_ack": "Enterado",
-    "guestCancelledToast": "{name} canceló su reservación por WhatsApp"
+    "guestCancelledToast": "{name} canceló su reservación por WhatsApp",
+    "resumeAsk": "¿Contestar lo pendiente?",
+    "resumeAndAnswer": "Sí, responder",
+    "resumeOnly": "Solo reactivar"
   },
   "tutorial": {
     "title": "Tutoriales",

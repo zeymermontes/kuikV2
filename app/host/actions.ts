@@ -413,11 +413,11 @@ export async function sendPartyMessage(conversationId: string, body: string): Pr
 }
 
 /** Hand a party's chat back to the bot, or take it away. */
-export async function setPartyChatBot(conversationId: string, enabled: boolean): Promise<void> {
+export async function setPartyChatBot(conversationId: string, enabled: boolean, answer = false): Promise<void> {
   const { tenant } = await requireReservations();
   if (enabled) {
-    // Back to the bot — and it answers whatever the diner left unanswered.
-    await resumeBot(tenant.id, conversationId);
+    // Back to the bot — answering the diner's last message only when asked to.
+    await resumeBot(tenant.id, conversationId, answer);
     return;
   }
   const admin = createAdminClient();

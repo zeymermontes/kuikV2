@@ -88,10 +88,15 @@ export function ChatSheet({
     });
   }
 
-  function toggleBot(enabled: boolean) {
+  const [askingResume, setAskingResume] = useState(false);
+  // The diner spoke last: resuming the bot can also mean answering them.
+  const pendingReply = Boolean(chat && chat.messages.length > 0 && chat.messages[chat.messages.length - 1].direction === 'inbound');
+
+  function toggleBot(enabled: boolean, answer = false) {
     if (!conversationId) return;
+    setAskingResume(false);
     setChat((cur) => (cur ? { ...cur, botActive: enabled } : cur));
-    startBot(() => setPartyChatBot(conversationId, enabled));
+    startBot(() => setPartyChatBot(conversationId, enabled, answer));
   }
 
   const footer = chat && (
@@ -101,9 +106,20 @@ export function ChatSheet({
           <span className={`flex items-center gap-1.5 ${chat.botActive ? 'text-emerald-300' : 'text-amber-300'}`}>
             <Bot className="h-3.5 w-3.5" /> {chat.botActive ? t('botActive') : t('botPaused')}
           </span>
-          <button onClick={() => toggleBot(!chat.botActive)} className="rounded-full border border-white/15 px-2.5 py-1 font-semibold text-white/80 hover:bg-white/10">
-            {chat.botActive ? t('pauseBot') : t('resumeBot')}
-          </button>
+          {!chat.botActive && askingResume ? (
+            <span className="flex flex-wrap items-center justify-end gap-1.5">
+              <span className="text-white/60">{t('resumeAsk')}</span>
+              <button onClick={() => toggleBot(true, true)} className="rounded-full bg-white px-2.5 py-1 font-semibold text-black">{t('resumeAndAnswer')}</button>
+              <button onClick={() => toggleBot(true, false)} className="rounded-full border border-white/15 px-2.5 py-1 font-semibold text-white/80 hover:bg-white/10">{t('resumeOnly')}</button>
+            </span>
+          ) : (
+            <button
+              onClick={() => (chat.botActive ? toggleBot(false) : pendingReply ? setAskingResume(true) : toggleBot(true))}
+              className="rounded-full border border-white/15 px-2.5 py-1 font-semibold text-white/80 hover:bg-white/10"
+            >
+              {chat.botActive ? t('pauseBot') : t('resumeBot')}
+            </button>
+          )}
         </div>
       )}
       {chat.canReply ? (

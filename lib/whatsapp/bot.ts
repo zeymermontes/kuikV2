@@ -271,18 +271,19 @@ export async function runBot(turn: BotTurn): Promise<void> {
 }
 
 /**
- * A person hands the chat back to the bot. If the diner's last message is
- * still unanswered — they wrote while the chat was parked and nobody replied
- * — the bot answers it now instead of waiting for them to write again. The
- * turn runs in the background so the switch flips at once.
+ * A person hands the chat back to the bot. With `answer`, the diner's last
+ * message — if it is still unanswered — goes through the bot now instead of
+ * waiting for them to write again; without it the bot just wakes up for the
+ * next message. The turn runs in the background so the switch flips at once.
  */
-export async function resumeBot(tenantId: string, conversationId: string): Promise<{ answering: boolean }> {
+export async function resumeBot(tenantId: string, conversationId: string, answer = false): Promise<{ answering: boolean }> {
   const supabase = createAdminClient();
   await supabase
     .from('whatsapp_conversations')
     .update({ bot_enabled: true, handoff_at: null, handoff_by: null })
     .eq('id', conversationId)
     .eq('tenant_id', tenantId);
+  if (!answer) return { answering: false };
 
   const { data } = await supabase
     .from('whatsapp_messages')
