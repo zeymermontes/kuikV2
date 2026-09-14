@@ -56,7 +56,18 @@ export interface FlowTurnParams {
   hasBookings?: boolean;
   /** How the model asks for a booking's details: one thing per message, or the whole list at once. */
   intake?: 'one_by_one' | 'all_at_once';
+  /**
+   * Two failed model turns: the run waits AI_RETRY_MS and tries once more
+   * before a person takes over. bot.ts arms the in-process timer here; the
+   * maintenance cron is the net under it.
+   */
+  deferAi?: (runId: string, delayMs: number) => void;
 }
+
+/** The breather after two failed model turns, before the last try. */
+export const AI_RETRY_MS = 3 * 60_000;
+const AI_WAIT_MESSAGE = 'Perdón, estoy teniendo un problema técnico ⏳ Dame unos minutos y sigo contigo.';
+const AI_GAVE_UP_MESSAGE = 'Sigo con un problema técnico 🙏 En un momento te atiende una persona del restaurante.';
 
 /** "Change / cancel / how is my booking" — about an existing table, unless they say "otra". */
 const MANAGE_INTENT = /\b(cambiar|cambia|modificar|modifica|mover|mueve|cancelar|cancela|estado|status|mi reserva|mi reservacion|la reserva que)\b/;
@@ -190,17 +201,18 @@ export async function runFlowTurn(params: FlowTurnParams): Promise<boolean> {
         },
       });
 
+    // A good turn also clears any pending retry: the model is back.
     const touch = () =>
       supabase
         .from('whatsapp_flow_runs')
-        .update({ last_inbound_at: new Date().toISOString(), nudge_count: 0, ...timerDues(flow!) })
+        .update({ last_inbound_at: new Date().toISOString(), nudge_count: 0, ai_retry_at: null, ai_retry_text: null, ...timerDues(flow!) })
         .eq('id', run!.id)
         .eq('status', 'active');
 
-    // A failed turn is retried once (timeouts and 5xx are usually transient),
-    // and then a person takes over. The script is NOT the fallback for a
-    // model that failed mid-booking: it re-asked "¿Confirmo…?" for tables
-    // already booked and read a "sí" meant for the model as its own.
+    // A failed turn is retried once (timeouts and 5xx are usually transient).
+    // The script is NOT the fallback for a model that failed mid-booking: it
+    // re-asked "¿Confirmo…?" for tables already booked and read a "sí" meant
+    // for the model as its own.
     for (let tries = 0; tries < 2; tries++) {
       if (await attempt()) {
         await touch();
@@ -208,10 +220,35 @@ export async function runFlowTurn(params: FlowTurnParams): Promise<boolean> {
       }
       if (await sayOutcomeIfEnded(supabase, run, graph, vars, params.pendingReplies)) return true;
     }
+
+    // Two misses. A provider outage is usually minutes long, so the first
+    // time this happens the run tells the diner and books one more try a
+    // few minutes out. Only a miss on (or after) that last try hands the
+    // conversation to a person.
+    const retryAt = run.ai_retry_at ? new Date(run.ai_retry_at).getTime() : null;
+    if (retryAt === null) {
+      await supabase
+        .from('whatsapp_flow_runs')
+        .update({ ai_retry_at: new Date(Date.now() + AI_RETRY_MS).toISOString(), ai_retry_text: turn.text, last_inbound_at: new Date().toISOString() })
+        .eq('id', run.id)
+        .eq('status', 'active');
+      params.deferAi?.(run.id, AI_RETRY_MS);
+      await say(conv.id, [...params.pendingReplies, { type: 'text', body: AI_WAIT_MESSAGE }]);
+      return true;
+    }
+    if (retryAt > Date.now() + 5_000) {
+      // The diner wrote again while the breather is running: keep the newest
+      // message for the retry, say nothing more — they already heard.
+      await supabase
+        .from('whatsapp_flow_runs')
+        .update({ ai_retry_text: turn.text })
+        .eq('id', run.id)
+        .eq('status', 'active');
+      return true;
+    }
     await botHandoff(ctx, 'ai_failed');
     await endRun(supabase, run, 'handoff', 'ai_failed');
-    const handoffMsg = await getCanned(supabase, conv.tenant_id, 'handoff', vars);
-    await say(conv.id, [...params.pendingReplies, { type: 'text', body: handoffMsg || 'Un momento, en seguida te atiende una persona del restaurante 🙋' }]);
+    await say(conv.id, [...params.pendingReplies, { type: 'text', body: AI_GAVE_UP_MESSAGE }]);
     return true;
   }
 

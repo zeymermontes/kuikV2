@@ -209,6 +209,7 @@ export async function runBot(turn: BotTurn): Promise<void> {
     turn: { text: turn.text, replyId: turn.replyId },
     flows, aiEnabled: aiAllowed, botsAllowed, aiGoals, wantsHuman,
     pendingReplies: replies, reservationsEnabled, startFlow, hasBookings: myReservations.length > 0, intake,
+    deferAi: scheduleAiRetry,
   });
   if (handled) return;
 
@@ -267,6 +268,53 @@ export async function runBot(turn: BotTurn): Promise<void> {
   const body = fallback || renderTemplate('¿En qué te puedo ayudar?', vars);
   replies.push(withMenu(body));
   await say(conv.id, replies);
+}
+
+/**
+ * The in-process half of the AI breather: a plain timer, because this is a
+ * long-running server, not a lambda. A deploy in between loses it, and the
+ * maintenance cron replays whatever is still due.
+ */
+function scheduleAiRetry(runId: string, delayMs: number): void {
+  const t = setTimeout(() => { void retryDeferredAiRun(runId); }, delayMs);
+  t.unref?.();
+}
+
+/**
+ * The last try after two failed model turns: replay the diner's message
+ * through the normal pipeline. The run's `ai_retry_at` is in the past by
+ * now, so a third miss hands the chat to a person (runtime.ts); a hit clears
+ * the retry. Either way the pending marker is cleared afterwards so the
+ * cron never replays the same message twice.
+ */
+export async function retryDeferredAiRun(runId: string): Promise<boolean> {
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from('whatsapp_flow_runs')
+    .select('id, tenant_id, conversation_id, ai_retry_at, ai_retry_text')
+    .eq('id', runId)
+    .eq('status', 'active')
+    .not('ai_retry_at', 'is', null)
+    .maybeSingle();
+  const run = data as { id: string; tenant_id: string; conversation_id: string; ai_retry_at: string; ai_retry_text: string | null } | null;
+  if (!run) return false;
+  // Not yet: the cron ran early, or the timer is somebody else's.
+  if (new Date(run.ai_retry_at).getTime() > Date.now() + 5_000) return false;
+  // Nudge the clock into the past so the runtime treats this as the last try.
+  await supabase
+    .from('whatsapp_flow_runs')
+    .update({ ai_retry_at: new Date(Date.now() - 1000).toISOString() })
+    .eq('id', run.id)
+    .eq('status', 'active');
+  try {
+    await runBot({ tenantId: run.tenant_id, conversationId: run.conversation_id, text: run.ai_retry_text ?? '' });
+  } finally {
+    await supabase
+      .from('whatsapp_flow_runs')
+      .update({ ai_retry_at: null, ai_retry_text: null })
+      .eq('id', run.id);
+  }
+  return true;
 }
 
 /** A keyword or budget handoff mid-run: the run ends as 'handoff', visibly. */

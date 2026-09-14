@@ -110,6 +110,9 @@ export interface WhatsappFlowRun {
   close_due_at: string | null;
   ended_reason: string | null;
   action_result: Record<string, unknown> | null;
+  /** Two failed model turns: replay `ai_retry_text` at this time before giving up. */
+  ai_retry_at?: string | null;
+  ai_retry_text?: string | null;
   started_at: string;
   last_inbound_at: string | null;
   completed_at: string | null;

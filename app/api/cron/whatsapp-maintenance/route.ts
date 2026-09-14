@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { processEvents } from '@/lib/whatsapp/inbound';
 import { runFlowTimers } from '@/lib/whatsapp/flows/timers';
+import { retryDeferredAiRun } from '@/lib/whatsapp/bot';
 import { sendToTenant } from '@/lib/push/send';
 
 export const runtime = 'nodejs';
@@ -73,6 +74,19 @@ export async function GET(req: NextRequest) {
   //    who never came back. Also purges runs older than 90 days.
   const timers = await runFlowTimers(supabase);
 
+  // 3b. AI breathers whose in-process timer died with a deploy: replay them.
+  //     A minute of grace so a live timer gets there first.
+  const { data: dueRetries } = await supabase
+    .from('whatsapp_flow_runs')
+    .select('id')
+    .eq('status', 'active')
+    .lte('ai_retry_at', new Date(Date.now() - 60_000).toISOString())
+    .limit(20);
+  let aiRetried = 0;
+  for (const r of (dueRetries ?? []) as { id: string }[]) {
+    if (await retryDeferredAiRun(r.id).catch(() => false)) aiRetried++;
+  }
+
   // 4. Prune. Raw payloads can hold anything a customer typed, so they should
   //    not accumulate indefinitely.
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString();
@@ -81,6 +95,6 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     ok: true, reprocessed: ids.length, idleWarned: warned.size,
-    nudged: timers.nudged, closedRuns: timers.closed,
+    nudged: timers.nudged, closedRuns: timers.closed, aiRetried,
   });
 }
