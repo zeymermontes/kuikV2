@@ -2707,7 +2707,7 @@
   },
   "terminal": {
     "title": "¿Qué quieres abrir?",
-    "subtitle": "Todo lo que puedes usar en este dispositivo. Vuelves aquí con el botón de la esquina.",
+    "subtitle": "Todo lo que puedes usar en este dispositivo. Vuelves aquí con el botón atrás.",
     "pos": "Caja",
     "posDesc": "Cobrar, cuentas y mesas.",
     "kds": "Cocina",

@@ -20,21 +20,28 @@ export function ShellBackButton() {
 
   useEffect(() => {
     if (shell() !== 'terminal' && shell() !== 'mobile') return;
-    const app = capacitorPlugin('App');
-    if (!app?.addListener) return;
     let handle: { remove: () => Promise<void> } | null = null;
     let cancelled = false;
-    const listen = app.addListener as (ev: string, cb: (e: { canGoBack: boolean }) => void) => Promise<{ remove: () => Promise<void> }>;
-    listen('backButton', ({ canGoBack }) => {
-      const here = pathname.replace(/\/+$/, '') || '/';
-      if (SECTION_HOMES.has(here) || !canGoBack) router.push('/terminal');
-      else window.history.back();
-    })
-      .then((h) => {
-        if (cancelled) void h.remove();
-        else handle = h;
-      })
-      .catch(() => {});
+    // Nothing here may throw into React: a shell without the plugin, or a
+    // proxy that behaves unexpectedly, must cost the back button, not the page.
+    try {
+      const app = capacitorPlugin('App');
+      if (!app?.addListener) return;
+      const listen = app.addListener as (ev: string, cb: (e: { canGoBack: boolean }) => void) => Promise<{ remove: () => Promise<void> }> | { remove: () => Promise<void> };
+      Promise.resolve(listen('backButton', ({ canGoBack }) => {
+        const here = pathname.replace(/\/+$/, '') || '/';
+        if (SECTION_HOMES.has(here) || !canGoBack) router.push('/terminal');
+        else window.history.back();
+      }))
+        .then((h) => {
+          if (!h || typeof h.remove !== 'function') return;
+          if (cancelled) void h.remove();
+          else handle = h;
+        })
+        .catch(() => {});
+    } catch {
+      return;
+    }
     return () => {
       cancelled = true;
       if (handle) void handle.remove();

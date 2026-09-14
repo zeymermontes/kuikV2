@@ -2707,7 +2707,7 @@
   },
   "terminal": {
     "title": "What do you want to open?",
-    "subtitle": "Everything you can use on this device. The corner button brings you back here.",
+    "subtitle": "Everything you can use on this device. The back button brings you back here.",
     "pos": "Register",
     "posDesc": "Charge, tabs and tables.",
     "kds": "Kitchen",
