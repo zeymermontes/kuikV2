@@ -1,7 +1,7 @@
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-import { parseWeekHours, isOpenNowIn, todayHoursIn, mapHref } from '@/lib/hours';
+import { parseSchedule, isOpenNowIn, todayHoursIn, upcomingSpecials, mapHref } from '@/lib/hours';
 import { todayInTz } from '@/lib/time';
 import { tenantBaseUrl } from '@/lib/config';
 import { rateLimit, bucketKey } from '@/lib/rate-limit';
@@ -370,10 +370,15 @@ async function buildVars(
       }
     : main;
 
-  const week = parseWeekHours(c?.hours);
+  const schedule = parseSchedule(c?.hours);
+  const week = schedule?.week ?? null;
   const tz = t?.timezone;
-  const today = week ? todayHoursIn(week, tz) : null;
-  const open = week ? isOpenNowIn(week, tz) : true;
+  const today = schedule ? todayHoursIn(schedule, tz) : null;
+  const open = schedule ? isOpenNowIn(schedule, tz) : true;
+  // Special dates ride along under the week, so a canned "horario" answer
+  // says "24 dic (Nochebuena): 12:00-18:00" without a new variable.
+  const specials = schedule ? upcomingSpecials(schedule, todayInTz(tz)) : [];
+  const specialLines = specials.map((d) => `${fmtShortDate(d.date)}${d.label ? ` (${d.label})` : ''}: ${d.closed ? 'cerrado' : `${d.open}-${d.close}`}`);
 
   return {
     open,
@@ -381,12 +386,15 @@ async function buildVars(
     vars: {
     restaurante: t?.name ?? '',
     horario_hoy: today
-      ? today.closed ? 'hoy cerrado' : `${today.open} a ${today.close}`
+      ? `${today.closed ? 'hoy cerrado' : `${today.open} a ${today.close}`}${today.label ? ` (${today.label})` : ''}`
       : '',
     horario_semana: week
-      ? week.map((d, i) =>
-          `${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'][i]}: ${d.closed ? 'cerrado' : `${d.open}-${d.close}`}`,
-        ).join('\n')
+      ? [
+          ...week.map((d, i) =>
+            `${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'][i]}: ${d.closed ? 'cerrado' : `${d.open}-${d.close}`}`,
+          ),
+          ...(specialLines.length ? ['Fechas especiales:', ...specialLines] : []),
+        ].join('\n')
       : '',
     direccion: c?.address ?? '',
     mapa: mapHref(c?.maps_url ?? null, c?.address ?? null) ?? '',
@@ -394,6 +402,12 @@ async function buildVars(
     telefono: c?.whatsapp_phone ?? '',
     },
   };
+}
+
+/** "24 dic" from "2026-12-24". */
+function fmtShortDate(iso: string): string {
+  const [, m, d] = iso.split('-').map(Number);
+  return `${d} ${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][m - 1]}`;
 }
 
 /**

@@ -2,7 +2,8 @@ import 'server-only';
 import { cache } from 'react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { tenantBaseUrl } from '@/lib/config';
-import { parseWeekHours, todayHoursIn, mapHref, DAY_KEYS } from '@/lib/hours';
+import { parseSchedule, todayHoursIn, upcomingSpecials, mapHref, DAY_KEYS } from '@/lib/hours';
+import { todayInTz } from '@/lib/time';
 import { digitsOnly } from '@/lib/utils';
 import { LANDING_VARIABLES } from '@/lib/landing-variables';
 
@@ -65,8 +66,10 @@ export const getLandingVars = cache(async (tenantId: string): Promise<LandingVar
   const th = (theme ?? {}) as Record<string, string | null | undefined>;
 
   const base = tenantBaseUrl(t.subdomain, t.custom_domain);
-  const week = parseWeekHours(c.hours);
-  const today = week ? todayHoursIn(week, t.timezone) : null;
+  const schedule = parseSchedule(c.hours);
+  const week = schedule?.week ?? null;
+  const today = schedule ? todayHoursIn(schedule, t.timezone) : null;
+  const specials = schedule ? upcomingSpecials(schedule, todayInTz(t.timezone)) : [];
   const phone = c.whatsapp_phone ?? '';
 
   return {
@@ -77,9 +80,12 @@ export const getLandingVars = cache(async (tenantId: string): Promise<LandingVar
     email: c.email ?? '',
     direccion: c.address ?? '',
     mapa_url: mapHref(c.maps_url ?? null, c.address ?? null) ?? '',
-    horario_hoy: today ? (today.closed ? 'Cerrado' : `${today.open} a ${today.close}`) : '',
+    horario_hoy: today ? `${today.closed ? 'Cerrado' : `${today.open} a ${today.close}`}${today.label ? ` (${today.label})` : ''}` : '',
     horario_semana: week
-      ? week.map((d, i) => `${DAY_LABELS[DAY_KEYS[i]]}: ${d.closed ? 'Cerrado' : `${d.open} a ${d.close}`}`).join('\n')
+      ? [
+          ...week.map((d, i) => `${DAY_LABELS[DAY_KEYS[i]]}: ${d.closed ? 'Cerrado' : `${d.open} a ${d.close}`}`),
+          ...specials.map((d) => `${d.date.slice(8)}/${d.date.slice(5, 7)}${d.label ? ` (${d.label})` : ''}: ${d.closed ? 'Cerrado' : `${d.open} a ${d.close}`}`),
+        ].join('\n')
       : '',
     menu_url: `${base}/menu`,
     // A plain link that lands on the menu with the booking sheet already open —

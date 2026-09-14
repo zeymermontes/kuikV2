@@ -1325,7 +1325,13 @@
     "closed": "Cerrado",
     "title": "Horario",
     "openNow": "Abierto ahora",
-    "closedNow": "Cerrado"
+    "closedNow": "Cerrado",
+    "specialTitle": "Fechas especiales",
+    "specialHint": "Días festivos o eventos con horario distinto al de la semana. El bot y el menú los toman en cuenta.",
+    "addSpecial": "Agregar fecha",
+    "specialDate": "Fecha",
+    "specialLabel": "Motivo (Navidad, Día de las madres…)",
+    "removeSpecial": "Quitar fecha"
   },
   "contact": {
     "title": "Información de contacto",

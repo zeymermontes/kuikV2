@@ -1,7 +1,7 @@
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getMenu } from '@/lib/tenant';
-import { parseWeekHours } from '@/lib/hours';
+import { parseSchedule, hoursOn, upcomingSpecials } from '@/lib/hours';
 import { addDays, nowHHMMInTz, todayInTz, weekdayInTz } from '@/lib/time';
 import { formatPrice } from '@/lib/utils';
 import { dayAvailability, weekdayOfDate } from '@/lib/reservations/day';
@@ -65,7 +65,8 @@ export async function buildRestaurantContext(params: {
     reservation_lead_minutes: number | null; reservation_max_days: number | null; reservation_required: Record<string, boolean> | null;
   } | null;
   const b = branch as { name: string; hours: unknown } | null;
-  const week = parseWeekHours(b?.hours ?? c?.hours);
+  const schedule = parseSchedule(b?.hours ?? c?.hours);
+  const week = schedule?.week ?? null;
   const today = todayInTz(tz);
   const nowHHMM = nowHHMMInTz(tz);
   const wd = weekdayInTz(tz);
@@ -75,16 +76,25 @@ export async function buildRestaurantContext(params: {
 
   // Today, with the clock: "abierto hasta las 22:00" is the answer to half
   // the questions a bot gets.
-  const todayHours = week?.[wd];
+  const todayHours = schedule ? hoursOn(schedule, today) : undefined;
   const openNow = todayHours && !todayHours.closed && between(nowHHMM, todayHours.open, todayHours.close);
   lines.push(
-    `- Hoy: ${DAY_NAMES[wd]} ${today}, hora local ${nowHHMM}. Ahora: ${
+    `- Hoy: ${DAY_NAMES[wd]} ${today}${todayHours?.label ? ` (${todayHours.label}, horario especial)` : ''}, hora local ${nowHHMM}. Ahora: ${
       !todayHours ? 'horario no configurado' : todayHours.closed ? 'CERRADO (hoy no abre)' : openNow ? `ABIERTO hasta las ${todayHours.close}` : `CERRADO (hoy abre de ${todayHours.open} a ${todayHours.close})`
     }`,
   );
   if (week) {
     lines.push('- Horario semanal:');
     for (const [i, d] of week.entries()) lines.push(`  ${DAY_SHORT[i]}: ${d.closed ? 'cerrado' : `${d.open}–${d.close}`}`);
+  }
+  // Holidays and one-off days: these override the week, and a diner asking
+  // "¿abren el 25?" wants exactly this.
+  const specials = schedule ? upcomingSpecials(schedule, today) : [];
+  if (specials.length > 0) {
+    lines.push('- Fechas con horario especial (mandan sobre el semanal):');
+    for (const d of specials) {
+      lines.push(`  ${DAY_SHORT[weekdayOfDate(d.date)]} ${d.date}${d.label ? ` (${d.label})` : ''}: ${d.closed ? 'CERRADO' : `${d.open}–${d.close}`}`);
+    }
   }
   // The day's services ("Desayuno 8–12, Comida y cena 12–23"): what a diner
   // means by "para desayunar" and what the host stand books by.
@@ -112,7 +122,7 @@ export async function buildRestaurantContext(params: {
     ].filter(Boolean);
     lines.push(`- Reservaciones en línea: activas${policy.length ? ` · ${policy.join(' · ')}` : ''}. Quedan como solicitud; el restaurante confirma después.`);
 
-    const calendar = await upcomingDays(supabase, { tenantId, branchId, today, week, slotMinutes: c?.reservation_slot_minutes ?? 30, maxDays: c?.reservation_max_days ?? 60 });
+    const calendar = await upcomingDays(supabase, { tenantId, branchId, today, week: schedule, slotMinutes: c?.reservation_slot_minutes ?? 30, maxDays: c?.reservation_max_days ?? 60 });
     if (calendar.length) lines.push(`- Próximos días SIN lugar para reservar: ${calendar.join(', ')}.`);
   }
 
@@ -160,7 +170,7 @@ function between(now: string, open: string, close: string): boolean {
 /** The days ahead a diner cannot book, with why: "sáb 2026-09-12 (lleno)". */
 async function upcomingDays(
   supabase: ReturnType<typeof createAdminClient>,
-  p: { tenantId: string; branchId: string | null; today: string; week: ReturnType<typeof parseWeekHours>; slotMinutes: number; maxDays: number },
+  p: { tenantId: string; branchId: string | null; today: string; week: ReturnType<typeof parseSchedule>; slotMinutes: number; maxDays: number },
 ): Promise<string[]> {
   const until = addDays(p.today, LOOKAHEAD_DAYS);
   const [{ data: areas }, { data: taken }] = await Promise.all([

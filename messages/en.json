@@ -1325,7 +1325,13 @@
     "closed": "Closed",
     "title": "Opening hours",
     "openNow": "Open now",
-    "closedNow": "Closed"
+    "closedNow": "Closed",
+    "specialTitle": "Special dates",
+    "specialHint": "Holidays or events with hours that differ from the week. The bot and the menu take them into account.",
+    "addSpecial": "Add date",
+    "specialDate": "Date",
+    "specialLabel": "Reason (Christmas, Mother’s Day…)",
+    "removeSpecial": "Remove date"
   },
   "contact": {
     "title": "Contact information",

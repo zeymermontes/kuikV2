@@ -12,7 +12,7 @@
 //     footer), which is what tells Google the platform is real.
 
 import { PROTOCOL, ROOT_DOMAIN, tenantBaseUrl } from '@/lib/config';
-import { DAY_KEYS, parseWeekHours } from '@/lib/hours';
+import { DAY_KEYS, parseSchedule } from '@/lib/hours';
 import type { FullTenant, MenuCategory, Product } from '@/lib/database.types';
 
 export const SITE_URL = `${PROTOCOL}://${ROOT_DOMAIN}`;
@@ -148,18 +148,28 @@ const DAY_NAMES: Record<(typeof DAY_KEYS)[number], string> = {
 
 /** schema.org OpeningHoursSpecification from the stored week; days with identical hours are merged. */
 export function openingHoursJsonLd(hours: unknown): Json[] {
-  const week = parseWeekHours(hours);
-  if (!week) return [];
+  const schedule = parseSchedule(hours);
+  if (!schedule) return [];
   const groups = new Map<string, string[]>();
-  week.forEach((d, i) => {
+  schedule.week.forEach((d, i) => {
     if (d.closed) return;
     const key = `${d.open}-${d.close}`;
     groups.set(key, [...(groups.get(key) ?? []), DAY_NAMES[DAY_KEYS[i]]]);
   });
-  return Array.from(groups.entries()).map(([key, days]) => {
+  const weekly: Json[] = Array.from(groups.entries()).map(([key, days]) => {
     const [opens, closes] = key.split('-');
     return { '@type': 'OpeningHoursSpecification', dayOfWeek: days, opens, closes };
   });
+  // Special dates: schema.org expresses a one-day exception with validFrom =
+  // validThrough; a closed day is opens = closes = "00:00".
+  const special: Json[] = schedule.special.map((d) => ({
+    '@type': 'OpeningHoursSpecification',
+    validFrom: d.date,
+    validThrough: d.date,
+    opens: d.closed ? '00:00' : d.open,
+    closes: d.closed ? '00:00' : d.close,
+  }));
+  return [...weekly, ...special];
 }
 
 /** E.164-ish telephone from a stored WhatsApp number; null when it is not a usable number. */

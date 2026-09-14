@@ -1,6 +1,6 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { parseWeekHours } from '@/lib/hours';
+import { parseSchedule } from '@/lib/hours';
 import { todayInTz } from '@/lib/time';
 import { dayAvailability, type DayStatus } from './day';
 
@@ -49,7 +49,7 @@ export async function reservationDayStatus(
       enabled: Boolean(c.reservations_enabled),
       maxDays: c.reservation_max_days ?? 60,
       slotMinutes: c.reservation_slot_minutes ?? 30,
-      hours: parseWeekHours(branchHours ?? c.hours),
+      hours: parseSchedule(branchHours ?? c.hours),
       areas: areaRows.map((a) => ({ id: a.id, maxCovers: a.max_covers })),
       reservations: ((taken ?? []) as { area_id: string | null; time: string; party_size: number }[]).map((r) => ({
         areaId: r.area_id,

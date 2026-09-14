@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { parseWeekHours, isOpenNowIn, todayHoursIn } from '@/lib/hours';
+import { parseSchedule, isOpenNowIn, todayHoursIn } from '@/lib/hours';
 
 export function OpenStatus({ hours, timezone }: { hours: unknown; timezone: string | null | undefined }) {
   const t = useTranslations('hours');
-  const week = parseWeekHours(hours);
+  const week = parseSchedule(hours);
   // Computed on the client to avoid an SSR/CSR mismatch, but resolved against
   // the RESTAURANT's timezone, not the visitor's — otherwise someone browsing
   // from another country is told the kitchen is closed when it is not.
@@ -31,6 +31,9 @@ export function OpenStatus({ hours, timezone }: { hours: unknown; timezone: stri
         <span style={{ color: 'var(--brand-text-secondary)' }}>
           · {today.open}–{today.close}
         </span>
+      )}
+      {today.label && (
+        <span style={{ color: 'var(--brand-text-secondary)' }}>· {today.label}</span>
       )}
     </div>
   );

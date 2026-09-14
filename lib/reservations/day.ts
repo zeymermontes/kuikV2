@@ -5,7 +5,7 @@
 // date, so the bot can say "that day we're closed" or "that day is full"
 // instead of collecting time and name first and refusing at the end.
 
-import type { DayHours, WeekHours } from '@/lib/hours';
+import { hoursOn, weekdayOfDate as weekdayOf, type DayHours, type Schedule, type WeekHours } from '@/lib/hours';
 import { addDays } from '@/lib/time';
 
 export type DayUnavailableReason = 'not_enabled' | 'past' | 'too_far' | 'closed' | 'full';
@@ -18,7 +18,7 @@ export interface DayAvailabilityInput {
   enabled: boolean;
   maxDays: number;
   slotMinutes: number;
-  hours: WeekHours | null;
+  hours: Schedule | WeekHours | null;
   /** Public areas with a cap; an area with `maxCovers` null never fills. */
   areas: { id: string; maxCovers: number | null }[];
   /** Live bookings that day (pending/confirmed/seated…), with their area. */
@@ -32,12 +32,11 @@ const toMin = (hhmm: string): number => {
 };
 
 /** Mon=0…Sun=6 for a calendar date, independent of the runtime's zone. */
-export function weekdayOfDate(date: string): number {
-  return (new Date(`${date}T12:00:00Z`).getUTCDay() + 6) % 7;
-}
+export const weekdayOfDate = weekdayOf;
 
-export function dayHoursFor(hours: WeekHours | null, date: string): DayHours | null {
-  return hours ? (hours[weekdayOfDate(date)] ?? null) : null;
+/** The hours that date — a special date (Christmas closed) wins over its weekday. */
+export function dayHoursFor(hours: Schedule | WeekHours | null, date: string): DayHours | null {
+  return hours ? (hoursOn(hours, date) ?? null) : null;
 }
 
 export function dayAvailability(input: DayAvailabilityInput): DayStatus {

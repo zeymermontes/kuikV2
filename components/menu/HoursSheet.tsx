@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
-import { DAY_KEYS, parseWeekHours, isOpenNowIn } from '@/lib/hours';
-import { weekdayInTz } from '@/lib/time';
+import { DAY_KEYS, parseSchedule, isOpenNowIn, upcomingSpecials } from '@/lib/hours';
+import { todayInTz, weekdayInTz } from '@/lib/time';
 
 /** The full week's opening hours, today highlighted, as a bottom sheet. */
 export function HoursSheet({
@@ -17,7 +17,9 @@ export function HoursSheet({
   onClose: () => void;
 }) {
   const t = useTranslations('hours');
-  const week = parseWeekHours(hours);
+  const locale = useLocale();
+  const schedule = parseSchedule(hours);
+  const week = schedule?.week ?? null;
   // Resolved on the client, in the restaurant's own zone (see OpenStatus).
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
@@ -30,9 +32,14 @@ export function HoursSheet({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  if (!week) return null;
+  if (!week || !schedule) return null;
   const today = now ? weekdayInTz(timezone, now) : -1;
-  const open = now ? isOpenNowIn(week, timezone, now) : null;
+  const open = now ? isOpenNowIn(schedule, timezone, now) : null;
+  const specials = now ? upcomingSpecials(schedule, todayInTz(timezone, now)) : [];
+  const fmtDate = (iso: string) => {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
@@ -70,6 +77,23 @@ export function HoursSheet({
             );
           })}
         </ul>
+        {specials.length > 0 && (
+          <>
+            <h3 className="mt-4 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--brand-text-secondary)' }}>
+              {t('specialTitle')}
+            </h3>
+            <ul className="mt-1.5 space-y-1.5 text-sm">
+              {specials.map((d) => (
+                <li key={d.date} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1">
+                  <span className="min-w-0 truncate">{fmtDate(d.date)}{d.label ? ` · ${d.label}` : ''}</span>
+                  <span className="shrink-0" style={{ color: d.closed ? 'var(--brand-text-secondary)' : undefined }}>
+                    {d.closed ? t('closed') : `${d.open} – ${d.close}`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </div>
     </div>
   );
