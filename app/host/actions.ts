@@ -14,6 +14,7 @@ import { bridgeConversationFor } from '@/lib/notify/bridge-conversation';
 import { sendMessage } from '@/lib/whatsapp/send';
 import { isWindowOpen, WindowClosedError } from '@/lib/whatsapp/window';
 import type { MessageOrigin } from '@/lib/whatsapp/types';
+import { resumeBot } from '@/lib/whatsapp/bot';
 import { isLid } from '@/lib/phone';
 import type {
   FloorTable, FloorCombination, Reservation, ReservationShift, ReservationStatus, TableShape, TableStatus,
@@ -414,14 +415,15 @@ export async function sendPartyMessage(conversationId: string, body: string): Pr
 /** Hand a party's chat back to the bot, or take it away. */
 export async function setPartyChatBot(conversationId: string, enabled: boolean): Promise<void> {
   const { tenant } = await requireReservations();
+  if (enabled) {
+    // Back to the bot — and it answers whatever the diner left unanswered.
+    await resumeBot(tenant.id, conversationId);
+    return;
+  }
   const admin = createAdminClient();
   await admin
     .from('whatsapp_conversations')
-    .update(
-      enabled
-        ? { bot_enabled: true, handoff_at: null, handoff_by: null }
-        : { bot_enabled: false, handoff_at: new Date().toISOString(), handoff_by: 'staff_dashboard' },
-    )
+    .update({ bot_enabled: false, handoff_at: new Date().toISOString(), handoff_by: 'staff_dashboard' })
     .eq('id', conversationId)
     .eq('tenant_id', tenant.id);
 }

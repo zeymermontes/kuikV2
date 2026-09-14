@@ -5,6 +5,7 @@ import { requireManager } from '@/lib/auth';
 import { canUse, effectivePlan } from '@/lib/plan';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { resumeBot } from '@/lib/whatsapp/bot';
 import { listConversations, type ConversationItem, type InboxFilters } from './query';
 
 /** Load-more for the conversation list; same query the page ran. */
@@ -50,14 +51,16 @@ export async function setConversationBot(input: {
   const { tenant, subscription } = await requireManager();
   if (!canUse(effectivePlan(subscription), 'wa_bots')) return { ok: false };
 
+  if (input.enabled) {
+    // Back to the bot — and it answers whatever the diner left unanswered.
+    await resumeBot(tenant.id, input.conversationId);
+    revalidatePath('/whatsapp/inbox');
+    return { ok: true };
+  }
   const admin = createAdminClient();
   const { error } = await admin
     .from('whatsapp_conversations')
-    .update(
-      input.enabled
-        ? { bot_enabled: true, handoff_at: null, handoff_by: null }
-        : { bot_enabled: false, handoff_at: new Date().toISOString(), handoff_by: 'staff_dashboard' },
-    )
+    .update({ bot_enabled: false, handoff_at: new Date().toISOString(), handoff_by: 'staff_dashboard' })
     .eq('id', input.conversationId)
     .eq('tenant_id', tenant.id);
   if (!error) revalidatePath('/whatsapp/inbox');

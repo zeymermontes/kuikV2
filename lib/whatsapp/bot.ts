@@ -271,6 +271,37 @@ export async function runBot(turn: BotTurn): Promise<void> {
 }
 
 /**
+ * A person hands the chat back to the bot. If the diner's last message is
+ * still unanswered — they wrote while the chat was parked and nobody replied
+ * — the bot answers it now instead of waiting for them to write again. The
+ * turn runs in the background so the switch flips at once.
+ */
+export async function resumeBot(tenantId: string, conversationId: string): Promise<{ answering: boolean }> {
+  const supabase = createAdminClient();
+  await supabase
+    .from('whatsapp_conversations')
+    .update({ bot_enabled: true, handoff_at: null, handoff_by: null })
+    .eq('id', conversationId)
+    .eq('tenant_id', tenantId);
+
+  const { data } = await supabase
+    .from('whatsapp_messages')
+    .select('direction, body, type')
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const last = data as { direction: string; body: string | null; type: string | null } | null;
+  const text = last?.direction === 'inbound' ? (last.body ?? '').trim() : '';
+  if (!text) return { answering: false };
+
+  void runBot({ tenantId, conversationId, text }).catch((err) => {
+    console.error('[whatsapp] resume turn failed', err instanceof Error ? err.message : err);
+  });
+  return { answering: true };
+}
+
+/**
  * The in-process half of the AI breather: a plain timer, because this is a
  * long-running server, not a lambda. A deploy in between loses it, and the
  * maintenance cron replays whatever is still due.
