@@ -211,6 +211,30 @@ export function SaleScreen({
     return (id: string) => m.get(id) ?? '';
   }, [menu.categories]);
 
+  // The menu's own order: categories by position with each one's subcategories
+  // right after it, and products by position inside their category. The rows
+  // come ordered by `position` alone, which interleaves categories.
+  const orderedCategories = useMemo(() => {
+    const byParent = new Map<string | null, PosMenu['categories']>();
+    for (const c of menu.categories) byParent.set(c.parent_id ?? null, [...(byParent.get(c.parent_id ?? null) ?? []), c]);
+    const out: PosMenu['categories'] = [];
+    for (const top of byParent.get(null) ?? []) {
+      out.push(top);
+      for (const sub of byParent.get(top.id) ?? []) out.push(sub);
+    }
+    // Orphans (a parent hidden or filtered out) still get listed, at the end.
+    for (const c of menu.categories) if (!out.includes(c)) out.push(c);
+    return out;
+  }, [menu.categories]);
+  const orderedProducts = useMemo(() => {
+    const rank = new Map(orderedCategories.map((c, i) => [c.id, i] as const));
+    return [...menu.products].sort((a, b) =>
+      (rank.get(a.category_id ?? '') ?? 1e9) - (rank.get(b.category_id ?? '') ?? 1e9)
+      || (a.position ?? 0) - (b.position ?? 0)
+      || a.name.localeCompare(b.name),
+    );
+  }, [menu.products, orderedCategories]);
+
   // A category covers its own products and those of its subcategories: tapping
   // "Dulces" shows the fresas and the postres, not an empty grid.
   const withinCat = useMemo(() => {
@@ -226,9 +250,9 @@ export function SaleScreen({
     const q = query.trim().toLowerCase();
     if (q) return menu.products.filter((p) => p.name.toLowerCase().includes(q) || (p.sku ?? '').toLowerCase().includes(q));
     if (activeCat === POPULAR) return popular;
-    if (activeCat === ALL) return menu.products;
-    return menu.products.filter((p) => withinCat(activeCat, p.category_id));
-  }, [menu.products, activeCat, query, popular, withinCat]);
+    if (activeCat === ALL) return orderedProducts;
+    return orderedProducts.filter((p) => withinCat(activeCat, p.category_id));
+  }, [menu.products, orderedProducts, activeCat, query, popular, withinCat]);
 
   // Map a product to its kitchen station (category.station, else category name).
   const stationOf = useMemo(() => {
@@ -539,7 +563,7 @@ export function SaleScreen({
               <Star className="h-3.5 w-3.5" /> {t('popular')}
             </Chip>
           )}
-          {menu.categories.map((c) => (
+          {orderedCategories.map((c) => (
             <Chip key={c.id} active={activeCat === c.id} onClick={() => setActiveCat(c.id)} help="pos_category">
               {c.name}
             </Chip>
@@ -726,7 +750,7 @@ export function SaleScreen({
             {[
               { id: ALL, name: t('all'), icon: null as string | null, image: null as string | null, count: menu.products.length },
               ...(popular.length > 0 ? [{ id: POPULAR, name: t('popular'), icon: '⭐', image: null, count: popular.length }] : []),
-              ...menu.categories.map((c) => ({
+              ...orderedCategories.map((c) => ({
                 id: c.id,
                 name: c.name,
                 icon: c.icon,
