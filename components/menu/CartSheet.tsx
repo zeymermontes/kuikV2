@@ -67,8 +67,17 @@ export function CartSheet({
 
   // Payment is only asked when the restaurant enabled at least one method, and
   // even then it is optional — a guest may just say it on WhatsApp.
-  const paymentMethods: PaymentMethod[] = ordering.payment_methods ?? [];
-  const [payment, setPayment] = useState<PaymentMethod | null>(null);
+  const allPaymentMethods: PaymentMethod[] = ordering.payment_methods ?? [];
+  // "Pay at the counter" makes no sense for a delivery: the rider is the counter.
+  const paymentMethods = service === 'delivery' ? allPaymentMethods.filter((m) => m !== 'onsite') : allPaymentMethods;
+  const [payment, setPaymentState] = useState<PaymentMethod | null>(null);
+  const setPayment = setPaymentState;
+  // Switching to delivery drops a counter payment picked before the switch.
+  const [prevService, setPrevService] = useState(service);
+  if (prevService !== service) {
+    setPrevService(service);
+    if (service === 'delivery' && payment === 'onsite') setPaymentState(null);
+  }
   const [copied, setCopied] = useState(false);
   const transfer =
     ordering.transfer_account || ordering.transfer_bank || ordering.transfer_holder

@@ -82,7 +82,11 @@ export async function POST(
     ...(normalizePhone(body.customer_phone) ? { customer_phone: normalizePhone(body.customer_phone) } : {}),
     service_type: body.service_type ?? null,
     table_label: body.table_label ?? null,
-    payment_method: typeof body.payment_method === 'string' ? body.payment_method.slice(0, 20) : null,
+    // A delivery cannot be paid at the counter; a stale client that still offers it is corrected here.
+    payment_method:
+      typeof body.payment_method === 'string' && !(body.service_type === 'delivery' && body.payment_method === 'onsite')
+        ? body.payment_method.slice(0, 20)
+        : null,
     channel: 'whatsapp',
     promo_code: typeof body.promo_code === 'string' ? body.promo_code.trim().toUpperCase().slice(0, 40) || null : null,
     // For a WhatsApp order the cart's own figure is kept as a record; a paid one is re-priced below.
