@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  parseSchedule, parseWeekHours, serializeSchedule, hoursOn, isOpenNowIn, todayHoursIn, upcomingSpecials, defaultWeekHours,
+  parseSchedule, parseWeekHours, serializeSchedule, hoursOn, isOpenNowIn, todayHoursIn, upcomingSpecials, defaultWeekHours, nextOpeningIn,
 } from '../lib/hours';
 
 const week = defaultWeekHours(); // 09:00–18:00 every day
@@ -50,4 +50,21 @@ test('upcoming specials start today and stop at the horizon', () => {
   assert.deepEqual(upcomingSpecials(s, '2026-05-10').map((d) => d.date), ['2026-05-10']);
   assert.deepEqual(upcomingSpecials(s, '2026-05-11').map((d) => d.date), []);
   assert.deepEqual(upcomingSpecials(s, '2026-05-11', 365).map((d) => d.date), ['2026-12-25']);
+});
+
+test('the next opening skips closed days and says how far away it is', () => {
+  const tz = 'America/Mexico_City';
+  const sched = {
+    week: week.map((d, i) => (i === 1 || i === 2 ? { ...d, closed: true } : d)), // Tue & Wed closed
+    special: [] as { date: string; label: string; closed: boolean; open: string; close: string }[],
+  };
+  // Monday 2026-09-14 at 20:00 local (02:00Z next day): Tue and Wed closed → Thursday.
+  const monNight = new Date('2026-09-15T02:00:00Z');
+  assert.deepEqual(nextOpeningIn(sched, tz, monNight), { date: '2026-09-17', open: '09:00', daysAhead: 3, label: undefined });
+  // Monday 07:00 local: opens later today.
+  assert.equal(nextOpeningIn(sched, tz, new Date('2026-09-14T13:00:00Z'))?.daysAhead, 0);
+  // Monday 10:00 local: open now → nothing to announce.
+  assert.equal(nextOpeningIn(sched, tz, new Date('2026-09-14T16:00:00Z')), null);
+  // Thursday night → Friday is tomorrow.
+  assert.equal(nextOpeningIn(sched, tz, new Date('2026-09-18T02:00:00Z'))?.daysAhead, 1);
 });

@@ -1337,6 +1337,9 @@
     "title": "Opening hours",
     "openNow": "Open now",
     "closedNow": "Closed",
+    "opensToday": "opens today at {time}",
+    "opensTomorrow": "opens tomorrow at {time}",
+    "closedUntil": "Closed until {day}",
     "specialTitle": "Special dates",
     "specialHint": "Holidays or events with hours that differ from the week. The bot and the menu take them into account.",
     "addSpecial": "Add date",
@@ -1901,6 +1904,7 @@
     "serviceRequired": "Choose how you want your order.",
     "paymentRequired": "Choose a payment method.",
     "pickupChoose": "Pick a time",
+    "pickupOther": "Another time…",
     "pickupAsap": "As soon as possible",
     "pickupRequired": "Pick a time to collect your order.",
     "scrollToReview": "Scroll down to review your order before sending it."

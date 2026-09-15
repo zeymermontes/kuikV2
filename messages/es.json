@@ -1337,6 +1337,9 @@
     "title": "Horario",
     "openNow": "Abierto ahora",
     "closedNow": "Cerrado",
+    "opensToday": "abre hoy a las {time}",
+    "opensTomorrow": "abre mañana a las {time}",
+    "closedUntil": "Cerrado hasta el {day}",
     "specialTitle": "Fechas especiales",
     "specialHint": "Días festivos o eventos con horario distinto al de la semana. El bot y el menú los toman en cuenta.",
     "addSpecial": "Agregar fecha",
@@ -1901,6 +1904,7 @@
     "serviceRequired": "Elige cómo quieres tu pedido.",
     "paymentRequired": "Elige la forma de pago.",
     "pickupChoose": "Elige la hora",
+    "pickupOther": "Otra hora…",
     "pickupAsap": "Lo antes posible",
     "pickupRequired": "Elige a qué hora pasas por tu pedido.",
     "scrollToReview": "Desliza hasta abajo para revisar tu pedido antes de enviarlo."

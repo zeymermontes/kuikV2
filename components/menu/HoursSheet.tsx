@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
-import { DAY_KEYS, parseSchedule, isOpenNowIn, upcomingSpecials } from '@/lib/hours';
+import { DAY_KEYS, parseSchedule, isOpenNowIn, nextOpeningIn, upcomingSpecials } from '@/lib/hours';
+import { closedStatus } from './OpenStatus';
 import { todayInTz, weekdayInTz } from '@/lib/time';
 
 /** The full week's opening hours, today highlighted, as a bottom sheet. */
@@ -35,6 +36,7 @@ export function HoursSheet({
   if (!week || !schedule) return null;
   const today = now ? weekdayInTz(timezone, now) : -1;
   const open = now ? isOpenNowIn(schedule, timezone, now) : null;
+  const closed = now && !open ? closedStatus(t, locale, nextOpeningIn(schedule, timezone, now)) : null;
   const specials = now ? upcomingSpecials(schedule, todayInTz(timezone, now)) : [];
   const fmtDate = (iso: string) => {
     const [y, m, d] = iso.split('-').map(Number);
@@ -57,7 +59,8 @@ export function HoursSheet({
         {open !== null && (
           <p className="mt-1 flex items-center gap-2 text-xs font-medium">
             <span className={`h-2 w-2 rounded-full ${open ? 'bg-green-500' : 'bg-red-500'}`} />
-            {open ? t('openNow') : t('closedNow')}
+            {open ? t('openNow') : closed?.title}
+            {closed?.detail && <span style={{ color: 'var(--brand-text-secondary)' }}>· {closed.detail}</span>}
           </p>
         )}
         <ul className="mt-4 space-y-1.5 text-sm">

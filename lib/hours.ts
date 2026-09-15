@@ -10,7 +10,7 @@
 // runtime's clock, the `…In(tz)` ones read the restaurant's. Server code and
 // anything shown to a visitor who might not be local wants the latter.
 
-import { nowHHMMInTz, todayInTz } from '@/lib/time';
+import { addDays, nowHHMMInTz, todayInTz } from '@/lib/time';
 
 export interface DayHours {
   closed: boolean;
@@ -171,6 +171,40 @@ export function todayHoursIn(
   now: Date = new Date(),
 ): ResolvedDay {
   return hoursOn(hours, todayInTz(tz, now));
+}
+
+/** When a closed restaurant opens again, for "cerrado hasta el miércoles". */
+export interface NextOpening {
+  date: string; // "YYYY-MM-DD"
+  open: string; // "HH:MM"
+  /** 0 = later today, 1 = tomorrow, … */
+  daysAhead: number;
+  label?: string;
+}
+
+/**
+ * The next time the doors open, in the restaurant's own calendar, or null
+ * when nothing opens within `days`. Later today counts when now is before
+ * today's opening time; an ongoing after-midnight shift is "open", not next.
+ */
+export function nextOpeningIn(
+  hours: Schedule | WeekHours,
+  tz: string | null | undefined,
+  now: Date = new Date(),
+  days = 14,
+): NextOpening | null {
+  if (isOpenNowIn(hours, tz, now)) return null;
+  const today = todayInTz(tz, now);
+  const [h, m] = nowHHMMInTz(tz, now).split(':').map(Number);
+  const minutes = h * 60 + m;
+  for (let i = 0; i <= days; i++) {
+    const date = addDays(today, i);
+    const day = hoursOn(hours, date);
+    if (day.closed) continue;
+    if (i === 0 && minutes >= toMin(day.open)) continue; // already past today's opening
+    return { date, open: day.open, daysAhead: i, label: day.label };
+  }
+  return null;
 }
 
 /** Google Maps link: an explicit URL if set, else a search by address. */

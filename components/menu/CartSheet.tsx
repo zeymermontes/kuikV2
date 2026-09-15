@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { parseSchedule, hoursOn } from '@/lib/hours';
 import { todayInTz, nowHHMMInTz } from '@/lib/time';
 import { SelectionLines } from '@/components/menu/SelectionLines';
-import { X, Plus, Minus, Trash2, Copy, Check } from 'lucide-react';
+import { X, Plus, Minus, Trash2, Copy, Check, Clock, ChevronDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Tenant, TenantContact, TenantOrdering, ServiceType, PaymentMethod } from '@/lib/database.types';
 import {
@@ -138,6 +138,8 @@ export function CartSheet({
     }
   }
   const [pickupTime, setPickupTime] = useState('');
+  // "Otra hora": the native clock picker instead of the quarter-hour list.
+  const [customPickup, setCustomPickup] = useState(false);
   const [table, setTable] = useState(presetTable ?? '');
   const [sending, setSending] = useState(false);
   // "Pedir nombre" means required, not decorative: the restaurant asked for it
@@ -592,21 +594,43 @@ export function CartSheet({
               {service === 'pickup' && (
                 <div>
                   <p className="mb-1.5 text-sm font-semibold">{t('pickupTime')}</p>
-                  <select
-                    id="kuik-cart-pickup"
-                    value={pickupTime}
-                    onChange={(e) => setPickupTime(e.target.value)}
-                    aria-invalid={tried && missingPickupTime}
-                    className={`w-full appearance-none rounded-xl border bg-[var(--brand-surface)] px-3 py-2.5 text-sm focus:outline-none ${
-                      tried && missingPickupTime ? 'border-red-400 focus:border-red-500' : 'border-[var(--brand-border)] focus:border-[var(--brand-primary)]'
-                    }`}
-                  >
-                    <option value="" disabled>{t('pickupChoose')}</option>
-                    <option value={t('pickupAsap')}>{t('pickupAsap')}</option>
-                    {pickupSlots.map((slot) => (
-                      <option key={slot} value={slot}>{slot}</option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <Clock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: 'var(--brand-text-secondary)' }} />
+                    <select
+                      id="kuik-cart-pickup"
+                      value={customPickup ? '__custom' : pickupTime}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === '__custom') { setCustomPickup(true); setPickupTime(''); }
+                        else { setCustomPickup(false); setPickupTime(v); }
+                      }}
+                      aria-invalid={tried && missingPickupTime}
+                      className={`w-full appearance-none rounded-xl border bg-[var(--brand-surface)] py-2.5 pl-9 pr-9 text-sm focus:outline-none ${
+                        tried && missingPickupTime ? 'border-red-400 focus:border-red-500' : 'border-[var(--brand-border)] focus:border-[var(--brand-primary)]'
+                      }`}
+                    >
+                      <option value="" disabled>{t('pickupChoose')}</option>
+                      <option value={t('pickupAsap')}>{t('pickupAsap')}</option>
+                      {pickupSlots.map((slot) => (
+                        <option key={slot} value={slot}>{slot}</option>
+                      ))}
+                      <option value="__custom">{t('pickupOther')}</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: 'var(--brand-text-secondary)' }} />
+                  </div>
+                  {customPickup && (
+                    <input
+                      type="time"
+                      step={300}
+                      autoFocus
+                      value={pickupTime}
+                      onChange={(e) => setPickupTime(e.target.value)}
+                      aria-invalid={tried && missingPickupTime}
+                      className={`mt-2 w-full rounded-xl border bg-[var(--brand-surface)] px-3 py-2.5 text-sm focus:outline-none ${
+                        tried && missingPickupTime ? 'border-red-400 focus:border-red-500' : 'border-[var(--brand-border)] focus:border-[var(--brand-primary)]'
+                      }`}
+                    />
+                  )}
                   {tried && missingPickupTime && <p className="mt-1 text-xs text-red-500">{t('pickupRequired')}</p>}
                 </div>
               )}
