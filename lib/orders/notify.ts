@@ -10,7 +10,8 @@ import { kitchenDoc, onlineOrderDoc } from '@/lib/pos/print-doc';
 import { printersFor } from '@/lib/pos/print-route';
 import type { OrderRow, OrderStatus, Printer } from '@/lib/database.types';
 import type { KitchenTicket } from '@/lib/pos/types';
-import { resolveOrderAlerts, type OrderAlerts } from './alerts';
+import { orderPushRoles, resolveOrderAlerts, type OrderAlerts } from './alerts';
+import { approvalFor, resolveOrderApproval } from './approval';
 
 // How the restaurant hears about an order. A WhatsApp order announces itself:
 // the guest's message lands on the restaurant's phone. A paid online order
@@ -134,7 +135,7 @@ export async function notifyPaidOrder(o: OrderLike, tickets: KitchenTicket[]): P
 
     if (alerts.push) {
       jobs.push(
-        sendToTenant(o.tenant_id, ['owner', 'manager', 'cashier'], (locale) => {
+        sendToTenant(o.tenant_id, orderPushRoles(alerts), (locale) => {
           const t = tx(locale);
           return {
             title: t.paidTitle(code, total),
@@ -190,7 +191,7 @@ export async function notifyWhatsappOrder(o: OrderLike): Promise<void> {
     const ctx = await loadCtx(o.tenant_id);
     if (!ctx || !ctx.alerts.whatsappOrders || !ctx.alerts.push) return;
     const code = orderCode(o.id);
-    await sendToTenant(o.tenant_id, ['owner', 'manager', 'cashier'], (locale) => ({
+    await sendToTenant(o.tenant_id, orderPushRoles(ctx.alerts), (locale) => ({
       title: tx(locale).newTitle(code),
       body: [who(o), summary(o)].filter(Boolean).join('\n'),
       tag: `order-${o.id}`,
@@ -199,6 +200,32 @@ export async function notifyWhatsappOrder(o: OrderLike): Promise<void> {
     }));
   } catch (e) {
     console.error('[order-alerts] whatsapp:', e instanceof Error ? e.message : e);
+  }
+}
+
+/**
+ * A fresh order whose payment method and service type the restaurant accepts
+ * by themselves (lib/orders/approval.ts) moves to "preparing" at once, as if
+ * a person had tapped Accept: accepted_at is stamped and the guest hears it.
+ * Returns true when it did.
+ */
+export async function autoApproveOrder(orderId: string, tenantId: string): Promise<boolean> {
+  try {
+    const sb = createAdminClient();
+    const [{ data: order }, { data: ordering }] = await Promise.all([
+      sb.from('orders').select('id, status, payment_method, service_kind, payment_status').eq('id', orderId).eq('tenant_id', tenantId).maybeSingle(),
+      sb.from('tenant_ordering').select('order_approval').eq('tenant_id', tenantId).maybeSingle(),
+    ]);
+    const o = order as { id: string; status: OrderStatus; payment_method: string | null; service_kind: string | null; payment_status: string } | null;
+    if (!o || o.status !== 'new' || o.payment_status === 'pending') return false;
+    const rules = resolveOrderApproval((ordering as { order_approval: unknown } | null)?.order_approval);
+    if (approvalFor(rules, o.payment_method, o.service_kind) !== 'auto') return false;
+    await sb.from('orders').update({ status: 'preparing', updated_at: new Date().toISOString() }).eq('id', o.id).eq('status', 'new');
+    await onOrderStatus(o.id, tenantId, 'preparing');
+    return true;
+  } catch (e) {
+    console.error('[order-alerts] auto-approve:', e instanceof Error ? e.message : e);
+    return false;
   }
 }
 

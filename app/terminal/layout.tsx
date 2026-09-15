@@ -4,7 +4,7 @@ import { StaffIntlProvider } from '@/components/intl/StaffIntlProvider';
 import { ShellUpdateBanner } from '@/components/ShellUpdateBanner';
 import { NewOrderAlert } from '@/components/orders/NewOrderAlert';
 import { StaffAlerts } from '@/components/StaffAlerts';
-import { ordersBoardEnabled } from '@/lib/orders/board';
+import { ordersBoardConfig } from '@/lib/orders/board';
 import { NativePush } from '@/components/dashboard/NativePush';
 import { fcmConfigured } from '@/lib/push/fcm';
 import { apnsConfigured } from '@/lib/push/apns';
@@ -23,13 +23,13 @@ export const metadata: Metadata = {
  */
 export default async function TerminalLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireTenant(); // auth gate: redirects to /login or /onboarding if needed
-  const ordersBoard = await ordersBoardEnabled(ctx.tenant.id);
+  const orders = await ordersBoardConfig(ctx.tenant.id);
   return (
     <StaffIntlProvider>
       <div className="min-h-dvh bg-[#111114] text-white">{children}</div>
       {/* The phone app registers for push here, since it may never open the dashboard. */}
       <NativePush enabled={{ android: fcmConfigured(), ios: apnsConfigured() }} />
-      {ordersBoard && <NewOrderAlert tenantId={ctx.tenant.id} />}
+      {orders.board && <NewOrderAlert tenantId={ctx.tenant.id} enabled={orders.alerts.notifyHost || orders.alerts.notifyPos} />}
       <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} />
       <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />
     </StaffIntlProvider>

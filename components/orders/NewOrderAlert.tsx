@@ -16,12 +16,12 @@ import { orderCode } from '@/lib/utils';
  * (0085). The customer-facing screen never shows it. The board itself has
  * its own, richer announcement (components/dashboard/OrdersBoard.tsx).
  */
-export function NewOrderAlert({ tenantId }: { tenantId: string }) {
+export function NewOrderAlert({ tenantId, enabled = true }: { tenantId: string; enabled?: boolean }) {
   const t = useTranslations('orders');
   const pathname = usePathname();
   const [toasts, setToasts] = useState<OrderRow[]>([]);
   const seen = useRef(new Map<string, string>());
-  const quiet = pathname.startsWith('/pos/customer') || pathname.startsWith('/orders');
+  const quiet = !enabled || pathname.startsWith('/pos/customer') || pathname.startsWith('/orders');
 
   useEffect(() => {
     if (quiet) return;

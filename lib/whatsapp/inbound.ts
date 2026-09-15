@@ -292,6 +292,18 @@ async function handleInbound(supabase: Supabase, row: EventRow): Promise<void> {
       .update({ last_inbound_at: now.toISOString() })
       .eq('phone_number_id', phoneNumberId);
 
+    // "Nuevo pedido #A1B2C3": the cart's message, arriving in the chat. The
+    // order learns which conversation it came through, so the stand can open it.
+    const orderRef = /pedido\s+#([0-9a-f]{6})\b/i.exec(body);
+    if (orderRef) {
+      await supabase
+        .from('orders')
+        .update({ whatsapp_conversation_id: conversationId })
+        .eq('tenant_id', tenantId)
+        .eq('code', orderRef[1].toUpperCase())
+        .is('whatsapp_conversation_id', null);
+    }
+
     // A photo or a sticker with nothing said: kept for the staff chat, but
     // there is no question in it for the bot to answer.
     if (!body.trim() && !replyId && !audioUnreadable) continue;

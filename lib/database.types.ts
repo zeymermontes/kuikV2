@@ -357,6 +357,8 @@ export interface TenantOrdering {
   receipt_footer: string | null;
   /** How the restaurant is told about orders (lib/orders/alerts.ts, 0068). */
   order_alerts: Record<string, unknown> | null;
+  /** Which payment methods / service types are accepted by themselves (lib/orders/approval.ts, 0094). */
+  order_approval?: Record<string, unknown> | null;
   /** Ask for a PIN again after every closed sale (shared tablet). */
   pos_lock_after_sale: boolean;
   /** The Pedidos board, live alerts and stored WhatsApp orders; the super admin turns it on (0085). */
@@ -784,6 +786,12 @@ export interface OrderRow {
   channel: string;
   status: OrderStatus;
   service_type: string | null;
+  /** The machine key behind service_type's label (0094). */
+  service_kind?: 'pickup' | 'delivery' | 'dinein' | null;
+  /** Short code printed in the guest's WhatsApp message (0094). */
+  code?: string | null;
+  /** The chat the order came through, once the message with its code arrived (0094). */
+  whatsapp_conversation_id?: string | null;
   table_label: string | null;
   payment_method: string | null;
   /** none = paid at the counter / on WhatsApp; the rest follow the gateway (0066). */

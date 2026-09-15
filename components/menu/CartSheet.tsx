@@ -15,7 +15,7 @@ import {
   type CartLine,
 } from '@/lib/whatsapp';
 import { trackPixel } from '@/lib/pixel';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, orderCode } from '@/lib/utils';
 import { applyPromotions, hasCoupons } from '@/lib/promotions';
 import type { Promotion } from '@/lib/database.types';
 
@@ -256,8 +256,12 @@ export function CartSheet({
     setSending(true);
     setPayError(null);
 
+    // The id is minted here so the WhatsApp text can carry the order's code
+    // before the server has answered (the post is fire-and-forget).
+    const orderId = crypto.randomUUID();
     const message = buildOrderMessage({
       restaurantName: tenant.name,
+      code: orderCode(orderId),
       lines,
       showPrices,
       currency,
@@ -282,6 +286,8 @@ export function CartSheet({
     });
 
     const payload = {
+      id: orderId,
+      service_kind: service,
       branch_id: branchId,
       items: lines,
       total: showPrices ? total : null,

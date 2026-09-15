@@ -25,6 +25,8 @@ export function cartSubtotal(lines: CartLine[]): number {
 
 export interface BuildMessageOptions {
   restaurantName: string;
+  /** The order's short code, so the chat can be tied back to it. */
+  code?: string;
   lines: CartLine[];
   showPrices: boolean;
   currency?: string;
@@ -51,6 +53,7 @@ export interface BuildMessageOptions {
 export function buildOrderMessage(opts: BuildMessageOptions): string {
   const {
     restaurantName,
+    code,
     lines,
     showPrices,
     currency = 'MXN',
@@ -69,7 +72,7 @@ export function buildOrderMessage(opts: BuildMessageOptions): string {
   const money = (n: number) => formatPrice(n, currency, locale);
   const out: string[] = [];
 
-  out.push(`*${restaurantName}* — Nuevo pedido`);
+  out.push(`*${restaurantName}* — Nuevo pedido${code ? ` #${code}` : ''}`);
   if (header) out.push(header);
   out.push('');
 

@@ -18,6 +18,10 @@ export interface OrderAlerts {
   teamPhones: string[];
   /** Minutes a paid order may sit unaccepted before the team is nudged. 0 = never. */
   escalateMinutes: number;
+  /** The host stand hears about orders: live toast there, push to the host role. */
+  notifyHost: boolean;
+  /** The register and the kitchen hear about orders: live toast there, push to cashiers. */
+  notifyPos: boolean;
 }
 
 export const DEFAULT_ORDER_ALERTS: OrderAlerts = {
@@ -29,7 +33,14 @@ export const DEFAULT_ORDER_ALERTS: OrderAlerts = {
   confirmCustomer: true,
   teamPhones: [],
   escalateMinutes: 3,
+  notifyHost: true,
+  notifyPos: true,
 };
+
+/** Who gets the push for an order, per the switches above. Owners and managers always. */
+export function orderPushRoles(a: OrderAlerts): ('owner' | 'manager' | 'cashier' | 'host')[] {
+  return ['owner', 'manager', ...(a.notifyPos ? (['cashier'] as const) : []), ...(a.notifyHost ? (['host'] as const) : [])];
+}
 
 export function resolveOrderAlerts(raw: unknown): OrderAlerts {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<Record<keyof OrderAlerts, unknown>>;
@@ -45,5 +56,7 @@ export function resolveOrderAlerts(raw: unknown): OrderAlerts {
     confirmCustomer: bool('confirmCustomer'),
     teamPhones: phones,
     escalateMinutes: esc,
+    notifyHost: bool('notifyHost'),
+    notifyPos: bool('notifyPos'),
   };
 }

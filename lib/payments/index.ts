@@ -4,7 +4,7 @@ import { stripeGateway, stripeConfigured } from './stripe';
 import { mercadopagoGateway, mercadopagoConfigured } from './mercadopago';
 import { clipGateway } from './clip';
 import type { PaymentAccount, PaymentEvent, PaymentGateway, PaymentProvider, PublicPaymentAccount } from './types';
-import { notifyPaidOrder } from '@/lib/orders/notify';
+import { autoApproveOrder, notifyPaidOrder } from '@/lib/orders/notify';
 import type { KitchenTicket } from '@/lib/pos/types';
 
 export type { PaymentAccount, PaymentEvent, PaymentGateway, PaymentProvider, PublicPaymentAccount, WebhookRequest } from './types';
@@ -122,6 +122,7 @@ export async function applyPaymentEvent(event: PaymentEvent, provider: PaymentPr
       const tickets = await fireKitchenTickets(o);
       // The order is real now: tell the team, print it, confirm to the guest.
       await notifyPaidOrder({ ...o, amount_paid: event.amount, currency: event.currency, paid_at: now }, tickets);
+      await autoApproveOrder(o.id, o.tenant_id);
       return o.id;
     }
     case 'failed':

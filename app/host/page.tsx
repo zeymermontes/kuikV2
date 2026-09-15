@@ -12,6 +12,8 @@ import { branchFilter, resolveBranch } from '@/lib/branches';
 import { canUseHost } from '@/lib/plan';
 import { PosLocked } from '@/components/pos/PosLocked';
 import { DeviceBranchSync } from '@/components/pos/DeviceBranchSync';
+import { ordersBoardEnabled } from '@/lib/orders/board';
+import { resolveMenuSettings } from '@/lib/menu-settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,13 +37,14 @@ export default async function HostPage({ searchParams }: { searchParams: Promise
   const today = todayInTz(tenant.timezone);
   const day = d && ISO_DATE.test(d) ? d : today;
 
-  const [{ data: rows }, { data: tables }, { data: combos }, { data: areas }, { data: contact }, pending] = await Promise.all([
+  const [{ data: rows }, { data: tables }, { data: combos }, { data: areas }, { data: contact }, pending, ordersBoard] = await Promise.all([
     branchFilter(supabase.from('reservations').select('*').eq('tenant_id', tenant.id).eq('date', day), branchId).order('time', { ascending: true }),
     branchFilter(supabase.from('floor_tables').select('*').eq('tenant_id', tenant.id), branchId).order('position', { ascending: true }),
     supabase.from('floor_combinations').select('*').eq('tenant_id', tenant.id),
     branchFilter(supabase.from('reservation_areas').select('*').eq('tenant_id', tenant.id), branchId).order('position', { ascending: true }),
     supabase.from('tenant_contact').select('*').eq('tenant_id', tenant.id).maybeSingle(),
     getPendingSummary(),
+    demo ? Promise.resolve(false) : ordersBoardEnabled(tenant.id),
   ]);
   const c = contact as TenantContact | null;
 
@@ -74,6 +77,8 @@ export default async function HostPage({ searchParams }: { searchParams: Promise
       demo={demo}
       explain={explain}
       themeStyle={posThemeVars(theme)}
+      ordersBoard={ordersBoard}
+      currency={resolveMenuSettings(theme.settings ?? null).currency}
     />
     </>
   );

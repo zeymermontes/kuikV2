@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   ChevronLeft, ChevronRight, Users, Search, Plus, Settings, LayoutGrid, List, Pencil, Check, X,
-  CalendarClock, ExternalLink, Bell, Clock, Link2, Trash2,
+  CalendarClock, ExternalLink, Bell, Clock, Link2, Trash2, ShoppingBag,
 } from 'lucide-react';
 import type {
   FloorTable, FloorCombination, Reservation, ReservationArea, ReservationStatus, TableStatus, TableShape,
@@ -17,13 +17,14 @@ import {
   minutesSince, sectionOf, shiftAt, suggestSeating, tableViews, turnMinutesFor, type Section,
 } from '@/lib/host/model';
 import {
-  listHostDay, setPartyStatus, setTableStatus, moveParty, updateParty, addWalkIn, notifyTableReady, countHandoffChats, keepParty, ackCancelledParty,
+  listHostDay, setPartyStatus, setTableStatus, moveParty, updateParty, addWalkIn, notifyTableReady, countHandoffChats, keepParty, ackCancelledParty, countNewOrders,
   saveTable, moveTable, deleteTable, setTableServer, blockTable, saveHostSettings, saveCombination, deleteCombination,
   type HostDay, type PartyFields,
 } from '@/app/host/actions';
 import { getPendingSummary, markNotificationSent } from '@/app/(dashboard)/reservations/actions';
 import type { GuestNotice } from '@/lib/notify/guest';
 import { RequestsSheet } from './RequestsSheet';
+import { OrdersSheet } from './OrdersSheet';
 import { ChatSheet } from './ChatSheet';
 import { ReservationForm } from '@/components/dashboard/ReservationForm';
 import { FloorPlan } from './FloorPlan';
@@ -46,6 +47,8 @@ type Sheet =
   | { kind: 'requests' }
   | { kind: 'chat'; id: string }
   | { kind: 'handoffChat'; conversationId: string; name: string; phone: string | null }
+  | { kind: 'orders' }
+  | { kind: 'orderChat'; conversationId: string; name: string; phone: string | null }
   | null;
 
 /**
@@ -70,8 +73,13 @@ export function HostApp({
   themeStyle,
   demo = false,
   explain = false,
+  ordersBoard = false,
+  currency = 'MXN',
 }: {
   tenantId: string;
+  /** The Pedidos board is on: the stand shows takeout/pickup/delivery orders too. */
+  ordersBoard?: boolean;
+  currency?: string;
   /** The stand's branch; null is the main location. New parties and tables carry it. */
   branchId?: string | null;
   tenantName: string;
@@ -121,6 +129,23 @@ export function HostApp({
   // never re-subscribes the channel.
   const tRef = useRef(t);
   useEffect(() => { tRef.current = t; }, [t]);
+  // Orders waiting for a yes: the badge on the orders button.
+  const [newOrders, setNewOrders] = useState(0);
+  useEffect(() => {
+    if (demo || !ordersBoard) return;
+    let cancelled = false;
+    const load = () => countNewOrders().then((n) => !cancelled && setNewOrders(n)).catch(() => {});
+    load();
+    const supabase = createClient();
+    const channel = supabase
+      .channel(channelName(`host-orders-count-${tenantId}`))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `tenant_id=eq.${tenantId}` }, load)
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [tenantId, demo, ordersBoard]);
   // WhatsApp chats parked waiting for a person — the bell counts them too.
   const [handoffCount, setHandoffCount] = useState(0);
   useEffect(() => {
@@ -640,6 +665,14 @@ export function HostApp({
           <div className="ml-auto hidden min-w-0 flex-1 md:block md:max-w-xs">{search}</div>
           <div className="hidden md:block">{viewSwitch}</div>
           <div className="ml-auto flex items-center gap-1.5 md:ml-0">
+            {!demo && ordersBoard && (
+              <button onClick={() => setSheet({ kind: 'orders' })} className="relative rounded-lg bg-white/5 p-2 text-white/70 hover:text-white" title={t('ordersTitle')} aria-label={t('ordersTitle')}>
+                <ShoppingBag className="h-4 w-4" />
+                {newOrders > 0 && (
+                  <span className="absolute -right-1 -top-1 min-w-[16px] rounded-full bg-amber-500 px-1 text-center text-[10px] font-bold text-white">{newOrders}</span>
+                )}
+              </button>
+            )}
             {!demo && (
               <button onClick={() => setSheet({ kind: 'requests' })} className="relative rounded-lg bg-white/5 p-2 text-white/70 hover:text-white" title={t('requestsTitle')} data-help="host_pending" aria-label={t('requestsTitle')}>
                 <Bell className="h-4 w-4" />
@@ -751,6 +784,19 @@ export function HostApp({
 
       {sheet?.kind === 'handoffChat' && (
         <ChatSheet conversationId={sheet.conversationId} name={sheet.name} phone={sheet.phone} onClose={() => setSheet({ kind: 'requests' })} />
+      )}
+
+      {sheet?.kind === 'orders' && (
+        <OrdersSheet
+          tenantId={tenantId}
+          currency={currency}
+          onClose={() => setSheet(null)}
+          onOpenChat={(c) => setSheet({ kind: 'orderChat', conversationId: c.conversationId, name: c.name, phone: c.phone })}
+        />
+      )}
+
+      {sheet?.kind === 'orderChat' && (
+        <ChatSheet conversationId={sheet.conversationId} name={sheet.name} phone={sheet.phone} onClose={() => setSheet({ kind: 'orders' })} />
       )}
 
       {sheet?.kind === 'walkin' && (

@@ -7,6 +7,8 @@ import { getPlatformSettings } from '@/lib/platform';
 import { accountReady, applyPaymentEvent, getGateway, getPaymentAccount, isPaymentProvider, paymentsConfigured } from '@/lib/payments';
 import { applicationFee, priceOrder, discountedLines } from '@/lib/payments/pricing';
 import { normalizePhone, safeReturnPath } from '@/lib/payments/return-path';
+import { autoApproveOrder } from '@/lib/orders/notify';
+import { orderCode } from '@/lib/utils';
 import { notifyWhatsappOrder } from '@/lib/orders/notify';
 import { effectivePlan, feePercentFor } from '@/lib/plan';
 import type { OrderRow, Promotion } from '@/lib/database.types';
@@ -43,6 +45,9 @@ export async function POST(
   }
 
   let body: {
+    /** Minted by the cart so the guest's WhatsApp message can carry the order code. */
+    id?: string | null;
+    service_kind?: string | null;
     items?: unknown;
     total?: number | null;
     customer_name?: string | null;
@@ -72,7 +77,12 @@ export async function POST(
     typeof body.branch_id === 'string' && /^[0-9a-f-]{36}$/i.test(body.branch_id)
       ? ((await supabase.from('branches').select('id').eq('tenant_id', tenantId).eq('id', body.branch_id).maybeSingle()).data?.id ?? null)
       : null;
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const clientOrderId = typeof body.id === 'string' && UUID.test(body.id) ? body.id.toLowerCase() : null;
+  const serviceKind = body.service_kind === 'pickup' || body.service_kind === 'delivery' || body.service_kind === 'dinein' ? body.service_kind : null;
   const row = {
+    ...(clientOrderId ? { id: clientOrderId, code: orderCode(clientOrderId) } : {}),
+    service_kind: serviceKind,
     tenant_id: tenantId,
     branch_id: branchId,
     items: body.items,
@@ -99,8 +109,13 @@ export async function POST(
     const { data: board } = await supabase.from('tenant_ordering').select('orders_board').eq('tenant_id', tenantId).maybeSingle();
     if (!(board as { orders_board?: boolean } | null)?.orders_board) return NextResponse.json({ ok: true });
     const { data: logged } = await supabase.from('orders').insert(row).select('*').maybeSingle();
-    // Off unless the restaurant asked for it: the guest's WhatsApp is the alert.
-    if (logged) await notifyWhatsappOrder(logged as OrderRow);
+    if (logged) {
+      const o = logged as OrderRow;
+      // Off unless the restaurant asked for it: the guest's WhatsApp is the alert.
+      await notifyWhatsappOrder(o);
+      await autoApproveOrder(o.id, tenantId);
+      return NextResponse.json({ ok: true, orderId: o.id });
+    }
     return NextResponse.json({ ok: true });
   }
 

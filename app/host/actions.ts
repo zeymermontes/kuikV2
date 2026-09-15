@@ -15,6 +15,8 @@ import { sendMessage } from '@/lib/whatsapp/send';
 import { isWindowOpen, WindowClosedError } from '@/lib/whatsapp/window';
 import type { MessageOrigin } from '@/lib/whatsapp/types';
 import { resumeBot } from '@/lib/whatsapp/bot';
+import { onOrderStatus } from '@/lib/orders/notify';
+import type { OrderRow, OrderStatus } from '@/lib/database.types';
 import { isLid } from '@/lib/phone';
 import type {
   FloorTable, FloorCombination, Reservation, ReservationShift, ReservationStatus, TableShape, TableStatus,
@@ -539,4 +541,65 @@ export async function saveHostSettings(input: {
   if (input.late !== undefined) patch.reservation_late_minutes = Math.max(0, input.late);
   await supabase.from('tenant_contact').update(patch).eq('tenant_id', tenant.id);
   bump();
+}
+
+// ── Orders at the door ───────────────────────────────────────────────────────
+// Takeout, pickup and delivery orders from the menu (WhatsApp or paid online),
+// so the host can accept, mark ready and hand over — and open the chat they
+// came through when the guest's message carried the order code.
+
+export interface HostOrder extends OrderRow {
+  /** The chat's name and phone, when the order is tied to one. */
+  chat: { conversationId: string; name: string; phone: string | null } | null;
+}
+
+/** Live and recent orders: everything not finished, plus the last 12 hours of the rest. */
+export async function listHostOrders(): Promise<HostOrder[]> {
+  const { tenant } = await requireReservations();
+  const admin = createAdminClient();
+  const since = new Date(Date.now() - 12 * 3_600_000).toISOString();
+  const { data } = await admin
+    .from('orders')
+    .select('*, conversation:whatsapp_conversations(id, contact:whatsapp_contacts(profile_name, phone_e164, wa_id))')
+    .eq('tenant_id', tenant.id)
+    .neq('payment_status', 'pending')
+    .or(`status.in.(new,preparing,ready),created_at.gte.${since}`)
+    .order('created_at', { ascending: false })
+    .limit(100);
+  type Contact = { profile_name: string | null; phone_e164: string | null; wa_id: string };
+  type Row = OrderRow & { conversation: { id: string; contact: Contact | Contact[] | null } | null };
+  return ((data ?? []) as Row[]).map(({ conversation, ...o }) => {
+    const c = conversation?.contact ? (Array.isArray(conversation.contact) ? conversation.contact[0] : conversation.contact) : null;
+    return {
+      ...o,
+      chat: conversation
+        ? { conversationId: conversation.id, name: o.customer_name || c?.profile_name || c?.phone_e164 || c?.wa_id || '', phone: c?.phone_e164 ?? null }
+        : null,
+    };
+  });
+}
+
+/** Orders waiting for a yes: the badge on the stand's orders button. */
+export async function countNewOrders(): Promise<number> {
+  const { tenant } = await requireReservations();
+  const admin = createAdminClient();
+  const { count } = await admin
+    .from('orders')
+    .select('id', { count: 'exact', head: true })
+    .eq('tenant_id', tenant.id)
+    .eq('status', 'new')
+    .neq('payment_status', 'pending');
+  return count ?? 0;
+}
+
+/** Accept, ready, done, reject — the same moves as the board, from the door. */
+export async function setHostOrderStatus(id: string, status: OrderStatus, reason?: string): Promise<void> {
+  const { tenant } = await requireReservations();
+  const admin = createAdminClient();
+  await admin
+    .from('orders')
+    .update({ status, ...(status === 'rejected' ? { reject_reason: reason?.trim() || null } : {}), updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('tenant_id', tenant.id);
+  await onOrderStatus(id, tenant.id, status, reason);
 }

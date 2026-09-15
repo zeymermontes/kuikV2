@@ -8,6 +8,7 @@ import type { PaymentProvider, PublicPaymentAccount } from '@/lib/payments/types
 import { Card, Label, Input, Textarea, Button } from '@/components/ui';
 import { updateOrdering } from '@/app/(dashboard)/settings-actions';
 import { resolveOrderAlerts, type OrderAlerts } from '@/lib/orders/alerts';
+import { resolveOrderApproval, type Approval, type OrderApproval } from '@/lib/orders/approval';
 import { connectClip, connectGateway, disconnectGateway, syncPaymentAccount } from '@/app/(dashboard)/payments-actions';
 
 const SERVICE_TYPES: ServiceType[] = ['pickup', 'delivery', 'dinein'];
@@ -102,6 +103,12 @@ export function OrderingForm({
   const alerts = resolveOrderAlerts(o.order_alerts);
   function setAlerts(patch: Partial<OrderAlerts>) {
     set('order_alerts', { ...alerts, ...patch } as unknown as Record<string, unknown>);
+  }
+  // Which orders accept themselves (lib/orders/approval.ts). Stored whole.
+  const approval = resolveOrderApproval(o.order_approval);
+  function setApproval(kind: 'payment' | 'service', key: string, value: Approval) {
+    const next: OrderApproval = { ...approval, [kind]: { ...approval[kind], [key]: value } };
+    set('order_approval', next as unknown as Record<string, unknown>);
   }
 
   function toggleService(s: ServiceType) {
@@ -300,6 +307,42 @@ export function OrderingForm({
         <p className="text-xs text-neutral-500">{t('ordersBoardHint')}</p>
       </Card>
 
+      {/* Approval: which orders start by themselves and which wait for a person. */}
+      {o.orders_board === true && (
+        <Card className="space-y-3" data-setting={t('approvalTitle')}>
+          <div>
+            <h2 className="font-semibold">{t('approvalTitle')}</h2>
+            <p className="text-sm text-neutral-500">{t('approvalHint')}</p>
+          </div>
+          {[
+            { kind: 'payment' as const, title: t('approvalByPayment'), keys: (o.payment_methods ?? []) as string[], label: (k: string) => t(`payment_${k}`) },
+            { kind: 'service' as const, title: t('approvalByService'), keys: o.service_types as string[], label: (k: string) => t(`service_${k}`) },
+          ].map((group) => group.keys.length > 0 && (
+            <div key={group.kind} className="space-y-1.5">
+              <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">{group.title}</p>
+              {group.keys.map((k) => {
+                const value = (approval[group.kind] as Record<string, Approval | undefined>)[k] ?? 'confirm';
+                return (
+                  <div key={k} className="flex items-center justify-between gap-3">
+                    <span className="text-sm">{group.label(k)}</span>
+                    <select
+                      value={value}
+                      onChange={(e) => setApproval(group.kind, k, e.target.value as Approval)}
+                      className="rounded-lg border border-neutral-300 px-2 py-1 text-sm"
+                      aria-label={group.label(k)}
+                    >
+                      <option value="confirm">{t('approval_confirm')}</option>
+                      <option value="auto">{t('approval_auto')}</option>
+                    </select>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+          <p className="text-xs text-neutral-500">{t('approvalRule')}</p>
+        </Card>
+      )}
+
       {/* Order alerts: how the team hears about a paid order. */}
       <Card className="space-y-3" data-setting="order-alerts">
         <div>
@@ -309,6 +352,11 @@ export function OrderingForm({
         <ToggleRow label={t('alertPush')} checked={alerts.push} onChange={(v) => setAlerts({ push: v })} />
         <ToggleRow label={t('alertSound')} checked={alerts.sound} onChange={(v) => setAlerts({ sound: v })} />
         <ToggleRow label={t('alertWhatsappOrders')} checked={alerts.whatsappOrders} onChange={(v) => setAlerts({ whatsappOrders: v })} />
+        <div className="border-t border-neutral-100 pt-3">
+          <ToggleRow label={t('alertNotifyHost')} checked={alerts.notifyHost} onChange={(v) => setAlerts({ notifyHost: v })} />
+          <ToggleRow label={t('alertNotifyPos')} checked={alerts.notifyPos} onChange={(v) => setAlerts({ notifyPos: v })} />
+          <p className="mt-1 text-xs text-neutral-500">{t('alertNotifyHint')}</p>
+        </div>
         {showPosSettings && (
           <>
             <ToggleRow label={t('alertPrintKitchen')} checked={alerts.printKitchen} onChange={(v) => setAlerts({ printKitchen: v })} />
