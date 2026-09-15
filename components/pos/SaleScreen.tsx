@@ -211,13 +211,24 @@ export function SaleScreen({
     return (id: string) => m.get(id) ?? '';
   }, [menu.categories]);
 
+  // A category covers its own products and those of its subcategories: tapping
+  // "Dulces" shows the fresas and the postres, not an empty grid.
+  const withinCat = useMemo(() => {
+    const kids = new Map<string, Set<string>>();
+    for (const c of menu.categories) {
+      kids.set(c.id, (kids.get(c.id) ?? new Set()).add(c.id));
+      if (c.parent_id) kids.set(c.parent_id, (kids.get(c.parent_id) ?? new Set()).add(c.id));
+    }
+    return (catId: string, productCatId: string | null) => kids.get(catId)?.has(productCatId ?? '') ?? productCatId === catId;
+  }, [menu.categories]);
+
   const products = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (q) return menu.products.filter((p) => p.name.toLowerCase().includes(q) || (p.sku ?? '').toLowerCase().includes(q));
     if (activeCat === POPULAR) return popular;
     if (activeCat === ALL) return menu.products;
-    return menu.products.filter((p) => p.category_id === activeCat);
-  }, [menu.products, activeCat, query, popular]);
+    return menu.products.filter((p) => withinCat(activeCat, p.category_id));
+  }, [menu.products, activeCat, query, popular, withinCat]);
 
   // Map a product to its kitchen station (category.station, else category name).
   const stationOf = useMemo(() => {
@@ -720,7 +731,7 @@ export function SaleScreen({
                 name: c.name,
                 icon: c.icon,
                 image: c.icon_image_url,
-                count: menu.products.filter((p) => p.category_id === c.id).length,
+                count: menu.products.filter((p) => withinCat(c.id, p.category_id)).length,
               })),
             ].map((c) => (
               <button
