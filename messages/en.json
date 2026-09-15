@@ -1259,7 +1259,8 @@
     "itsOptions": "Its options",
     "optionInProducts": "{n, plural, one {in # product} other {in # products}}",
     "holdToMark": "Press and hold a product to mark it sold out.",
-    "availabilityLocation": "Applies to this location only; other branches are unchanged."
+    "availabilityLocation": "Applies to this location only; other branches are unchanged.",
+    "menuOrders": "Orders"
   },
   "orders": {
     "payment_cash": "Cash",

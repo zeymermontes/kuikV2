@@ -1259,7 +1259,8 @@
     "itsOptions": "Sus opciones",
     "optionInProducts": "{n, plural, one {en # producto} other {en # productos}}",
     "holdToMark": "Mantén presionado un producto para marcarlo agotado.",
-    "availabilityLocation": "Aplica solo a esta ubicación; las demás sucursales no cambian."
+    "availabilityLocation": "Aplica solo a esta ubicación; las demás sucursales no cambian.",
+    "menuOrders": "Pedidos"
   },
   "orders": {
     "payment_cash": "Efectivo",

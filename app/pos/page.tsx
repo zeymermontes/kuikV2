@@ -14,6 +14,10 @@ import { tenantBaseUrl } from '@/lib/config';
 import { branchFilter, resolveBranch } from '@/lib/branches';
 import { DeviceBranchSync } from '@/components/pos/DeviceBranchSync';
 import { applySoldOut, type SoldOutRow } from '@/lib/availability/overlay';
+import { ordersBoardConfig } from '@/lib/orders/board';
+import { listOrders } from '@/app/(dashboard)/orders/actions';
+import { bridgeConfigured } from '@/lib/whatsapp/bridge';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,6 +59,17 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
   const soldOutHere = soldOutLocation.hasBranches
     ? ((soldOut ?? []) as SoldOutRow[]).filter((r) => (r.branch_id ?? null) === soldOutLocation.branchId)
     : [];
+  // The menu's orders (Pedidos board, 0085) inside the register: the list to
+  // accept from, and a linked bot to confirm the guest by itself.
+  const board = demo ? { board: false, alerts: null } : await ordersBoardConfig(tenant.id);
+  const [menuOrdersInitial, { data: botNumber }] = board.board
+    ? await Promise.all([
+        listOrders().catch(() => []),
+        bridgeConfigured()
+          ? createAdminClient().from('whatsapp_numbers').select('id').eq('tenant_id', tenant.id).eq('status', 'connected').eq('mode', 'bridge').maybeSingle()
+          : Promise.resolve({ data: null }),
+      ])
+    : [[], { data: null }];
   // Receipts print the self-invoice link once the restaurant can stamp CFDIs.
   const cfdi = demo ? null : await getCfdiSettings(tenant.id);
   const invoiceUrl = cfdiReady(cfdi) && cfdi.self_invoice ? `${tenantBaseUrl(tenant.subdomain, tenant.custom_domain)}/factura` : null;
@@ -95,6 +110,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
     <>
     <DeviceBranchSync branch={branch ? { id: branch.id, name: branch.name, slug: branch.slug } : null} />
     <PosTerminal
+      menuOrders={board.board && board.alerts ? { alerts: board.alerts, botConnected: !!botNumber, initial: menuOrdersInitial } : null}
       branch={branch ? { id: branch.id, name: branch.name, slug: branch.slug } : null}
       soldOutLocation={soldOutLocation}
       soldOutRows={soldOutHere}

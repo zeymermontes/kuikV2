@@ -32,6 +32,7 @@ import {
   Cast,
   ExternalLink,
   Printer,
+  ClipboardList,
 } from 'lucide-react';
 import { posDb, type OutboxRow } from '@/lib/pos/db';
 import { startSync, nowISO, retryDead, enqueueUpsert, type SyncState } from '@/lib/pos/sync';
@@ -63,8 +64,12 @@ import { ZReport } from './ZReport';
 import { HistoryScreen } from './HistoryScreen';
 import { DenomCount } from './DenomCount';
 import { ExplainLayer } from '@/components/ExplainLayer';
+import { OrdersBoard } from '@/components/dashboard/OrdersBoard';
+import { createClient, channelName } from '@/lib/supabase/client';
+import type { OrderAlerts } from '@/lib/orders/alerts';
+import type { OrderRow } from '@/lib/database.types';
 
-type View = 'sale' | 'tables' | 'orders' | 'history' | 'register';
+type View = 'sale' | 'tables' | 'orders' | 'menuOrders' | 'history' | 'register';
 type Modal = 'newTab' | 'openReg' | 'closeReg' | 'server' | 'remoteScreen' | null;
 
 const INPUT = 'w-full rounded-xl border border-neutral-200 px-3 py-3 text-base focus:border-pos-accent focus:outline-none';
@@ -106,11 +111,14 @@ function PosTerminalInner({
   loyalty = null,
   demo = false,
   explain = false,
+  menuOrders = null,
 }: {
   tenantId: string;
   userId: string;
   restaurantName: string;
   brand: DisplayBrand;
+  /** The menu's orders (Pedidos board) when the restaurant has it on: a view to accept them from. */
+  menuOrders?: { alerts: OrderAlerts; botConnected: boolean; initial: OrderRow[] } | null;
   currency: string;
   locale: string;
   cashCountMode: 'total' | 'denominations';
@@ -420,6 +428,31 @@ function PosTerminalInner({
   }
 
   const openCount = (tabs ?? []).length;
+
+  // Orders from the menu still waiting for a yes: the badge on the Pedidos
+  // item, recounted on every change to the orders table.
+  const [newMenuOrders, setNewMenuOrders] = useState(() => (menuOrders?.initial ?? []).filter((o) => o.status === 'new' && o.payment_status !== 'pending').length);
+  useEffect(() => {
+    if (!menuOrders || demo) return;
+    const supabase = createClient();
+    let cancelled = false;
+    const recount = () =>
+      supabase
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
+        .eq('status', 'new')
+        .neq('payment_status', 'pending')
+        .then(({ count }) => { if (!cancelled && typeof count === 'number') setNewMenuOrders(count); });
+    const channel = supabase
+      .channel(channelName(`pos-menu-orders-${tenantId}`))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `tenant_id=eq.${tenantId}` }, () => void recount())
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [tenantId, demo, menuOrders]);
   const initials = (serverLabel || t('cashier'))
     .split(/\s+/)
     .map((w) => w[0])
@@ -431,6 +464,7 @@ function PosTerminalInner({
     { key: 'sale', icon: ShoppingCart, label: t('sales') },
     ...(posTables > 0 || floorTables.length > 0 ? [{ key: 'tables' as View, icon: LayoutGrid, label: t('tables') }] : []),
     { key: 'orders', icon: ReceiptText, label: t('accounts'), badge: openCount },
+    ...(menuOrders ? [{ key: 'menuOrders' as View, icon: ClipboardList, label: t('menuOrders'), badge: newMenuOrders }] : []),
     { key: 'history', icon: History, label: t('history') },
     { key: 'register', icon: Wallet, label: t('register') },
   ];
@@ -759,6 +793,19 @@ function PosTerminalInner({
                   </div>
                 </div>
               ))}
+            </section>
+          )}
+
+          {view === 'menuOrders' && menuOrders && (
+            <section className="flex-1 overflow-y-auto p-3 md:p-4">
+              <OrdersBoard
+                initial={menuOrders.initial}
+                currency={currency}
+                tenantId={tenantId}
+                restaurantName={restaurantName}
+                alerts={menuOrders.alerts}
+                botConnected={menuOrders.botConnected}
+              />
             </section>
           )}
 
