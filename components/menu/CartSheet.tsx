@@ -82,7 +82,8 @@ export function CartSheet({
     setPrevService(service);
     if (service === 'delivery' && payment === 'onsite') setPaymentState(null);
   }
-  const [copied, setCopied] = useState(false);
+  // Which transfer detail was just copied: the account or the holder's name.
+  const [copied, setCopied] = useState<'account' | 'holder' | null>(null);
   const transfer =
     ordering.transfer_account || ordering.transfer_bank || ordering.transfer_holder
       ? {
@@ -93,14 +94,15 @@ export function CartSheet({
         }
       : null;
   const paymentLabel = (m: PaymentMethod) => t(`payment_${m}`);
-  async function copyAccount() {
-    if (!transfer?.account) return;
+  async function copyTransfer(which: 'account' | 'holder') {
+    const value = which === 'account' ? transfer?.account : transfer?.holder;
+    if (!value) return;
     try {
-      await navigator.clipboard.writeText(transfer.account);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(value);
+      setCopied(which);
+      setTimeout(() => setCopied(null), 2000);
     } catch {
-      // Clipboard blocked: the number is on screen to copy by hand.
+      // Clipboard blocked: the value is on screen to copy by hand.
     }
   }
 
@@ -479,9 +481,19 @@ export function CartSheet({
                           </div>
                         )}
                         {transfer.holder && (
-                          <div className="flex justify-between gap-3">
+                          <div className="flex items-center justify-between gap-3">
                             <dt className="text-[var(--brand-text-secondary)]">{t('transferHolder')}</dt>
-                            <dd className="text-right font-medium">{transfer.holder}</dd>
+                            <dd className="flex items-center gap-1.5 font-medium">
+                              <span className="text-right">{transfer.holder}</span>
+                              <button
+                                type="button"
+                                onClick={() => copyTransfer('holder')}
+                                aria-label={t('copy')}
+                                className="shrink-0 rounded-md p-1 text-[var(--brand-text-secondary)]"
+                              >
+                                {copied === 'holder' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                              </button>
+                            </dd>
                           </div>
                         )}
                         {transfer.account && (
@@ -491,11 +503,11 @@ export function CartSheet({
                               <span className="break-all text-right">{transfer.account}</span>
                               <button
                                 type="button"
-                                onClick={copyAccount}
+                                onClick={() => copyTransfer('account')}
                                 aria-label={t('copy')}
                                 className="shrink-0 rounded-md p-1 text-[var(--brand-text-secondary)]"
                               >
-                                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                                {copied === 'account' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                               </button>
                             </dd>
                           </div>
