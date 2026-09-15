@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { BrandLogo } from '@/components/menu/BrandLogo';
 import {
   Star,
   MapPin,
@@ -117,14 +118,8 @@ export function Landing({
             theme.cover_image_url ? '-mt-14' : 'pt-10'
           }`}
         >
-          {theme.logo_url && (
-            <Image
-              src={theme.logo_url}
-              alt={tenant.name}
-              width={104}
-              height={104}
-              className="h-24 w-24 rounded-full object-cover shadow-lg ring-4 ring-[var(--brand-bg)]"
-            />
+          {(theme.logo_url || theme.logo_wide_url) && (
+            <BrandLogo src={theme.logo_url ?? theme.logo_wide_url!} alt={tenant.name} size={96} className="shadow-lg ring-4 ring-[var(--brand-bg)]" />
           )}
           <h1 className="mt-3 text-2xl font-extrabold" style={{ color: 'var(--brand-text)' }}>
             {landing.welcome_title || tenant.name}

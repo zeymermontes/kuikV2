@@ -31,6 +31,7 @@ import {
 import { categoryThemeVars, categoryPageVars, categoryThemeFonts, googleFontsHref } from '@/lib/category-theme';
 import { mapHref, parseWeekHours } from '@/lib/hours';
 import { HoursSheet } from '@/components/menu/HoursSheet';
+import { BrandLogo } from '@/components/menu/BrandLogo';
 import { digitsOnly, slugify } from '@/lib/utils';
 import { BADGES, badgeLabel } from '@/lib/badges';
 import { hasDetail } from '@/lib/menu-options';
@@ -498,7 +499,10 @@ export function MenuView({
   // Which brand files this page uses. 'auto' follows the menu's dark mode; a
   // slot can pin the other one (a navy bar wants the light-on-dark wordmark).
   const pageIsDark = settings.darkMode === 'on';
-  const logo = pickImage(theme.logo_url, theme.logo_dark_url, settings.logoVariant, pageIsDark);
+  // A restaurant with only a wide logo shows that one in the header too.
+  const logo =
+    pickImage(theme.logo_url, theme.logo_dark_url, settings.logoVariant, pageIsDark) ??
+    pickImage(theme.logo_wide_url, theme.logo_wide_dark_url, settings.logoWideVariant, pageIsDark);
   const wideLogo =
     pickImage(theme.logo_wide_url, theme.logo_wide_dark_url, settings.logoWideVariant, pageIsDark) ??
     logo;
@@ -807,13 +811,7 @@ export function MenuView({
       {!barHeader && (
       <header className="flex flex-col items-center gap-2 px-5 pt-6 pb-3 text-center">
         {logo && (
-          <Image
-            src={logo}
-            alt={tenant.name}
-            width={88}
-            height={88}
-            className={`h-20 w-20 rounded-full object-cover shadow-sm ${cover ? '-mt-16 ring-4 ring-[var(--brand-bg)]' : ''}`}
-          />
+          <BrandLogo src={logo} alt={tenant.name} size={80} className={cover ? '-mt-16 ring-4 ring-[var(--brand-bg)]' : ''} />
         )}
         {settings.showName && (
           <h1 className="text-2xl font-bold" style={{ color: 'var(--brand-text)' }}>
