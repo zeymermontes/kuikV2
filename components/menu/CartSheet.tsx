@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { parseSchedule, hoursOn } from '@/lib/hours';
+import { todayInTz, nowHHMMInTz } from '@/lib/time';
 import { SelectionLines } from '@/components/menu/SelectionLines';
 import { X, Plus, Minus, Trash2, Copy, Check } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -57,8 +59,10 @@ export function CartSheet({
   const t = useTranslations('menu');
   const serviceTypes = ordering.service_types.length > 0 ? ordering.service_types : (['pickup'] as ServiceType[]);
   // A table QR (?mesa=) defaults to dine-in at that table.
-  const [service, setService] = useState<ServiceType>(
-    presetTable && serviceTypes.includes('dinein') ? 'dinein' : serviceTypes[0],
+  // Nothing is chosen for the guest: with several ways to get the order, they
+  // say which. A table QR (?mesa=) and a single configured way are decided.
+  const [service, setService] = useState<ServiceType | null>(
+    presetTable && serviceTypes.includes('dinein') ? 'dinein' : serviceTypes.length === 1 ? serviceTypes[0] : null,
   );
   const [tip, setTip] = useState(0);
   const [customerName, setCustomerName] = useState('');
@@ -70,7 +74,7 @@ export function CartSheet({
   const allPaymentMethods: PaymentMethod[] = ordering.payment_methods ?? [];
   // "Pay at the counter" makes no sense for a delivery: the rider is the counter.
   const paymentMethods = service === 'delivery' ? allPaymentMethods.filter((m) => m !== 'onsite') : allPaymentMethods;
-  const [payment, setPaymentState] = useState<PaymentMethod | null>(null);
+  const [payment, setPaymentState] = useState<PaymentMethod | null>(allPaymentMethods.length === 1 ? allPaymentMethods[0] : null);
   const setPayment = setPaymentState;
   // Switching to delivery drops a counter payment picked before the switch.
   const [prevService, setPrevService] = useState(service);
@@ -149,6 +153,53 @@ export function CartSheet({
   const missingPhone = payingOnline && phoneDigits.length < 10;
   // A delivery needs somewhere to go, whatever the restaurant's other settings say.
   const missingAddress = service === 'delivery' && !address.trim();
+  const missingService = service === null;
+  const missingPayment = allPaymentMethods.length > 0 && payment === null;
+  // A pickup needs a time: "lo antes posible" counts, blank does not.
+  const missingPickupTime = service === 'pickup' && !pickupTime;
+
+  // The pickup slots: from the next quarter hour to tonight's closing, in the
+  // restaurant's own clock; without hours on file, until midnight.
+  const pickupSlots = useMemo(() => {
+    const tz = tenant.timezone;
+    const schedule = parseSchedule(contact.hours);
+    const today = schedule ? hoursOn(schedule, todayInTz(tz)) : null;
+    if (today?.closed) return [];
+    const [nh, nm] = nowHHMMInTz(tz).split(':').map(Number);
+    const toMin = (hhmm: string) => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+    let start = Math.ceil((nh * 60 + nm + 15) / 15) * 15;
+    let end = today ? toMin(today.close) : 24 * 60;
+    if (today) {
+      start = Math.max(start, toMin(today.open));
+      if (end <= toMin(today.open)) end += 24 * 60; // closes after midnight
+    }
+    const out: string[] = [];
+    for (let m = start; m <= end && out.length < 64; m += 15) {
+      const mm = m % (24 * 60);
+      out.push(`${String(Math.floor(mm / 60)).padStart(2, '0')}:${String(mm % 60).padStart(2, '0')}`);
+    }
+    return out;
+  }, [tenant.timezone, contact.hours]);
+
+  // The send button waits until the guest has seen the whole sheet once —
+  // the service, payment and details live below the items.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [reachedEnd, setReachedEnd] = useState(false);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || reachedEnd) return;
+    const check = () => {
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 12) setReachedEnd(true);
+    };
+    check();
+    el.addEventListener('scroll', check, { passive: true });
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener('scroll', check);
+      ro.disconnect();
+    };
+  }, [reachedEnd, lines.length]);
 
   // Lock background scroll while the sheet is open (only the sheet scrolls; keeps
   // the mobile URL bar from toggling and shifting the sheet).
@@ -191,11 +242,15 @@ export function CartSheet({
 
   async function handleSend() {
     if (!contact.whatsapp_phone || lines.length === 0 || belowMin) return;
-    if (missingName || missingPhone || missingAddress) {
+    if (missingService || missingPayment || missingName || missingPhone || missingAddress || missingPickupTime) {
       setTried(true);
-      document.getElementById(missingName ? 'kuik-cart-name' : missingPhone ? 'kuik-cart-phone' : 'kuik-cart-address')?.focus();
+      const id = missingService ? 'kuik-cart-service' : missingPayment ? 'kuik-cart-payment' : missingName ? 'kuik-cart-name' : missingPhone ? 'kuik-cart-phone' : missingAddress ? 'kuik-cart-address' : 'kuik-cart-pickup';
+      const target = document.getElementById(id);
+      target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      if (target && 'focus' in target) (target as HTMLElement).focus({ preventScroll: true });
       return;
     }
+    if (service === null) return;
     setSending(true);
     setPayError(null);
 
@@ -293,7 +348,7 @@ export function CartSheet({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4">
           {lines.length === 0 ? (
             <p className="py-10 text-center text-[var(--brand-text-secondary)]">{t('emptyCart')}</p>
           ) : (
@@ -354,7 +409,7 @@ export function CartSheet({
             <div className="mt-4 space-y-4">
               {/* Service type */}
               {serviceTypes.length > 1 && (
-                <div>
+                <div id="kuik-cart-service" tabIndex={-1}>
                   <p className="mb-1.5 text-sm font-semibold">{t('serviceType')}</p>
                   <div className="flex flex-wrap gap-2">
                     {serviceTypes.map((s) => (
@@ -369,6 +424,7 @@ export function CartSheet({
                       </button>
                     ))}
                   </div>
+                  {tried && missingService && <p className="mt-1 text-xs text-red-500">{t('serviceRequired')}</p>}
                 </div>
               )}
 
@@ -394,7 +450,7 @@ export function CartSheet({
 
               {/* Payment method, with the transfer details when that is the pick */}
               {paymentMethods.length > 0 && (
-                <div>
+                <div id="kuik-cart-payment" tabIndex={-1}>
                   <p className="mb-1.5 text-sm font-semibold">{t('paymentMethod')}</p>
                   <div className="flex flex-wrap gap-2">
                     {paymentMethods.map((m) => (
@@ -411,6 +467,7 @@ export function CartSheet({
                       </button>
                     ))}
                   </div>
+                  {tried && missingPayment && <p className="mt-1 text-xs text-red-500">{t('paymentRequired')}</p>}
                   {payment === 'transfer' && transfer && (
                     <div className="mt-3 rounded-xl border border-[var(--brand-border)] bg-[var(--brand-surface)] p-3 text-sm">
                       <p className="font-semibold">{t('transferTitle')}</p>
@@ -514,13 +571,26 @@ export function CartSheet({
                   {tried && missingAddress && <p className="mt-1 text-xs text-red-500">{t('addressRequired')}</p>}
                 </div>
               )}
-              {ordering.collect_pickup_time && service === 'pickup' && (
-                <input
-                  value={pickupTime}
-                  onChange={(e) => setPickupTime(e.target.value)}
-                  placeholder={t('pickupTime')}
-                  className="w-full rounded-xl border border-[var(--brand-border)] bg-[var(--brand-surface)] px-3 py-2.5 text-sm focus:border-[var(--brand-primary)] focus:outline-none"
-                />
+              {service === 'pickup' && (
+                <div>
+                  <p className="mb-1.5 text-sm font-semibold">{t('pickupTime')}</p>
+                  <select
+                    id="kuik-cart-pickup"
+                    value={pickupTime}
+                    onChange={(e) => setPickupTime(e.target.value)}
+                    aria-invalid={tried && missingPickupTime}
+                    className={`w-full appearance-none rounded-xl border bg-[var(--brand-surface)] px-3 py-2.5 text-sm focus:outline-none ${
+                      tried && missingPickupTime ? 'border-red-400 focus:border-red-500' : 'border-[var(--brand-border)] focus:border-[var(--brand-primary)]'
+                    }`}
+                  >
+                    <option value="" disabled>{t('pickupChoose')}</option>
+                    <option value={t('pickupAsap')}>{t('pickupAsap')}</option>
+                    {pickupSlots.map((slot) => (
+                      <option key={slot} value={slot}>{slot}</option>
+                    ))}
+                  </select>
+                  {tried && missingPickupTime && <p className="mt-1 text-xs text-red-500">{t('pickupRequired')}</p>}
+                </div>
               )}
               {ordering.collect_table && service === 'dinein' && (
                 <input
@@ -576,10 +646,13 @@ export function CartSheet({
               </p>
             )}
             {payError && <p className="mb-2 text-center text-sm text-red-500">{payError}</p>}
+            {!reachedEnd && !belowMin && (
+              <p className="mb-2 text-center text-xs text-[var(--brand-text-secondary)]">{t('scrollToReview')}</p>
+            )}
 
             <button
               onClick={handleSend}
-              disabled={sending || belowMin}
+              disabled={sending || belowMin || !reachedEnd}
               className={`w-full rounded-full py-3.5 text-center font-semibold disabled:opacity-60 ${
                 payingOnline ? 'bg-[var(--brand-button)] text-[var(--brand-button-text)]' : 'bg-[#25D366] text-white'
               }`}

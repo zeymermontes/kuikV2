@@ -1886,7 +1886,13 @@
     "optionsTakeaway": "to take away",
     "optionsDrink": "for the drink",
     "whatsappBubble": "Message us on WhatsApp",
-    "addressRequired": "We need your address to bring the order."
+    "addressRequired": "We need your address to bring the order.",
+    "serviceRequired": "Choose how you want your order.",
+    "paymentRequired": "Choose a payment method.",
+    "pickupChoose": "Pick a time",
+    "pickupAsap": "As soon as possible",
+    "pickupRequired": "Pick a time to collect your order.",
+    "scrollToReview": "Scroll down to review your order before sending it."
   },
   "pwa": {
     "install": "Install",
