@@ -16,6 +16,7 @@ import { isWindowOpen, WindowClosedError } from '@/lib/whatsapp/window';
 import type { MessageOrigin } from '@/lib/whatsapp/types';
 import { resumeBot } from '@/lib/whatsapp/bot';
 import { onOrderStatus } from '@/lib/orders/notify';
+import { addDays, zonedWallTimeToUtc } from '@/lib/time';
 import type { OrderRow, OrderStatus } from '@/lib/database.types';
 import { isLid } from '@/lib/phone';
 import type {
@@ -261,7 +262,7 @@ export async function getPartyChat(reservationId: string): Promise<PartyChat> {
  * A chat by its booking or by the conversation itself (a diner waiting for a
  * person who may have no booking at all).
  */
-export async function getChat(input: { partyId?: string; conversationId?: string }): Promise<PartyChat> {
+export async function getChat(input: { partyId?: string; conversationId?: string; phone?: string }): Promise<PartyChat> {
   const { tenant } = await requireReservations();
   const admin = createAdminClient();
   const empty: PartyChat = { conversationId: null, messages: [], botActive: true, canReply: false, reason: 'no_conversation', href: null };
@@ -290,6 +291,13 @@ export async function getChat(input: { partyId?: string; conversationId?: string
     if (party.whatsapp_conversation_id !== conversationId) {
       await admin.from('reservations').update({ whatsapp_conversation_id: conversationId }).eq('id', party.id);
     }
+  }
+  // A bare number (an order that carries a phone but no chat yet): the linked
+  // device opens or finds the conversation under the address it uses.
+  if (!conversationId && input.phone) {
+    href = `https://wa.me/${digitsOnly(input.phone)}`;
+    conversationId = await bridgeConversationFor(tenant.id, input.phone);
+    if (!conversationId) return { ...empty, href };
   }
   if (!conversationId) return empty;
 
@@ -553,19 +561,28 @@ export interface HostOrder extends OrderRow {
   chat: { conversationId: string; name: string; phone: string | null } | null;
 }
 
-/** Live and recent orders: everything not finished, plus the last 12 hours of the rest. */
-export async function listHostOrders(): Promise<HostOrder[]> {
+/**
+ * Orders for the stand. Without a day: everything not finished plus the last
+ * 12 hours of the rest (the live view). With a "YYYY-MM-DD": that calendar
+ * day at the restaurant, every status — the history.
+ */
+export async function listHostOrders(day?: string): Promise<HostOrder[]> {
   const { tenant } = await requireReservations();
   const admin = createAdminClient();
-  const since = new Date(Date.now() - 12 * 3_600_000).toISOString();
-  const { data } = await admin
+  let q = admin
     .from('orders')
     .select('*, conversation:whatsapp_conversations(id, contact:whatsapp_contacts(profile_name, phone_e164, wa_id))')
     .eq('tenant_id', tenant.id)
-    .neq('payment_status', 'pending')
-    .or(`status.in.(new,preparing,ready),created_at.gte.${since}`)
-    .order('created_at', { ascending: false })
-    .limit(100);
+    .neq('payment_status', 'pending');
+  if (day && /^\d{4}-\d{2}-\d{2}$/.test(day)) {
+    const start = zonedWallTimeToUtc(day, '00:00', tenant.timezone);
+    const end = zonedWallTimeToUtc(addDays(day, 1), '00:00', tenant.timezone);
+    q = q.gte('created_at', start.toISOString()).lt('created_at', end.toISOString());
+  } else {
+    const since = new Date(Date.now() - 12 * 3_600_000).toISOString();
+    q = q.or(`status.in.(new,preparing,ready),created_at.gte.${since}`);
+  }
+  const { data } = await q.order('created_at', { ascending: false }).limit(200);
   type Contact = { profile_name: string | null; phone_e164: string | null; wa_id: string };
   type Row = OrderRow & { conversation: { id: string; contact: Contact | Contact[] | null } | null };
   return ((data ?? []) as Row[]).map(({ conversation, ...o }) => {

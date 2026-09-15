@@ -2488,7 +2488,10 @@
     "ostatus_preparing": "Preparando",
     "ostatus_ready": "Listo",
     "ostatus_done": "Entregado",
-    "ostatus_rejected": "Rechazado"
+    "ostatus_rejected": "Rechazado",
+    "ordersDay": "Día",
+    "ordersLive": "En curso",
+    "ordersBackToday": "Volver a hoy"
   },
   "tutorial": {
     "title": "Tutoriales",

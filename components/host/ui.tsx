@@ -138,3 +138,18 @@ export const PARTY_STATUS_ICON: Record<ReservationStatus | 'late', typeof Star> 
   notified: MessageCircle,
   late: AlertCircle,
 };
+
+/** Three grey rows that pulse: the list is on its way, not empty. */
+export function ListSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <ul className="space-y-2" aria-busy="true" aria-live="polite">
+      {Array.from({ length: rows }, (_, i) => (
+        <li key={i} className="animate-pulse rounded-2xl border border-white/10 bg-white/5 p-3">
+          <div className="h-4 w-1/2 rounded bg-white/10" />
+          <div className="mt-2 h-3 w-3/4 rounded bg-white/10" />
+          <div className="mt-3 h-8 w-full rounded-xl bg-white/10" />
+        </li>
+      ))}
+    </ul>
+  );
+}

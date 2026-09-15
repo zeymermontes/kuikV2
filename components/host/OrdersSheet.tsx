@@ -7,7 +7,7 @@ import { createClient, channelName } from '@/lib/supabase/client';
 import { listHostOrders, setHostOrderStatus, type HostOrder } from '@/app/host/actions';
 import { formatPrice, orderCode } from '@/lib/utils';
 import type { OrderStatus } from '@/lib/database.types';
-import { Sheet, PRIMARY, DANGER, GHOST } from './ui';
+import { Sheet, PRIMARY, DANGER, GHOST, ListSkeleton } from './ui';
 
 /**
  * The door's view of takeout, pickup and delivery orders: accept or reject
@@ -17,17 +17,31 @@ import { Sheet, PRIMARY, DANGER, GHOST } from './ui';
 export function OrdersSheet({
   tenantId,
   currency,
+  today,
+  initial,
   onClose,
   onOpenChat,
 }: {
   tenantId: string;
   currency: string;
+  /** "YYYY-MM-DD" at the restaurant: the day the picker starts on. */
+  today: string;
+  /** The stand's preloaded live list, so the sheet paints at once. */
+  initial: HostOrder[] | null;
   onClose: () => void;
-  onOpenChat: (chat: { conversationId: string; name: string; phone: string | null }) => void;
+  onOpenChat: (chat: { conversationId?: string; phone?: string; name: string }) => void;
 }) {
   const t = useTranslations('host');
   const locale = useLocale();
-  const [rows, setRows] = useState<HostOrder[] | null>(null);
+  const [day, setDay] = useState(today);
+  const live = day === today;
+  const [rows, setRows] = useState<HostOrder[] | null>(initial);
+  // A fresh preload from the stand replaces the live list (adjust-during-render).
+  const [prevInitial, setPrevInitial] = useState(initial);
+  if (prevInitial !== initial) {
+    setPrevInitial(initial);
+    if (live && initial) setRows(initial);
+  }
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [rejecting, setRejecting] = useState<{ id: string; reason: string } | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -36,9 +50,17 @@ export function OrdersSheet({
     return () => clearInterval(id);
   }, []);
 
+  // Another day's orders, fetched once per day picked; today stays live.
+  const [history, setHistory] = useState<{ day: string; rows: HostOrder[] } | null>(null);
   useEffect(() => {
     let cancelled = false;
-    const load = () => listHostOrders().then((r) => !cancelled && setRows(r)).catch(() => !cancelled && setRows([]));
+    if (!live) {
+      listHostOrders(day)
+        .then((r) => !cancelled && setHistory({ day, rows: r }))
+        .catch(() => !cancelled && setHistory({ day, rows: [] }));
+      return () => { cancelled = true; };
+    }
+    const load = () => listHostOrders().then((r) => !cancelled && setRows(r)).catch(() => {});
     load();
     const supabase = createClient();
     const channel = supabase
@@ -49,7 +71,7 @@ export function OrdersSheet({
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, [tenantId]);
+  }, [tenantId, day, live]);
 
   const money = (n: number | null) => (n == null ? '' : formatPrice(n, currency, locale === 'en' ? 'en-US' : 'es-MX'));
   const ago = (iso: string) => {
@@ -57,28 +79,53 @@ export function OrdersSheet({
     return mins < 60 ? `${mins} min` : `${Math.round(mins / 60)} h`;
   };
 
+  const shown: HostOrder[] | null = live ? rows : history?.day === day ? history.rows : null;
+
   function move(o: HostOrder, status: OrderStatus, reason?: string) {
     setBusy((cur) => new Set(cur).add(o.id));
     setRejecting(null);
     // Optimistic; Realtime brings the row back in its new group.
-    setRows((cur) => (cur ?? []).map((x) => (x.id === o.id ? { ...x, status } : x)));
+    const bump = (list: HostOrder[]) => list.map((x) => (x.id === o.id ? { ...x, status } : x));
+    setRows((cur) => (cur ? bump(cur) : cur));
+    setHistory((cur) => (cur ? { ...cur, rows: bump(cur.rows) } : cur));
     setHostOrderStatus(o.id, status, reason)
       .catch(() => {})
       .finally(() => setBusy((cur) => { const n = new Set(cur); n.delete(o.id); return n; }));
   }
 
+  const dayLabel = (iso: string) => {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+  };
   const groups: { key: 'new' | 'preparing' | 'ready' | 'past'; items: HostOrder[] }[] = [
-    { key: 'new', items: (rows ?? []).filter((o) => o.status === 'new') },
-    { key: 'preparing', items: (rows ?? []).filter((o) => o.status === 'preparing') },
-    { key: 'ready', items: (rows ?? []).filter((o) => o.status === 'ready') },
-    { key: 'past', items: (rows ?? []).filter((o) => o.status === 'done' || o.status === 'rejected') },
+    { key: 'new', items: (shown ?? []).filter((o) => o.status === 'new') },
+    { key: 'preparing', items: (shown ?? []).filter((o) => o.status === 'preparing') },
+    { key: 'ready', items: (shown ?? []).filter((o) => o.status === 'ready') },
+    { key: 'past', items: (shown ?? []).filter((o) => o.status === 'done' || o.status === 'rejected') },
   ];
 
   return (
     <Sheet title={t('ordersTitle')} subtitle={t('ordersHint')} onClose={onClose}>
-      {rows === null ? (
-        <p className="py-10 text-center text-sm text-white/50">…</p>
-      ) : rows.length === 0 ? (
+      {/* Which day: today is the live list; any other day is its history. */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <input
+          type="date"
+          value={day}
+          max={today}
+          onChange={(e) => e.target.value && setDay(e.target.value)}
+          aria-label={t('ordersDay')}
+          className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-white/40 [color-scheme:dark]"
+        />
+        {live ? (
+          <span className="flex items-center gap-1.5 text-xs text-emerald-300"><span className="h-2 w-2 rounded-full bg-emerald-400" /> {t('ordersLive')}</span>
+        ) : (
+          <button onClick={() => setDay(today)} className={`${GHOST} !px-3 !py-1.5 text-xs`}>{t('ordersBackToday')}</button>
+        )}
+        {!live && <span className="text-xs text-white/50">{dayLabel(day)}</span>}
+      </div>
+      {shown === null ? (
+        <ListSkeleton />
+      ) : shown.length === 0 ? (
         <p className="py-10 text-center text-sm text-white/50">{t('ordersNone')}</p>
       ) : (
         groups.map((g) => g.items.length > 0 && (
@@ -153,8 +200,11 @@ export function OrdersSheet({
                             <Check className="h-4 w-4" /> {t('act_orderDone')}
                           </button>
                         )}
-                        {o.chat && (
-                          <button onClick={() => onOpenChat(o.chat!)} className={`${GHOST} ${o.status === 'done' || o.status === 'rejected' ? 'flex-1' : ''}`}>
+                        {(o.chat || o.customer_phone) && (
+                          <button
+                            onClick={() => onOpenChat(o.chat ? { conversationId: o.chat.conversationId, name: o.chat.name } : { phone: o.customer_phone!, name: o.customer_name || o.customer_phone! })}
+                            className={`${GHOST} ${o.status === 'done' || o.status === 'rejected' ? 'flex-1' : ''}`}
+                          >
                             <MessageCircle className="h-4 w-4" /> {t('act_orderChat')}
                           </button>
                         )}

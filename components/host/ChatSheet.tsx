@@ -15,14 +15,17 @@ import { Sheet, GHOST, PRIMARY } from './ui';
 export function ChatSheet({
   partyId,
   conversationId: givenConversationId,
+  byPhone,
   name,
   phone,
   onClose,
 }: {
   /** Open by booking… */
   partyId?: string;
-  /** …or straight by conversation (a diner waiting for a person, booking or not). */
+  /** …or straight by conversation (a diner waiting for a person, booking or not)… */
   conversationId?: string;
+  /** …or by number (an order with a phone and no chat yet). */
+  byPhone?: string;
   name: string;
   phone: string | null;
   onClose: () => void;
@@ -40,13 +43,13 @@ export function ChatSheet({
 
   useEffect(() => {
     let cancelled = false;
-    getChat({ partyId, conversationId: givenConversationId })
+    getChat({ partyId, conversationId: givenConversationId, phone: byPhone })
       .then((c) => !cancelled && setChat(c))
       .catch(() => !cancelled && setChat({ conversationId: null, messages: [], botActive: true, canReply: false, reason: 'no_conversation', href: null }));
     return () => {
       cancelled = true;
     };
-  }, [partyId, givenConversationId]);
+  }, [partyId, givenConversationId, byPhone]);
 
   // New messages (the diner's reply, the bot's answer) land as they happen.
   useEffect(() => {

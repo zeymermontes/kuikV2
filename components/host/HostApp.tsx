@@ -18,10 +18,11 @@ import {
 } from '@/lib/host/model';
 import {
   listHostDay, setPartyStatus, setTableStatus, moveParty, updateParty, addWalkIn, notifyTableReady, countHandoffChats, keepParty, ackCancelledParty, countNewOrders,
+  listHostOrders, listHandoffChats, type HostOrder, type HandoffChat,
   saveTable, moveTable, deleteTable, setTableServer, blockTable, saveHostSettings, saveCombination, deleteCombination,
   type HostDay, type PartyFields,
 } from '@/app/host/actions';
-import { getPendingSummary, markNotificationSent } from '@/app/(dashboard)/reservations/actions';
+import { listPendingReservations, getPendingSummary, markNotificationSent } from '@/app/(dashboard)/reservations/actions';
 import type { GuestNotice } from '@/lib/notify/guest';
 import { RequestsSheet } from './RequestsSheet';
 import { OrdersSheet } from './OrdersSheet';
@@ -48,7 +49,7 @@ type Sheet =
   | { kind: 'chat'; id: string }
   | { kind: 'handoffChat'; conversationId: string; name: string; phone: string | null }
   | { kind: 'orders' }
-  | { kind: 'orderChat'; conversationId: string; name: string; phone: string | null }
+  | { kind: 'orderChat'; conversationId?: string; byPhone?: string; name: string; phone: string | null }
   | null;
 
 /**
@@ -129,12 +130,21 @@ export function HostApp({
   // never re-subscribes the channel.
   const tRef = useRef(t);
   useEffect(() => { tRef.current = t; }, [t]);
+  // What the sheets show, fetched ahead of the tap and kept fresh over
+  // Realtime — the notification already said something changed, so the list
+  // is ready by the time someone opens it.
+  const [ordersPrefetch, setOrdersPrefetch] = useState<HostOrder[] | null>(null);
+  const [pendingPrefetch, setPendingPrefetch] = useState<Reservation[] | null>(null);
+  const [chatsPrefetch, setChatsPrefetch] = useState<HandoffChat[] | null>(null);
   // Orders waiting for a yes: the badge on the orders button.
   const [newOrders, setNewOrders] = useState(0);
   useEffect(() => {
     if (demo || !ordersBoard) return;
     let cancelled = false;
-    const load = () => countNewOrders().then((n) => !cancelled && setNewOrders(n)).catch(() => {});
+    const load = () => {
+      countNewOrders().then((n) => !cancelled && setNewOrders(n)).catch(() => {});
+      listHostOrders().then((r) => !cancelled && setOrdersPrefetch(r)).catch(() => {});
+    };
     load();
     const supabase = createClient();
     const channel = supabase
@@ -151,12 +161,16 @@ export function HostApp({
   useEffect(() => {
     if (demo) return;
     let cancelled = false;
-    const load = () => countHandoffChats().then((n) => !cancelled && setHandoffCount(n)).catch(() => {});
+    const load = () => {
+      countHandoffChats().then((n) => !cancelled && setHandoffCount(n)).catch(() => {});
+      listHandoffChats().then((c) => !cancelled && setChatsPrefetch(c)).catch(() => {});
+    };
     load();
     const supabase = createClient();
     const channel = supabase
       .channel(channelName(`host-handoffs-${tenantId}`))
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'whatsapp_conversations', filter: `tenant_id=eq.${tenantId}` }, load)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'whatsapp_messages', filter: `tenant_id=eq.${tenantId}` }, load)
       .subscribe();
     return () => {
       cancelled = true;
@@ -168,6 +182,13 @@ export function HostApp({
     const id = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(id);
   }, []);
+  // The requests list, ahead of the bell's first tap.
+  useEffect(() => {
+    if (demo) return;
+    let cancelled = false;
+    listPendingReservations().then((r) => !cancelled && setPendingPrefetch(r)).catch(() => {});
+    return () => { cancelled = true; };
+  }, [demo]);
   useEffect(() => {
     if (!toast) return;
     const id = setTimeout(() => setToast(null), 3500);
@@ -208,6 +229,7 @@ export function HostApp({
           return row.date === day ? [...without, row] : without;
         });
         void getPendingSummary().then((s) => setPendingCount(s.total)).catch(() => {});
+        void listPendingReservations().then(setPendingPrefetch).catch(() => {});
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'floor_tables', filter: `tenant_id=eq.${tenantId}` }, (payload) => {
         if (payload.eventType === 'DELETE') {
@@ -772,6 +794,8 @@ export function HostApp({
       {sheet?.kind === 'requests' && (
         <RequestsSheet
           tenantId={tenantId}
+          initialRows={pendingPrefetch}
+          initialChats={chatsPrefetch}
           onClose={() => setSheet(null)}
           onDecide={(id, status) => act(id, status)}
           onKeep={keep}
@@ -790,13 +814,15 @@ export function HostApp({
         <OrdersSheet
           tenantId={tenantId}
           currency={currency}
+          today={today}
+          initial={ordersPrefetch}
           onClose={() => setSheet(null)}
-          onOpenChat={(c) => setSheet({ kind: 'orderChat', conversationId: c.conversationId, name: c.name, phone: c.phone })}
+          onOpenChat={(c) => setSheet({ kind: 'orderChat', conversationId: c.conversationId, byPhone: c.phone, name: c.name, phone: c.phone ?? null })}
         />
       )}
 
       {sheet?.kind === 'orderChat' && (
-        <ChatSheet conversationId={sheet.conversationId} name={sheet.name} phone={sheet.phone} onClose={() => setSheet({ kind: 'orders' })} />
+        <ChatSheet conversationId={sheet.conversationId} byPhone={sheet.byPhone} name={sheet.name} phone={sheet.phone} onClose={() => setSheet({ kind: 'orders' })} />
       )}
 
       {sheet?.kind === 'walkin' && (

@@ -7,7 +7,7 @@ import type { Reservation } from '@/lib/database.types';
 import { listPendingReservations } from '@/app/(dashboard)/reservations/actions';
 import { listHandoffChats, type HandoffChat } from '@/app/host/actions';
 import { createClient, channelName } from '@/lib/supabase/client';
-import { Sheet, PRIMARY, DANGER } from './ui';
+import { Sheet, PRIMARY, DANGER, ListSkeleton } from './ui';
 
 /**
  * The bell's panel: every request still waiting for a yes or no, whatever
@@ -24,6 +24,8 @@ export function RequestsSheet({
   noticeFor,
   onSendNotice,
   onOpenChat,
+  initialRows,
+  initialChats,
 }: {
   tenantId: string;
   onClose: () => void;
@@ -37,11 +39,14 @@ export function RequestsSheet({
   onSendNotice: (id: string) => void;
   /** Open the WhatsApp chat of a diner waiting for a person. */
   onOpenChat: (chat: HandoffChat) => void;
+  /** What the stand already fetched, so the sheet paints at once. */
+  initialRows?: Reservation[] | null;
+  initialChats?: HandoffChat[] | null;
 }) {
   const t = useTranslations('host');
   const locale = useLocale();
-  const [rows, setRows] = useState<Reservation[] | null>(null);
-  const [chats, setChats] = useState<HandoffChat[] | null>(null);
+  const [rows, setRows] = useState<Reservation[] | null>(initialRows ?? null);
+  const [chats, setChats] = useState<HandoffChat[] | null>(initialChats ?? null);
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -104,7 +109,7 @@ export function RequestsSheet({
           <Headset className="h-3.5 w-3.5" /> {t('handoffTitle')}{chats && chats.length > 0 ? ` (${chats.length})` : ''}
         </p>
         {chats === null ? (
-          <p className="py-3 text-center text-sm text-white/50">…</p>
+          <ListSkeleton rows={1} />
         ) : chats.length === 0 ? (
           <p className="py-3 text-center text-sm text-white/50">{t('handoffNone')}</p>
         ) : (
@@ -138,7 +143,7 @@ export function RequestsSheet({
         </div>
       )}
       {rows === null ? (
-        <p className="py-10 text-center text-sm text-white/50">…</p>
+        <ListSkeleton />
       ) : rows.length === 0 ? (
         <p className="py-10 text-center text-sm text-white/50">{t('requestsNone')}</p>
       ) : (
