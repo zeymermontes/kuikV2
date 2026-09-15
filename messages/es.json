@@ -1885,7 +1885,8 @@
     "optionsDish": "del platillo",
     "optionsTakeaway": "para llevar",
     "optionsDrink": "de la bebida",
-    "whatsappBubble": "Escríbenos por WhatsApp"
+    "whatsappBubble": "Escríbenos por WhatsApp",
+    "addressRequired": "Necesitamos tu dirección para llevarte el pedido."
   },
   "pwa": {
     "install": "Instalar",

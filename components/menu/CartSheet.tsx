@@ -147,6 +147,8 @@ export function CartSheet({
   // is the only way the restaurant can reach the guest about it.
   const phoneDigits = phone.replace(/\D/g, '');
   const missingPhone = payingOnline && phoneDigits.length < 10;
+  // A delivery needs somewhere to go, whatever the restaurant's other settings say.
+  const missingAddress = service === 'delivery' && !address.trim();
 
   // Lock background scroll while the sheet is open (only the sheet scrolls; keeps
   // the mobile URL bar from toggling and shifting the sheet).
@@ -189,9 +191,9 @@ export function CartSheet({
 
   async function handleSend() {
     if (!contact.whatsapp_phone || lines.length === 0 || belowMin) return;
-    if (missingName || missingPhone) {
+    if (missingName || missingPhone || missingAddress) {
       setTried(true);
-      document.getElementById(missingName ? 'kuik-cart-name' : 'kuik-cart-phone')?.focus();
+      document.getElementById(missingName ? 'kuik-cart-name' : missingPhone ? 'kuik-cart-phone' : 'kuik-cart-address')?.focus();
       return;
     }
     setSending(true);
@@ -491,13 +493,26 @@ export function CartSheet({
                   </p>
                 </div>
               )}
-              {ordering.collect_address && service === 'delivery' && (
-                <input
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder={t('address')}
-                  className="w-full rounded-xl border border-[var(--brand-border)] bg-[var(--brand-surface)] px-3 py-2.5 text-sm focus:border-[var(--brand-primary)] focus:outline-none"
-                />
+              {service === 'delivery' && (
+                <div>
+                  {/* Grows with the text: a full address with references is three lines, not one. */}
+                  <textarea
+                    id="kuik-cart-address"
+                    value={address}
+                    onChange={(e) => {
+                      setAddress(e.target.value);
+                      e.target.style.height = 'auto';
+                      e.target.style.height = `${e.target.scrollHeight}px`;
+                    }}
+                    rows={1}
+                    placeholder={t('address')}
+                    aria-invalid={tried && missingAddress}
+                    className={`w-full resize-none overflow-hidden rounded-xl border bg-[var(--brand-surface)] px-3 py-2.5 text-sm focus:outline-none ${
+                      tried && missingAddress ? 'border-red-400 focus:border-red-500' : 'border-[var(--brand-border)] focus:border-[var(--brand-primary)]'
+                    }`}
+                  />
+                  {tried && missingAddress && <p className="mt-1 text-xs text-red-500">{t('addressRequired')}</p>}
+                </div>
               )}
               {ordering.collect_pickup_time && service === 'pickup' && (
                 <input

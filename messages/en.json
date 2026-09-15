@@ -1885,7 +1885,8 @@
     "optionsDish": "for the dish",
     "optionsTakeaway": "to take away",
     "optionsDrink": "for the drink",
-    "whatsappBubble": "Message us on WhatsApp"
+    "whatsappBubble": "Message us on WhatsApp",
+    "addressRequired": "We need your address to bring the order."
   },
   "pwa": {
     "install": "Install",
