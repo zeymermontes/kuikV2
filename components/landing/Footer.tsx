@@ -16,7 +16,7 @@ export function Footer({ loginLabel, ctaLabel }: { loginLabel: string; ctaLabel:
           </Link>
           <p className="mt-3 max-w-xs text-sm text-neutral-500">Menú digital, pedidos, punto de venta y reservaciones para restaurantes en México.</p>
         </div>
-        <div className="grid grid-cols-2 gap-10 text-sm sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-10 text-sm sm:grid-cols-4">
           <div>
             <p className="font-semibold">Producto</p>
             <ul className="mt-3 space-y-2 text-neutral-500">
@@ -43,6 +43,12 @@ export function Footer({ loginLabel, ctaLabel }: { loginLabel: string; ctaLabel:
             <ul className="mt-3 space-y-2 text-neutral-500">
               <li><Link href="/login" className="hover:text-neutral-900">{loginLabel}</Link></li>
               <li><Link href="/signup" className="hover:text-neutral-900">{ctaLabel}</Link></li>
+            </ul>
+          </div>
+          <div>
+            <p className="font-semibold">Contacto</p>
+            <ul className="mt-3 space-y-2 text-neutral-500">
+              <li><a href="mailto:contacto@kuik.mx" className="hover:text-neutral-900">contacto@kuik.mx</a></li>
             </ul>
           </div>
         </div>
