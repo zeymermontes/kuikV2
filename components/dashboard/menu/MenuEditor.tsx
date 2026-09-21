@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -103,6 +103,7 @@ export function MenuEditor({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<DrawerState>(null);
   const [search, setSearch] = useState('');
+  const productsRef = useRef<HTMLDivElement>(null);
 
   // Multi-select: tick products (across categories) and paste option groups
   // onto all of them, from what the drawer copied to the clipboard.
@@ -296,9 +297,18 @@ export function MenuEditor({
         .sort((a, b) => Number(fold(b.name).includes(q)) - Number(fold(a.name).includes(q)))
         .slice(0, 30)
     : [];
+  // Picking a category while deep in a long product list: bring the top of
+  // the new list back, instead of leaving the reader halfway down it.
+  function selectCategory(catId: string) {
+    setSelectedId(catId);
+    requestAnimationFrame(() => {
+      const el = productsRef.current;
+      if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView({ block: 'start' });
+    });
+  }
   function goTo(catId: string, productId?: string) {
     setSearch('');
-    setSelectedId(catId);
+    selectCategory(catId);
     if (productId) setDrawer({ kind: 'product', id: productId });
   }
 
@@ -361,8 +371,10 @@ export function MenuEditor({
       )}
 
     <div className="grid grid-cols-1 gap-4 md:grid-cols-[260px_1fr]">
-      {/* ── Categories panel ─────────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-neutral-200 bg-white">
+      {/* ── Categories panel ───────────────────────────────────────────────
+          Pinned beside the products and scrolling on its own: a long list of
+          sections never pushes the chosen one's products out of view. */}
+      <div className="rounded-2xl border border-neutral-200 bg-white md:sticky md:top-4 md:self-start">
         <div className="flex items-center justify-between border-b border-neutral-100 px-3 py-2.5">
           <span className="text-sm font-semibold">{t('categories')}</span>
           <button
@@ -378,7 +390,7 @@ export function MenuEditor({
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleCatDragEnd}>
             <SortableContext items={orderedCats.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-              <div className="max-h-[60vh] overflow-y-auto p-1.5 md:max-h-none">
+              <div className="max-h-[60vh] overflow-y-auto overscroll-contain p-1.5 md:max-h-[calc(100dvh-7rem)]">
                 {orderedCats.map((c) => (
                   <CategoryRow
                     key={c.id}
@@ -386,7 +398,7 @@ export function MenuEditor({
                     count={countFor(c.id)}
                     selected={selectedCat?.id === c.id}
                     isChild={Boolean(c.parent_id)}
-                    onSelect={() => setSelectedId(c.id)}
+                    onSelect={() => selectCategory(c.id)}
                     onEdit={() => setDrawer({ kind: 'category', id: c.id })}
                     onToggleVisible={() => updateCategory(c.id, { is_visible: !c.is_visible })}
                     onDelete={() => confirm(t('confirmDeleteCategory')) && deleteCategory(c.id)}
@@ -404,7 +416,7 @@ export function MenuEditor({
       </div>
 
       {/* ── Products panel ───────────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-neutral-200 bg-white">
+      <div ref={productsRef} className="scroll-mt-4 rounded-2xl border border-neutral-200 bg-white">
         {!selectedCat ? (
           <p className="px-4 py-10 text-center text-sm text-neutral-400">{t('selectCategory')}</p>
         ) : (
