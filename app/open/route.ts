@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   const user = await loadUser();
   if (!user) {
     cookieStore.set('kuik_next', req.nextUrl.pathname + req.nextUrl.search, { path: '/', maxAge: 60 * 10, sameSite: 'lax', httpOnly: true });
-    return NextResponse.redirect(new URL('/login', req.url));
+    return go('/login');
   }
 
   const memberships = await getMemberships(user.id);
@@ -38,7 +38,17 @@ export async function GET(req: NextRequest) {
     cookieStore.set('kuik_tenant', membership.tenant.id, { path: '/', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' });
   }
 
-  return NextResponse.redirect(new URL(destinationFor(to, membership?.role ?? null), req.url));
+  return go(destinationFor(to, membership?.role ?? null));
+}
+
+/**
+ * A redirect by path alone. Behind Render's proxy `req.url` is the internal
+ * address (localhost:10000), so an absolute URL built from it sends people
+ * nowhere; a relative Location is resolved by the browser against the public
+ * address it actually asked for — kuik.mx, app.kuik.mx or localhost alike.
+ */
+function go(path: string): NextResponse {
+  return new NextResponse(null, { status: 307, headers: { Location: path } });
 }
 
 /** Same-origin paths only: "/whatsapp/inbox?c=…" yes, "https://…" or "//evil" no. */
