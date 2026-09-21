@@ -10,6 +10,7 @@ import { redirect } from 'next/navigation';
 import { unzipSync } from 'fflate';
 import { requireSuperAdmin } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { sendOwnerInviteEmail } from '@/lib/email';
 import { contentTypeFor, LANDING_DIR } from '@/lib/landing';
 import { RELEASE_KEYS, setMinVersion, type ReleaseKey } from '@/lib/apps/releases';
 import type { Subscription } from '@/lib/database.types';
@@ -18,15 +19,20 @@ import type { Subscription } from '@/lib/database.types';
 const SUPPORT_COOKIE = 'kuik_support';
 
 /**
- * Transfer a restaurant to another (existing) account. Super-admin only.
- * The destination account must already exist; the previous owner loses all
- * access (removed from tenant_members). Ownership is re-pointed and the new
- * owner becomes an owner-member.
+ * Transfer a restaurant to another account. Super-admin only.
+ *
+ * An address that already has an account takes over at once: ownership is
+ * re-pointed, the new owner becomes an owner-member and the previous owner
+ * loses all access (removed from tenant_members).
+ *
+ * An address with no account yet gets a pending owner invite and an email
+ * instead. Nothing changes for the current owner until that person signs in
+ * with the address, when claim_pending_invites() (0096) does the same hand-over.
  */
 export async function transferTenant(
   tenantId: string,
   email: string,
-): Promise<{ ok: true } | { error: 'noAccount' | 'sameOwner' | 'notFound' }> {
+): Promise<{ ok: true; invited?: boolean } | { error: 'noAccount' | 'sameOwner' | 'notFound' }> {
   const actor = await requireSuperAdmin();
   const target = email.trim().toLowerCase();
   if (!target) return { error: 'noAccount' };
@@ -47,15 +53,42 @@ export async function transferTenant(
     }
     if (data.users.length < 200) break; // reached the last page
   }
-  if (!userId) return { error: 'noAccount' };
 
   const { data: tenant } = await supabase
     .from('tenants')
-    .select('owner_id')
+    .select('owner_id, name')
     .eq('id', tenantId)
-    .single<{ owner_id: string }>();
+    .single<{ owner_id: string; name: string }>();
   if (!tenant) return { error: 'notFound' };
   if (tenant.owner_id === userId) return { error: 'sameOwner' };
+
+  // One owner-in-waiting per restaurant: a new transfer replaces the last.
+  await supabase
+    .from('tenant_invites')
+    .delete()
+    .eq('tenant_id', tenantId)
+    .eq('role', 'owner')
+    .is('accepted_at', null);
+
+  if (!userId) {
+    const { error } = await supabase
+      .from('tenant_invites')
+      .upsert(
+        { tenant_id: tenantId, email: target, role: 'owner', accepted_at: null },
+        { onConflict: 'tenant_id,email' },
+      );
+    if (error) return { error: 'notFound' };
+    await sendOwnerInviteEmail(target, tenant.name);
+    await supabase.from('audit_log').insert({
+      actor_id: actor.id,
+      tenant_id: tenantId,
+      action: 'invite_owner',
+      detail: { from: tenant.owner_id, email: target },
+    });
+    revalidatePath('/admin');
+    return { ok: true, invited: true };
+  }
+
   const oldOwner = tenant.owner_id;
 
   await supabase
@@ -80,6 +113,28 @@ export async function transferTenant(
 
   revalidatePath('/admin');
   return { ok: true };
+}
+
+/** Call off a pending owner invite: the restaurant stays with its current owner. */
+export async function cancelOwnerInvite(tenantId: string) {
+  const actor = await requireSuperAdmin();
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from('tenant_invites')
+    .delete()
+    .eq('tenant_id', tenantId)
+    .eq('role', 'owner')
+    .is('accepted_at', null)
+    .select('email');
+  if (data?.length) {
+    await supabase.from('audit_log').insert({
+      actor_id: actor.id,
+      tenant_id: tenantId,
+      action: 'cancel_owner_invite',
+      detail: { email: data[0].email },
+    });
+  }
+  revalidatePath('/admin');
 }
 
 /**

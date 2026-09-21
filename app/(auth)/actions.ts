@@ -5,6 +5,7 @@ import { cookies, headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { getMembership, homeForRole } from '@/lib/auth';
 import { shell } from '@/lib/native/shell';
+import { APP_URL } from '@/lib/config';
 
 export interface AuthResult {
   error?: string;
@@ -21,6 +22,11 @@ export async function signIn(
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { error: error.message };
+
+  // Invites waiting for this address (staff, or a restaurant to claim) are
+  // linked before the membership is read, so an invited person's first sign-in
+  // lands in their restaurant instead of on "create your restaurant".
+  await supabase.rpc('claim_pending_invites');
 
   // Land each role somewhere it can actually use. Sending everyone to
   // /dashboard used to drop waiters and cashiers on the analytics page, which
@@ -53,7 +59,13 @@ export async function signUp(
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: fullName } },
+    options: {
+      data: { full_name: fullName },
+      // The confirmation link ends on the sign-in form, address filled in and a
+      // "confirmed" notice above it. (Must be listed under Supabase → Auth →
+      // URL Configuration → Redirect URLs, or the Site URL is used instead.)
+      emailRedirectTo: `${APP_URL}/login?confirmed=1&email=${encodeURIComponent(email)}`,
+    },
   });
   if (error) return { error: error.message };
 
@@ -65,8 +77,13 @@ export async function signUp(
     redirect(`/login?exists=1&email=${encodeURIComponent(email)}`);
   }
 
-  // If email confirmation is disabled, a session exists immediately → onboard.
-  if (data.session) redirect('/onboarding');
+  // If email confirmation is disabled, a session exists immediately: an invited
+  // person goes to the restaurant waiting for them, anyone else onboards.
+  if (data.session) {
+    await supabase.rpc('claim_pending_invites');
+    const membership = data.user ? await getMembership(data.user.id) : null;
+    redirect(membership ? homeForRole(membership.role) : '/onboarding');
+  }
   return { message: 'check-email' };
 }
 

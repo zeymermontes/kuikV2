@@ -103,6 +103,16 @@ export default async function AdminPage() {
 
   // Per-tenant landing state: the super-admin's home-mode selection and whether
   // a custom site has been uploaded.
+  // Restaurants handed to an address that has not signed in yet (0096).
+  const { data: ownerInvites } = await supabase
+    .from('tenant_invites')
+    .select('tenant_id, email')
+    .eq('role', 'owner')
+    .is('accepted_at', null);
+  const pendingOwner = new Map(
+    ((ownerInvites ?? []) as { tenant_id: string; email: string }[]).map((i) => [i.tenant_id, i.email]),
+  );
+
   const { data: landingRows } = await supabase
     .from('tenant_landing')
     .select('tenant_id, landing_mode, custom_entry');
@@ -249,7 +259,7 @@ export default async function AdminPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
-                      <TenantAdminActions tenantId={r.tenant_id} name={r.name} />
+                      <TenantAdminActions tenantId={r.tenant_id} name={r.name} pendingOwner={pendingOwner.get(r.tenant_id) ?? null} />
                       <AwardMonthsButton tenantId={r.tenant_id} />
                     </div>
                   </td>

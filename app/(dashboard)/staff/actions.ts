@@ -5,19 +5,21 @@ import { requireOwner, requireManager } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import type { MemberRole, EmployeeRole } from '@/lib/database.types';
 import { EMPLOYEE_ROLES, PERMS, hashPin, isValidPin, type Perm } from '@/lib/employees';
+import { sendStaffInviteEmail } from '@/lib/email';
 
-/** Invite a staff member by email. They're linked on their next login. */
+/** Invite a staff member by email. They're told by email and linked on their next login. */
 export async function inviteStaff(email: string, role: MemberRole) {
   const { tenant } = await requireOwner();
   const e = email.trim().toLowerCase();
   if (!e || role === 'owner') return;
   const supabase = await createClient();
-  await supabase
+  const { error } = await supabase
     .from('tenant_invites')
     .upsert(
       { tenant_id: tenant.id, email: e, role, accepted_at: null },
       { onConflict: 'tenant_id,email' },
     );
+  if (!error) await sendStaffInviteEmail(e, tenant.name, role);
   revalidatePath('/staff');
 }
 

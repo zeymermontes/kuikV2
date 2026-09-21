@@ -17,7 +17,7 @@ en el campo **Message body** y el asunto en **Subject**:
 | `magic-link.html` | Magic Link | `Tu enlace de acceso a Kuik` | ⚠️ Solo si activas magic link |
 | `change-email.html` | Change Email Address | `Confirma tu nuevo correo en Kuik` | ⚠️ Solo si permites cambiar correo |
 | `reauthentication.html` | Reauthentication | `Tu código de verificación de Kuik` | ⚠️ Solo si activas OTP/reauth |
-| `invite.html` | Invite user | `Te invitaron a un restaurante en Kuik` | ❌ Los invites de staff son in-app; solo aplica si usas `admin.inviteUserByEmail` |
+| `invite.html` | Invite user | `Te invitaron a un restaurante en Kuik` | ❌ Los invites (staff y dueño) los manda la app por Resend (`lib/email.ts`); solo aplica si usas `admin.inviteUserByEmail` |
 
 Hoy la app usa **email + contraseña con confirmación de registro**, así que la única
 plantilla que se dispara de forma normal es **Confirm signup**. Las demás quedan

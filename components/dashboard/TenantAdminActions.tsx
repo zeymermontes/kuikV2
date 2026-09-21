@@ -1,11 +1,20 @@
 'use client';
 
 import { useTransition } from 'react';
-import { LogIn, ArrowRightLeft } from 'lucide-react';
+import { LogIn, ArrowRightLeft, Mail, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { enterSupport, transferTenant } from '@/app/(dashboard)/admin/actions';
+import { enterSupport, transferTenant, cancelOwnerInvite } from '@/app/(dashboard)/admin/actions';
 
-export function TenantAdminActions({ tenantId, name }: { tenantId: string; name: string }) {
+export function TenantAdminActions({
+  tenantId,
+  name,
+  pendingOwner,
+}: {
+  tenantId: string;
+  name: string;
+  /** Address the restaurant is waiting for, when a transfer went to someone with no account yet. */
+  pendingOwner: string | null;
+}) {
   const t = useTranslations('superAdmin');
   const [pending, startTransition] = useTransition();
 
@@ -27,9 +36,14 @@ export function TenantAdminActions({ tenantId, name }: { tenantId: string; name:
         };
         alert(messages[res.error] ?? t('transferErr_noAccount'));
       } else {
-        alert(t('transferOk'));
+        alert(res?.invited ? t('transferInvited', { email: email.trim().toLowerCase() }) : t('transferOk'));
       }
     });
+  }
+
+  function cancelInvite() {
+    if (!pendingOwner || !confirm(t('ownerInviteCancelConfirm', { email: pendingOwner }))) return;
+    startTransition(() => cancelOwnerInvite(tenantId));
   }
 
   const btn =
@@ -37,6 +51,18 @@ export function TenantAdminActions({ tenantId, name }: { tenantId: string; name:
 
   return (
     <>
+      {pendingOwner && (
+        <span
+          title={t('ownerInvitePending', { email: pendingOwner })}
+          className="flex max-w-[14rem] items-center gap-1 rounded-lg bg-amber-50 py-1 pl-2 pr-1 text-xs font-medium text-amber-800"
+        >
+          <Mail className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">{pendingOwner}</span>
+          <button onClick={cancelInvite} disabled={pending} aria-label={t('ownerInviteCancel')} className="rounded p-0.5 hover:bg-amber-100">
+            <X className="h-3 w-3" />
+          </button>
+        </span>
+      )}
       <button onClick={support} disabled={pending} className={btn}>
         <LogIn className="h-3.5 w-3.5" /> {t('supportEnter')}
       </button>
