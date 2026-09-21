@@ -30,7 +30,8 @@
     "signOut": "Cerrar sesión",
     "haveAccount": "¿Ya tienes cuenta?",
     "noAccount": "¿No tienes cuenta?",
-    "checkEmail": "Revisa tu correo para confirmar tu cuenta."
+    "checkEmail": "Revisa tu correo para confirmar tu cuenta.",
+    "accountExists": "Ya existe una cuenta con este correo. Inicia sesión para continuar."
   },
   "onboarding": {
     "title": "Configura tu restaurante",

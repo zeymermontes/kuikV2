@@ -30,7 +30,8 @@
     "signOut": "Sign out",
     "haveAccount": "Already have an account?",
     "noAccount": "Don't have an account?",
-    "checkEmail": "Check your email to confirm your account."
+    "checkEmail": "Check your email to confirm your account.",
+    "accountExists": "An account with this email already exists. Sign in to continue."
   },
   "onboarding": {
     "title": "Set up your restaurant",

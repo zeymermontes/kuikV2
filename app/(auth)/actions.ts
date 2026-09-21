@@ -57,6 +57,14 @@ export async function signUp(
   });
   if (error) return { error: error.message };
 
+  // An address that already has a confirmed account: so as not to reveal who
+  // is registered, Supabase answers as if it had worked — a user with no
+  // identities — and sends nothing. "Check your email" would then leave the
+  // person waiting for a message that never comes; they go to sign in instead.
+  if (data.user && (data.user.identities?.length ?? 0) === 0) {
+    redirect(`/login?exists=1&email=${encodeURIComponent(email)}`);
+  }
+
   // If email confirmation is disabled, a session exists immediately → onboard.
   if (data.session) redirect('/onboarding');
   return { message: 'check-email' };
