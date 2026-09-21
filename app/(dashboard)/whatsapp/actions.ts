@@ -130,3 +130,40 @@ export async function saveAiConfig(patch: {
   await supabase.from('ai_providers_config').upsert(update, { onConflict: 'tenant_id' });
   revalidatePath('/whatsapp');
 }
+
+/**
+ * Wipe the restaurant's WhatsApp history: contacts, their conversations and
+ * every message (the rest — flow runs, a goal's or an order's link to a chat —
+ * cascades or is set null by the schema). Owner only, and only while no number
+ * is connected or pairing: with a live number the bot would be answering
+ * people whose thread had just vanished under it. Checked here, not only in
+ * the UI that hides the button.
+ */
+export async function clearWhatsappHistory(): Promise<{ ok: true; deleted: number } | { error: 'connected' | 'failed' }> {
+  const { tenant, user } = await requireOwner();
+  const supabase = createAdminClient();
+  const { data: live } = await supabase
+    .from('whatsapp_numbers')
+    .select('phone_number_id')
+    .eq('tenant_id', tenant.id)
+    .in('status', ['connected', 'pairing'])
+    .limit(1);
+  if (live?.length) return { error: 'connected' };
+
+  const { error, count } = await supabase
+    .from('whatsapp_contacts')
+    .delete({ count: 'exact' })
+    .eq('tenant_id', tenant.id);
+  if (error) return { error: 'failed' };
+
+  await supabase.from('audit_log').insert({
+    actor_id: user.id,
+    tenant_id: tenant.id,
+    action: 'clear_whatsapp_history',
+    detail: { contacts: count ?? 0 },
+  });
+  revalidatePath('/whatsapp');
+  revalidatePath('/whatsapp/inbox');
+  revalidatePath('/chats');
+  return { ok: true, deleted: count ?? 0 };
+}

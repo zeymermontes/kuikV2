@@ -10,6 +10,7 @@ import { BotSettings } from '@/components/dashboard/whatsapp/BotSettings';
 import { AiSettings } from '@/components/dashboard/whatsapp/AiSettings';
 import { FaqEditor, type Faq } from '@/components/dashboard/whatsapp/FaqEditor';
 import { WhatsappDiagnostics } from '@/components/dashboard/whatsapp/WhatsappDiagnostics';
+import { WhatsappHistory } from '@/components/dashboard/whatsapp/WhatsappHistory';
 import { isPro } from '@/lib/plan';
 import { diagnose } from '@/lib/whatsapp/bridge';
 
@@ -23,7 +24,7 @@ export default async function WhatsappPage() {
   const period = new Date();
   period.setUTCDate(1);
 
-  const [{ data: numbers }, { data: settings }, { data: canned }, { data: faqs }, { data: aiConfig }, { data: lastAiFailure }, { data: recentMessages }, { data: usage }] =
+  const [{ data: numbers }, { data: settings }, { data: canned }, { data: faqs }, { data: aiConfig }, { data: lastAiFailure }, { data: recentMessages }, { data: usage }, { count: conversationCount }] =
     await Promise.all([
       supabase.from('whatsapp_numbers').select('*').eq('tenant_id', tenant.id).order('created_at'),
       supabase.from('whatsapp_settings').select('*').eq('tenant_id', tenant.id).maybeSingle(),
@@ -60,6 +61,7 @@ export default async function WhatsappPage() {
         .eq('tenant_id', tenant.id)
         .eq('period', period.toISOString().slice(0, 10))
         .maybeSingle(),
+      supabase.from('whatsapp_conversations').select('id', { count: 'exact', head: true }).eq('tenant_id', tenant.id),
     ]);
 
   // Asked of the bridge itself, not of our own tables: the two disagree in
@@ -81,6 +83,11 @@ export default async function WhatsappPage() {
         <WhatsappConnect numbers={numberRows} />
       ) : (
         <WhatsappPair numbers={numberRows} />
+      )}
+
+      {/* Clearing the history is only offered with no number live (the action checks again). */}
+      {role === 'owner' && !numberRows.some((n) => n.status === 'connected' || n.status === 'pairing') && (
+        <WhatsappHistory conversations={conversationCount ?? 0} />
       )}
 
       <WhatsappDiagnostics

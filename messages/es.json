@@ -1941,6 +1941,13 @@
     "downloadApk": "O descarga la app para Android"
   },
   "whatsapp": {
+    "historyTitle": "Historial de chats",
+    "historyHint": "{n, plural, =0 {No hay conversaciones guardadas.} one {# conversación guardada. Bórrala antes de conectar otro número para empezar en limpio.} other {# conversaciones guardadas. Bórralas antes de conectar otro número para empezar en limpio.}}",
+    "historyClear": "Borrar historial",
+    "historyConfirm": "¿Borrar todo el historial de WhatsApp ({n} conversaciones, con sus contactos y mensajes)? No se puede deshacer.",
+    "historyDone": "Historial borrado.",
+    "historyErr_connected": "Hay un número conectado. Desvincúlalo antes de borrar el historial.",
+    "historyErr_failed": "No se pudo borrar el historial. Intenta de nuevo.",
     "title": "WhatsApp",
     "subtitle": "Conecta tu número y deja que Kuik conteste cuando no puedas.",
     "connectTitle": "Número conectado",

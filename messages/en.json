@@ -1941,6 +1941,13 @@
     "downloadApk": "Or download the Android app"
   },
   "whatsapp": {
+    "historyTitle": "Chat history",
+    "historyHint": "{n, plural, =0 {No saved conversations.} one {# saved conversation. Clear it before connecting another number to start clean.} other {# saved conversations. Clear them before connecting another number to start clean.}}",
+    "historyClear": "Clear history",
+    "historyConfirm": "Delete the whole WhatsApp history ({n} conversations, with their contacts and messages)? This cannot be undone.",
+    "historyDone": "History cleared.",
+    "historyErr_connected": "A number is connected. Unlink it before clearing the history.",
+    "historyErr_failed": "The history could not be cleared. Try again.",
     "title": "WhatsApp",
     "subtitle": "Connect your number and let Kuik answer when you can't.",
     "connectTitle": "Connected number",
