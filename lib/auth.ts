@@ -3,6 +3,7 @@ import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type {
   Profile,
   Tenant,
@@ -165,7 +166,12 @@ const loadTenantContext = cache(async (): Promise<TenantLoad> => {
     await Promise.all([
       supabase.from('tenant_theme').select('*').eq('tenant_id', tenant.id).single<TenantTheme>(),
       supabase.from('tenant_contact').select('*').eq('tenant_id', tenant.id).single<TenantContact>(),
-      supabase.from('subscriptions').select('*').eq('tenant_id', tenant.id).single<Subscription>(),
+      // Read with the service role: since 0045 only owner and manager may
+      // select this table (what the restaurant pays is theirs to see), yet
+      // every role's pages gate on the plan — with the user's client a host,
+      // cashier or waiter got null here and /terminal and /host crashed on it.
+      // The tenant is already one this user belongs to.
+      createAdminClient().from('subscriptions').select('*').eq('tenant_id', tenant.id).single<Subscription>(),
     ]);
 
   return {
