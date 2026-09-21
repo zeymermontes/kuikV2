@@ -171,6 +171,10 @@ export function HostApp({
       .channel(channelName(`host-handoffs-${tenantId}`))
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'whatsapp_conversations', filter: `tenant_id=eq.${tenantId}` }, load)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'whatsapp_messages', filter: `tenant_id=eq.${tenantId}` }, load)
+      // A cleared history (or a deleted chat) must drop off the bell too.
+      // Unfiltered on purpose: Realtime cannot filter DELETEs by tenant_id (the
+      // old row carries only its key), and a needless recount is harmless.
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'whatsapp_conversations' }, load)
       .subscribe();
     return () => {
       cancelled = true;

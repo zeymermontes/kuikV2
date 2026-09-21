@@ -144,6 +144,8 @@ export function TerminalHub({
       .channel(channelName(`hub-counts-${tenantId}`))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations', filter: `tenant_id=eq.${tenantId}` }, recount)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'whatsapp_conversations', filter: `tenant_id=eq.${tenantId}` }, recount)
+      // Unfiltered: Realtime cannot filter DELETEs by tenant_id, and a cleared history has to reach the badge.
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'whatsapp_conversations' }, recount)
       .subscribe();
     // Coming back to the tab after a while: the numbers may be stale.
     const onVisible = () => { if (document.visibilityState === 'visible') recount(); };
