@@ -48,6 +48,7 @@ import { OpenStatus } from './OpenStatus';
 import { ReservationSheet } from './ReservationSheet';
 import { WhatsAppBubble } from './WhatsAppBubble';
 import { MadeWithKuik } from './MadeWithKuik';
+import { MenuSearch, type SearchTarget } from './MenuSearch';
 
 // The bar header's side actions. On a narrow phone the wordmark needs the
 // room, so they collapse to round icon buttons and the label returns at `sm`.
@@ -160,6 +161,7 @@ export function MenuView({
   const [presetTable, setPresetTable] = useState<string | null>(null);
   const [showReserve, setShowReserve] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [searchOpen, setSearchOpen] = useState(false);
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [navStuck, setNavStuck] = useState(false);
   const [barH, setBarH] = useState(52);
@@ -484,6 +486,33 @@ export function MenuView({
     }
   }, [activeCat]);
 
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
+  // A quick-search result: make sure its section is on screen (filters off,
+  // its tab selected, not collapsed), then scroll to it once that has rendered.
+  const jumpTo = useCallback((target: SearchTarget) => {
+    setSearchOpen(false);
+    setQuery('');
+    setActiveTags([]);
+    setActiveCat(target.catId);
+    setCollapsed((c) => (c[target.catId] ? { ...c, [target.catId]: false } : c));
+    window.setTimeout(() => {
+      const el = document.getElementById(target.elementId);
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: target.kind === 'product' ? 'center' : 'start' });
+      if (target.kind === 'product') {
+        // A brief ring so the eye finds the dish among its neighbours.
+        el.animate(
+          [
+            { boxShadow: '0 0 0 3px var(--brand-primary)' },
+            { boxShadow: '0 0 0 3px var(--brand-primary)', offset: 0.7 },
+            { boxShadow: '0 0 0 3px transparent' },
+          ],
+          { duration: 1800, easing: 'ease-out' },
+        );
+      }
+    }, 80);
+  }, []);
+
   const gridContainer = layout.columns === 2;
   const tabsMode = settings.navMode === 'tabs';
   const showNav = (settings.stickyTabs || tabsMode) && filteredMenu.length > 1;
@@ -800,6 +829,19 @@ export function MenuView({
         </Link>
       )}
 
+      {/* Quick search, when there is no category strip to hold its button. */}
+      {settings.quickSearch && !showNav && !barHeader && (
+        <button
+          type="button"
+          onClick={() => setSearchOpen(true)}
+          aria-label={t('search')}
+          className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full shadow-md"
+          style={{ backgroundColor: 'var(--brand-surface)', color: 'var(--brand-text)' }}
+        >
+          <Search className="h-5 w-5" />
+        </button>
+      )}
+
       {/* Cover */}
       {cover && (
         <div className="relative h-40 w-full overflow-hidden sm:h-52">
@@ -981,11 +1023,20 @@ export function MenuView({
               Chrome on Android tears a sticky box that also scrolls while the
               URL bar collapses. The clipping still happens on the constrained
               child, so chips stay inside the column. */}
-          <div
-            className={`no-scrollbar overflow-x-auto ${
-              settings.fullWidthHeader ? '' : `mx-auto w-full ${headerWidthClass}`
-            }`}
-          >
+          <div className={`flex items-center ${settings.fullWidthHeader ? '' : `mx-auto w-full ${headerWidthClass}`}`}>
+          {/* Quick search stays pinned while the chips scroll beside it. */}
+          {settings.quickSearch && (
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              aria-label={t('search')}
+              className="ml-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+              style={{ backgroundColor: 'var(--tab-unselected-bg)', color: 'var(--tab-unselected-text)' }}
+            >
+              <Search className="h-4 w-4" />
+            </button>
+          )}
+          <div className="no-scrollbar min-w-0 flex-1 overflow-x-auto">
           {/* Sized to its chips and at least the strip's width: a handful of
               sections sit centred, more than fit scroll with none clipped. */}
           <div className="mx-auto flex w-max min-w-full items-center justify-center gap-2 px-4 py-3">
@@ -1049,6 +1100,7 @@ export function MenuView({
               </a>
             );
           })}
+          </div>
           </div>
           </div>
         </nav>
@@ -1130,7 +1182,7 @@ export function MenuView({
                   {renderEntries(cat.entries)}
                   {/* Subcategories: a smaller heading, then their own items. */}
                   {cat.subcategories.map((sub) => (
-                    <section key={sub.id} id={anchor(sub.id)} className="mt-6">
+                    <section key={sub.id} id={anchor(sub.id)} className="mt-6" style={{ scrollMarginTop: showNav ? barH + 12 : 24 }}>
                       <div className={`mb-2 ${ALIGN_CLASS[settings.categoryAlign]}`}>
                         {subRule === 'both' && <CategoryRule />}
                         <h3
@@ -1161,6 +1213,18 @@ export function MenuView({
 
       <MadeWithKuik subdomain={tenant.subdomain} />
 
+      {searchOpen && (
+        <MenuSearch
+          menu={menu}
+          anchor={anchor}
+          hideSoldOut={settings.soldOutStyle === 'hide'}
+          showPrices={theme.show_prices}
+          currency={currency}
+          locale={locale}
+          onPick={jumpTo}
+          onClose={closeSearch}
+        />
+      )}
       {orderingEnabled && itemCount > 0 && (
         <CartBar count={itemCount} onOpen={() => setSheetOpen(true)} label={t('yourOrder')} />
       )}
@@ -1191,6 +1255,7 @@ export function MenuView({
           readOnly={!orderingEnabled}
           notePlaceholder={ordering.note_placeholder}
           showOptionKind={settings.showOptionKind}
+          optionFullPrice={settings.optionFullPrice}
           themeStyle={categoryThemeVars(catThemeByProduct[activeProduct.id])}
           onClose={() => setActiveProduct(null)}
           onConfirm={(line) =>

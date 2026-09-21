@@ -6,7 +6,7 @@ import { X, Plus, Minus, UtensilsCrossed } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Product } from '@/lib/database.types';
 import type { CartLine } from '@/lib/whatsapp';
-import { resolveOptionGroups, optionKind, type SelectedOption, optionAvailable } from '@/lib/menu-options';
+import { resolveOptionGroups, optionKind, showsFullPrice, type SelectedOption, optionAvailable } from '@/lib/menu-options';
 import { formatPrice } from '@/lib/utils';
 
 export function ProductSheet({
@@ -21,6 +21,7 @@ export function ProductSheet({
   readOnly = false,
   notePlaceholder,
   showOptionKind = true,
+  optionFullPrice = false,
   photoBox,
 }: {
   product: Product;
@@ -43,6 +44,8 @@ export function ProductSheet({
   notePlaceholder?: string | null;
   /** Whether to print the "dish / drink / to go" tag next to each option group. */
   showOptionKind?: boolean;
+  /** Single-choice options show the dish's total with them instead of "+ surcharge". */
+  optionFullPrice?: boolean;
   /**
    * Register mode: a fixed-height band for the photo, reserved before it
    * arrives and even when there is none, so the options never jump under a
@@ -231,8 +234,12 @@ export function ProductSheet({
                             <span className={out ? 'line-through' : ''}>{o.name}</span>
                             {out && <span className="rounded-full border border-current px-1.5 text-[10px] font-semibold uppercase">{t('unavailable')}</span>}
                           </span>
-                          {showPrice && o.price > 0 && !out && (
-                            <span className="text-sm font-medium">+ {formatPrice(o.price, currency, locale)}</span>
+                          {showPrice && !out && showsFullPrice(optionFullPrice, product.price, g) ? (
+                            <span className="text-sm font-medium">{formatPrice((product.price ?? 0) + o.price, currency, locale)}</span>
+                          ) : (
+                            showPrice && o.price > 0 && !out && (
+                              <span className="text-sm font-medium">+ {formatPrice(o.price, currency, locale)}</span>
+                            )
                           )}
                         </label>
                       );

@@ -296,6 +296,7 @@ export function ProductCard({
           currency={currency}
           locale={locale}
           showPrice={showPrice}
+          fullPrice={settings.optionFullPrice}
           radiusClass={radiusClass}
           textCase={settings.descriptionCase}
         />

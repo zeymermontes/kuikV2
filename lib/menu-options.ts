@@ -168,3 +168,13 @@ export function groupSignature(g: OptionGroup): string {
     options: g.options.map((o) => ({ name: o.name.trim(), price: o.price, available: o.available !== false })),
   });
 }
+
+/**
+ * True when a group's options should read as the dish's full price ("120")
+ * rather than a surcharge ("+20"): the menu asks for it, the dish has a price
+ * to add to, exactly one option is picked, and the group is priced at all.
+ * Add-on groups keep the "+": several can be chosen, so no single total exists.
+ */
+export function showsFullPrice(full: boolean, basePrice: number | null, group: OptionGroup): boolean {
+  return full && basePrice != null && !group.multiple && group.options.some((o) => o.price > 0);
+}

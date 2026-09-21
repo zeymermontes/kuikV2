@@ -28,6 +28,8 @@ import {
   ImageIcon,
   CornerDownRight,
   ListPlus,
+  Search,
+  X,
   CheckSquare,
   ClipboardPaste,
   Square,
@@ -100,6 +102,7 @@ export function MenuEditor({
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<DrawerState>(null);
+  const [search, setSearch] = useState('');
 
   // Multi-select: tick products (across categories) and paste option groups
   // onto all of them, from what the drawer copied to the clipboard.
@@ -277,10 +280,86 @@ export function MenuEditor({
     startTransition(() => reorderEntries(next.map((x) => ({ kind: x.kind, id: x.id }))));
   }
 
+  // Search across the whole menu: the category column is too narrow to read
+  // long subcategory names, and a product is otherwise found by opening
+  // sections one at a time. Accents are ignored ("cafe" finds "Café").
+  const fold = (v: string) => v.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const catPath = (c: Category) => {
+    const parent = c.parent_id ? cats.find((x) => x.id === c.parent_id) : undefined;
+    return parent ? `${parent.name} › ${c.name}` : c.name;
+  };
+  const q = fold(search.trim());
+  const catHits = q ? orderedCats.filter((c) => fold(c.name).includes(q)).slice(0, 8) : [];
+  const prodHits = q
+    ? prods
+        .filter((p) => fold(`${p.name} ${p.description ?? ''}`).includes(q))
+        .sort((a, b) => Number(fold(b.name).includes(q)) - Number(fold(a.name).includes(q)))
+        .slice(0, 30)
+    : [];
+  function goTo(catId: string, productId?: string) {
+    setSearch('');
+    setSelectedId(catId);
+    if (productId) setDrawer({ kind: 'product', id: productId });
+  }
+
   const drawerProduct = drawer?.kind === 'product' ? prods.find((p) => p.id === drawer.id) : undefined;
   const drawerCategory = drawer?.kind === 'category' ? cats.find((c) => c.id === drawer.id) : undefined;
 
   return (
+    <div className="space-y-3">
+      {/* ── Search ───────────────────────────────────────────────────────── */}
+      {cats.length > 0 && (
+        <div className="relative max-w-md">
+          <div className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 focus-within:border-neutral-900">
+            <Search className="h-4 w-4 shrink-0 text-neutral-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.key === 'Escape' && setSearch('')}
+              placeholder={t('searchPlaceholder')}
+              className="w-full bg-transparent text-sm outline-none placeholder:text-neutral-400"
+            />
+            {search && (
+              <button onClick={() => setSearch('')} aria-label={t('searchClear')} className="shrink-0 text-neutral-400 hover:text-neutral-700">
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          {q && (
+            <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-[60vh] overflow-y-auto rounded-xl border border-neutral-200 bg-white p-1.5 shadow-lg">
+              {catHits.length === 0 && prodHits.length === 0 && (
+                <p className="px-3 py-4 text-center text-sm text-neutral-400">{t('searchEmpty')}</p>
+              )}
+              {catHits.length > 0 && (
+                <p className="px-2 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">{t('categories')}</p>
+              )}
+              {catHits.map((c) => (
+                <button key={c.id} onClick={() => goTo(c.id)} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-neutral-100">
+                  {c.icon && <span className="text-base leading-none">{c.icon}</span>}
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{catPath(c)}</span>
+                  <span className="shrink-0 rounded-full bg-neutral-200 px-1.5 text-[10px] text-neutral-600">{countFor(c.id)}</span>
+                </button>
+              ))}
+              {prodHits.length > 0 && (
+                <p className="px-2 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">{t('searchProducts')}</p>
+              )}
+              {prodHits.map((p) => {
+                const cat = cats.find((c) => c.id === p.category_id);
+                return (
+                  <button key={p.id} onClick={() => goTo(p.category_id, p.id)} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-neutral-100">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{p.name}</span>
+                      {cat && <span className="block truncate text-xs text-neutral-400">{catPath(cat)}</span>}
+                    </span>
+                    {p.price != null && <span className="shrink-0 text-xs text-neutral-500">{p.price}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
     <div className="grid grid-cols-1 gap-4 md:grid-cols-[260px_1fr]">
       {/* ── Categories panel ─────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-neutral-200 bg-white">
@@ -542,6 +621,7 @@ export function MenuEditor({
         />
       )}
     </div>
+    </div>
   );
 }
 
@@ -588,7 +668,7 @@ function CategoryRow({
       </button>
       <button onClick={onSelect} className="flex min-w-0 flex-1 items-center gap-2 text-left">
         {category.icon && <span className="text-base leading-none">{category.icon}</span>}
-        <span className="truncate text-sm font-medium">{category.name}</span>
+        <span className="truncate text-sm font-medium" title={category.name}>{category.name}</span>
         <span className={`shrink-0 rounded-full px-1.5 text-[10px] ${selected ? 'bg-white/20' : 'bg-neutral-200 text-neutral-600'}`}>{count}</span>
       </button>
       <div className={`flex shrink-0 items-center ${selected ? '' : 'opacity-0 group-hover:opacity-100'}`}>

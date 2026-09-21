@@ -2,7 +2,7 @@
 
 import type { Product } from '@/lib/database.types';
 import { useTranslations } from 'next-intl';
-import { resolveOptionGroups, optionKind } from '@/lib/menu-options';
+import { resolveOptionGroups, optionKind, showsFullPrice } from '@/lib/menu-options';
 import { formatPrice } from '@/lib/utils';
 import { ALIGN_CLASS, textTransform, type HeadingAlign, type TextCase } from '@/lib/menu-settings';
 
@@ -19,6 +19,7 @@ export function InlineOptions({
   currency,
   locale,
   showPrice,
+  fullPrice,
   radiusClass,
   textCase,
 }: {
@@ -29,6 +30,8 @@ export function InlineOptions({
   currency: string;
   locale: string;
   showPrice: boolean;
+  /** Single-choice options print the dish's total with them ("120") instead of "+20". */
+  fullPrice: boolean;
   radiusClass: string;
   textCase: TextCase;
 }) {
@@ -69,8 +72,10 @@ export function InlineOptions({
               >
                 {bullet ? `${bullet} ` : ''}
                 {o.name}
-                {showPrice && o.price > 0 && (
-                  <span className="opacity-60"> +{formatPrice(o.price, currency, locale)}</span>
+                {showPrice && showsFullPrice(fullPrice, product.price, g) ? (
+                  <span className="opacity-60"> {formatPrice((product.price ?? 0) + o.price, currency, locale)}</span>
+                ) : (
+                  showPrice && o.price > 0 && <span className="opacity-60"> +{formatPrice(o.price, currency, locale)}</span>
                 )}
               </span>
             ))}

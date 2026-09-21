@@ -933,6 +933,8 @@ export function DesignForm({
           <ToggleRow label={t('animations')} checked={settings.animations} onChange={(v) => setS('animations', v)} />
           <ToggleRow label={t('showAddButton')} checked={settings.showAddButton} onChange={(v) => setS('showAddButton', v)} />
           <ToggleRow label={t('showOptionKind')} checked={settings.showOptionKind} onChange={(v) => setS('showOptionKind', v)} />
+          <ToggleRow label={t('optionFullPrice')} checked={settings.optionFullPrice} onChange={(v) => setS('optionFullPrice', v)} />
+          <p className="-mt-2 text-xs text-neutral-500">{t('optionFullPriceHint')}</p>
           <SelectRow
             label={t('productCase')}
             value={settings.productCase}
@@ -1050,7 +1052,8 @@ export function DesignForm({
           <h2 className="font-semibold">{t('discovery')}</h2>
           <ToggleRow label={t('showPricesGlobal')} checked={local.show_prices} onChange={(v) => set('show_prices', v)} />
           <ToggleRow label={t('showSearch')} checked={settings.showSearch} onChange={(v) => setS('showSearch', v)} />
-          {settings.showSearch && <div className="grid grid-cols-2 gap-4">{searchFields.map(renderColor)}</div>}
+          <ToggleRow label={t('quickSearch')} checked={settings.quickSearch} onChange={(v) => setS('quickSearch', v)} />
+          {(settings.showSearch || settings.quickSearch) && <div className="grid grid-cols-2 gap-4">{searchFields.map(renderColor)}</div>}
           <ToggleRow label={t('showBadges')} checked={settings.showBadges} onChange={(v) => setS('showBadges', v)} />
           <ToggleRow label={t('showFilters')} checked={settings.showFilters} onChange={(v) => setS('showFilters', v)} />
           <ToggleRow

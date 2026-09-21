@@ -77,10 +77,17 @@ export interface MenuSettings {
   stickyTabs: boolean;
   collapsibleCategories: boolean;
   showSearch: boolean;
+  /** The magnifier pinned to the category strip: a full-screen search that jumps to a section or product. */
+  quickSearch: boolean;
   showFilters: boolean;
   showBadges: boolean;
   /** The small "dish / drink / to go" tag beside each option group in the product sheet. */
   showOptionKind: boolean;
+  /**
+   * Priced choices show what the dish costs with them ("120") instead of the
+   * surcharge ("+20"). Only where one option is picked; add-ons keep the "+".
+   */
+  optionFullPrice: boolean;
   soldOutStyle: SoldOutStyle;
   showSocial: boolean;
   /** The "Open now · 12:00–23:00" badge under the header. */
@@ -175,9 +182,11 @@ export const DEFAULT_MENU_SETTINGS: MenuSettings = {
   stickyTabs: true,
   collapsibleCategories: false,
   showSearch: false,
+  quickSearch: false,
   showFilters: false,
   showBadges: true,
   showOptionKind: true,
+  optionFullPrice: false,
   soldOutStyle: 'gray',
   showSocial: true,
   // Both default to true so nothing changes for a menu that predates them.
