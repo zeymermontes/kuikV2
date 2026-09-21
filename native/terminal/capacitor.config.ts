@@ -19,6 +19,10 @@ const config: CapacitorConfig = {
     url: `${server}/terminal`,
     cleartext: server.startsWith('http://'),
     // Shown when the site cannot be reached at launch (no network yet).
+    // Its viewport must NOT say viewport-fit=cover (nor may any page the shell
+    // shows): on WebView 140+ Capacitor's SystemBars then stops padding for the
+    // status bar and leaves the insets to the page, and a site page restored
+    // from history afterwards stays drawn under the clock and battery.
     errorPath: 'error.html',
   },
   ios: {
