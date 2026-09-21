@@ -2439,6 +2439,7 @@
     "chatWindowClosed": "Pasaron más de 24 h desde su último mensaje; WhatsApp solo permite plantillas aprobadas. Respóndele desde tu teléfono.",
     "chatOpenWhatsapp": "Abrir en WhatsApp",
     "chatFailed": "No se pudo enviar",
+    "chatSending": "Enviando…",
     "botActive": "El bot responde en este chat",
     "botPaused": "Bot en pausa: lo atiende una persona",
     "pauseBot": "Pausar bot",

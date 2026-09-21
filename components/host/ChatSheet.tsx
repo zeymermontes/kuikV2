@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
-import { Bot, MessageCircle, Send, Sparkles, User } from 'lucide-react';
+import { Bot, Clock, MessageCircle, Send, Sparkles, User } from 'lucide-react';
 import { createClient, channelName } from '@/lib/supabase/client';
 import { getChat, sendPartyMessage, setPartyChatBot, type PartyChat, type PartyChatMessage } from '@/app/host/actions';
 import { Sheet, GHOST, PRIMARY } from './ui';
@@ -12,6 +12,9 @@ import { Sheet, GHOST, PRIMARY } from './ui';
  * diner said, live, and a box to answer by hand. Answering pauses the bot on
  * that chat (a person took it); the header hands it back.
  */
+/** Ids of bubbles shown before the server has confirmed them. */
+const LOCAL_PREFIX = 'local-';
+
 export function ChatSheet({
   partyId,
   conversationId: givenConversationId,
@@ -34,7 +37,7 @@ export function ChatSheet({
   const [chat, setChat] = useState<PartyChat | null>(null);
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [sending, startSend] = useTransition();
+  const [, startSend] = useTransition();
   const [, startBot] = useTransition();
   // The sheet's body is what scrolls, not our list: an anchor at the end
   // is scrolled into view on load and on every new message.
@@ -62,7 +65,16 @@ export function ChatSheet({
         { event: 'INSERT', schema: 'public', table: 'whatsapp_messages', filter: `conversation_id=eq.${conversationId}` },
         (payload) => {
           const row = payload.new as PartyChatMessage;
-          setChat((cur) => (cur && !cur.messages.some((m) => m.id === row.id) ? { ...cur, messages: [...cur.messages, row] } : cur));
+          setChat((cur) => {
+            if (!cur || cur.messages.some((m) => m.id === row.id)) return cur;
+            // The row for a message this sheet just sent: it takes the place
+            // of the local bubble instead of showing up twice.
+            const local = row.direction === 'outbound' && row.origin === 'staff_dashboard'
+              ? cur.messages.findIndex((m) => m.id.startsWith(LOCAL_PREFIX) && m.body === row.body)
+              : -1;
+            const messages = local >= 0 ? cur.messages.map((m, i) => (i === local ? row : m)) : [...cur.messages, row];
+            return { ...cur, messages };
+          });
         },
       )
       .subscribe();
@@ -77,17 +89,38 @@ export function ChatSheet({
 
   function send() {
     const body = text.trim();
-    if (!body || !conversationId || sending) return;
+    if (!body || !conversationId) return;
     setError(null);
+    // Optimistic: the field clears and the bubble shows the moment the
+    // button is tapped, not when the server action comes back. The real row
+    // arrives over Realtime and replaces the local one; the bot state changed
+    // server-side. On failure the text comes back so nothing typed is lost.
+    const local: PartyChatMessage = {
+      id: `${LOCAL_PREFIX}${Date.now()}`,
+      wa_message_id: null,
+      direction: 'outbound',
+      origin: 'staff_dashboard',
+      type: 'text',
+      body,
+      media_url: null,
+      media_mime: null,
+      replied_to_wa_id: null,
+      status: 'queued',
+      created_at: new Date().toISOString(),
+    };
+    setText('');
+    setChat((cur) => (cur ? { ...cur, botActive: false, messages: [...cur.messages, local] } : cur));
     startSend(async () => {
-      const r = await sendPartyMessage(conversationId, body);
-      if (!r.ok) {
-        setError(r.error === 'window_closed' ? t('chatWindowClosed') : t('chatFailed'));
-        return;
+      let r: Awaited<ReturnType<typeof sendPartyMessage>>;
+      try {
+        r = await sendPartyMessage(conversationId, body);
+      } catch {
+        r = { ok: false };
       }
-      setText('');
-      // The row arrives over Realtime; the bot state changed server-side.
-      setChat((cur) => (cur ? { ...cur, botActive: false } : cur));
+      if (r.ok) return;
+      setChat((cur) => (cur ? { ...cur, messages: cur.messages.filter((m) => m.id !== local.id) } : cur));
+      setText((cur) => (cur.trim() ? cur : body));
+      setError(r.error === 'window_closed' ? t('chatWindowClosed') : t('chatFailed'));
     });
   }
 
@@ -140,7 +173,7 @@ export function ChatSheet({
             placeholder={t('chatPlaceholder')}
             className="min-h-[44px] flex-1 resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-base text-white placeholder:text-white/30 focus:border-pos-accent focus:outline-none"
           />
-          <button onClick={send} disabled={sending || !text.trim()} className={`${PRIMARY} !px-3`} aria-label={t('chatSend')}>
+          <button onClick={send} disabled={!text.trim()} className={`${PRIMARY} !px-3`} aria-label={t('chatSend')}>
             <Send className="h-4 w-4" />
           </button>
         </div>
@@ -182,7 +215,7 @@ export function ChatSheet({
                   <div
                     className={`max-w-[85%] whitespace-pre-wrap rounded-2xl text-sm ${
                       sticker ? 'bg-transparent' : `px-3 py-2 ${inbound ? 'rounded-bl-sm bg-white/10 text-white' : 'rounded-br-sm bg-pos-accent text-pos-accent-text'}`
-                    }`}
+                    } ${m.id.startsWith(LOCAL_PREFIX) ? 'opacity-70' : ''}`}
                   >
                     {m.replied_to_wa_id && (
                       <div className={`mb-1.5 rounded-lg border-l-2 px-2 py-1 text-xs ${inbound ? 'border-emerald-300 bg-black/20 text-white/70' : 'border-white/60 bg-black/10 opacity-80'}`}>
@@ -209,6 +242,7 @@ export function ChatSheet({
                       <Origin origin={m.origin} />
                       <span>·</span>
                       <span>{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      {m.id.startsWith(LOCAL_PREFIX) && <Clock className="h-3 w-3" aria-label={t('chatSending')} />}
                       {m.status === 'failed' && <span className="text-red-300">· {t('chatFailed')}</span>}
                     </div>
                   </div>
