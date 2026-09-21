@@ -13,13 +13,13 @@ export default async function StaffPage() {
 
   const [{ data: members }, { data: invites }, { data: employees }] = await Promise.all([
     supabase.from('tenant_members').select('*').eq('tenant_id', tenant.id).order('created_at'),
-    supabase.from('employees').select('*').eq('tenant_id', tenant.id).order('position'),
     supabase
       .from('tenant_invites')
       .select('*')
       .eq('tenant_id', tenant.id)
       .is('accepted_at', null)
       .order('created_at'),
+    supabase.from('employees').select('*').eq('tenant_id', tenant.id).order('position'),
   ]);
 
   return (
