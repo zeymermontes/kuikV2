@@ -53,7 +53,7 @@ export function InlineOptions({
           >
             {g.name}
             <span className="ml-1.5 text-[11px] font-normal opacity-60">
-              {t(optionKind(g) === 'takeaway' ? 'optionsTakeaway' : 'optionsDish')}
+              {t(({ takeaway: 'optionsTakeaway', drink: 'optionsDrink', dish: 'optionsDish' } as const)[optionKind(g)])}
             </span>
           </span>
           <div
