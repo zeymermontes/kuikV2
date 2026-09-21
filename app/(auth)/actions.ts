@@ -1,7 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { getMembership, homeForRole } from '@/lib/auth';
 import { shell } from '@/lib/native/shell';
@@ -27,6 +27,14 @@ export async function signIn(
   // now bounces them straight back out.
   const membership = data.user ? await getMembership(data.user.id) : null;
   if (!membership) redirect('/onboarding');
+  // A notification tapped while signed out (app/open/route.ts) left where it
+  // was going; honour that over the role's home, then forget it.
+  const cookieStore = await cookies();
+  const next = cookieStore.get('kuik_next')?.value;
+  if (next) {
+    cookieStore.delete('kuik_next');
+    if (next.startsWith('/open?')) redirect(next);
+  }
   // The native apps (native/) start on the hub and come back to it after
   // login, whatever the role: the hub only offers what that role can open.
   const ua = (await headers()).get('user-agent');

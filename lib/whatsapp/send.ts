@@ -123,6 +123,8 @@ export async function sendMessage(
   conversationId: string,
   draft: OutboundDraft,
   origin: MessageOrigin = 'bot',
+  /** The account behind a staff message, so a diner's answer can reach that person. */
+  sentBy: string | null = null,
 ): Promise<SendResult> {
   const conv = await loadConversation(conversationId);
   if (!conv || !conv.contact) return { ok: false, error: 'unknown_conversation' };
@@ -137,7 +139,7 @@ export async function sendMessage(
   const supabase = createAdminClient();
 
   if (conv.transport === 'bridge') {
-    return sendThroughBridge(supabase, conv, draft, origin);
+    return sendThroughBridge(supabase, conv, draft, origin, sentBy);
   }
 
   const token = await getToken(conv.phone_number_id);
@@ -151,6 +153,7 @@ export async function sendMessage(
       conversation_id: conv.id,
       direction: 'outbound',
       origin,
+      ...(sentBy ? { sent_by: sentBy } : {}),
       type: draft.type,
       body: draft.body,
       status: 'queued',
@@ -327,6 +330,7 @@ async function sendThroughBridge(
   conv: ConversationRow,
   draft: OutboundDraft,
   origin: MessageOrigin,
+  sentBy: string | null,
 ): Promise<SendResult> {
   const contact = conv.contact!;
   const options = draft.buttons ?? draft.list?.sections.flatMap((s) => s.rows) ?? [];
@@ -341,6 +345,7 @@ async function sendThroughBridge(
       conversation_id: conv.id,
       direction: 'outbound',
       origin,
+      ...(sentBy ? { sent_by: sentBy } : {}),
       type: 'text',
       body: text,
       status: 'queued',

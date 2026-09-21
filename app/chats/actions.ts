@@ -93,3 +93,35 @@ export async function listChats(q = ''): Promise<{ rows: ChatRow[]; connected: b
 
   return { rows, connected: !!number };
 }
+
+/**
+ * One conversation as a list row — for a chat opened by link (a notification
+ * tapped) that the first page of the list may not hold.
+ */
+export async function chatRow(conversationId: string): Promise<ChatRow | null> {
+  const { tenant } = await requireChats();
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from('whatsapp_conversations')
+    .select('id, handoff_at, last_inbound_at, last_outbound_at, contact:whatsapp_contacts(profile_name, phone_e164)')
+    .eq('tenant_id', tenant.id)
+    .eq('id', conversationId)
+    .maybeSingle();
+  const c = data as unknown as {
+    id: string; handoff_at: string | null; last_inbound_at: string | null; last_outbound_at: string | null;
+    contact: { profile_name: string | null; phone_e164: string } | { profile_name: string | null; phone_e164: string }[] | null;
+  } | null;
+  if (!c) return null;
+  const contact = Array.isArray(c.contact) ? c.contact[0] : c.contact;
+  const phone = contact?.phone_e164 && !contact.phone_e164.startsWith('lid:') && !isLid(contact.phone_e164.replace('+', '')) ? contact.phone_e164 : null;
+  return {
+    conversationId: c.id,
+    name: contact?.profile_name || phone || 'Cliente',
+    phone,
+    waiting: !!c.handoff_at,
+    since: c.handoff_at,
+    lastText: null,
+    lastAt: c.last_inbound_at ?? c.last_outbound_at,
+    lastInbound: false,
+  };
+}

@@ -9,7 +9,7 @@
 // so /pos pages keep their own worker. This file still bails out of /pos
 // requests explicitly, to cover the window before that worker activates.
 
-const CACHE = 'kuik-app-v3';
+const CACHE = 'kuik-app-v4';
 // Only ever evict our own caches — see the matching note in sw-pos.js.
 const OWNED_PREFIX = 'kuik-app-';
 
@@ -163,14 +163,24 @@ self.addEventListener('notificationclick', (event) => {
         }
       }
 
+      // The URL goes through /open, which makes the push's restaurant the
+      // active one before showing the section — the person may have several
+      // and be looking at another. So an open Kuik window is steered there
+      // rather than merely focused: whatever it shows may be the wrong
+      // restaurant, or the wrong chat.
       const url = data.url || '/reservations';
-      const section = data.orderId ? '/orders' : '/reservations';
       const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      const open = clientList.find((c) => c.url.includes(section));
+      const open = clientList.find((c) => c.focused) || clientList[0];
       if (open) {
-        await open.focus();
-        open.postMessage(data.orderId ? { type: 'kuik:order-updated', id: data.orderId } : { type: 'kuik:reservation-updated', id: data.reservationId });
-        return;
+        try {
+          await open.focus();
+          if (open.navigate) {
+            await open.navigate(url);
+            return;
+          }
+        } catch {
+          // A client this worker cannot steer (another scope); fall through.
+        }
       }
       await self.clients.openWindow(url);
     })(),

@@ -19,12 +19,15 @@ export function ChatsApp({
   tenantName,
   logoUrl,
   initial,
+  openChat = null,
   themeStyle,
 }: {
   tenantId: string;
   tenantName: string;
   logoUrl: string | null;
   initial: { rows: ChatRow[]; connected: boolean };
+  /** A chat to open straight away (opened by link). */
+  openChat?: ChatRow | null;
   themeStyle?: React.CSSProperties;
 }) {
   const t = useTranslations('chats');
@@ -32,7 +35,7 @@ export function ChatsApp({
   const [connected] = useState(initial.connected);
   const [view, setView] = useState<'waiting' | 'all'>(initial.rows.some((r) => r.waiting) ? 'waiting' : 'all');
   const [query, setQuery] = useState('');
-  const [open, setOpen] = useState<ChatRow | null>(null);
+  const [open, setOpen] = useState<ChatRow | null>(openChat);
   const [now, setNow] = useState(() => Date.now());
   const queryRef = useRef(query);
   useEffect(() => { queryRef.current = query; }, [query]);
@@ -137,7 +140,17 @@ export function ChatsApp({
       </main>
 
       {open && (
-        <ChatSheet conversationId={open.conversationId} name={open.name} phone={open.phone} onClose={() => { setOpen(null); refresh(); }} />
+        <ChatSheet
+          conversationId={open.conversationId}
+          name={open.name}
+          phone={open.phone}
+          onClose={() => {
+            setOpen(null);
+            // Opened by link: a reload should show the list, not the chat again.
+            if (window.location.search) window.history.replaceState(null, '', window.location.pathname);
+            refresh();
+          }}
+        />
       )}
     </div>
   );

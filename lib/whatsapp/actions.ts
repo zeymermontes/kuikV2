@@ -155,6 +155,47 @@ export async function botHandoff(ctx: BotContext, reason?: string): Promise<Acti
   return { ok: true, message: 'handoff' };
 }
 
+/**
+ * A diner wrote back while a person has the conversation. The bot stays
+ * quiet, so someone has to be told — the human who wrote the last staff
+ * message, when Kuik knows who that was (a reply from the stand or the chats
+ * app is signed). A reply typed on the restaurant's own phone carries no
+ * login, and neither does a chat paused without a word; those go to the
+ * handoff group. Same tag per conversation: a talkative diner collapses
+ * into one notification.
+ */
+export async function notifyHandoffReply(input: {
+  tenantId: string;
+  conversationId: string;
+  text: string;
+  customerName?: string | null;
+}): Promise<void> {
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from('whatsapp_messages')
+    .select('sent_by')
+    .eq('conversation_id', input.conversationId)
+    .eq('direction', 'outbound')
+    .in('origin', ['staff_dashboard', 'staff_device'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const sentBy = (data as { sent_by: string | null } | null)?.sent_by ?? null;
+
+  const who = input.customerName?.trim();
+  const snippet = input.text.trim().replace(/\s+/g, ' ').slice(0, 140);
+  await alertStaff({
+    tenantId: input.tenantId,
+    roles: ['owner', 'manager', 'host'],
+    userId: sentBy,
+    kind: 'customer_reply',
+    es: { title: `${who || 'El cliente'} te respondió en WhatsApp`, body: snippet || 'Te mandó un adjunto.' },
+    en: { title: `${who || 'The customer'} replied on WhatsApp`, body: snippet || 'They sent you an attachment.' },
+    tag: `wa-reply-${input.conversationId}`,
+    url: `/whatsapp/inbox?c=${input.conversationId}`,
+  });
+}
+
 /* ───────────────────────────── existing bookings ───────────────────────── */
 
 export interface OwnReservation {

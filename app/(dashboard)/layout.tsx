@@ -70,7 +70,7 @@ export default async function DashboardLayout({
     <StaffIntlProvider>
       <PwaProvider nativePush={{ android: fcmConfigured(), ios: apnsConfigured() }}>
         <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />
-        <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} />
+        <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} userId={ctx.user.id} />
         {/* Inside the native apps the dashboard is one tile of the hub; this is the way back. */}
         <ShellBackButton />
         <div className="flex min-h-screen bg-neutral-50">

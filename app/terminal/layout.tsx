@@ -30,7 +30,7 @@ export default async function TerminalLayout({ children }: { children: React.Rea
       {/* The phone app registers for push here, since it may never open the dashboard. */}
       <NativePush enabled={{ android: fcmConfigured(), ios: apnsConfigured() }} />
       {orders.board && <NewOrderAlert tenantId={ctx.tenant.id} enabled={orders.alerts.notifyHost || orders.alerts.notifyPos} />}
-      <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} />
+      <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} userId={ctx.user.id} />
       <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />
     </StaffIntlProvider>
   );

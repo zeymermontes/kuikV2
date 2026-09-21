@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { tryTenant } from '@/lib/auth';
+import { tryTenant, getMemberships } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
@@ -30,16 +30,18 @@ export async function POST(req: NextRequest) {
   if (body.oldToken && body.oldToken !== token) {
     await supabase.from('device_push_tokens').delete().eq('token', body.oldToken);
   }
+  // Every restaurant the person works at, as for web push (push/subscribe).
+  const tenantIds = await tenantsFor(ctx.user.id, ctx.tenant.id);
   const { error } = await supabase.from('device_push_tokens').upsert(
-    {
-      tenant_id: ctx.tenant.id,
+    tenantIds.map((tenant_id) => ({
+      tenant_id,
       user_id: ctx.user.id,
       token,
       platform,
       app: body.app === 'terminal' ? 'terminal' : 'kuik',
       locale: body.locale || ctx.user.profile.locale || 'es',
       last_seen_at: new Date().toISOString(),
-    },
+    })),
     { onConflict: 'tenant_id,token' },
   );
   if (error) return NextResponse.json({ ok: false }, { status: 500 });
@@ -60,4 +62,10 @@ export async function DELETE(req: NextRequest) {
   const supabase = await createClient();
   await supabase.from('device_push_tokens').delete().eq('token', body.token);
   return NextResponse.json({ ok: true });
+}
+
+/** The restaurants a registration covers: all memberships, the active one at least. */
+async function tenantsFor(userId: string, activeTenantId: string): Promise<string[]> {
+  const ids = (await getMemberships(userId)).map((m) => m.tenant.id);
+  return ids.includes(activeTenantId) ? ids : [activeTenantId, ...ids];
 }

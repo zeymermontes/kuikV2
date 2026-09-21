@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
 import { nativePush, shell } from '@/lib/native/shell';
 
@@ -45,10 +44,9 @@ export const PUSH_RETRY_EVENT = 'kuik:push-retry';
  * Inside the Kuik phone app (native/mobile), registers this device for
  * native push and posts the FCM token to /api/push/device. Re-posts on every
  * launch, so a rotated token replaces the old one. A tap on a notification
- * opens the URL it carries. Renders nothing; a no-op outside that shell.
+ * opens the URL it carries (through /open, so the right restaurant is active). Renders nothing; a no-op outside that shell.
  */
 export function NativePush({ enabled }: { enabled: { android: boolean; ios: boolean } }) {
-  const router = useRouter();
   const locale = useLocale();
   const android = enabled.android;
   const ios = enabled.ios;
@@ -103,8 +101,11 @@ export function NativePush({ enabled }: { enabled: { android: boolean; ios: bool
           setStatus({ state: 'error', detail: ev?.error ?? 'registration' });
         }),
         await push.addListener('pushNotificationActionPerformed', (ev: { notification: { data?: { url?: string } } }) => {
+          // A full navigation, not router.push: the URL goes through /open,
+          // which may switch the active restaurant, and then everything on
+          // screen belongs to the other one (see tenant-actions.ts).
           const url = ev.notification?.data?.url;
-          if (typeof url === 'string' && url.startsWith('/')) router.push(url);
+          if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) window.location.assign(url);
         }),
       );
       if (cancelled) return;
@@ -119,7 +120,7 @@ export function NativePush({ enabled }: { enabled: { android: boolean; ios: bool
       window.removeEventListener(PUSH_RETRY_EVENT, onRetry);
       for (const h of handles) void h.remove();
     };
-  }, [locale, router, android, ios]);
+  }, [locale, android, ios]);
 
   return null;
 }

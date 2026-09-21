@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizeWaId } from '@/lib/phone';
 import { windowExpiryFrom } from './window';
 import { runBot } from './bot';
+import { notifyHandoffReply } from './actions';
 import { transcribeAudio } from './transcribe';
 import { downloadCloudMedia, storeInboundMedia } from './media';
 
@@ -305,14 +306,27 @@ async function handleInbound(supabase: Supabase, row: EventRow): Promise<void> {
     }
 
     // A photo or a sticker with nothing said: kept for the staff chat, but
-    // there is no question in it for the bot to answer.
-    if (!body.trim() && !replyId && !audioUnreadable) continue;
+    // there is no question in it for the bot to answer. The person on a
+    // handed-off chat still hears that something arrived.
+    if (!body.trim() && !replyId && !audioUnreadable) {
+      await notifyIfHandedOff(supabase, tenantId, conversationId, MEDIA_LABEL[mediaKind ?? ''] ?? '', profile?.profile?.name ?? null);
+      continue;
+    }
 
     await runBot({
       tenantId, conversationId, text: body, replyId,
       ...(audioUnreadable ? { kind: 'audio_unreadable' as const } : {}),
     });
   }
+}
+
+const MEDIA_LABEL: Record<string, string> = { image: '📷 Foto', audio: '🎤 Audio', sticker: 'Sticker' };
+
+/** A wordless message while a person has the chat: tell that person (lib/whatsapp/actions.ts). */
+async function notifyIfHandedOff(supabase: Supabase, tenantId: string, conversationId: string, text: string, customerName: string | null): Promise<void> {
+  const { data } = await supabase.from('whatsapp_conversations').select('handoff_at').eq('id', conversationId).maybeSingle();
+  if (!(data as { handoff_at: string | null } | null)?.handoff_at) return;
+  await notifyHandoffReply({ tenantId, conversationId, text, customerName }).catch(() => {});
 }
 
 // ── Echoes: the owner replying from their own phone ────────────────────────

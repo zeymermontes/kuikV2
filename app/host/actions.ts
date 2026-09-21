@@ -401,14 +401,15 @@ export async function countHandoffChats(): Promise<number> {
  * reply so it doesn't talk over a person; the stand can hand the chat back.
  */
 export async function sendPartyMessage(conversationId: string, body: string): Promise<{ ok: boolean; error?: string }> {
-  const { tenant } = await requireReservations();
+  const { tenant, user } = await requireReservations();
   const text = body.trim();
   if (!text) return { ok: false, error: 'empty' };
   const admin = createAdminClient();
   const { data } = await admin.from('whatsapp_conversations').select('id').eq('id', conversationId).eq('tenant_id', tenant.id).maybeSingle();
   if (!data) return { ok: false, error: 'unknown_conversation' };
   try {
-    const res = await sendMessage(conversationId, { type: 'text', body: text }, 'staff_dashboard');
+    // Signed, so the diner's answer can be pushed to this person (lib/whatsapp/actions.ts).
+    const res = await sendMessage(conversationId, { type: 'text', body: text }, 'staff_dashboard', user.id);
     if (!res.ok) return { ok: false, error: res.error ?? 'send_failed' };
   } catch (err) {
     return { ok: false, error: err instanceof WindowClosedError ? 'window_closed' : 'send_failed' };

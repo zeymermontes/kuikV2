@@ -18,6 +18,7 @@ export type StaffAlertKind =
   | 'reservation_cancelled'
   | 'reservation_changed'
   | 'handoff'
+  | 'customer_reply'
   | 'flow_notify';
 
 export interface StaffAlertText {
@@ -34,6 +35,12 @@ export async function pendingBadge(tenantId: string): Promise<number> {
 export async function alertStaff(params: {
   tenantId: string;
   roles: MemberRole[];
+  /**
+   * Address it to one person instead of the roles: the human a diner is
+   * answering. The roles then only say who hears it if that person is no
+   * longer on the team.
+   */
+  userId?: string | null;
   kind: StaffAlertKind;
   es: StaffAlertText;
   en: StaffAlertText;
@@ -44,12 +51,14 @@ export async function alertStaff(params: {
   push?: Pick<PushPayload, 'actions' | 'data' | 'requireInteraction'>;
 }): Promise<void> {
   const supabase = createAdminClient();
+  const userId = params.userId ? await memberOrNull(supabase, params.tenantId, params.userId) : null;
   await supabase
     .from('staff_alerts')
     .insert({
       tenant_id: params.tenantId,
       kind: params.kind,
       roles: params.roles,
+      ...(userId ? { user_id: userId } : {}),
       title_es: params.es.title,
       body_es: params.es.body,
       title_en: params.en.title,
@@ -59,8 +68,14 @@ export async function alertStaff(params: {
     })
     .then(() => {}, () => {});
 
-  await sendToTenant(params.tenantId, params.roles, (locale) => {
+  await sendToTenant(params.tenantId, userId ? { userIds: [userId] } : params.roles, (locale) => {
     const t = locale === 'en' ? params.en : params.es;
     return { title: t.title, body: t.body, tag: params.tag, url: params.url, ...params.push };
   }).catch(() => {});
+}
+
+/** The person, if they still work here; otherwise the alert falls back to the roles. */
+async function memberOrNull(supabase: ReturnType<typeof createAdminClient>, tenantId: string, userId: string): Promise<string | null> {
+  const { data } = await supabase.from('tenant_members').select('user_id').eq('tenant_id', tenantId).eq('user_id', userId).maybeSingle();
+  return data ? userId : null;
 }

@@ -22,7 +22,7 @@ export default async function ChatsLayout({ children }: { children: React.ReactN
     <StaffIntlProvider>
       <div className="min-h-dvh">{children}</div>
       <ShellBackButton />
-      <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} />
+      <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} userId={ctx.user.id} />
       <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />
     </StaffIntlProvider>
   );

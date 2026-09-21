@@ -8,7 +8,7 @@ import { rateLimit, bucketKey } from '@/lib/rate-limit';
 import { canUse, effectivePlan } from '@/lib/plan';
 import { buildMenu, matchesAnyKeyword } from './intent';
 import { renderTemplate, type RenderVars } from './render';
-import { botHandoff, describeReservation, ownReservations, type BotContext } from './actions';
+import { botHandoff, describeReservation, notifyHandoffReply, ownReservations, type BotContext } from './actions';
 import { sendMessage } from './send';
 import { findBookingFlow, runFlowTurn } from './flows/runtime';
 import { handleManageReservation } from './manage-reservation';
@@ -84,7 +84,12 @@ export async function runBot(turn: BotTurn): Promise<void> {
   // chat: the handoff is released and the bot wakes up. Without this, one
   // "pásame con alguien" muted a conversation forever.
   if (!conv.bot_enabled || conv.handoff_at) {
-    if (!(await conversationIsStale(supabase, conv.id, resetSeconds))) return;
+    if (!(await conversationIsStale(supabase, conv.id, resetSeconds))) {
+      // Quiet, but not deaf: the person on this chat hears that the diner
+      // wrote back. (A photo alone never reaches here; see inbound.ts.)
+      await notifyHandoffReply({ tenantId: turn.tenantId, conversationId: conv.id, text: turn.text, customerName: contact.profile_name }).catch(() => {});
+      return;
+    }
     await supabase
       .from('whatsapp_conversations')
       .update({ bot_enabled: true, handoff_at: null, handoff_by: null })

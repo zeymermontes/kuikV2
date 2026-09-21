@@ -23,12 +23,14 @@ interface AlertRow {
   title_en: string;
   body_en: string;
   url: string | null;
+  /** Set when the alert is for one person (a diner answering the human who wrote to them). */
+  user_id?: string | null;
   created_at: string;
 }
 
 const TTL_MS = 15_000;
 
-export function StaffAlerts({ tenantId, role }: { tenantId: string; role: string }) {
+export function StaffAlerts({ tenantId, role, userId }: { tenantId: string; role: string; userId?: string }) {
   const locale = useLocale();
   const [toasts, setToasts] = useState<AlertRow[]>([]);
   const seen = useRef(new Set<string>());
@@ -39,7 +41,9 @@ export function StaffAlerts({ tenantId, role }: { tenantId: string; role: string
       .channel(channelName(`staff-alerts-${tenantId}`))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'staff_alerts', filter: `tenant_id=eq.${tenantId}` }, (payload) => {
         const row = payload.new as AlertRow;
-        if (seen.current.has(row.id) || !row.roles?.includes(role)) return;
+        if (seen.current.has(row.id)) return;
+        // Addressed to a person: only their screens. Otherwise, by role.
+        if (row.user_id ? row.user_id !== userId : !row.roles?.includes(role)) return;
         seen.current.add(row.id);
         // A row replayed on reconnect is not news.
         if (Date.now() - new Date(row.created_at).getTime() > 2 * 60_000) return;
@@ -51,15 +55,15 @@ export function StaffAlerts({ tenantId, role }: { tenantId: string; role: string
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [tenantId, role]);
+  }, [tenantId, role, userId]);
 
   if (toasts.length === 0) return null;
 
   return (
     <div className="fixed inset-x-3 top-3 z-[56] mx-auto flex max-w-md flex-col gap-2">
       {toasts.map((a) => {
-        const Icon = a.kind === 'handoff' || a.kind === 'flow_notify' ? MessageCircle : a.kind === 'reservation_cancelled' ? CalendarX : a.kind === 'reservation_new' ? Bell : CalendarCheck;
-        const tone = a.kind === 'handoff' ? 'border-sky-300 text-sky-300' : a.kind === 'reservation_cancelled' ? 'border-red-300 text-red-300' : 'border-amber-300 text-amber-300';
+        const Icon = a.kind === 'handoff' || a.kind === 'customer_reply' || a.kind === 'flow_notify' ? MessageCircle : a.kind === 'reservation_cancelled' ? CalendarX : a.kind === 'reservation_new' ? Bell : CalendarCheck;
+        const tone = a.kind === 'handoff' || a.kind === 'customer_reply' ? 'border-sky-300 text-sky-300' : a.kind === 'reservation_cancelled' ? 'border-red-300 text-red-300' : 'border-amber-300 text-amber-300';
         const title = locale === 'en' ? a.title_en : a.title_es;
         const body = locale === 'en' ? a.body_en : a.body_es;
         const inner = (
@@ -89,7 +93,7 @@ function chime(kind: string) {
   try {
     const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const ctx = new Ctx();
-    const notes = kind === 'reservation_cancelled' ? [880, 660] : kind === 'handoff' || kind === 'flow_notify' ? [740, 740] : [784, 988, 1175];
+    const notes = kind === 'reservation_cancelled' ? [880, 660] : kind === 'handoff' || kind === 'customer_reply' || kind === 'flow_notify' ? [740, 740] : [784, 988, 1175];
     notes.forEach((f, i) => {
       const o = ctx.createOscillator();
       const g = ctx.createGain();

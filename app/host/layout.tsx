@@ -22,7 +22,7 @@ export default async function HostLayout({ children }: { children: React.ReactNo
       <div className="min-h-dvh">{children}</div>
       <ShellBackButton />
       {orders.board && <NewOrderAlert tenantId={ctx.tenant.id} enabled={orders.alerts.notifyHost} />}
-      <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} />
+      <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} userId={ctx.user.id} />
       <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />
     </StaffIntlProvider>
   );
