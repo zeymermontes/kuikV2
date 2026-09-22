@@ -97,31 +97,38 @@ export function WhatsappConnect({ numbers }: { numbers: ConnectedNumber[] }) {
     };
   }, [appId, configured]);
 
+  async function finish(code: string) {
+    setBusy(true);
+    try {
+      const res = await fetch('/api/whatsapp/onboard', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code, wabaId: session.waba_id, phoneNumberId: session.phone_number_id }),
+      });
+      const json = await res.json();
+      if (json.ok) window.location.reload();
+      else setError(json.error ?? 'connect_failed');
+    } catch {
+      setError('connect_failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function connect() {
     if (!window.FB || !configId) return;
     setError(null);
+    // The callback must be a plain function: the SDK type-checks it and throws
+    // "Expression is of type asyncfunction, not function" on an async one —
+    // before opening anything, so the click looks like it did nothing.
     window.FB.login(
-      async (response) => {
+      (response) => {
         const code = response.authResponse?.code;
         if (!code) {
           setError('cancelled');
           return;
         }
-        setBusy(true);
-        try {
-          const res = await fetch('/api/whatsapp/onboard', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ code, wabaId: session.waba_id, phoneNumberId: session.phone_number_id }),
-          });
-          const json = await res.json();
-          if (json.ok) window.location.reload();
-          else setError(json.error ?? 'connect_failed');
-        } catch {
-          setError('connect_failed');
-        } finally {
-          setBusy(false);
-        }
+        void finish(code);
       },
       {
         config_id: configId,
