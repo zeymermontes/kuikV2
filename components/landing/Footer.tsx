@@ -49,6 +49,9 @@ export function Footer({ loginLabel, ctaLabel }: { loginLabel: string; ctaLabel:
             <p className="font-semibold">Contacto</p>
             <ul className="mt-3 space-y-2 text-neutral-500">
               <li><a href="mailto:contacto@kuik.mx" className="hover:text-neutral-900">contacto@kuik.mx</a></li>
+              <li><Link href="/privacidad" className="hover:text-neutral-900">Aviso de privacidad</Link></li>
+              <li><Link href="/terminos" className="hover:text-neutral-900">Términos del servicio</Link></li>
+              <li><Link href="/eliminacion-de-datos" className="hover:text-neutral-900">Eliminación de datos</Link></li>
             </ul>
           </div>
         </div>
