@@ -81,7 +81,7 @@ export default async function WhatsappPage() {
   // Asked of the bridge itself, not of our own tables: the two disagree in
   // exactly the situation that needs explaining. Not asked at all when the
   // bridge is not the transport in use.
-  const bridge = cloudNumber ? { reachable: false, sessions: [], error: undefined } : await diagnose();
+  const bridge = cloudNumber || showCloudApi ? { reachable: false, sessions: [], error: undefined } : await diagnose();
   const msgs = (recentMessages ?? []) as { direction: string; created_at: string }[];
 
   return (
@@ -111,7 +111,7 @@ export default async function WhatsappPage() {
       )}
 
       <WhatsappDiagnostics
-        transport={cloudNumber ? 'cloud' : 'bridge'}
+        transport={cloudNumber || showCloudApi ? 'cloud' : 'bridge'}
         reachable={bridge.reachable}
         hasLiveSession={bridge.sessions.some(
           (x) => x.sessionId === tenant.id && x.status === 'connected',
