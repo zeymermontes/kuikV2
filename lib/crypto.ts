@@ -1,5 +1,5 @@
 import 'server-only';
-import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHmac, randomBytes } from 'node:crypto';
 
 /**
  * Authenticated encryption for secrets we must store but must not read back by
@@ -69,4 +69,16 @@ export function open(sealed: SealedSecret, aad: string): string {
 /** Last four characters, for showing "…a1b2" in the dashboard. */
 export function last4(secret: string): string {
   return secret.slice(-4);
+}
+
+/**
+ * The six-digit two-step-verification PIN a Cloud API number is registered
+ * with. Derived from the app key and the number's own id rather than stored:
+ * nothing to leak from a table, and re-registering the same number (after a
+ * disconnect, or on another server) produces the same PIN, which is what Meta
+ * requires once the number has one.
+ */
+export function derivePin(phoneNumberId: string): string {
+  const mac = createHmac('sha256', keyFor(CURRENT_KEY_VERSION)).update(`wa-pin:${phoneNumberId}`).digest();
+  return String(mac.readUInt32BE(0) % 1_000_000).padStart(6, '0');
 }

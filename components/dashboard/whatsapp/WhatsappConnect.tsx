@@ -1,25 +1,34 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link2, Unlink, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Card, Button } from '@/components/ui';
 
 /**
- * Meta's Embedded Signup, in the Coexistence flavour.
+ * Meta's Embedded Signup, in two flavours the owner picks first:
  *
- * `featureType: 'whatsapp_business_app_onboarding'` is the whole trick: it
- * picks the path that leaves the number working in the restaurant's WhatsApp
- * Business app instead of migrating it away from the phone.
+ *  - Coexistence (`featureType: 'whatsapp_business_app_onboarding'`): the
+ *    number they already use in the WhatsApp Business app keeps working on
+ *    the phone, and Kuik joins as another channel.
+ *  - Cloud API: a new or dedicated number added inside the popup, registered
+ *    for the API by the server afterwards.
  *
- * Two pieces of information arrive by different routes — the `code` through the
- * FB.login callback, the WABA and phone ids through a window `message` event —
- * so both have to be collected before the server call.
+ * Two pieces of information arrive by different routes — the `code` through
+ * the FB.login callback, the WABA and phone ids through a window `message`
+ * event — so both have to be collected before the server call. The event's
+ * name differs per flavour, and there is a third one, FINISH_ONLY_WABA, for a
+ * signup that ended without a number: worth naming, because a username-only
+ * account looks finished from the outside.
  */
+
+type Mode = 'coexistence' | 'cloud_api';
 
 interface SessionInfo {
   waba_id?: string;
   phone_number_id?: string;
+  /** Set when the popup ended with a WABA but no number in it. */
+  no_phone?: boolean;
 }
 
 interface ConnectedNumber {
@@ -39,12 +48,18 @@ declare global {
   }
 }
 
+const FINISHED = new Set(['FINISH', 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING']);
+
 export function WhatsappConnect({ numbers }: { numbers: ConnectedNumber[] }) {
   const t = useTranslations('whatsapp');
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [session, setSession] = useState<SessionInfo>({});
+  const [detail, setDetail] = useState<string | null>(null);
+  // A ref, not state: the FB.login callback reads it after the message event
+  // wrote it, and neither is a render.
+  const session = useRef<SessionInfo>({});
+  const [mode, setMode] = useState<Mode>('coexistence');
 
   const appId = process.env.NEXT_PUBLIC_META_APP_ID;
   const configId = process.env.NEXT_PUBLIC_META_CONFIG_ID;
@@ -58,8 +73,15 @@ export function WhatsappConnect({ numbers }: { numbers: ConnectedNumber[] }) {
       if (!event.origin.endsWith('facebook.com')) return;
       try {
         const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-        if (data?.type === 'WA_EMBEDDED_SIGNUP' && data.event === 'FINISH') {
-          setSession({ waba_id: data.data?.waba_id, phone_number_id: data.data?.phone_number_id });
+        if (data?.type !== 'WA_EMBEDDED_SIGNUP') return;
+        if (FINISHED.has(data.event)) {
+          session.current = { waba_id: data.data?.waba_id, phone_number_id: data.data?.phone_number_id };
+        } else if (data.event === 'FINISH_ONLY_WABA') {
+          session.current = { waba_id: data.data?.waba_id, no_phone: true };
+        } else if (data.event === 'CANCEL') {
+          session.current = {};
+          setError(data.data?.error_message ? 'connect_failed' : 'abandoned');
+          setDetail(data.data?.error_message ?? null);
         }
       } catch {
         // Facebook posts plenty of unrelated messages; ignore the noise.
@@ -97,17 +119,24 @@ export function WhatsappConnect({ numbers }: { numbers: ConnectedNumber[] }) {
     };
   }, [appId, configured]);
 
-  async function finish(code: string) {
+  async function finish(code: string, info: SessionInfo) {
+    if (info.no_phone || !info.phone_number_id) {
+      setError('no_phone');
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch('/api/whatsapp/onboard', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ code, wabaId: session.waba_id, phoneNumberId: session.phone_number_id }),
+        body: JSON.stringify({ code, wabaId: info.waba_id, phoneNumberId: info.phone_number_id, mode }),
       });
       const json = await res.json();
       if (json.ok) window.location.reload();
-      else setError(json.error ?? 'connect_failed');
+      else {
+        setError(json.error ?? 'connect_failed');
+        setDetail(json.detail ?? null);
+      }
     } catch {
       setError('connect_failed');
     } finally {
@@ -118,6 +147,8 @@ export function WhatsappConnect({ numbers }: { numbers: ConnectedNumber[] }) {
   function connect() {
     if (!window.FB || !configId) return;
     setError(null);
+    setDetail(null);
+    session.current = {};
     // The callback must be a plain function: the SDK type-checks it and throws
     // "Expression is of type asyncfunction, not function" on an async one —
     // before opening anything, so the click looks like it did nothing.
@@ -128,7 +159,8 @@ export function WhatsappConnect({ numbers }: { numbers: ConnectedNumber[] }) {
           setError('cancelled');
           return;
         }
-        void finish(code);
+        // The session-info event lands before this callback.
+        void finish(code, session.current);
       },
       {
         config_id: configId,
@@ -136,8 +168,8 @@ export function WhatsappConnect({ numbers }: { numbers: ConnectedNumber[] }) {
         override_default_response_type: true,
         extras: {
           setup: {},
-          featureType: 'whatsapp_business_app_onboarding',
           sessionInfoVersion: '3',
+          ...(mode === 'coexistence' ? { featureType: 'whatsapp_business_app_onboarding' } : {}),
         },
       },
     );
@@ -156,6 +188,11 @@ export function WhatsappConnect({ numbers }: { numbers: ConnectedNumber[] }) {
       setBusy(false);
     }
   }
+
+  const requirements =
+    mode === 'coexistence'
+      ? ['req_app', 'req_active', 'req_keeps_working', 'req_no_groups', 'req_no_history']
+      : ['req_cloud_not_on_phone', 'req_cloud_verify', 'req_cloud_username', 'req_cloud_window'];
 
   return (
     <Card className="space-y-4">
@@ -188,14 +225,38 @@ export function WhatsappConnect({ numbers }: { numbers: ConnectedNumber[] }) {
         </div>
       ) : (
         <>
+          <fieldset className="space-y-2">
+            <legend className="mb-1 text-sm font-medium">{t('connect_modeTitle')}</legend>
+            {(['coexistence', 'cloud_api'] as Mode[]).map((m) => (
+              <label
+                key={m}
+                className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition ${
+                  mode === m ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="wa-mode"
+                  className="mt-1"
+                  checked={mode === m}
+                  onChange={() => { setMode(m); setError(null); }}
+                />
+                <span>
+                  <span className="block font-medium">{t(m === 'coexistence' ? 'connect_mode_coexistence' : 'connect_mode_cloud')}</span>
+                  <span className="block text-xs text-neutral-500">
+                    {t(m === 'coexistence' ? 'connect_mode_coexistence_hint' : 'connect_mode_cloud_hint')}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+
           {/* Meta's own requirements, stated before the popup rather than
               after it fails: these are the reasons onboarding gets rejected. */}
           <ul className="space-y-1 rounded-lg bg-neutral-50 p-3 text-sm text-neutral-600">
-            <li>· {t('req_app')}</li>
-            <li>· {t('req_active')}</li>
-            <li>· {t('req_keeps_working')}</li>
-            <li>· {t('req_no_groups')}</li>
-            <li>· {t('req_no_history')}</li>
+            {requirements.map((k) => (
+              <li key={k}>· {t(k)}</li>
+            ))}
           </ul>
 
           {configured ? (
@@ -211,6 +272,7 @@ export function WhatsappConnect({ numbers }: { numbers: ConnectedNumber[] }) {
       {error && (
         <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           {t.has(`err_${error}`) ? t(`err_${error}`) : error}
+          {detail && <span className="mt-1 block text-xs text-red-600">{detail}</span>}
         </p>
       )}
     </Card>

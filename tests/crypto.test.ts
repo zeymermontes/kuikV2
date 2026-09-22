@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { seal, open, last4 } from '../lib/crypto';
+import { seal, open, last4, derivePin } from '../lib/crypto';
 
 // keyFor() reads the env lazily, inside each call, so setting it here — after
 // the import — is enough and keeps this a plain static import.
@@ -39,3 +39,10 @@ test('a wrong-length key is rejected loudly', async () => {
 });
 
 test('last4', () => assert.equal(last4('sk-abcd1234'), '1234'));
+
+test('the registration PIN is six digits and stable for a number', () => {
+  const a = derivePin('1234567890');
+  assert.match(a, /^\d{6}$/);
+  assert.equal(derivePin('1234567890'), a);
+  assert.notEqual(derivePin('1234567891'), a);
+});

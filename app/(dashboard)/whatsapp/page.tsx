@@ -92,7 +92,9 @@ export default async function WhatsappPage() {
       </div>
 
       {showCloudApi ? (
-        <WhatsappConnect numbers={numberRows} />
+        // Only Meta-side numbers still in play: a disconnected row, or an old
+        // bridge pairing, would otherwise sit where the connect button goes.
+        <WhatsappConnect numbers={numberRows.filter((n) => n.mode !== 'bridge' && n.status !== 'disconnected')} />
       ) : (
         !cloudNumber && <WhatsappPair numbers={numberRows} />
       )}

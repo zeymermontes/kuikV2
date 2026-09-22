@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { requireOwner } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { exchangeCode, subscribeApp, getPhoneNumber, GraphApiError } from '@/lib/whatsapp/client';
+import { exchangeCode, subscribeApp, getPhoneNumber, registerPhoneNumber, GraphApiError } from '@/lib/whatsapp/client';
+import { derivePin } from '@/lib/crypto';
 import { storeToken } from '@/lib/whatsapp/credentials';
 import { seedDefaults } from '@/lib/whatsapp/seed';
 import { normalizeWaId } from '@/lib/phone';
@@ -13,16 +14,23 @@ export const dynamic = 'force-dynamic';
 /**
  * Finish Meta's Embedded Signup.
  *
- * The client runs the Facebook popup with
- * `featureType: 'whatsapp_business_app_onboarding'` — that is what selects the
- * COEXISTENCE path, so the restaurant's number keeps working on their phone.
- * The popup hands back a code plus the ids from the session-info event; this
- * turns them into a stored connection.
+ * Two flavours, chosen by the owner before the popup opens:
+ *  - `coexistence`: the popup ran with `featureType:
+ *    'whatsapp_business_app_onboarding'`, so the number stays on the phone.
+ *    No /register call — that is the migration path and would take it off.
+ *  - `cloud_api`: a new or dedicated number added inside the popup. It has to
+ *    be registered for Cloud API messaging before it can send anything.
+ *
+ * Either way the popup hands back a code plus the ids from the session-info
+ * event; this turns them into a stored connection.
  */
 export async function POST(req: NextRequest) {
   const { tenant } = await requireOwner();
 
-  let body: { code?: string; wabaId?: string; phoneNumberId?: string; branchId?: string | null };
+  let body: {
+    code?: string; wabaId?: string; phoneNumberId?: string; branchId?: string | null;
+    mode?: 'coexistence' | 'cloud_api';
+  };
   try {
     body = await req.json();
   } catch {
@@ -30,8 +38,13 @@ export async function POST(req: NextRequest) {
   }
 
   const { code, wabaId, phoneNumberId } = body;
-  if (!code || !wabaId || !phoneNumberId) {
-    return NextResponse.json({ ok: false, error: 'missing_fields' }, { status: 400 });
+  const mode = body.mode === 'cloud_api' ? 'cloud_api' : 'coexistence';
+  if (!code) return NextResponse.json({ ok: false, error: 'missing_fields' }, { status: 400 });
+  // The popup finished but never posted the ids (or posted a WABA with no
+  // number in it). Distinct from a malformed request: the owner has to go
+  // through the popup again, adding a number this time.
+  if (!wabaId || !phoneNumberId) {
+    return NextResponse.json({ ok: false, error: 'no_session_info' }, { status: 400 });
   }
 
   try {
@@ -42,9 +55,21 @@ export async function POST(req: NextRequest) {
     // else looks connected.
     await subscribeApp(wabaId, token);
 
-    // Deliberately NOT calling POST /{phone_number_id}/register: that is the
-    // Cloud-API migration path, and it would take the number OFF the WhatsApp
-    // Business app — exactly what Coexistence exists to avoid.
+    if (mode === 'cloud_api') {
+      // A fresh Cloud API number is nothing until registered. Under
+      // coexistence this call is deliberately skipped: it is the migration
+      // path and would take the number OFF the WhatsApp Business app.
+      try {
+        await registerPhoneNumber(phoneNumberId, token, derivePin(phoneNumberId));
+      } catch (err) {
+        const graph = err instanceof GraphApiError ? err : null;
+        return NextResponse.json(
+          { ok: false, error: 'register_failed', detail: graph?.message ?? String(err), code: graph?.code },
+          { status: 502 },
+        );
+      }
+    }
+
     const info = await getPhoneNumber(phoneNumberId, token);
 
     const supabase = createAdminClient();
@@ -66,7 +91,7 @@ export async function POST(req: NextRequest) {
         verified_name: info.verified_name ?? null,
         quality_rating: info.quality_rating ?? null,
         messaging_limit_tier: info.messaging_limit_tier ?? null,
-        mode: 'coexistence',
+        mode,
         status: 'connected',
         is_default: !existing || existing.length === 0,
         connected_at: new Date().toISOString(),

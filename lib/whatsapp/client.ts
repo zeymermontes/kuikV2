@@ -111,3 +111,12 @@ export function getPhoneNumber(phoneNumberId: string, token: string): Promise<Ph
   const fields = 'id,display_phone_number,verified_name,quality_rating,messaging_limit_tier,code_verification_status';
   return graphGet(`${phoneNumberId}?fields=${fields}`, token);
 }
+
+/**
+ * Register a number for Cloud API messaging. Only for a number that is NOT on
+ * the WhatsApp Business app: under Coexistence this call would migrate it off
+ * the phone. The PIN becomes (or must match) the number's two-step code.
+ */
+export function registerPhoneNumber(phoneNumberId: string, token: string, pin: string): Promise<{ success?: boolean }> {
+  return graphPost(`${phoneNumberId}/register`, token, { messaging_product: 'whatsapp', pin });
+}
