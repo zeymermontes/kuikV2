@@ -5,6 +5,7 @@ import { CheckCircle2, Clock, AlertCircle, RefreshCw, Trash2 } from 'lucide-reac
 import { useTranslations } from 'next-intl';
 import type { Tenant } from '@/lib/database.types';
 import { ROOT_HOST } from '@/lib/config';
+import { dnsRecordsFor, isApexDomain } from '@/lib/dns-records';
 import { Card, Input, Button } from '@/components/ui';
 import {
   connectDomain,
@@ -54,11 +55,18 @@ export function DomainManager({ tenant }: { tenant: Tenant }) {
           {status !== 'verified' && (
             <div className="mt-4 rounded-xl bg-neutral-50 p-4 text-sm">
               <p className="mb-2 font-medium text-neutral-700">{t('instructions')}</p>
-              <div className="space-y-1 font-mono text-xs text-neutral-600">
-                <div>Type: CNAME</div>
-                <div>Name: {tenant.custom_domain.split('.')[0]}</div>
-                <div>Value: {tenant.subdomain}.{ROOT_HOST}</div>
+              <div className="space-y-3 font-mono text-xs text-neutral-600">
+                {dnsRecordsFor(tenant.custom_domain, `${tenant.subdomain}.${ROOT_HOST}`).map((r) => (
+                  <div key={`${r.type}-${r.name}`} className="space-y-1">
+                    <div>Type: {r.type}</div>
+                    <div>Name: {r.name}</div>
+                    <div>Value: {r.value}</div>
+                  </div>
+                ))}
               </div>
+              {isApexDomain(tenant.custom_domain) && (
+                <p className="mt-3 text-xs text-neutral-500">{t('apexNote')}</p>
+              )}
             </div>
           )}
         </div>
