@@ -80,7 +80,11 @@ export function WhatsappConnect({ numbers }: { numbers: ConnectedNumber[] }) {
       script.src = 'https://connect.facebook.net/en_US/sdk.js';
       script.async = true;
       script.onload = () => {
-        window.FB?.init({ appId, version: 'v23.0', xfbml: false, cookie: true });
+        // fedCM off: on Chrome the SDK otherwise routes FB.login through the
+        // browser's federated sign-in, which runs a plain OAuth request and
+        // ignores config_id — Chrome then shows "kuik.mx can't continue using
+        // facebook.com" and the Embedded Signup popup never opens.
+        window.FB?.init({ appId, version: 'v23.0', xfbml: false, cookie: true, fedCM: false });
         if (!cancelled) setReady(true);
       };
       document.body.appendChild(script);
