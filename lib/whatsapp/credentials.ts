@@ -18,24 +18,38 @@ export async function storeToken(
   wabaId: string,
   token: string,
   expiresAt?: Date | null,
+  /**
+   * A number registered in the restaurant's OWN Meta app: its webhooks are
+   * signed with that app's secret and its handshake repeats a verify token of
+   * ours. Both live on the same row so the webhook can find them by
+   * phone_number_id.
+   */
+  ownApp?: { appSecret: string; verifyToken: string },
 ): Promise<void> {
   const sealed = seal(token, phoneNumberId);
+  const secret = ownApp ? seal(ownApp.appSecret, phoneNumberId) : null;
   const supabase = createAdminClient();
   await supabase.from('whatsapp_credentials').upsert(
     {
       phone_number_id: phoneNumberId,
       tenant_id: tenantId,
       waba_id: wabaId,
-      token_ct: `\\x${sealed.ct.toString('hex')}`,
-      token_iv: `\\x${sealed.iv.toString('hex')}`,
-      token_tag: `\\x${sealed.tag.toString('hex')}`,
+      token_ct: hex(sealed.ct),
+      token_iv: hex(sealed.iv),
+      token_tag: hex(sealed.tag),
       key_version: sealed.version,
       expires_at: expiresAt?.toISOString() ?? null,
       rotated_at: new Date().toISOString(),
+      app_secret_ct: secret ? hex(secret.ct) : null,
+      app_secret_iv: secret ? hex(secret.iv) : null,
+      app_secret_tag: secret ? hex(secret.tag) : null,
+      webhook_verify_token: ownApp?.verifyToken ?? null,
     },
     { onConflict: 'phone_number_id' },
   );
 }
+
+const hex = (b: Buffer) => `\\x${b.toString('hex')}`;
 
 /** Postgres hands bytea back as "\x<hex>". */
 function fromBytea(v: unknown): Buffer {
@@ -70,6 +84,64 @@ export async function getToken(phoneNumberId: string): Promise<string | null> {
     // guess is the whole point.
     return null;
   }
+}
+
+/**
+ * The app secrets behind these numbers, for verifying a webhook that Kuik's
+ * own secret did not sign. Numbers connected through Kuik's app have none and
+ * are simply absent from the result.
+ */
+export async function getAppSecrets(phoneNumberIds: string[]): Promise<string[]> {
+  if (phoneNumberIds.length === 0) return [];
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from('whatsapp_credentials')
+    .select('phone_number_id, app_secret_ct, app_secret_iv, app_secret_tag, key_version')
+    .in('phone_number_id', phoneNumberIds)
+    .not('app_secret_ct', 'is', null);
+
+  const out: string[] = [];
+  for (const row of (data ?? []) as {
+    phone_number_id: string; app_secret_ct: unknown; app_secret_iv: unknown; app_secret_tag: unknown; key_version: number;
+  }[]) {
+    try {
+      out.push(open(
+        {
+          ct: fromBytea(row.app_secret_ct),
+          iv: fromBytea(row.app_secret_iv),
+          tag: fromBytea(row.app_secret_tag),
+          version: row.key_version ?? CURRENT_KEY_VERSION,
+        },
+        row.phone_number_id,
+      ));
+    } catch {
+      // Same rule as getToken: a row that will not open is not guessed at.
+    }
+  }
+  return out;
+}
+
+/** Whether some number's own-app handshake uses this verify token. */
+export async function isKnownVerifyToken(token: string): Promise<boolean> {
+  if (!token) return false;
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from('whatsapp_credentials')
+    .select('phone_number_id')
+    .eq('webhook_verify_token', token)
+    .limit(1);
+  return Boolean(data && data.length > 0);
+}
+
+/** The verify token to show the owner, so they can paste it into their Meta app. */
+export async function getVerifyToken(phoneNumberId: string): Promise<string | null> {
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from('whatsapp_credentials')
+    .select('webhook_verify_token')
+    .eq('phone_number_id', phoneNumberId)
+    .maybeSingle();
+  return (data as { webhook_verify_token: string | null } | null)?.webhook_verify_token ?? null;
 }
 
 export async function deleteToken(phoneNumberId: string): Promise<void> {

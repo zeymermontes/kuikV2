@@ -1,11 +1,14 @@
 import { getTranslations } from 'next-intl/server';
 import { requireManager } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
-// The Cloud API path (WhatsappConnect) is built and kept, but hidden: it needs
-// Meta business verification and Tech Provider status, which is weeks of
-// paperwork. NEXT_PUBLIC_WHATSAPP_CLOUD=1 brings it back once that lands.
+// Embedded Signup (WhatsappConnect) is built and kept, but hidden: it runs
+// under Kuik's Meta app and needs business verification plus Tech Provider
+// status, which is weeks of paperwork. NEXT_PUBLIC_WHATSAPP_CLOUD=1 brings it
+// back once that lands. Meanwhile the official route is WhatsappCloudSetup: the
+// restaurant's OWN Meta app, with the ids and token pasted by hand.
 import { WhatsappConnect } from '@/components/dashboard/whatsapp/WhatsappConnect';
 import { WhatsappPair } from '@/components/dashboard/whatsapp/WhatsappPair';
+import { WhatsappCloudSetup } from '@/components/dashboard/whatsapp/WhatsappCloudSetup';
 import { BotSettings } from '@/components/dashboard/whatsapp/BotSettings';
 import { AiSettings } from '@/components/dashboard/whatsapp/AiSettings';
 import { FaqEditor, type Faq } from '@/components/dashboard/whatsapp/FaqEditor';
@@ -13,6 +16,8 @@ import { WhatsappDiagnostics } from '@/components/dashboard/whatsapp/WhatsappDia
 import { WhatsappHistory } from '@/components/dashboard/whatsapp/WhatsappHistory';
 import { isPro } from '@/lib/plan';
 import { diagnose } from '@/lib/whatsapp/bridge';
+import { getVerifyToken } from '@/lib/whatsapp/credentials';
+import { APP_URL } from '@/lib/config';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,13 +69,20 @@ export default async function WhatsappPage() {
       supabase.from('whatsapp_conversations').select('id', { count: 'exact', head: true }).eq('tenant_id', tenant.id),
     ]);
 
-  // Asked of the bridge itself, not of our own tables: the two disagree in
-  // exactly the situation that needs explaining.
-  const bridge = await diagnose();
-  const msgs = (recentMessages ?? []) as { direction: string; created_at: string }[];
-
   const numberRows = (numbers ?? []) as (Parameters<typeof WhatsappConnect>[0]['numbers'][number] & { mode: string })[];
   const showCloudApi = process.env.NEXT_PUBLIC_WHATSAPP_CLOUD === '1';
+
+  // A number registered in the restaurant's own Meta app. While one is live
+  // the QR path is put away: one channel per restaurant.
+  const cloudNumber = numberRows.find((n) => n.mode === 'cloud_api' && n.status === 'connected') ?? null;
+  const bridgeLive = numberRows.some((n) => n.mode === 'bridge' && (n.status === 'connected' || n.status === 'pairing'));
+  const verifyToken = cloudNumber && role === 'owner' ? await getVerifyToken(cloudNumber.phone_number_id) : null;
+
+  // Asked of the bridge itself, not of our own tables: the two disagree in
+  // exactly the situation that needs explaining. Not asked at all when the
+  // bridge is not the transport in use.
+  const bridge = cloudNumber ? { reachable: false, sessions: [], error: undefined } : await diagnose();
+  const msgs = (recentMessages ?? []) as { direction: string; created_at: string }[];
 
   return (
     <div className="space-y-5">
@@ -82,8 +94,16 @@ export default async function WhatsappPage() {
       {showCloudApi ? (
         <WhatsappConnect numbers={numberRows} />
       ) : (
-        <WhatsappPair numbers={numberRows} />
+        !cloudNumber && <WhatsappPair numbers={numberRows} />
       )}
+
+      <WhatsappCloudSetup
+        number={cloudNumber}
+        bridgeLive={bridgeLive}
+        webhookUrl={`${APP_URL}/api/webhooks/whatsapp`}
+        verifyToken={verifyToken}
+        canConnect={role === 'owner'}
+      />
 
       {/* Clearing the history is only offered with no number live (the action checks again). */}
       {role === 'owner' && !numberRows.some((n) => n.status === 'connected' || n.status === 'pairing') && (
@@ -91,6 +111,7 @@ export default async function WhatsappPage() {
       )}
 
       <WhatsappDiagnostics
+        transport={cloudNumber ? 'cloud' : 'bridge'}
         reachable={bridge.reachable}
         hasLiveSession={bridge.sessions.some(
           (x) => x.sessionId === tenant.id && x.status === 'connected',

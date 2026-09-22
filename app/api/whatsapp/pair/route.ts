@@ -96,9 +96,21 @@ export async function POST() {
     return fresh({ ok: false, error: 'bridge_not_configured' }, 503);
   }
 
+  const supabase = createAdminClient();
+
+  // One channel at a time: with a Cloud API number live, a paired phone would
+  // be a second bot answering the same restaurant.
+  const { data: cloud } = await supabase
+    .from('whatsapp_numbers')
+    .select('phone_number_id')
+    .eq('tenant_id', tenant.id)
+    .neq('mode', 'bridge')
+    .eq('status', 'connected')
+    .limit(1);
+  if (cloud && cloud.length > 0) return fresh({ ok: false, error: 'cloud_connected' }, 409);
+
   try {
     const session = await startSession(tenant.id);
-    const supabase = createAdminClient();
 
     await supabase.from('whatsapp_numbers').upsert(
       {

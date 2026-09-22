@@ -2,7 +2,8 @@ import { after } from 'next/server';
 import { NextResponse, type NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { rateLimit, bucketKey } from '@/lib/rate-limit';
-import { verifySignature, verifyChallenge } from '@/lib/whatsapp/webhook-verify';
+import { verifySignature, verifyChallenge, phoneNumberIdsIn } from '@/lib/whatsapp/webhook-verify';
+import { getAppSecrets, isKnownVerifyToken } from '@/lib/whatsapp/credentials';
 import { processEvents } from '@/lib/whatsapp/inbound';
 
 // node:crypto's timingSafeEqual is unavailable on the edge runtime.
@@ -19,7 +20,14 @@ const MAX_BODY = 128 * 1024;
  * useful error.
  */
 export async function GET(req: NextRequest) {
-  const challenge = verifyChallenge(req.nextUrl.searchParams);
+  const params = req.nextUrl.searchParams;
+  let challenge = verifyChallenge(params);
+  if (challenge === null) {
+    // A restaurant's own Meta app repeats the per-number token Kuik generated
+    // for it; the global token is Kuik's app alone.
+    const given = params.get('hub.verify_token') ?? '';
+    if (await isKnownVerifyToken(given)) challenge = verifyChallenge(params, [given]);
+  }
   if (challenge === null) return new Response('Forbidden', { status: 403 });
   return new Response(challenge, {
     status: 200,
@@ -42,7 +50,16 @@ export async function POST(req: NextRequest) {
   const raw = await req.text();
   if (raw.length > MAX_BODY) return new Response(null, { status: 413 });
 
-  if (!verifySignature(raw, req.headers.get('x-hub-signature-256'))) {
+  const signature = req.headers.get('x-hub-signature-256');
+  let signed = verifySignature(raw, signature);
+  if (!signed) {
+    // Not Kuik's app: maybe a restaurant's own. The ids are read from the
+    // unverified body only to pick which secrets to try — nothing else is
+    // done with it until one of them matches.
+    const secrets = await getAppSecrets(phoneNumberIdsIn(raw));
+    signed = secrets.length > 0 && verifySignature(raw, signature, secrets);
+  }
+  if (!signed) {
     // 403, not 200. Unlike a genuine Meta retry, a forged request is not
     // something we want to encourage by acknowledging it.
     return new Response(null, { status: 403 });

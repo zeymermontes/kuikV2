@@ -13,6 +13,7 @@ import { CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
  * anything arrived recently.
  */
 export function WhatsappDiagnostics({
+  transport = 'bridge',
   reachable,
   hasLiveSession,
   sessionStatus = null,
@@ -22,6 +23,8 @@ export function WhatsappDiagnostics({
   lastOutboundAt,
   inboundCount,
 }: {
+  /** With a Cloud API number the bridge rows mean nothing; Meta's webhook is the thing to check. */
+  transport?: 'bridge' | 'cloud';
   reachable: boolean;
   hasLiveSession: boolean;
   /** The bridge's own word for this restaurant's session when it is not connected. */
@@ -38,7 +41,7 @@ export function WhatsappDiagnostics({
   const when = (iso: string | null) =>
     iso ? new Date(iso).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' }) : t('diagNever');
 
-  const rows: { label: string; ok: boolean; value: string; hint?: string }[] = [
+  const bridgeRows: { label: string; ok: boolean; value: string; hint?: string }[] = [
     {
       label: t('diagBridge'),
       ok: reachable,
@@ -54,11 +57,15 @@ export function WhatsappDiagnostics({
           : t('diagNoSession'),
       hint: reachable && !hasLiveSession ? (sessionStatus ? t('diagStuckHint') : t('diagNoSessionHint')) : undefined,
     },
+  ];
+
+  const rows: { label: string; ok: boolean; value: string; hint?: string }[] = [
+    ...(transport === 'bridge' ? bridgeRows : []),
     {
       label: t('diagLastInbound'),
       ok: Boolean(lastInboundAt),
       value: when(lastInboundAt),
-      hint: inboundCount === 0 ? t('diagNoInboundHint') : undefined,
+      hint: inboundCount === 0 ? (transport === 'cloud' ? t('diagCloudNoInboundHint') : t('diagNoInboundHint')) : undefined,
     },
     {
       label: t('diagLastOutbound'),
