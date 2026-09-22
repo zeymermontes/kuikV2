@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "NODE_OPTIONS=--max-http-header-size=65536 next dev",
     "build": "next build",
-    "start": "NODE_OPTIONS=--max-http-header-size=65536 next start",
+    "start": "NODE_OPTIONS='--max-http-header-size=65536 --max-old-space-size=384' next start",
     "lint": "eslint",
     "test": "tsx --tsconfig tsconfig.test.json --test tests/*.test.ts"
   },

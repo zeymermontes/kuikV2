@@ -35,7 +35,25 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return; // never touch Supabase/CDN calls
+
+  // Product photos come resized from Supabase's CDN (lib/image-loader.ts), so
+  // they are the one cross-origin thing this worker keeps: cache-first, and
+  // only non-opaque responses (the precache asks with CORS; an opaque one
+  // cannot be checked and is charged to storage quota at several MB each).
+  if (url.hostname.endsWith('.supabase.co') && url.pathname.startsWith('/storage/v1/')) {
+    event.respondWith(
+      caches.match(req).then(
+        (hit) =>
+          hit ||
+          fetch(req).then((res) => {
+            if (res.ok && res.type === 'cors') caches.open(CACHE).then((c) => c.put(req, res.clone()));
+            return res;
+          }),
+      ),
+    );
+    return;
+  }
+  if (url.origin !== self.location.origin) return; // never touch other Supabase/CDN calls
 
   // Navigations: network-first (fresh deploys win), fall back to cached shell.
   if (req.mode === 'navigate') {
