@@ -22,11 +22,11 @@ test('an existing query string is kept', () => {
   );
 });
 
-test('a bucket svg or gif keeps using the built-in route, which sniffs the real type', () => {
+test('a bucket svg or gif is served by the raw route, which labels it by its bytes', () => {
   const svg = 'https://abc.supabase.co/storage/v1/object/public/media/t1/logos/l.svg';
   const gif = 'https://abc.supabase.co/storage/v1/object/public/media/t1/logos/a.gif?x=1';
-  assert.equal(loader({ src: svg, width: 100 }), `/_next/image?url=${encodeURIComponent(svg)}&w=100&q=75`);
-  assert.equal(loader({ src: gif, width: 100, quality: 50 }), `/_next/image?url=${encodeURIComponent(gif)}&w=100&q=75`);
+  assert.equal(loader({ src: svg, width: 100 }), `/api/media/raw?src=${encodeURIComponent(svg)}`);
+  assert.equal(loader({ src: gif, width: 100, quality: 50 }), `/api/media/raw?src=${encodeURIComponent(gif)}`);
 });
 
 test('local paths and foreign hosts pass through untouched', () => {

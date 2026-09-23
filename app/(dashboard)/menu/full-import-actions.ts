@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/server';
 import { IMPORT_DESIGN_KEYS, type FullImportPayload, type ImportPreview, type ImportProduct,
   type ImportCategory,
 } from '@/lib/menu-import';
+import { sniffImageType, EXT_BY_MIME } from '@/lib/media/sniff';
 
 const norm = (s: string) => (s ?? '').trim().toLowerCase();
 
@@ -70,11 +71,16 @@ async function resolveImage(
     // as-is (no browser here to compress it), so a 40 MB TIFF stays out.
     if (!ct.startsWith('image/')) return null;
     if (Number(res.headers.get('content-length') || 0) > REMOTE_IMAGE_MAX) return null;
-    const ext = (ct.split('/')[1] || 'jpg').slice(0, 5);
     const bytes = new Uint8Array(await res.arrayBuffer());
     if (bytes.length > REMOTE_IMAGE_MAX) return null;
+    // The bytes decide the stored type, not the remote server's header: a
+    // site that labels its SVG icons image/jpeg would otherwise hand that
+    // label on to every browser that loads the menu.
+    const type = sniffImageType(bytes);
+    const contentType = type ?? ct;
+    const ext = type ? EXT_BY_MIME[type] : (ct.split('/')[1] || 'jpg').slice(0, 5);
     const path = `${tenantId}/imported/${crypto.randomUUID()}.${ext}`;
-    const { error } = await supabase.storage.from('media').upload(path, bytes, { contentType: ct });
+    const { error } = await supabase.storage.from('media').upload(path, bytes, { contentType });
     if (error) return null;
     return supabase.storage.from('media').getPublicUrl(path).data.publicUrl;
   } catch {

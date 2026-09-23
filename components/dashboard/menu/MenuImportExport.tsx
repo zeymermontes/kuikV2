@@ -22,6 +22,7 @@ import {
   type ImportPreview,
   type ImportProduct,
 } from '@/lib/menu-import';
+import { sniffImageType } from '@/lib/media/sniff';
 
 const HEADERS = ['Categoría', 'Subcategoría', 'Producto', 'Descripción', 'Precio', 'Precio anterior', 'Disponible', 'Etiquetas'];
 
@@ -266,7 +267,9 @@ export function MenuImportExport({
         }
         // Through the same compression as a photo picked in the dashboard: a
         // menu's ZIP is usually full-size camera shots.
-        const url = await uploadImage(new File([bytes as unknown as BlobPart], base, { type: mime(base) }), tenantId, 'imported').catch(() => null);
+        // The bytes name the type; the extension is only the fallback.
+        const type = sniffImageType(bytes as Uint8Array) ?? mime(base);
+        const url = await uploadImage(new File([bytes as unknown as BlobPart], base, { type }), tenantId, 'imported').catch(() => null);
         if (url) cache.set(base, url);
         return url;
       }

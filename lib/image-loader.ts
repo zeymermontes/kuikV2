@@ -12,11 +12,11 @@ import type { ImageLoaderProps } from 'next/image';
  * puts the photos on a CDN edge instead of a single Render instance.
  *
  * An SVG or GIF in the bucket (uploaded as-is; the transformer refuses them)
- * keeps going through the built-in /_next/image route, exactly as before.
- * That route sniffs the real type and serves it — which matters because the
- * menu importer stored category icons as SVG under an image/jpeg content type,
- * and a browser handed that file directly shows a broken image. Nothing is
- * transcoded on that path, so it costs the server no memory.
+ * goes through our own small route, which serves it under the type its bytes
+ * say. That matters because the menu importer stored category icons as SVG
+ * under an image/jpeg content type, and a browser handed that file directly
+ * shows a broken image. The built-in /_next/image route used to hide that,
+ * but Next switches it off once a custom loader is configured.
  *
  * Anything else comes back untouched: a path under /public, a foreign host.
  */
@@ -29,10 +29,7 @@ const PASSTHROUGH = /\.(svg|gif)(\?.*)?$/i;
 
 export default function supabaseImageLoader({ src, width, quality }: ImageLoaderProps): string {
   if (!src.includes(OBJECT)) return src;
-  if (PASSTHROUGH.test(src)) {
-    // q is fixed: the built-in route only accepts the configured qualities.
-    return `/_next/image?url=${encodeURIComponent(src)}&w=${width}&q=75`;
-  }
+  if (PASSTHROUGH.test(src)) return `/api/media/raw?src=${encodeURIComponent(src)}`;
   const base = src.replace(OBJECT, RENDER);
   const sep = base.includes('?') ? '&' : '?';
   return `${base}${sep}width=${Math.min(width, MAX_WIDTH)}&quality=${quality ?? 75}`;
