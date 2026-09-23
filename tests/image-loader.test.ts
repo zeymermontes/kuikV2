@@ -7,18 +7,18 @@ const photo = 'https://abc.supabase.co/storage/v1/object/public/media/t1/product
 test('a bucket photo is served through the transformation endpoint at the asked width', () => {
   assert.equal(
     loader({ src: photo, width: 640, quality: 75 }),
-    'https://abc.supabase.co/storage/v1/render/image/public/media/t1/products/p.jpg?width=640&quality=75',
+    'https://abc.supabase.co/storage/v1/render/image/public/media/t1/products/p.jpg?width=640&quality=75&resize=contain',
   );
 });
 
 test('quality defaults to 75 and width is capped at what Supabase accepts', () => {
-  assert.match(loader({ src: photo, width: 3840 }), /width=2500&quality=75$/);
+  assert.match(loader({ src: photo, width: 3840 }), /width=2500&quality=75&resize=contain$/);
 });
 
 test('an existing query string is kept', () => {
   assert.equal(
     loader({ src: `${photo}?v=3`, width: 320, quality: 60 }),
-    'https://abc.supabase.co/storage/v1/render/image/public/media/t1/products/p.jpg?v=3&width=320&quality=60',
+    'https://abc.supabase.co/storage/v1/render/image/public/media/t1/products/p.jpg?v=3&width=320&quality=60&resize=contain',
   );
 });
 

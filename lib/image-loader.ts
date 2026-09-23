@@ -32,5 +32,9 @@ export default function supabaseImageLoader({ src, width, quality }: ImageLoader
   if (PASSTHROUGH.test(src)) return `/api/media/raw?src=${encodeURIComponent(src)}`;
   const base = src.replace(OBJECT, RENDER);
   const sep = base.includes('?') ? '&' : '?';
-  return `${base}${sep}width=${Math.min(width, MAX_WIDTH)}&quality=${quality ?? 75}`;
+  // resize=contain is not optional: with a width alone, Supabase's default
+  // (cover) keeps the ORIGINAL height and crops the sides, so a 692px-square
+  // logo asked at width=48 came back as a 48x692 sliver. Contain scales the
+  // whole image to the width and keeps its proportions.
+  return `${base}${sep}width=${Math.min(width, MAX_WIDTH)}&quality=${quality ?? 75}&resize=contain`;
 }
