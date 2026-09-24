@@ -26,7 +26,7 @@
     "libphonenumber-js": "^1.13.11",
     "lucide-react": "^1.17.0",
     "mercadopago": "^3.1.0",
-    "next": "16.2.7",
+    "next": "^16.3.6",
     "next-intl": "^4.13.0",
     "onnxruntime-web": "^1.29.0",
     "qrcode.react": "^4.2.0",
@@ -36,7 +36,7 @@
     "stripe": "^22.6.1",
     "tailwind-merge": "^3.6.0",
     "web-push": "^3.6.7",
-    "xlsx": "^0.18.5",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -45,8 +45,8 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.7",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.6",
     "tailwindcss": "^4",
     "tsx": "^4.23.12",
     "typescript": "^5"
