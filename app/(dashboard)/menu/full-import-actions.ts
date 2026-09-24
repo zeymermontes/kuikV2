@@ -1,5 +1,7 @@
 'use server';
 
+import { lookup } from 'node:dns/promises';
+import { isIP } from 'node:net';
 import { revalidatePath } from 'next/cache';
 import { revalidateTenant } from '@/lib/revalidate';
 import { importCategoryTheme } from '@/lib/category-theme';
@@ -9,12 +11,24 @@ import { IMPORT_DESIGN_KEYS, type FullImportPayload, type ImportPreview, type Im
   type ImportCategory,
 } from '@/lib/menu-import';
 import { sniffImageType, EXT_BY_MIME } from '@/lib/media/sniff';
+import { isHostedMediaUrl, isPrivateIp, publicHttpUrl, sanitizeImportPayload } from '@/lib/menu-import-guard';
 
 const norm = (s: string) => (s ?? '').trim().toLowerCase();
 
-async function ctx() {
+async function ctx(branchId: string | null) {
   const { tenant } = await requireManager();
   const supabase = await createClient();
+  // A branch menu is only ever one of this tenant's branches. RLS already
+  // pins tenant_id, but branch_id is a bare foreign key.
+  if (branchId) {
+    const { data } = await supabase
+      .from('branches')
+      .select('id')
+      .eq('id', branchId)
+      .eq('tenant_id', tenant.id)
+      .maybeSingle();
+    if (!data) throw new Error('Unknown branch');
+  }
   return { tenantId: tenant.id, subdomain: tenant.subdomain, customDomain: tenant.custom_domain, supabase };
 }
 
@@ -52,33 +66,122 @@ async function loadExisting(
  * Resolve an image reference to a hosted URL. Already-hosted (our Supabase) URLs
  * pass through; external URLs are fetched and re-hosted; bare filenames (not yet
  * uploaded) resolve to null.
+ *
+ * The external fetch is the one place this action reaches out on the owner's
+ * behalf with a URL they typed, so it is fenced: public hosts only (by
+ * literal and by DNS answer), web ports only, every redirect re-checked, the
+ * body read in chunks and dropped past 10 MB, and one import gets a fixed
+ * number of downloads inside a fixed time — after that, photos stay unset
+ * rather than keeping the server busy.
  */
 const REMOTE_IMAGE_MAX = 10 * 1024 * 1024;
+const REMOTE_FETCH_TIMEOUT = 15_000;
+const REMOTE_FETCH_HOPS = 3;
+const REMOTE_FETCH_MAX = 300;
+const REMOTE_TIME_BUDGET = 120_000;
+
+interface RemoteBudget {
+  fetched: number;
+  deadline: number;
+}
+
+const newBudget = (): RemoteBudget => ({ fetched: 0, deadline: Date.now() + REMOTE_TIME_BUDGET });
+
+async function resolvesPublic(hostname: string): Promise<boolean> {
+  const host = hostname.replace(/^\[|\]$/g, '');
+  if (isIP(host)) return !isPrivateIp(host);
+  try {
+    const answers = await lookup(host, { all: true });
+    return answers.length > 0 && answers.every((a) => !isPrivateIp(a.address));
+  } catch {
+    return false;
+  }
+}
+
+/** The body, or null once it is longer than `max` — without holding the rest. */
+async function readCapped(res: Response, max: number): Promise<Uint8Array | null> {
+  if (Number(res.headers.get('content-length') || 0) > max) return null;
+  const reader = res.body?.getReader();
+  if (!reader) return null;
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.length;
+    if (total > max) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const c of chunks) {
+    out.set(c, at);
+    at += c.length;
+  }
+  return out;
+}
+
+async function fetchRemoteImage(ref: string, budget: RemoteBudget): Promise<{ bytes: Uint8Array; ct: string } | null> {
+  if (budget.fetched >= REMOTE_FETCH_MAX) return null;
+  budget.fetched++;
+  let url = publicHttpUrl(ref);
+  for (let hop = 0; url && hop <= REMOTE_FETCH_HOPS; hop++) {
+    const left = budget.deadline - Date.now();
+    if (left <= 0) return null;
+    if (!(await resolvesPublic(url.hostname))) return null;
+    const res = await fetch(url, {
+      redirect: 'manual',
+      signal: AbortSignal.timeout(Math.min(REMOTE_FETCH_TIMEOUT, left)),
+      headers: { accept: 'image/*' },
+    });
+    if (res.status >= 300 && res.status < 400) {
+      const loc = res.headers.get('location');
+      await res.body?.cancel().catch(() => undefined);
+      if (!loc) return null;
+      let next: string;
+      try {
+        next = new URL(loc, url).href;
+      } catch {
+        return null;
+      }
+      url = publicHttpUrl(next);
+      continue;
+    }
+    if (!res.ok) return null;
+    const ct = (res.headers.get('content-type') || '').split(';')[0].trim();
+    // Only images, and only reasonable ones: a remote menu's photo is copied
+    // as-is (no browser here to compress it), so a 40 MB TIFF stays out.
+    if (!ct.startsWith('image/')) {
+      await res.body?.cancel().catch(() => undefined);
+      return null;
+    }
+    const bytes = await readCapped(res, REMOTE_IMAGE_MAX);
+    return bytes ? { bytes, ct } : null;
+  }
+  return null;
+}
 
 async function resolveImage(
   supabase: Awaited<ReturnType<typeof createClient>>,
   tenantId: string,
   ref: string | null | undefined,
+  budget: RemoteBudget,
 ): Promise<string | null> {
   if (!ref || !/^https?:\/\//i.test(ref)) return null;
-  const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-  if (supaUrl && ref.startsWith(supaUrl)) return ref;
+  if (isHostedMediaUrl(ref, process.env.NEXT_PUBLIC_SUPABASE_URL ?? '')) return ref;
   try {
-    const res = await fetch(ref, { signal: AbortSignal.timeout(15_000) });
-    if (!res.ok) return null;
-    const ct = (res.headers.get('content-type') || '').split(';')[0].trim();
-    // Only images, and only reasonable ones: a remote menu's photo is copied
-    // as-is (no browser here to compress it), so a 40 MB TIFF stays out.
-    if (!ct.startsWith('image/')) return null;
-    if (Number(res.headers.get('content-length') || 0) > REMOTE_IMAGE_MAX) return null;
-    const bytes = new Uint8Array(await res.arrayBuffer());
-    if (bytes.length > REMOTE_IMAGE_MAX) return null;
+    const got = await fetchRemoteImage(ref, budget);
+    if (!got) return null;
+    const { bytes, ct } = got;
     // The bytes decide the stored type, not the remote server's header: a
     // site that labels its SVG icons image/jpeg would otherwise hand that
     // label on to every browser that loads the menu.
     const type = sniffImageType(bytes);
     const contentType = type ?? ct;
-    const ext = type ? EXT_BY_MIME[type] : (ct.split('/')[1] || 'jpg').slice(0, 5);
+    const ext = type ? EXT_BY_MIME[type] : (ct.split('/')[1] || 'jpg').replace(/[^a-z0-9]/gi, '').slice(0, 5);
     const path = `${tenantId}/imported/${crypto.randomUUID()}.${ext}`;
     const { error } = await supabase.storage.from('media').upload(path, bytes, { contentType });
     if (error) return null;
@@ -89,10 +192,11 @@ async function resolveImage(
 }
 
 export async function previewFullImport(
-  payload: FullImportPayload,
+  input: FullImportPayload,
   branchId: string | null,
 ): Promise<ImportPreview> {
-  const { tenantId, supabase } = await ctx();
+  const payload = sanitizeImportPayload(input);
+  const { tenantId, supabase } = await ctx(branchId);
   const { catList, prodList } = await loadExisting(supabase, tenantId, branchId);
 
   // A category is identified by parent + name, so two parents may each have
@@ -146,11 +250,13 @@ export async function previewFullImport(
 }
 
 export async function applyFullImport(
-  payload: FullImportPayload,
+  input: FullImportPayload,
   branchId: string | null,
   deleteMissing: boolean,
 ): Promise<void> {
-  const { tenantId, subdomain, customDomain, supabase } = await ctx();
+  const payload = sanitizeImportPayload(input);
+  const { tenantId, subdomain, customDomain, supabase } = await ctx(branchId);
+  const budget = newBudget();
 
   // ── Design (theme) ──────────────────────────────────────────────────────
   if (payload.design && branchId === null) {
@@ -160,7 +266,7 @@ export async function applyFullImport(
       if (d[k] != null) theme[k] = d[k];
     }
     if (d.background_image) {
-      const url = await resolveImage(supabase, tenantId, d.background_image);
+      const url = await resolveImage(supabase, tenantId, d.background_image, budget);
       if (url) theme.background_image_url = url;
     }
     if (Object.keys(theme).length > 0) {
@@ -208,12 +314,12 @@ export async function applyFullImport(
   ): Promise<string | null> {
     const cn = norm(cat.name);
     if (!cn) return null;
-    const iconImage = await resolveImage(supabase, tenantId, cat.image);
+    const iconImage = await resolveImage(supabase, tenantId, cat.image, budget);
     // The section design, with a bundled backdrop filename turned into a URL.
     const sectionTheme = async () => {
       const th = importCategoryTheme(cat);
       if (th?.background_image) {
-        const url = await resolveImage(supabase, tenantId, th.background_image);
+        const url = await resolveImage(supabase, tenantId, th.background_image, budget);
         if (url) th.background_image = url;
         else delete th.background_image;
       }
@@ -258,7 +364,7 @@ export async function applyFullImport(
   async function upsertProducts(catId: string, cat: ImportCategory) {
     for (const p of cat.products ?? []) {
       if (!norm(p.name)) continue;
-      const fields = await buildProductFields(supabase, tenantId, p);
+      const fields = await buildProductFields(supabase, tenantId, p, budget);
       const ex = prodByKey.get(`${catId}|${norm(p.name)}`);
       if (ex) {
         await supabase.from('products').update(fields).eq('id', ex.id);
@@ -303,8 +409,9 @@ async function buildProductFields(
   supabase: Awaited<ReturnType<typeof createClient>>,
   tenantId: string,
   p: ImportProduct,
+  budget: RemoteBudget,
 ) {
-  const image_url = await resolveImage(supabase, tenantId, p.image);
+  const image_url = await resolveImage(supabase, tenantId, p.image, budget);
   const optionGroups = (p.optionGroups ?? [])
     .filter((g) => g.name && (g.options ?? []).length > 0)
     .map((g) => ({

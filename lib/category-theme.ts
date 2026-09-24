@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { CategoryTheme } from '@/lib/database.types';
+import { isCssColor, isFontName } from '@/lib/menu-import-guard';
 
 /**
  * A section's own design, applied on top of the menu theme.
@@ -118,16 +119,19 @@ export function importCategoryTheme(cat: {
   background?: string | null;
 }): CategoryTheme | null {
   const t: Record<string, string> = {};
-  if (cat.color) {
+  if (isCssColor(cat.color)) {
     t.primary_color = cat.color;
     t.secondary_color = cat.color;
     t.button_color = cat.color;
   }
-  if (cat.background) t.background_color = cat.background;
-  for (const [k, val] of Object.entries(cat.theme ?? {})) {
-    if (typeof val === 'string' && val) t[k] = val;
-  }
+  if (isCssColor(cat.background)) t.background_color = cat.background;
+  // Known keys only, and only values CSS can take as-is: these strings end
+  // up inside style attributes on the public menu.
+  const theme = (cat.theme ?? {}) as Record<string, unknown>;
+  for (const k of CATEGORY_THEME_COLORS) if (isCssColor(theme[k])) t[k] = theme[k].trim();
+  for (const k of CATEGORY_THEME_FONTS) if (isFontName(theme[k])) t[k] = theme[k].trim();
+  const bg = theme.background_image;
   // A bundled filename is resolved to a hosted URL by the importer afterwards.
-  if (cat.theme?.background_image === null) delete t.background_image;
+  if (typeof bg === 'string' && bg && bg.length <= 2048) t.background_image = bg;
   return Object.keys(t).length ? (t as CategoryTheme) : null;
 }
