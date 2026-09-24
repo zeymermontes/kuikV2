@@ -1474,7 +1474,13 @@
     "pastePlaceholder": "{ \"categories\": [ … ] }",
     "pasteApply": "Review changes",
     "menuOnly": "Menu only: leave colours, backgrounds and fonts alone",
-    "menuOnlyHint": "Categories, products, prices, options and photos are imported. The current design stays as it is."
+    "menuOnlyHint": "Categories, products, prices, options and photos are imported. The current design stays as it is.",
+    "progressReading": "Reading the file…",
+    "progressUnzip": "Unpacking the ZIP…",
+    "progressUploading": "Uploading photos",
+    "progressServer": "Comparing with your current menu…",
+    "progressApply": "Saving the menu…",
+    "progressStay": "Keep this tab open until it finishes."
   },
   "promotions": {
     "title": "Promotions",

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import * as XLSX from 'xlsx';
 import { unzipSync, zipSync } from 'fflate';
 import { Download, Upload, FileSpreadsheet, Sparkles, Check, Loader2, FileArchive, Bot, FileJson, Copy, ClipboardPaste } from 'lucide-react';
@@ -130,6 +130,19 @@ export function MenuImportExport({
   const [pasteText, setPasteText] = useState('');
   const [menuOnly, setMenuOnly] = useState(false);
   const [pending, start] = useTransition();
+  /** What the blocking overlay says while a file is being processed. */
+  const [progress, setProgress] = useState<{ label: string; done?: number; total?: number } | null>(null);
+
+  // Leaving the page mid-upload would orphan half the photos, so the browser
+  // asks first while anything is in flight.
+  useEffect(() => {
+    if (!busy && !pending) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [busy, pending]);
 
   function copyText(text: string, which: string) {
     navigator.clipboard?.writeText(text).then(() => {
@@ -189,10 +202,13 @@ export function MenuImportExport({
       return;
     }
     setPayload(p);
+    setProgress({ label: t('progressServer') });
     try {
       setPreview(await previewFullImport(p, branchId));
     } catch (e) {
       fail(t('stageServer'), e);
+    } finally {
+      setProgress(null);
     }
   }
 
@@ -201,6 +217,7 @@ export function MenuImportExport({
     setBusy('excel');
     setError(null);
     setNotice(null);
+    setProgress({ label: t('progressReading') });
     try {
       const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
       const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[wb.SheetNames[0]], { defval: '' });
@@ -246,6 +263,7 @@ export function MenuImportExport({
       fail(t('stageExcel'), e);
     } finally {
       setBusy('');
+      setProgress(null);
     }
   }
 
@@ -254,6 +272,7 @@ export function MenuImportExport({
     setBusy('zip');
     setError(null);
     setNotice(null);
+    setProgress({ label: t('progressUnzip') });
     try {
       let files: Record<string, Uint8Array>;
       try {
@@ -285,38 +304,65 @@ export function MenuImportExport({
         if (path.endsWith('/')) continue;
         byName.set(path.split('/').pop()!.toLowerCase(), bytes);
       }
-      const cache = new Map<string, string>();
+      // Every image the JSON names, once, so the bar knows the total up front
+      // and a photo shared by two products is uploaded a single time.
+      const wanted = new Set<string>();
       const missingImages: string[] = [];
-      async function upload(ref: string | null | undefined): Promise<string | null> {
-        if (!ref || /^https?:\/\//i.test(ref)) return ref ?? null;
+      const want = (ref: string | null | undefined) => {
+        if (!ref || /^https?:\/\//i.test(ref)) return;
         const base = ref.split('/').pop()!.toLowerCase();
-        if (cache.has(base)) return cache.get(base)!;
-        const bytes = byName.get(base);
-        if (!bytes) {
-          if (!missingImages.includes(base)) missingImages.push(base);
-          return null;
+        if (byName.has(base)) wanted.add(base);
+        else if (!missingImages.includes(base)) missingImages.push(base);
+      };
+      want(data.design?.background_image);
+      for (const c of data.categories ?? []) {
+        want(c.image);
+        want(c.theme?.background_image);
+        for (const p of c.products ?? []) want(p.image);
+        for (const sub of c.subcategories ?? []) {
+          want(sub.image);
+          want(sub.theme?.background_image);
+          for (const p of sub.products ?? []) want(p.image);
         }
-        // Through the same compression as a photo picked in the dashboard: a
-        // menu's ZIP is usually full-size camera shots.
-        // The bytes name the type; the extension is only the fallback.
-        const type = sniffImageType(bytes as Uint8Array) ?? mime(base);
-        const url = await uploadImage(new File([bytes as unknown as BlobPart], base, { type }), tenantId, 'imported').catch(() => null);
-        if (url) cache.set(base, url);
-        return url;
       }
 
-      if (data.design?.background_image) data.design.background_image = await upload(data.design.background_image);
+      const cache = new Map<string, string>();
+      const queue = [...wanted];
+      let done = 0;
+      setProgress({ label: t('progressUploading'), done, total: queue.length });
+      // A few uploads at a time: one by one a 40-photo menu takes minutes,
+      // all at once the browser throttles them anyway.
+      const worker = async () => {
+        for (let base = queue.shift(); base !== undefined; base = queue.shift()) {
+          const bytes = byName.get(base)!;
+          // Through the same compression as a photo picked in the dashboard: a
+          // menu's ZIP is usually full-size camera shots.
+          // The bytes name the type; the extension is only the fallback.
+          const type = sniffImageType(bytes as Uint8Array) ?? mime(base);
+          const url = await uploadImage(new File([bytes as unknown as BlobPart], base, { type }), tenantId, 'imported').catch(() => null);
+          if (url) cache.set(base, url);
+          done++;
+          setProgress({ label: t('progressUploading'), done, total: wanted.size });
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(4, queue.length) }, worker));
+
+      const hosted = (ref: string | null | undefined): string | null => {
+        if (!ref || /^https?:\/\//i.test(ref)) return ref ?? null;
+        return cache.get(ref.split('/').pop()!.toLowerCase()) ?? null;
+      };
+      if (data.design?.background_image) data.design.background_image = hosted(data.design.background_image);
       for (const c of data.categories ?? []) {
-        if (c.image) c.image = await upload(c.image);
-        if (c.theme?.background_image) c.theme.background_image = (await upload(c.theme.background_image)) ?? undefined;
+        if (c.image) c.image = hosted(c.image);
+        if (c.theme?.background_image) c.theme.background_image = hosted(c.theme.background_image) ?? undefined;
         for (const p of c.products ?? []) {
-          if (p.image) p.image = await upload(p.image);
+          if (p.image) p.image = hosted(p.image);
         }
         for (const sub of c.subcategories ?? []) {
-          if (sub.image) sub.image = await upload(sub.image);
-          if (sub.theme?.background_image) sub.theme.background_image = (await upload(sub.theme.background_image)) ?? undefined;
+          if (sub.image) sub.image = hosted(sub.image);
+          if (sub.theme?.background_image) sub.theme.background_image = hosted(sub.theme.background_image) ?? undefined;
           for (const p of sub.products ?? []) {
-            if (p.image) p.image = await upload(p.image);
+            if (p.image) p.image = hosted(p.image);
           }
         }
       }
@@ -332,6 +378,7 @@ export function MenuImportExport({
       fail(t('stageZip'), e);
     } finally {
       setBusy('');
+      setProgress(null);
     }
   }
 
@@ -340,6 +387,7 @@ export function MenuImportExport({
     setBusy('json');
     setError(null);
     setNotice(null);
+    setProgress({ label: t('progressReading') });
     try {
       let data: FullImportPayload;
       try {
@@ -353,6 +401,7 @@ export function MenuImportExport({
       fail(t('stageJson'), e);
     } finally {
       setBusy('');
+      setProgress(null);
     }
   }
 
@@ -630,6 +679,14 @@ export function MenuImportExport({
           <p className="break-words text-sm text-amber-800">{notice}</p>
         </div>
       )}
+      {progress && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4" role="alertdialog" aria-busy="true">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+            <ProgressBar label={progress.label} done={progress.done} total={progress.total} />
+            <p className="mt-3 text-center text-xs text-neutral-400">{t('progressStay')}</p>
+          </div>
+        </div>
+      )}
       {pasteOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => setPasteOpen(false)} />
@@ -681,8 +738,9 @@ export function MenuImportExport({
               </label>
             )}
             {pending ? (
-              <div className="flex items-center justify-center py-3 text-sm text-neutral-500">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('importing')}
+              <div className="py-2">
+                <ProgressBar label={t('progressApply')} />
+                <p className="mt-2 text-center text-xs text-neutral-400">{t('progressStay')}</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -697,6 +755,35 @@ export function MenuImportExport({
             )}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A labelled bar. With a total it fills to done/total; without one it sweeps,
+ * for the steps whose length nobody knows (server work).
+ */
+function ProgressBar({ label, done, total }: { label: string; done?: number; total?: number }) {
+  const known = typeof total === 'number' && total > 0;
+  const pct = known ? Math.round(((done ?? 0) / total) * 100) : 0;
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+        <span className="flex items-center gap-2 font-medium text-neutral-800">
+          <Loader2 className="h-4 w-4 animate-spin text-neutral-400" /> {label}
+        </span>
+        {known && <span className="tabular-nums text-neutral-500">{done ?? 0} / {total}</span>}
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-200">
+        {known ? (
+          <div className="h-full rounded-full bg-neutral-900 transition-[width] duration-300" style={{ width: `${pct}%` }} />
+        ) : (
+          <div className="h-full w-1/3 animate-[sweep_1.2s_ease-in-out_infinite] rounded-full bg-neutral-900" />
+        )}
+      </div>
+      {!known && (
+        <style>{`@keyframes sweep { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }`}</style>
       )}
     </div>
   );

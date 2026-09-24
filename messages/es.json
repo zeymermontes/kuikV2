@@ -1474,7 +1474,13 @@
     "pastePlaceholder": "{ \"categories\": [ … ] }",
     "pasteApply": "Revisar cambios",
     "menuOnly": "Solo menú: no tocar colores, fondos ni tipografías",
-    "menuOnlyHint": "Se importan categorías, productos, precios, opciones y fotos. El diseño actual se queda como está."
+    "menuOnlyHint": "Se importan categorías, productos, precios, opciones y fotos. El diseño actual se queda como está.",
+    "progressReading": "Leyendo el archivo…",
+    "progressUnzip": "Descomprimiendo el ZIP…",
+    "progressUploading": "Subiendo fotos",
+    "progressServer": "Comparando con tu menú actual…",
+    "progressApply": "Guardando el menú…",
+    "progressStay": "No cierres ni recargues esta pestaña hasta que termine."
   },
   "promotions": {
     "title": "Promociones",
