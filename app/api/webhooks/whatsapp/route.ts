@@ -2,7 +2,7 @@ import { after } from 'next/server';
 import { NextResponse, type NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { rateLimit, bucketKey } from '@/lib/rate-limit';
-import { verifySignature, verifyChallenge, phoneNumberIdsIn } from '@/lib/whatsapp/webhook-verify';
+import { verifySignature, verifyChallenge, phoneNumberIdsIn, wabaIdsIn } from '@/lib/whatsapp/webhook-verify';
 import { getAppSecrets, isKnownVerifyToken } from '@/lib/whatsapp/credentials';
 import { processEvents } from '@/lib/whatsapp/inbound';
 
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     // Not Kuik's app: maybe a restaurant's own. The ids are read from the
     // unverified body only to pick which secrets to try — nothing else is
     // done with it until one of them matches.
-    const secrets = await getAppSecrets(phoneNumberIdsIn(raw));
+    const secrets = await getAppSecrets(phoneNumberIdsIn(raw), wabaIdsIn(raw));
     signed = secrets.length > 0 && verifySignature(raw, signature, secrets);
   }
   if (!signed) {
@@ -80,7 +80,27 @@ export async function POST(req: NextRequest) {
   for (const entry of payload.entry ?? []) {
     for (const change of entry.changes ?? []) {
       const value = (change.value ?? {}) as { metadata?: { phone_number_id?: string } };
-      const phoneNumberId = value.metadata?.phone_number_id ?? null;
+      let phoneNumberId = value.metadata?.phone_number_id ?? null;
+      let number: { tenant_id: string } | null = null;
+
+      // Account-level events (template approved/rejected/paused) carry no
+      // number: the WABA in `entry.id` is the only address. They are filed
+      // under the account's live number so the processor can route them.
+      if (!phoneNumberId && entry.id && change.field === 'message_template_status_update') {
+        const { data } = await supabase
+          .from('whatsapp_numbers')
+          .select('tenant_id, phone_number_id')
+          .eq('waba_id', entry.id)
+          .eq('status', 'connected')
+          .order('is_default', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const row = data as { tenant_id: string; phone_number_id: string } | null;
+        if (row) {
+          phoneNumberId = row.phone_number_id;
+          number = { tenant_id: row.tenant_id };
+        }
+      }
 
       // Cheap shield against a flood on one number.
       if (phoneNumberId) {
@@ -88,19 +108,20 @@ export async function POST(req: NextRequest) {
         if (!ok) continue;
       }
 
-      const { data: number } = phoneNumberId
-        ? await supabase
-            .from('whatsapp_numbers')
-            .select('tenant_id')
-            .eq('phone_number_id', phoneNumberId)
-            .maybeSingle()
-        : { data: null };
+      if (!number && phoneNumberId) {
+        const { data } = await supabase
+          .from('whatsapp_numbers')
+          .select('tenant_id')
+          .eq('phone_number_id', phoneNumberId)
+          .maybeSingle();
+        number = data as { tenant_id: string } | null;
+      }
 
       const { data: row } = await supabase
         .from('whatsapp_events')
         .insert({
           phone_number_id: phoneNumberId,
-          tenant_id: (number as { tenant_id: string } | null)?.tenant_id ?? null,
+          tenant_id: number?.tenant_id ?? null,
           field: change.field ?? null,
           payload: change.value ?? {},
           // An unknown number is stored, not processed — useful forensics if

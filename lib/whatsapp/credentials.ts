@@ -91,14 +91,20 @@ export async function getToken(phoneNumberId: string): Promise<string | null> {
  * own secret did not sign. Numbers connected through Kuik's app have none and
  * are simply absent from the result.
  */
-export async function getAppSecrets(phoneNumberIds: string[]): Promise<string[]> {
-  if (phoneNumberIds.length === 0) return [];
+export async function getAppSecrets(phoneNumberIds: string[], wabaIds: string[] = []): Promise<string[]> {
+  if (phoneNumberIds.length === 0 && wabaIds.length === 0) return [];
   const supabase = createAdminClient();
-  const { data } = await supabase
+  let q = supabase
     .from('whatsapp_credentials')
     .select('phone_number_id, app_secret_ct, app_secret_iv, app_secret_tag, key_version')
-    .in('phone_number_id', phoneNumberIds)
     .not('app_secret_ct', 'is', null);
+  // An account-level event (template status) names the WABA, not the number.
+  q = phoneNumberIds.length && wabaIds.length
+    ? q.or(`phone_number_id.in.(${phoneNumberIds.join(',')}),waba_id.in.(${wabaIds.join(',')})`)
+    : phoneNumberIds.length
+      ? q.in('phone_number_id', phoneNumberIds)
+      : q.in('waba_id', wabaIds);
+  const { data } = await q;
 
   const out: string[] = [];
   for (const row of (data ?? []) as {

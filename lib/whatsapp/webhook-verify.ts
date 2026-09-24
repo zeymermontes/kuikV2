@@ -47,6 +47,24 @@ export function verifyChallenge(params: URLSearchParams, extraTokens: string[] =
 }
 
 /**
+ * Every WABA id (`entry.id`) a payload names. Template status events are
+ * account-level: they carry no phone_number_id, so this is the only handle
+ * on which app secret to try and which tenant they belong to.
+ */
+export function wabaIdsIn(rawBody: string): string[] {
+  try {
+    const payload = JSON.parse(rawBody) as { entry?: { id?: string }[] };
+    const ids = new Set<string>();
+    for (const entry of payload.entry ?? []) {
+      if (typeof entry.id === 'string' && entry.id) ids.add(entry.id);
+    }
+    return [...ids].slice(0, 20);
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Every phone_number_id an inbound payload names, read BEFORE the signature
  * is trusted — this is only used to decide which secret to check against,
  * never to act on the body.

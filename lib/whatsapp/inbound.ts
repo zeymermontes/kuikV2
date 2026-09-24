@@ -1,4 +1,5 @@
 import 'server-only';
+import { localStatus } from './template-rules';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizeWaId } from '@/lib/phone';
 import { windowExpiryFrom } from './window';
@@ -441,27 +442,30 @@ async function handleTemplateStatus(
 ): Promise<void> {
   const name = value.message_template_name as string | undefined;
   const language = value.message_template_language as string | undefined;
+  const templateId = value.message_template_id != null ? String(value.message_template_id) : null;
   const event = value.event as string | undefined;
-  if (!name || !event) return;
+  if ((!name && !templateId) || !event) return;
 
-  const status =
-    event === 'APPROVED' ? 'approved'
-    : event === 'REJECTED' ? 'rejected'
-    : event === 'PAUSED' ? 'paused'
-    : event === 'DISABLED' ? 'disabled'
-    : 'pending';
-
-  await supabase
-    .from('whatsapp_templates')
-    .update({
-      status,
-      rejected_reason: (value.reason as string | undefined) ?? null,
-      approved_at: status === 'approved' ? new Date().toISOString() : null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('tenant_id', tenantId)
-    .eq('name', name)
-    .eq('language', language ?? 'es_MX');
+  const status = localStatus(event);
+  const patch = {
+    status,
+    rejected_reason: (value.reason as string | undefined) ?? null,
+    approved_at: status === 'approved' ? new Date().toISOString() : null,
+    updated_at: new Date().toISOString(),
+  };
+  // Meta's id is the exact handle; name + language is the fallback for rows
+  // the manager has not synced yet.
+  const byId = templateId
+    ? await supabase.from('whatsapp_templates').update(patch).eq('tenant_id', tenantId).eq('meta_template_id', templateId).select('id')
+    : { data: [] as { id: string }[] };
+  if ((byId.data ?? []).length === 0 && name) {
+    await supabase
+      .from('whatsapp_templates')
+      .update({ ...patch, ...(templateId ? { meta_template_id: templateId } : {}) })
+      .eq('tenant_id', tenantId)
+      .eq('name', name)
+      .eq('language', language ?? 'es_MX');
+  }
 }
 
 async function handleNumberUpdate(
