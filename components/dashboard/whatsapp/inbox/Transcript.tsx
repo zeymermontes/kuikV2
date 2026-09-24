@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
-import { Bot, Send, Sparkles, User } from 'lucide-react';
+import { Bot, LayoutTemplate, Send, Sparkles, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { sendPartyMessage } from '@/app/host/actions';
-import type { InboxMessage } from './InboxShell';
+import { WaTemplateModal } from '@/components/whatsapp/WaTemplateModal';
+import { WaTemplatePreview } from '@/components/whatsapp/WaTemplatePreview';
+import type { InboxMessage, SelectedConv } from './InboxShell';
 
 /**
  * Chat-style transcript with a reply box. Answering from here pauses the
@@ -13,12 +15,36 @@ import type { InboxMessage } from './InboxShell';
  * it back. Photos, voice notes, stickers and quoted replies show as the
  * diner sent them.
  */
-export function Transcript({ messages, conversationId, onSent }: { messages: InboxMessage[]; conversationId: string | null; onSent?: () => void }) {
+export function Transcript({
+  messages,
+  conversationId,
+  conv,
+  onSent,
+}: {
+  messages: InboxMessage[];
+  conversationId: string | null;
+  conv?: SelectedConv | null;
+  onSent?: () => void;
+}) {
   const t = useTranslations('whatsapp.inbox');
+  const tt = useTranslations('waTemplate');
   const scroller = useRef<HTMLDivElement>(null);
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [sending, start] = useTransition();
+  const [templateOpen, setTemplateOpen] = useState(false);
+  // Re-read every minute so the composer gives way to the template picker
+  // when the window expires while this chat is on screen, not before.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  // The newest inbound on screen may be newer than what the page loaded with.
+  const lastInbound = messages.reduce<number>((max, m) => (m.direction === 'inbound' ? Math.max(max, new Date(m.created_at).getTime()) : max), 0);
+  const expires = Math.max(conv?.window_expires_at ? new Date(conv.window_expires_at).getTime() : 0, lastInbound ? lastInbound + 24 * 3600_000 : 0);
+  const [closedByServer, setClosedByServer] = useState(false);
+  const windowClosed = Boolean(conversationId) && conv?.transport === 'cloud' && (closedByServer || expires <= now);
 
   useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight });
@@ -31,9 +57,15 @@ export function Transcript({ messages, conversationId, onSent }: { messages: Inb
     start(async () => {
       const r = await sendPartyMessage(conversationId, body);
       if (!r.ok) {
-        setError(r.error === 'window_closed' ? t('windowClosed') : t('sendFailed'));
+        if (r.error === 'window_closed') {
+          setClosedByServer(true);
+          setTemplateOpen(true);
+        } else {
+          setError(t('sendFailed'));
+        }
         return;
       }
+      setClosedByServer(false);
       setText('');
       onSent?.();
     });
@@ -51,6 +83,7 @@ export function Transcript({ messages, conversationId, onSent }: { messages: Inb
           const inbound = m.direction === 'inbound';
           const quoted = m.replied_to_wa_id ? messages.find((x) => x.wa_message_id === m.replied_to_wa_id) ?? null : null;
           const sticker = m.type === 'sticker' && m.media_url;
+          const tpl = m.payload?.template ?? null;
           return (
             <div key={m.id}>
               {showDay && (
@@ -62,7 +95,7 @@ export function Transcript({ messages, conversationId, onSent }: { messages: Inb
                 <div
                   className={cn(
                     'max-w-[70%] whitespace-pre-wrap rounded-2xl text-sm',
-                    sticker ? 'bg-transparent' : inbound ? 'rounded-bl-sm border border-neutral-200 bg-white px-3 py-2' : 'rounded-br-sm bg-neutral-900 px-3 py-2 text-white',
+                    sticker || tpl ? 'bg-transparent' : inbound ? 'rounded-bl-sm border border-neutral-200 bg-white px-3 py-2' : 'rounded-br-sm bg-neutral-900 px-3 py-2 text-white',
                   )}
                 >
                   {m.replied_to_wa_id && (
@@ -83,10 +116,12 @@ export function Transcript({ messages, conversationId, onSent }: { messages: Inb
                   {m.media_url && m.type === 'audio' && (
                     <audio controls preload="none" src={m.media_url} className="mb-1 h-10 w-64 max-w-full" />
                   )}
-                  {m.body ? m.body : !m.media_url && <span className="italic opacity-60">{summary(m, t)}</span>}
+                  {tpl ? (
+                    <WaTemplatePreview compact header={tpl.header} body={m.body ?? ''} footer={tpl.footer} buttons={tpl.buttons} />
+                  ) : m.body ? m.body : !m.media_url && <span className="italic opacity-60">{summary(m, t)}</span>}
                   <div className={cn(
                     'mt-1 flex items-center gap-1 text-[10px]',
-                    inbound ? 'text-neutral-400' : 'text-neutral-300',
+                    inbound ? 'text-neutral-400' : tpl ? 'text-neutral-500' : 'text-neutral-300',
                   )}>
                     <OriginTag origin={m.origin} />
                     <span>·</span>
@@ -99,6 +134,21 @@ export function Transcript({ messages, conversationId, onSent }: { messages: Inb
           );
         })}
       </div>
+      {templateOpen && conversationId && (
+        <WaTemplateModal
+          conversationId={conversationId}
+          onClose={() => setTemplateOpen(false)}
+          onSent={() => onSent?.()}
+        />
+      )}
+      {windowClosed ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-amber-200 bg-amber-50 px-3 py-2">
+          <p className="text-xs text-amber-800">{tt('windowClosed')}</p>
+          <button onClick={() => setTemplateOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white">
+            <LayoutTemplate className="h-3.5 w-3.5" /> {tt('sendTemplate')}
+          </button>
+        </div>
+      ) : (
       <div className="border-t border-neutral-200 bg-white px-3 py-2">
         <div className="flex items-end gap-2">
           <textarea
@@ -125,6 +175,7 @@ export function Transcript({ messages, conversationId, onSent }: { messages: Inb
         </div>
         <p className="mt-1 text-[11px] text-neutral-400">{error ?? t('replyHint')}</p>
       </div>
+      )}
     </div>
   );
 }

@@ -12,6 +12,9 @@ import { notifyGuest, type GuestNotice } from '@/lib/notify/guest';
 import { conversationForReservation } from '@/lib/notify/conversation-wa';
 import { bridgeConversationFor } from '@/lib/notify/bridge-conversation';
 import { sendMessage } from '@/lib/whatsapp/send';
+import { sendApprovedTemplate } from '@/lib/whatsapp/send';
+import { approvedTemplateOptions, cloudSessionOf } from '@/lib/whatsapp/templates';
+import type { WaTemplateMeta, WaTemplateOption } from '@/lib/whatsapp/template-rules';
 import { isWindowOpen, WindowClosedError } from '@/lib/whatsapp/window';
 import type { MessageOrigin } from '@/lib/whatsapp/types';
 import { resumeBot } from '@/lib/whatsapp/bot';
@@ -231,6 +234,8 @@ export interface PartyChatMessage {
   media_mime: string | null;
   /** The wa_message_id this one quotes, when it is a reply. */
   replied_to_wa_id: string | null;
+  /** For a sent template: `{ template: WaTemplateMeta }`, so the bubble can be drawn as the diner saw it. */
+  payload?: { template?: WaTemplateMeta } | null;
   status: string | null;
   created_at: string;
 }
@@ -244,6 +249,8 @@ export interface PartyChat {
   canReply: boolean;
   /** Why not, when it can't. */
   reason: 'no_conversation' | 'window_closed' | null;
+  /** An approved Meta template can be sent (Cloud API transport). */
+  canTemplate: boolean;
   /** The one-tap link to answer from a phone instead. */
   href: string | null;
 }
@@ -265,7 +272,7 @@ export async function getPartyChat(reservationId: string): Promise<PartyChat> {
 export async function getChat(input: { partyId?: string; conversationId?: string; phone?: string }): Promise<PartyChat> {
   const { tenant } = await requireReservations();
   const admin = createAdminClient();
-  const empty: PartyChat = { conversationId: null, messages: [], botActive: true, canReply: false, reason: 'no_conversation', href: null };
+  const empty: PartyChat = { conversationId: null, messages: [], botActive: true, canReply: false, reason: 'no_conversation', canTemplate: false, href: null };
 
   let conversationId: string | null = input.conversationId ?? null;
   let href: string | null = null;
@@ -305,7 +312,7 @@ export async function getChat(input: { partyId?: string; conversationId?: string
     admin.from('whatsapp_conversations').select('id, transport, window_expires_at, bot_enabled, handoff_at').eq('id', conversationId).eq('tenant_id', tenant.id).maybeSingle(),
     admin
       .from('whatsapp_messages')
-      .select('id, wa_message_id, direction, origin, type, body, media_url, media_mime, replied_to_wa_id, status, created_at')
+      .select('id, wa_message_id, direction, origin, type, body, media_url, media_mime, replied_to_wa_id, payload, status, created_at')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: false })
       .limit(100),
@@ -319,8 +326,49 @@ export async function getChat(input: { partyId?: string; conversationId?: string
     botActive: c.bot_enabled && !c.handoff_at,
     canReply,
     reason: canReply ? null : 'window_closed',
+    canTemplate: c.transport === 'cloud',
     href,
   };
+}
+
+/**
+ * The approved Meta templates this chat can send — the only thing WhatsApp
+ * delivers once the 24-hour window has closed. Confirmed with Meta on every
+ * open, so a template paused an hour ago is not offered.
+ */
+export async function getWaTemplates(conversationId: string): Promise<{ ok: boolean; templates: WaTemplateOption[]; error?: string }> {
+  const { tenant } = await requireReservations();
+  const admin = createAdminClient();
+  const { data } = await admin.from('whatsapp_conversations').select('id, transport').eq('id', conversationId).eq('tenant_id', tenant.id).maybeSingle();
+  if (!data) return { ok: false, templates: [], error: 'unknown_conversation' };
+  if ((data as { transport: string }).transport !== 'cloud') return { ok: false, templates: [], error: 'not_cloud' };
+  const session = await cloudSessionOf(tenant.id);
+  if (!session) return { ok: false, templates: [], error: 'no_official_session' };
+  const r = await approvedTemplateOptions(session);
+  if (!r.ok) return { ok: false, templates: [], error: r.error };
+  return { ok: true, templates: r.data };
+}
+
+/** A person sending an approved template to a diner. Pauses the bot like a typed reply does. */
+export async function sendPartyTemplate(
+  conversationId: string,
+  template: { name: string; language: string; header: string | null; body: string; footer: string | null; buttons?: WaTemplateOption['buttons'] },
+  params: string[],
+  headerParam: string | null,
+): Promise<{ ok: boolean; error?: string }> {
+  const { tenant, user } = await requireReservations();
+  const admin = createAdminClient();
+  const { data } = await admin.from('whatsapp_conversations').select('id').eq('id', conversationId).eq('tenant_id', tenant.id).maybeSingle();
+  if (!data) return { ok: false, error: 'unknown_conversation' };
+  const res = await sendApprovedTemplate(conversationId, template, params, headerParam, 'staff_dashboard', user.id);
+  if (!res.ok) return { ok: false, error: res.error ?? 'send_failed' };
+  await admin
+    .from('whatsapp_conversations')
+    .update({ bot_enabled: false, handoff_at: new Date().toISOString(), handoff_by: 'staff_dashboard' })
+    .eq('id', conversationId)
+    .eq('tenant_id', tenant.id)
+    .is('handoff_at', null);
+  return { ok: true };
 }
 
 export interface HandoffChat {

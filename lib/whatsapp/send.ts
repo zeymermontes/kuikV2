@@ -4,6 +4,7 @@ import { getToken } from './credentials';
 import { graphPost, GraphApiError } from './client';
 import { sendViaBridge } from './bridge';
 import { isWindowOpen, WindowClosedError } from './window';
+import { cleanParam, renderPreview, sendTemplateObject, type WaTemplateMeta } from './template-rules';
 import type { MessageOrigin, OutboundDraft } from './types';
 
 /**
@@ -308,6 +309,108 @@ export async function sendTemplate(
           status: 'failed',
           error_code: graph?.code ? String(graph.code) : null,
           error_message: graph?.message ?? String(err),
+          failed_at: new Date().toISOString(),
+        })
+        .eq('id', rowId);
+    }
+    return { ok: false, error: graph?.message ?? 'send_failed', code: graph?.code };
+  }
+}
+
+/**
+ * A person sending an approved template from the chat: the picker chose it,
+ * typed its variables, and this is the row and the call.
+ *
+ * The bubble shows the rendered text (body) and carries the template spec
+ * in `payload.template`, so the transcript can draw header, footer and
+ * buttons exactly as the diner saw them. Static buttons need no component:
+ * Meta adds them from the approved template.
+ */
+export async function sendApprovedTemplate(
+  conversationId: string,
+  tpl: { name: string; language: string; header: string | null; body: string; footer: string | null; buttons?: WaTemplateMeta['buttons'] },
+  params: string[],
+  headerParam: string | null,
+  origin: MessageOrigin = 'staff_dashboard',
+  sentBy: string | null = null,
+): Promise<SendResult> {
+  const conv = await loadConversation(conversationId);
+  if (!conv || !conv.contact) return { ok: false, error: 'unknown_conversation' };
+  if (conv.contact.is_blocked || conv.contact.opted_out) return { ok: false, error: 'opted_out' };
+  if (conv.transport === 'bridge') return { ok: false, error: 'not_cloud' };
+
+  const supabase = createAdminClient();
+  const { data: row } = await supabase
+    .from('whatsapp_templates')
+    .select('status')
+    .eq('tenant_id', conv.tenant_id)
+    .eq('name', tpl.name)
+    .eq('language', tpl.language)
+    .maybeSingle();
+  if ((row as { status: string } | null)?.status !== 'approved') return { ok: false, error: 'template_not_approved' };
+
+  const token = await getToken(conv.phone_number_id);
+  if (!token) return { ok: false, error: 'no_credentials' };
+
+  const cleanParams = params.map(cleanParam);
+  const cleanHeader = headerParam ? cleanParam(headerParam) : undefined;
+  const meta: WaTemplateMeta = {
+    name: tpl.name,
+    lang: tpl.language,
+    params: cleanParams,
+    ...(cleanHeader ? { headerParam: cleanHeader } : {}),
+    header: tpl.header ? renderPreview(tpl.header, cleanHeader ? { header: cleanHeader } : {}, true) : null,
+    footer: tpl.footer ?? null,
+    buttons: tpl.buttons ?? [],
+  };
+  const body = renderPreview(tpl.body, cleanParams);
+
+  const { data: pending } = await supabase
+    .from('whatsapp_messages')
+    .insert({
+      tenant_id: conv.tenant_id,
+      conversation_id: conv.id,
+      direction: 'outbound',
+      origin,
+      ...(sentBy ? { sent_by: sentBy } : {}),
+      type: 'template',
+      body,
+      payload: { template: meta },
+      template_name: tpl.name,
+      template_lang: tpl.language,
+      template_vars: Object.fromEntries(cleanParams.map((v, i) => [String(i + 1), v])),
+      status: 'queued',
+    })
+    .select('id')
+    .single();
+  const rowId = (pending as { id: string } | null)?.id;
+
+  await takeToken(conv.phone_number_id);
+
+  try {
+    const res = await graphPost<{ messages?: { id: string }[] }>(`${conv.phone_number_id}/messages`, token, {
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: conv.contact.wa_id,
+      type: 'template',
+      template: sendTemplateObject(meta),
+    });
+    const waMessageId = res.messages?.[0]?.id;
+    const now = new Date().toISOString();
+    if (rowId) {
+      await supabase.from('whatsapp_messages').update({ wa_message_id: waMessageId, status: 'sent', sent_at: now }).eq('id', rowId);
+    }
+    await supabase.from('whatsapp_conversations').update({ last_outbound_at: now }).eq('id', conv.id);
+    return { ok: true, waMessageId };
+  } catch (err) {
+    const graph = err instanceof GraphApiError ? err : null;
+    if (rowId) {
+      await supabase
+        .from('whatsapp_messages')
+        .update({
+          status: 'failed',
+          error_code: graph?.code ? String(graph.code) : null,
+          error_message: (graph?.message ?? String(err)).slice(0, 300),
           failed_at: new Date().toISOString(),
         })
         .eq('id', rowId);

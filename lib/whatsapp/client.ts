@@ -13,6 +13,15 @@ export interface GraphError {
   message?: string;
   error_subcode?: number;
   error_data?: { details?: string };
+  /** The sentence Meta wrote for a person; `message` is often just "Invalid parameter". */
+  error_user_title?: string;
+  error_user_msg?: string;
+}
+
+/** The most useful sentence in a Graph error, for showing to the owner. */
+export function graphErrorText(graph: GraphError, status?: number): string {
+  const msg = graph.error_user_msg || graph.error_data?.details || graph.message || (status ? `Graph API ${status}` : 'Graph API error');
+  return graph.error_user_title ? `${graph.error_user_title}: ${msg}` : msg;
 }
 
 export class GraphApiError extends Error {
@@ -20,7 +29,7 @@ export class GraphApiError extends Error {
     readonly status: number,
     readonly graph: GraphError,
   ) {
-    super(graph.message || `Graph API ${status}`);
+    super(graphErrorText(graph, status));
     this.name = 'GraphApiError';
   }
   /** Meta's numeric code, which is what the send layer branches on. */
@@ -119,4 +128,49 @@ export function getPhoneNumber(phoneNumberId: string, token: string): Promise<Ph
  */
 export function registerPhoneNumber(phoneNumberId: string, token: string, pin: string): Promise<{ success?: boolean }> {
   return graphPost(`${phoneNumberId}/register`, token, { messaging_product: 'whatsapp', pin });
+}
+
+// ── Message templates ───────────────────────────────────────────────────────
+
+const TEMPLATE_FIELDS = 'id,name,status,category,language,components,rejected_reason';
+
+/**
+ * Every template on the account. Meta pages at 100; a restaurant rarely has
+ * that many, but the loop follows `paging.next` a few times so a big account
+ * does not silently lose the tail of its list.
+ */
+export async function listMessageTemplates<T>(wabaId: string, token: string): Promise<T[]> {
+  const out: T[] = [];
+  let path: string | null = `${wabaId}/message_templates?fields=${TEMPLATE_FIELDS}&limit=100`;
+  for (let page = 0; path && page < 5; page++) {
+    const res: { data?: T[]; paging?: { next?: string; cursors?: { after?: string } } } = await graphGet(path, token);
+    out.push(...(res.data ?? []));
+    const after = res.paging?.next ? res.paging.cursors?.after : undefined;
+    path = after ? `${wabaId}/message_templates?fields=${TEMPLATE_FIELDS}&limit=100&after=${encodeURIComponent(after)}` : null;
+  }
+  return out;
+}
+
+export function createMessageTemplate(
+  wabaId: string,
+  token: string,
+  body: { name: string; category: string; language: string; components: unknown[] },
+): Promise<{ id: string; status: string; category: string }> {
+  return graphPost(`${wabaId}/message_templates`, token, body);
+}
+
+/** Replaces the content; only a rejected/paused/flagged template accepts this from the API. */
+export function editMessageTemplate(
+  templateId: string,
+  token: string,
+  body: { category?: string; components: unknown[] },
+): Promise<{ success?: boolean }> {
+  return graphPost(templateId, token, body);
+}
+
+/** By name every language goes; with `hsmId` only that one. */
+export function deleteMessageTemplate(wabaId: string, token: string, name: string, hsmId?: string): Promise<{ success?: boolean }> {
+  const q = new URLSearchParams({ name });
+  if (hsmId) q.set('hsm_id', hsmId);
+  return graphDelete(`${wabaId}/message_templates?${q}`, token);
 }

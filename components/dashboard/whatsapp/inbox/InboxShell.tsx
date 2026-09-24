@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { setConversationBot } from '@/app/(dashboard)/whatsapp/inbox/actions';
 import type { ConversationItem, InboxFilters } from '@/app/(dashboard)/whatsapp/inbox/query';
 import type { MessageOrigin, WhatsappFlowRun } from '@/lib/whatsapp/types';
+import type { WaTemplateMeta } from '@/lib/whatsapp/template-rules';
 import { ConversationList } from './ConversationList';
 import { Transcript } from './Transcript';
 import { RunPanel } from './RunPanel';
@@ -23,6 +24,8 @@ export interface InboxMessage {
   media_url?: string | null;
   media_mime?: string | null;
   replied_to_wa_id?: string | null;
+  /** For a sent template: `{ template: WaTemplateMeta }`. */
+  payload?: { template?: WaTemplateMeta } | null;
   status: string | null;
   created_at: string;
 }
@@ -45,6 +48,9 @@ export interface SelectedConv {
   bot_enabled: boolean;
   handoff_at: string | null;
   handoff_by: string | null;
+  /** 'cloud' has a 24-hour window; a linked device ('bridge') does not. */
+  transport?: 'cloud' | 'bridge';
+  window_expires_at?: string | null;
 }
 
 export function InboxShell({
@@ -136,7 +142,7 @@ export function InboxShell({
                   <PanelRightOpen className="h-4 w-4" />
                 </button>
               </div>
-              <Transcript messages={live} conversationId={selectedId} onSent={refresh} />
+              <Transcript messages={live} conversationId={selectedId} conv={selectedConv} onSent={refresh} />
             </>
           ) : (
             <div className="flex flex-1 items-center justify-center text-sm text-neutral-400">

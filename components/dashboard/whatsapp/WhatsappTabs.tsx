@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Cable, Inbox, Lock, Workflow } from 'lucide-react';
+import { Cable, Inbox, LayoutTemplate, Lock, Workflow } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const TABS = [
   { href: '/whatsapp', key: 'connection', icon: Cable, pro: false },
   { href: '/whatsapp/flows', key: 'flows', icon: Workflow, pro: true },
   { href: '/whatsapp/inbox', key: 'inbox', icon: Inbox, pro: true },
+  { href: '/whatsapp/templates', key: 'templates', icon: LayoutTemplate, pro: false },
 ] as const;
 
 /**

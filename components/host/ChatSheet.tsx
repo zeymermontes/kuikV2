@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
-import { Bot, Clock, MessageCircle, Send, Sparkles, User } from 'lucide-react';
+import { Bot, Clock, LayoutTemplate, MessageCircle, Send, Sparkles, User } from 'lucide-react';
 import { createClient, channelName } from '@/lib/supabase/client';
 import { getChat, sendPartyMessage, setPartyChatBot, type PartyChat, type PartyChatMessage } from '@/app/host/actions';
+import { WaTemplateModal } from '@/components/whatsapp/WaTemplateModal';
+import { WaTemplatePreview } from '@/components/whatsapp/WaTemplatePreview';
 import { Sheet, GHOST, PRIMARY } from './ui';
 
 /**
@@ -34,7 +36,9 @@ export function ChatSheet({
   onClose: () => void;
 }) {
   const t = useTranslations('host');
+  const tt = useTranslations('waTemplate');
   const [chat, setChat] = useState<PartyChat | null>(null);
+  const [templateOpen, setTemplateOpen] = useState(false);
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [, startSend] = useTransition();
@@ -48,7 +52,7 @@ export function ChatSheet({
     let cancelled = false;
     getChat({ partyId, conversationId: givenConversationId, phone: byPhone })
       .then((c) => !cancelled && setChat(c))
-      .catch(() => !cancelled && setChat({ conversationId: null, messages: [], botActive: true, canReply: false, reason: 'no_conversation', href: null }));
+      .catch(() => !cancelled && setChat({ conversationId: null, messages: [], botActive: true, canReply: false, reason: 'no_conversation', canTemplate: false, href: null }));
     return () => {
       cancelled = true;
     };
@@ -120,8 +124,35 @@ export function ChatSheet({
       if (r.ok) return;
       setChat((cur) => (cur ? { ...cur, messages: cur.messages.filter((m) => m.id !== local.id) } : cur));
       setText((cur) => (cur.trim() ? cur : body));
-      setError(r.error === 'window_closed' ? t('chatWindowClosed') : t('chatFailed'));
+      if (r.error === 'window_closed') {
+        // Our copy of the window was stale: the composer gives way to the
+        // template picker, which is the only thing WhatsApp will deliver now.
+        setChat((cur) => (cur ? { ...cur, canReply: false, reason: 'window_closed' } : cur));
+        if (chat?.canTemplate) setTemplateOpen(true);
+        else setError(t('chatWindowClosed'));
+      } else {
+        setError(t('chatFailed'));
+      }
     });
+  }
+
+  /** The template just sent, as a bubble until Realtime brings the real row. */
+  function templateSent(sent: { body: string; template: NonNullable<NonNullable<PartyChatMessage['payload']>['template']> }) {
+    const local: PartyChatMessage = {
+      id: `${LOCAL_PREFIX}${Date.now()}`,
+      wa_message_id: null,
+      direction: 'outbound',
+      origin: 'staff_dashboard',
+      type: 'template',
+      body: sent.body,
+      media_url: null,
+      media_mime: null,
+      replied_to_wa_id: null,
+      payload: { template: sent.template },
+      status: 'queued',
+      created_at: new Date().toISOString(),
+    };
+    setChat((cur) => (cur ? { ...cur, botActive: false, messages: [...cur.messages, local] } : cur));
   }
 
   const [askingResume, setAskingResume] = useState(false);
@@ -179,7 +210,14 @@ export function ChatSheet({
         </div>
       ) : (
         <div className="space-y-2">
-          <p className="text-xs text-white/50">{chat.reason === 'window_closed' ? t('chatWindowClosed') : t('chatNoConversation')}</p>
+          <p className="text-xs text-white/50">
+            {chat.reason === 'window_closed' ? (chat.canTemplate ? tt('windowClosed') : t('chatWindowClosed')) : t('chatNoConversation')}
+          </p>
+          {chat.reason === 'window_closed' && chat.canTemplate && chat.conversationId && (
+            <button onClick={() => setTemplateOpen(true)} className={`${PRIMARY} w-full`}>
+              <LayoutTemplate className="h-4 w-4" /> {tt('sendTemplate')}
+            </button>
+          )}
           {chat.href && (
             <a href={chat.href} target="_blank" rel="noreferrer" className={`${GHOST} w-full bg-green-600/20 text-green-300`}>
               <MessageCircle className="h-4 w-4" /> {t('chatOpenWhatsapp')}
@@ -193,6 +231,9 @@ export function ChatSheet({
 
   return (
     <Sheet title={name} subtitle={phone ?? t('chatTitle')} onClose={onClose} footer={footer}>
+      {templateOpen && conversationId && (
+        <WaTemplateModal conversationId={conversationId} onClose={() => setTemplateOpen(false)} onSent={templateSent} manageHref={null} />
+      )}
       {chat === null ? (
         <p className="py-10 text-center text-sm text-white/50">…</p>
       ) : (
@@ -204,6 +245,7 @@ export function ChatSheet({
             const inbound = m.direction === 'inbound';
             const quoted = m.replied_to_wa_id ? chat.messages.find((x) => x.wa_message_id === m.replied_to_wa_id) ?? null : null;
             const sticker = m.type === 'sticker' && m.media_url;
+            const tpl = m.payload?.template ?? null;
             return (
               <div key={m.id}>
                 {showDay && (
@@ -214,7 +256,7 @@ export function ChatSheet({
                 <div className={`flex ${inbound ? 'justify-start' : 'justify-end'}`}>
                   <div
                     className={`max-w-[85%] whitespace-pre-wrap rounded-2xl text-sm ${
-                      sticker ? 'bg-transparent' : `px-3 py-2 ${inbound ? 'rounded-bl-sm bg-white/10 text-white' : 'rounded-br-sm bg-pos-accent text-pos-accent-text'}`
+                      sticker || tpl ? 'bg-transparent' : `px-3 py-2 ${inbound ? 'rounded-bl-sm bg-white/10 text-white' : 'rounded-br-sm bg-pos-accent text-pos-accent-text'}`
                     } ${m.id.startsWith(LOCAL_PREFIX) ? 'opacity-70' : ''}`}
                   >
                     {m.replied_to_wa_id && (
@@ -235,10 +277,13 @@ export function ChatSheet({
                     {m.media_url && m.type === 'audio' && (
                       <audio controls preload="none" src={m.media_url} className="mb-1 h-10 w-56 max-w-full" />
                     )}
-                    {m.body
+                    {tpl ? (
+                      // The template as the diner saw it: header, footer and buttons included.
+                      <WaTemplatePreview compact header={tpl.header} body={m.body ?? ''} footer={tpl.footer} buttons={tpl.buttons} />
+                    ) : m.body
                       ? m.body
                       : !m.media_url && <span className="italic opacity-60">{summary(m, t)}</span>}
-                    <div className={`mt-1 flex items-center gap-1 text-[10px] ${inbound ? 'text-white/40' : 'opacity-60'}`}>
+                    <div className={`mt-1 flex items-center gap-1 text-[10px] ${inbound ? 'text-white/40' : tpl ? 'text-white/50' : 'opacity-60'}`}>
                       <Origin origin={m.origin} />
                       <span>·</span>
                       <span>{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>

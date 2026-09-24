@@ -49,7 +49,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
     const [{ data: msgRows }, { data: runRows }, { data: convRow }] = await Promise.all([
       supabase
         .from('whatsapp_messages')
-        .select('id, wa_message_id, direction, origin, type, body, media_url, media_mime, replied_to_wa_id, status, created_at')
+        .select('id, wa_message_id, direction, origin, type, body, media_url, media_mime, replied_to_wa_id, payload, status, created_at')
         .eq('conversation_id', sp.c)
         .eq('tenant_id', tenant.id)
         .order('created_at', { ascending: false })
@@ -63,7 +63,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
         .limit(5),
       supabase
         .from('whatsapp_conversations')
-        .select('id, bot_enabled, handoff_at, handoff_by')
+        .select('id, bot_enabled, handoff_at, handoff_by, transport, window_expires_at')
         .eq('id', sp.c)
         .eq('tenant_id', tenant.id)
         .maybeSingle(),
