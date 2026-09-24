@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from 'react';
 import * as XLSX from 'xlsx';
 import { unzipSync, zipSync } from 'fflate';
-import { Download, Upload, FileSpreadsheet, Sparkles, Check, Loader2, FileArchive, Bot, FileJson } from 'lucide-react';
+import { Download, Upload, FileSpreadsheet, Sparkles, Check, Loader2, FileArchive, Bot, FileJson, Copy, ClipboardPaste } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import type { Category, Product, TenantTheme } from '@/lib/database.types';
 import { BADGES } from '@/lib/badges';
@@ -74,6 +74,34 @@ function mime(name: string): string {
   return MIME_BY_EXT[e] ?? 'image/jpeg';
 }
 
+/** Does this file carry any design at all: the global block or a section theme? */
+function carriesDesign(p: FullImportPayload): boolean {
+  const themed = (c: ImportCategory) => c.theme != null || c.color != null || c.background != null;
+  return (
+    Boolean(p.design) ||
+    (p.categories ?? []).some((c) => themed(c) || (c.subcategories ?? []).some(themed))
+  );
+}
+
+/**
+ * The same file with every design key dropped, so an AI-edited menu can be
+ * applied without touching the colours, fonts and backgrounds the owner set
+ * by hand. Icons and photos stay: they are content, not design.
+ */
+function withoutDesign(p: FullImportPayload): FullImportPayload {
+  const bare = (c: ImportCategory): ImportCategory => {
+    const rest: ImportCategory = { ...c };
+    delete rest.theme;
+    delete rest.color;
+    delete rest.background;
+    if (c.subcategories) rest.subcategories = c.subcategories.map(bare);
+    return rest;
+  };
+  const rest: FullImportPayload = { ...p, categories: (p.categories ?? []).map(bare) };
+  delete rest.design;
+  return rest;
+}
+
 export function MenuImportExport({
   tenantId,
   branchId,
@@ -98,6 +126,9 @@ export function MenuImportExport({
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState('');
   const [copied, setCopied] = useState('');
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+  const [menuOnly, setMenuOnly] = useState(false);
   const [pending, start] = useTransition();
 
   function copyText(text: string, which: string) {
@@ -305,14 +336,14 @@ export function MenuImportExport({
   }
 
   // ── AI JSON (image URLs re-hosted server-side on apply) ───────────────────
-  async function handleJson(file: File) {
+  async function handleJsonText(text: string) {
     setBusy('json');
     setError(null);
     setNotice(null);
     try {
       let data: FullImportPayload;
       try {
-        data = JSON.parse(await file.text()) as FullImportPayload;
+        data = JSON.parse(text) as FullImportPayload;
       } catch (e) {
         fail(t('stageJson'), e);
         return;
@@ -325,10 +356,24 @@ export function MenuImportExport({
     }
   }
 
+  async function handleJson(file: File) {
+    await handleJsonText(await file.text());
+  }
+
+  /** The pasted text, with a fenced ``` block or a "json" label around it tolerated. */
+  async function handlePaste() {
+    const text = pasteText.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
+    if (!text) return;
+    setPasteOpen(false);
+    await handleJsonText(text);
+    setPasteText('');
+  }
+
   function apply(deleteMissing: boolean) {
     if (!payload) return;
+    const data = menuOnly ? withoutDesign(payload) : payload;
     start(async () => {
-      await applyFullImport(payload, branchId, deleteMissing);
+      await applyFullImport(data, branchId, deleteMissing);
       setPayload(null);
       setPreview(null);
     });
@@ -459,6 +504,10 @@ export function MenuImportExport({
     download(new Blob([JSON.stringify(buildPayload(), null, 2)], { type: 'application/json' }), 'menu.json');
   }
 
+  function copyJson() {
+    copyText(JSON.stringify(buildPayload(), null, 2), 'json');
+  }
+
   async function exportZip() {
     setBusy('exportzip');
     try {
@@ -532,11 +581,18 @@ export function MenuImportExport({
         <Button variant="secondary" onClick={() => jsonRef.current?.click()} disabled={!!busy}>
           {busy === 'json' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />} {t('importJson')}
         </Button>
+        <Button variant="secondary" onClick={() => { setError(null); setNotice(null); setPasteOpen(true); }} disabled={!!busy}>
+          <ClipboardPaste className="h-4 w-4" /> {t('pasteJson')}
+        </Button>
         <Button variant="secondary" onClick={exportMenu}>
           <Download className="h-4 w-4" /> {t('export')}
         </Button>
         <Button variant="secondary" onClick={exportJson}>
           <FileJson className="h-4 w-4" /> {t('exportJson')}
+        </Button>
+        <Button variant="secondary" onClick={copyJson}>
+          {copied === 'json' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+          {copied === 'json' ? t('copied') : t('copyJson')}
         </Button>
         <Button variant="secondary" onClick={exportZip} disabled={!!busy}>
           {busy === 'exportzip' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileArchive className="h-4 w-4" />} {t('exportZip')}
@@ -574,18 +630,56 @@ export function MenuImportExport({
           <p className="break-words text-sm text-amber-800">{notice}</p>
         </div>
       )}
-      {preview && (
+      {pasteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setPasteOpen(false)} />
+          <div className="relative w-full max-w-2xl rounded-2xl bg-white p-5">
+            <h3 className="mb-1 font-semibold">{t('pasteTitle')}</h3>
+            <p className="mb-3 text-sm text-neutral-500">{t('pasteHint')}</p>
+            <textarea
+              autoFocus
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder={t('pastePlaceholder')}
+              spellCheck={false}
+              className="h-72 w-full resize-y rounded-xl border border-neutral-200 p-3 font-mono text-xs outline-none focus:border-neutral-400"
+            />
+            <div className="mt-3 flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setPasteOpen(false)}>{t('cancel')}</Button>
+              <Button onClick={handlePaste} disabled={!pasteText.trim()}>
+                <ClipboardPaste className="h-4 w-4" /> {t('pasteApply')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {preview && payload && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => !pending && setPreview(null)} />
           <div className="relative w-full max-w-md rounded-2xl bg-white p-5">
             <h3 className="mb-3 font-semibold">{t('confirmTitle')}</h3>
             <ul className="mb-4 space-y-1 text-sm">
-              {preview.hasDesign && <Li label={t('designIncluded')} value="✓" tone="text-blue-600" />}
+              {carriesDesign(payload) && !menuOnly && <Li label={t('designIncluded')} value="✓" tone="text-blue-600" />}
               <Li label={t('newCategories')} value={preview.newCategories} />
               <Li label={t('newProducts')} value={preview.newProducts} tone="text-green-600" />
               <Li label={t('updatedProducts')} value={preview.updatedProducts} tone="text-blue-600" />
               <Li label={t('missingProducts')} value={preview.missingProducts} tone="text-red-500" />
             </ul>
+            {carriesDesign(payload) && (
+              <label className="mb-4 flex cursor-pointer items-start gap-2 rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={menuOnly}
+                  onChange={(e) => setMenuOnly(e.target.checked)}
+                  disabled={pending}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="font-medium">{t('menuOnly')}</span>
+                  <span className="mt-0.5 block text-xs text-neutral-500">{t('menuOnlyHint')}</span>
+                </span>
+              </label>
+            )}
             {pending ? (
               <div className="flex items-center justify-center py-3 text-sm text-neutral-500">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('importing')}
