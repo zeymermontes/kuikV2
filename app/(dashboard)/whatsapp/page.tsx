@@ -56,7 +56,7 @@ export default async function WhatsappPage() {
       // without reading a server log.
       supabase
         .from('whatsapp_messages')
-        .select('direction, created_at')
+        .select('direction, status, created_at')
         .eq('tenant_id', tenant.id)
         .order('created_at', { ascending: false })
         .limit(50),
@@ -82,7 +82,7 @@ export default async function WhatsappPage() {
   // exactly the situation that needs explaining. Not asked at all when a
   // Meta number is the transport in use.
   const bridge = cloudNumber ? { reachable: false, sessions: [], error: undefined } : await diagnose();
-  const msgs = (recentMessages ?? []) as { direction: string; created_at: string }[];
+  const msgs = (recentMessages ?? []) as { direction: string; status: string | null; created_at: string }[];
 
   return (
     <div className="space-y-5">
@@ -125,7 +125,9 @@ export default async function WhatsappPage() {
         sessionError={bridge.sessions.find((x) => x.sessionId === tenant.id)?.error ?? null}
         bridgeError={bridge.error}
         lastInboundAt={msgs.find((m) => m.direction === 'inbound')?.created_at ?? null}
-        lastOutboundAt={msgs.find((m) => m.direction === 'outbound')?.created_at ?? null}
+        // Only a delivered send counts: a failed row is exactly the case this row
+        // exists to expose, and it must not read as "sent".
+        lastOutboundAt={msgs.find((m) => m.direction === 'outbound' && m.status !== 'failed' && m.status !== 'queued')?.created_at ?? null}
         inboundCount={msgs.filter((m) => m.direction === 'inbound').length}
       />
 
