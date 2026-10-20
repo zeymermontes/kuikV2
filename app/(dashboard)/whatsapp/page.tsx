@@ -79,9 +79,9 @@ export default async function WhatsappPage() {
   const verifyToken = cloudNumber && role === 'owner' ? await getVerifyToken(cloudNumber.phone_number_id) : null;
 
   // Asked of the bridge itself, not of our own tables: the two disagree in
-  // exactly the situation that needs explaining. Not asked at all when the
-  // bridge is not the transport in use.
-  const bridge = cloudNumber || showCloudApi ? { reachable: false, sessions: [], error: undefined } : await diagnose();
+  // exactly the situation that needs explaining. Not asked at all when a
+  // Meta number is the transport in use.
+  const bridge = cloudNumber ? { reachable: false, sessions: [], error: undefined } : await diagnose();
   const msgs = (recentMessages ?? []) as { direction: string; created_at: string }[];
 
   return (
@@ -91,13 +91,16 @@ export default async function WhatsappPage() {
         <p className="text-sm text-neutral-500">{t('subtitle')}</p>
       </div>
 
-      {showCloudApi ? (
+      {/* Both ways in, while neither is live: Meta's official signup first
+          (when switched on) and the QR pairing under it. One channel per
+          restaurant once one connects — a live Meta number puts the QR away,
+          a live pairing puts Meta's away until it is unlinked. */}
+      {showCloudApi && !bridgeLive && (
         // Only Meta-side numbers still in play: a disconnected row, or an old
         // bridge pairing, would otherwise sit where the connect button goes.
         <WhatsappConnect numbers={numberRows.filter((n) => n.mode !== 'bridge' && n.status !== 'disconnected')} />
-      ) : (
-        !cloudNumber && <WhatsappPair numbers={numberRows} />
       )}
+      {!cloudNumber && <WhatsappPair numbers={numberRows} />}
 
       <WhatsappCloudSetup
         number={cloudNumber}
@@ -113,7 +116,7 @@ export default async function WhatsappPage() {
       )}
 
       <WhatsappDiagnostics
-        transport={cloudNumber || showCloudApi ? 'cloud' : 'bridge'}
+        transport={cloudNumber ? 'cloud' : 'bridge'}
         reachable={bridge.reachable}
         hasLiveSession={bridge.sessions.some(
           (x) => x.sessionId === tenant.id && x.status === 'connected',
