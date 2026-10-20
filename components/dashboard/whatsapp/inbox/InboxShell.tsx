@@ -27,6 +27,8 @@ export interface InboxMessage {
   /** For a sent template: `{ template: WaTemplateMeta }`. */
   payload?: { template?: WaTemplateMeta } | null;
   status: string | null;
+  /** Why a send failed, as the transport reported it; shown under the failed mark. */
+  error_message?: string | null;
   created_at: string;
 }
 

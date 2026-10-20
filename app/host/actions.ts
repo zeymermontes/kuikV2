@@ -237,6 +237,8 @@ export interface PartyChatMessage {
   /** For a sent template: `{ template: WaTemplateMeta }`, so the bubble can be drawn as the diner saw it. */
   payload?: { template?: WaTemplateMeta } | null;
   status: string | null;
+  /** Why a send failed, as the transport reported it. */
+  error_message?: string | null;
   created_at: string;
 }
 
@@ -312,7 +314,7 @@ export async function getChat(input: { partyId?: string; conversationId?: string
     admin.from('whatsapp_conversations').select('id, transport, window_expires_at, bot_enabled, handoff_at').eq('id', conversationId).eq('tenant_id', tenant.id).maybeSingle(),
     admin
       .from('whatsapp_messages')
-      .select('id, wa_message_id, direction, origin, type, body, media_url, media_mime, replied_to_wa_id, payload, status, created_at')
+      .select('id, wa_message_id, direction, origin, type, body, media_url, media_mime, replied_to_wa_id, payload, status, error_message, created_at')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: false })
       .limit(100),

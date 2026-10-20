@@ -288,7 +288,11 @@ export function ChatSheet({
                       <span>·</span>
                       <span>{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       {m.id.startsWith(LOCAL_PREFIX) && <Clock className="h-3 w-3" aria-label={t('chatSending')} />}
-                      {m.status === 'failed' && <span className="text-red-300">· {t('chatFailed')}</span>}
+                      {m.status === 'failed' && (
+                        <span className="text-red-300" title={m.error_message ?? undefined}>
+                          · {t('chatFailed')}{m.error_message ? ` (${m.error_message})` : ''}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

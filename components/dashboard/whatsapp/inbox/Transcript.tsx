@@ -126,7 +126,11 @@ export function Transcript({
                     <OriginTag origin={m.origin} />
                     <span>·</span>
                     <span>{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    {m.status === 'failed' && <span className="text-red-400">· {t('sendFailed')}</span>}
+                    {m.status === 'failed' && (
+                      <span className="text-red-400" title={m.error_message ?? undefined}>
+                        · {t('sendFailed')}{m.error_message ? ` (${m.error_message})` : ''}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
