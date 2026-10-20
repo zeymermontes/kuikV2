@@ -2351,6 +2351,8 @@
       "botPaused": "Bot pausado",
       "pausedByStaff": "Pausado por el equipo desde Kuik.",
       "pausedByHandoff": "Un cliente pidió atención humana o el equipo tomó el chat.",
+      "resetChat": "Reiniciar conversación",
+      "resetChatConfirm": "¿Reiniciar esta conversación? Se borra el historial y el flujo en curso; el contacto se queda. El siguiente mensaje del cliente empieza desde cero, con el saludo completo.",
       "pauseBot": "Pausar bot",
       "resumeBot": "Reactivar bot",
       "replyPlaceholder": "Escribe una respuesta…",

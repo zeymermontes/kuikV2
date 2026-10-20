@@ -68,3 +68,21 @@ export async function setConversationBot(input: {
   if (!error) revalidatePath('/whatsapp/inbox');
   return { ok: !error };
 }
+
+/**
+ * Start a conversation over: the thread, its flow runs and its counters go,
+ * the contact stays. The diner's next message is then a brand-new chat with
+ * the full greeting — which is what "let me try that again" means when a
+ * restaurant is setting its bot up. Scoped to the manager's own tenant.
+ */
+export async function resetConversation(input: { conversationId: string }): Promise<{ ok: boolean }> {
+  const { tenant } = await requireManager();
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from('whatsapp_conversations')
+    .delete()
+    .eq('id', input.conversationId)
+    .eq('tenant_id', tenant.id);
+  if (!error) revalidatePath('/whatsapp/inbox');
+  return { ok: !error };
+}

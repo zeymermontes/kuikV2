@@ -2351,6 +2351,8 @@
       "botPaused": "Bot paused",
       "pausedByStaff": "Paused by the team from Kuik.",
       "pausedByHandoff": "A customer asked for a human or the team took the chat.",
+      "resetChat": "Reset conversation",
+      "resetChatConfirm": "Reset this conversation? Its history and any running flow are deleted; the contact stays. The diner's next message starts from scratch, with the full greeting.",
       "pauseBot": "Pause bot",
       "resumeBot": "Resume bot",
       "replyPlaceholder": "Type a reply…",

@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Bot, PanelRightOpen, X } from 'lucide-react';
+import { Bot, PanelRightOpen, RotateCcw, X } from 'lucide-react';
 import { createClient, channelName } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
-import { setConversationBot } from '@/app/(dashboard)/whatsapp/inbox/actions';
+import { setConversationBot, resetConversation } from '@/app/(dashboard)/whatsapp/inbox/actions';
 import type { ConversationItem, InboxFilters } from '@/app/(dashboard)/whatsapp/inbox/query';
 import type { MessageOrigin, WhatsappFlowRun } from '@/lib/whatsapp/types';
 import type { WaTemplateMeta } from '@/lib/whatsapp/template-rules';
@@ -201,6 +201,15 @@ function BotToggle({ conv, pendingReply }: { conv: SelectedConv; pendingReply: b
     router.refresh();
   });
 
+  const reset = () => {
+    if (!confirm(t('resetChatConfirm'))) return;
+    startTransition(async () => {
+      const res = await resetConversation({ conversationId: conv.id });
+      if (res.ok) router.replace('/whatsapp/inbox');
+      router.refresh();
+    });
+  };
+
   const active = conv.bot_enabled && !conv.handoff_at;
   if (!active && asking) {
     return (
@@ -234,18 +243,29 @@ function BotToggle({ conv, pendingReply }: { conv: SelectedConv; pendingReply: b
           </p>
         )}
       </div>
-      <button
-        disabled={pending}
-        onClick={() => (active ? toggle(false) : pendingReply ? setAsking(true) : toggle(true))}
-        className={cn(
-          'shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50',
-          active
-            ? 'border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50'
-            : 'bg-neutral-900 text-white hover:bg-neutral-700',
-        )}
-      >
-        {active ? t('pauseBot') : t('resumeBot')}
-      </button>
+      <div className="flex shrink-0 items-center gap-1.5">
+        <button
+          disabled={pending}
+          onClick={reset}
+          title={t('resetChat')}
+          aria-label={t('resetChat')}
+          className="rounded-full border border-neutral-300 bg-white p-1.5 text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-800 disabled:opacity-50"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+        </button>
+        <button
+          disabled={pending}
+          onClick={() => (active ? toggle(false) : pendingReply ? setAsking(true) : toggle(true))}
+          className={cn(
+            'rounded-full px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50',
+            active
+              ? 'border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50'
+              : 'bg-neutral-900 text-white hover:bg-neutral-700',
+          )}
+        >
+          {active ? t('pauseBot') : t('resumeBot')}
+        </button>
+      </div>
     </div>
   );
 }
