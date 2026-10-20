@@ -16,7 +16,6 @@ import { endRun } from './flows/run-store';
 import { handleReservationReply } from './reservation-reply';
 import { runAi } from '@/lib/ai/run';
 import type { OutboundDraft, WhatsappFlow, WhatsappFlowRun } from './types';
-import { phoneToOffer } from '@/lib/phone';
 
 /**
  * Decides what — if anything — the bot says back.
@@ -432,17 +431,13 @@ async function buildVars(
   tenantId: string,
   branchId: string | null,
 ): Promise<{ vars: RenderVars; open: boolean; reservationsEnabled: boolean }> {
-  const [{ data: tenant }, { data: contactRow }, { data: branchRow }, { data: numberRows }] = await Promise.all([
+  const [{ data: tenant }, { data: contactRow }, { data: branchRow }] = await Promise.all([
     supabase.from('tenants').select('name, subdomain, custom_domain, timezone').eq('id', tenantId).maybeSingle(),
     supabase.from('tenant_contact').select('address, maps_url, hours, whatsapp_phone, reservations_enabled').eq('tenant_id', tenantId).maybeSingle(),
     branchId
       ? supabase.from('branches').select('address, maps_url, hours, whatsapp_phone').eq('id', branchId).maybeSingle()
       : Promise.resolve({ data: null }),
-    // The numbers the bot itself answers on: "llámanos al …" must never name
-    // the one the diner is already writing to.
-    supabase.from('whatsapp_numbers').select('phone_e164').eq('tenant_id', tenantId).eq('status', 'connected'),
   ]);
-  const botNumbers = ((numberRows ?? []) as { phone_e164: string }[]).map((n) => n.phone_e164);
 
   const t = tenant as { name: string; subdomain: string; custom_domain: string | null; timezone: string } | null;
   type ContactShape = { address: string | null; maps_url: string | null; hours: unknown; whatsapp_phone: string | null };
@@ -489,7 +484,10 @@ async function buildVars(
     direccion: c?.address ?? '',
     mapa: mapHref(c?.maps_url ?? null, c?.address ?? null) ?? '',
     menu_url: t ? tenantBaseUrl(t.subdomain, t.custom_domain) : '',
-    telefono: phoneToOffer(c?.whatsapp_phone, botNumbers),
+    // Offered to CALL, even when it is the number they are writing to: a
+    // WhatsApp Business number on a phone takes calls, and with bookings off
+    // a message here only lands back on the bot.
+    telefono: c?.whatsapp_phone ?? '',
     },
   };
 }

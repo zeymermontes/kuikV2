@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { phoneToOffer, toE164, normalizeWaId, waIdCandidates, sameNumber, isLid, phoneFromWaId } from '../lib/phone';
+import { toE164, normalizeWaId, waIdCandidates, sameNumber, isLid, phoneFromWaId } from '../lib/phone';
 
 test('mexican wa_id drops the WhatsApp 1', () => {
   assert.equal(normalizeWaId('5215512345678'), '+525512345678');
@@ -44,13 +44,4 @@ test('a LID is not a phone: no fake "+263689785585894"', () => {
   assert.equal(isLid('5215512345678'), false);
   assert.equal(phoneFromWaId('263689785585894@lid'), null);
   assert.equal(phoneFromWaId('5215512345678'), '+525512345678');
-});
-
-
-test('phoneToOffer drops the number the diner is already chatting with', () => {
-  assert.equal(phoneToOffer('5216671176693', ['+5216671176693']), '');
-  assert.equal(phoneToOffer('526671176693', ['+5216671176693']), '');
-  assert.equal(phoneToOffer('5216621234567', ['+5216671176693']), '5216621234567');
-  assert.equal(phoneToOffer(null, ['+5216671176693']), '');
-  assert.equal(phoneToOffer('5216671176693', []), '5216671176693');
 });

@@ -77,11 +77,11 @@ export function dayAvailability(input: DayAvailabilityInput): DayStatus {
 export function dayUnavailableMessage(reason: DayUnavailableReason, phone?: string | null): string {
   switch (reason) {
     case 'not_enabled':
-      // No phone to offer (or only the very number they are writing to):
-      // point at a person here rather than at a phone they are already on.
+      // A call, never "write to us": with bookings off, a message here only
+      // lands back on the bot.
       return phone
-        ? `Por ahora no estamos tomando reservaciones por este medio 🙏 Escríbenos o llámanos al ${phone} y con gusto te ayudamos.`
-        : 'Por ahora no estamos tomando reservaciones por este medio 🙏 Escríbenos aquí mismo y una persona del restaurante te ayuda.';
+        ? `Por ahora no estamos tomando reservaciones por este medio 🙏 Llámanos al ${phone} y con gusto te ayudamos.`
+        : 'Por ahora no estamos tomando reservaciones por este medio 🙏';
     case 'past': return 'Esa fecha ya pasó 😅 ¿Qué otro día te gustaría?';
     case 'too_far': return 'Esa fecha está demasiado lejos para reservar todavía. ¿Te sirve un día más cercano?';
     case 'closed': return 'Ese día estamos cerrados. ¿Te gustaría otro día?';

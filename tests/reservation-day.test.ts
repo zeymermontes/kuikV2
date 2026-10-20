@@ -46,8 +46,8 @@ test('bookings in another area do not count against this one', () => {
   assert.deepEqual(dayAvailability(base({ areas: [{ id: 'a', maxCovers: 4 }], reservations: elsewhere })), { ok: true });
 });
 
-test('reservations off: offers the phone when there is one, a person here when there is not', () => {
-  assert.match(dayUnavailableMessage('not_enabled', '5216621234567'), /llámanos al 5216621234567/);
-  assert.match(dayUnavailableMessage('not_enabled', ''), /Escríbenos aquí mismo/);
-  assert.doesNotMatch(dayUnavailableMessage('not_enabled', null), /llámanos/);
+test('reservations off: a call to the contact number, never "write to us"', () => {
+  assert.match(dayUnavailableMessage('not_enabled', '5216621234567'), /Llámanos al 5216621234567/);
+  assert.doesNotMatch(dayUnavailableMessage('not_enabled', '5216621234567'), /scríbenos/);
+  assert.doesNotMatch(dayUnavailableMessage('not_enabled', null), /scríbenos|Llámanos/);
 });

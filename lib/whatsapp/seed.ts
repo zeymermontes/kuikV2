@@ -42,7 +42,7 @@ const CANNED: { key: string; body: string }[] = [
   {
     // Said the moment a diner asks to book while online reservations are off.
     key: 'reservations_off',
-    body: 'Por ahora no estamos tomando reservaciones por este medio 🙏 Escríbenos o llámanos al {{telefono}} y con gusto te ayudamos.',
+    body: 'Por ahora no estamos tomando reservaciones por este medio 🙏 Llámanos al {{telefono}} y con gusto te ayudamos.',
   },
 ];
 
