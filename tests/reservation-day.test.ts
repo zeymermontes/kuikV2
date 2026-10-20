@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dayAvailability, weekdayOfDate, type DayAvailabilityInput } from '../lib/reservations/day';
+import { dayUnavailableMessage, dayAvailability, weekdayOfDate, type DayAvailabilityInput } from '../lib/reservations/day';
 
 const HOURS = Array.from({ length: 7 }, (_, i) => ({ closed: i === 0, open: '13:00', close: '22:00' })); // Mondays closed
 
@@ -44,4 +44,10 @@ test('no capped areas can never fill; a capped one fills slot by slot', () => {
 test('bookings in another area do not count against this one', () => {
   const elsewhere = [{ areaId: 'b', time: '20:00', partySize: 50 }];
   assert.deepEqual(dayAvailability(base({ areas: [{ id: 'a', maxCovers: 4 }], reservations: elsewhere })), { ok: true });
+});
+
+test('reservations off: offers the phone when there is one, a person here when there is not', () => {
+  assert.match(dayUnavailableMessage('not_enabled', '5216621234567'), /llámanos al 5216621234567/);
+  assert.match(dayUnavailableMessage('not_enabled', ''), /Escríbenos aquí mismo/);
+  assert.doesNotMatch(dayUnavailableMessage('not_enabled', null), /llámanos/);
 });

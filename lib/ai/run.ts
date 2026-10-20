@@ -96,6 +96,10 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
       .from('whatsapp_messages')
       .select('direction, origin, body')
       .eq('conversation_id', turn.ctx.conversationId)
+      // A reply that never left is not something the model said: with it in
+      // the thread, a greeting that failed to send turns the next "hola"
+      // into "hola de nuevo".
+      .neq('status', 'failed')
       .order('created_at', { ascending: false })
       .limit(10),
     buildRestaurantContext({

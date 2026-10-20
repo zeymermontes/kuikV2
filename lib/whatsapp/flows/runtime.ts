@@ -127,7 +127,10 @@ export async function runFlowTurn(params: FlowTurnParams): Promise<boolean> {
     if (!params.reservationsEnabled) {
       const wanted = await loadPublishedGraph(supabase, flow.id, flow.published_version);
       if (wanted && flowBooks(wanted)) {
-        const off = await getCanned(supabase, conv.tenant_id, 'reservations_off', vars);
+        // The seeded canned text says "llámanos al {{telefono}}"; with no
+        // phone to put there (the only one is the number they are writing
+        // to) it would read as a blank, so the phone-less wording is used.
+        const off = vars.telefono ? await getCanned(supabase, conv.tenant_id, 'reservations_off', vars) : '';
         await say(conv.id, [
           ...params.pendingReplies,
           { type: 'text', body: off || dayUnavailableMessage('not_enabled', vars.telefono) },

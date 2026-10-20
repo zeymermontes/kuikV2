@@ -122,3 +122,16 @@ export function phoneFromWaId(waId: string): string | null {
   return e164.length >= 9 ? e164 : null;
 }
 
+/**
+ * The phone a canned reply may tell a diner to call: the restaurant's contact
+ * number, unless it is one of the numbers the bot answers on — then nothing,
+ * since "llámanos al …" naming the chat they are in reads as a loop. Numbers
+ * are compared on their last ten digits, which absorbs Mexico's 52/521 split.
+ */
+export function phoneToOffer(contactPhone: string | null | undefined, botNumbers: string[]): string {
+  const digits = (contactPhone ?? '').replace(/\D/g, '');
+  if (!digits) return '';
+  const tail = digits.slice(-10);
+  const isBot = botNumbers.some((n) => n.replace(/\D/g, '').slice(-10) === tail);
+  return isBot ? '' : contactPhone!;
+}
