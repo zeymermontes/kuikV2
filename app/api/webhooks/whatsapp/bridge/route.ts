@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { rateLimit, bucketKey } from '@/lib/rate-limit';
 import { verifyBridgeSignature } from '@/lib/whatsapp/bridge';
 import { processEvents } from '@/lib/whatsapp/inbound';
+import { stripDevicePart } from '@/lib/whatsapp/parse';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -55,6 +56,10 @@ export async function POST(req: NextRequest) {
   if (!body.tenantId || !body.messageId || !body.from || body.isGroup || body.fromMe) {
     return NextResponse.json({ ok: true });
   }
+  // Belt and braces with the bridge: the contact is the user, never one of
+  // their devices — a device-suffixed id is a separate contact that cannot
+  // be replied to.
+  body.from = stripDevicePart(body.from);
 
   const { ok } = await rateLimit(bucketKey('wa:bridge', body.tenantId, 60), 600, 60);
   if (!ok) return NextResponse.json({ ok: true });

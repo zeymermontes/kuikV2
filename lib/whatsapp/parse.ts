@@ -160,3 +160,13 @@ export function parsePartySize(input: string): number | null {
 }
 
 export { strip as normalizeText };
+
+/**
+ * A WhatsApp JID without its device part: "5215512345678:12@s.whatsapp.net"
+ * becomes "5215512345678@s.whatsapp.net" (and the same for "@lid"). The
+ * device identifies which phone or linked computer wrote; the chat, and the
+ * only address a reply may be sent to, is the user.
+ */
+export function stripDevicePart(jid: string): string {
+  return jid.replace(/^([^:@]+):\d+@/, '$1@');
+}

@@ -225,10 +225,15 @@ func (f *Forwarder) Handle(tenantID string, evt *events.Message, cli *whatsmeow.
 		phone = evt.Info.Sender.User
 	}
 
+	// The device part is dropped on purpose. A message typed on a linked
+	// device arrives from "<user>:<device>@…", Kuik keys the contact by what
+	// is reported here, and whatsmeow refuses to SEND to a JID that still
+	// carries a device ("message recipient must be a user JID with no device
+	// part"). The chat is the user, whichever of their devices wrote.
 	payload := InboundPayload{
 		TenantID:  tenantID,
 		MessageID: evt.Info.ID,
-		From:      evt.Info.Sender.String(),
+		From:      evt.Info.Sender.ToNonAD().String(),
 		Phone:     phone,
 		PushName:  evt.Info.PushName,
 		Text:      text,

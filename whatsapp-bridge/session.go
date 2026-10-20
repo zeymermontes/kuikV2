@@ -464,7 +464,9 @@ func (m *Manager) Send(ctx context.Context, tenantID, to, text string) (string, 
 		if err != nil {
 			return "", fmt.Errorf("bad recipient: %w", err)
 		}
-		jid = parsed
+		// Contacts stored before the inbound side dropped the device part
+		// still carry one; WhatsApp only accepts the user.
+		jid = parsed.ToNonAD()
 	} else {
 		resolved, err := resolveNumber(ctx, s.Client, target)
 		if err != nil {

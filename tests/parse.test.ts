@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseSpanishDate, parseSpanishTime, parsePartySize } from '../lib/whatsapp/parse';
+import { stripDevicePart, parseSpanishDate, parseSpanishTime, parsePartySize } from '../lib/whatsapp/parse';
 
 // A Tuesday, so weekday maths is visible.
 const TODAY = '2026-08-25';
@@ -68,4 +68,11 @@ test('listOptionNames merges the same option across products and flags it when o
   assert.deepEqual(names.map((n) => [n.name, n.count, n.available]), [['Leche de avena', 2, false], ['Entera', 1, true]]);
   assert.equal(optionAvailable({ name: 'x', price: 0 }), true);
   assert.equal(optionAvailable({ name: 'x', price: 0, available: false }), false);
+});
+
+test('stripDevicePart keeps the user and the server and drops the device', () => {
+  assert.equal(stripDevicePart('5215512345678:12@s.whatsapp.net'), '5215512345678@s.whatsapp.net');
+  assert.equal(stripDevicePart('123456789012345:5@lid'), '123456789012345@lid');
+  assert.equal(stripDevicePart('5215512345678@s.whatsapp.net'), '5215512345678@s.whatsapp.net');
+  assert.equal(stripDevicePart('5215512345678'), '5215512345678');
 });
