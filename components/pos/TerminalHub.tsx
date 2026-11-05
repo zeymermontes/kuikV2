@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import Link, { useLinkStatus } from 'next/link';
 import { useRouter } from 'next/navigation';
-import { markArrival } from '@/lib/native/arrival';
+import { FRESH_EVENT, FULL_PREFETCH, PREFETCH_TTL_MS, markArrival, needsRefresh } from '@/lib/native/arrival';
 import { useTranslations } from 'next-intl';
 import { ChefHat, ClipboardList, LayoutDashboard, Loader2, Lock, LogOut, MapPin, MessageCircle, Monitor, Users, Wallet } from 'lucide-react';
 import { signOut } from '@/app/(auth)/actions';
@@ -93,6 +93,20 @@ function customerHref(register: string, branch: DeviceBranch | null): string {
 }
 
 /** Operations pages open for one location: `?branch=<slug>`, or `main`, which also clears a remembered branch. */
+/**
+ * When the sections' prefetched copies were last asked for. Kept outside the
+ * component because the copies outlive it: the router holds them across
+ * visits to the hub. Zero means unknown, which reads as old, so the section
+ * fetches itself again; every doubt errs that way.
+ */
+let sectionsFetchedAt = 0;
+if (typeof window !== 'undefined') {
+  // A section that fetched itself again made the router drop every copy.
+  window.addEventListener(FRESH_EVENT, () => {
+    sectionsFetchedAt = 0;
+  });
+}
+
 function opsHref(path: string, branch: DeviceBranch | null, hasBranches: boolean): string {
   if (!hasBranches) return path;
   return `${path}?branch=${encodeURIComponent(branch ? branch.slug : 'main')}`;
@@ -151,6 +165,9 @@ export function TerminalHub({
     // Coming back to the tab after a while: the numbers may be stale.
     const onVisible = () => { if (document.visibilityState === 'visible') recount(); };
     document.addEventListener('visibilitychange', onVisible);
+    // So may the ones this page arrived with: back from a section shows the
+    // hub as it was prefetched, minutes ago at worst.
+    recount();
     return () => {
       supabase.removeChannel(channel);
       document.removeEventListener('visibilitychange', onVisible);
@@ -226,17 +243,32 @@ export function TerminalHub({
     .map(tileHref)
     .join('\n');
   useEffect(() => {
+    // The tiles prefetch as they appear, but only what the router no longer
+    // holds: coming back to the hub two minutes after the first visit shows
+    // tiles whose copies are two minutes old, not new ones.
+    if (Date.now() - sectionsFetchedAt >= PREFETCH_TTL_MS) sectionsFetchedAt = Date.now();
     const warm = () => {
       if (document.visibilityState !== 'visible') return;
+      // Still held by the router: asking again would be a no-op, and must
+      // not make the copy look newer than it is.
+      if (Date.now() - sectionsFetchedAt < PREFETCH_TTL_MS) return;
+      sectionsFetchedAt = Date.now();
       for (const href of linked.split('\n').filter(Boolean)) {
         try {
-          router.prefetch(href);
+          // Full, like the tiles' own prefetch; the default here is partial.
+          router.prefetch(href, FULL_PREFETCH);
         } catch {}
       }
     };
     document.addEventListener('visibilitychange', warm);
     return () => document.removeEventListener('visibilitychange', warm);
   }, [linked, router]);
+
+  // A section opened from a copy older than a few seconds fetches itself
+  // again once shown; one opened from a fresh copy has nothing to gain.
+  const leaveNote = () => {
+    if (needsRefresh(sectionsFetchedAt)) markArrival();
+  };
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-3xl flex-col justify-center px-6 py-10">
@@ -313,7 +345,7 @@ export function TerminalHub({
           return (
             // prefetch: the whole section, not only its frame. onClick: tell
             // the section it was prefetched, so it fetches itself again.
-            <Link key={key} href={tileHref(key)} prefetch={true} onClick={markArrival} className={`${tileClass} relative`}>
+            <Link key={key} href={tileHref(key)} prefetch={true} onClick={leaveNote} className={`${tileClass} relative`}>
               {body}
               <TilePending />
             </Link>

@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { takeArrival } from '@/lib/native/arrival';
+import { FRESH_EVENT, takeArrival } from '@/lib/native/arrival';
 
 /**
  * Wraps a section's page. When the page was reached through a full prefetch
@@ -38,6 +38,9 @@ export function FreshOnArrival({ children }: { children: React.ReactNode }) {
     else if (phase.current === 'running' && !pending) {
       phase.current = 'idle';
       setEpoch((e) => e + 1);
+      // The refresh discarded every prefetch the router held: whoever keeps
+      // one at hand (the way back to the hub) asks for it again now.
+      window.dispatchEvent(new Event(FRESH_EVENT));
     }
   }, [pending]);
 
