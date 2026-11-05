@@ -200,7 +200,20 @@ function PosTerminalInner({
   useEffect(() => {
     if (demo || !('serviceWorker' in navigator)) return;
     if (process.env.NODE_ENV === 'production') {
-      navigator.serviceWorker.register('/sw-pos.js', { scope: '/pos' }).catch(() => {});
+      navigator.serviceWorker
+        .register('/sw-pos.js', { scope: '/pos' })
+        .then(() => navigator.serviceWorker.ready)
+        .then((reg) => {
+          // What this page already loaded went past the worker (it was not
+          // in control yet): hand it the list, so the register opens without
+          // a network after a single visit.
+          const urls = [location.pathname + location.search, ...performance.getEntriesByType('resource').map((e) => e.name)];
+          reg.active?.postMessage({ type: 'warm', urls });
+        })
+        .catch(() => {});
+      // The register's offline copy (shell, photos, pending sales) is not
+      // something to lose to a full disk: ask the browser to keep it.
+      void navigator.storage?.persist?.().catch(() => {});
     } else {
       // In dev, make sure no stale POS service worker serves cached bundles.
       navigator.serviceWorker.getRegistrations().then((regs) =>
