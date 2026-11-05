@@ -76,8 +76,11 @@ export function HostApp({
   explain = false,
   ordersBoard = false,
   currency = 'MXN',
+  adminLink = true,
 }: {
   tenantId: string;
+  /** The shortcut into the admin panel. Off for a shared device (0100): it has no business there. */
+  adminLink?: boolean;
   /** The Pedidos board is on: the stand shows takeout/pickup/delivery orders too. */
   ordersBoard?: boolean;
   currency?: string;
@@ -715,9 +718,11 @@ export function HostApp({
                 <Settings className="h-4 w-4" />
               </button>
             )}
-            <Link href="/reservations" className="rounded-lg bg-white/5 p-2 text-white/70 hover:text-white" title={t('openDashboard')} data-help="host_dashboard">
-              <ExternalLink className="h-4 w-4" />
-            </Link>
+            {adminLink && (
+              <Link href="/reservations" className="rounded-lg bg-white/5 p-2 text-white/70 hover:text-white" title={t('openDashboard')} data-help="host_dashboard">
+                <ExternalLink className="h-4 w-4" />
+              </Link>
+            )}
           </div>
         </div>
         <div className="mt-2 flex items-center gap-2 md:hidden">

@@ -7,6 +7,7 @@ import { Bot, ExternalLink, Headset, MessageCircle, Search } from 'lucide-react'
 import { createClient, channelName } from '@/lib/supabase/client';
 import { listChats, type ChatRow } from '@/app/chats/actions';
 import { ChatSheet } from '@/components/host/ChatSheet';
+import { chatsFor } from '@/lib/chats/list';
 
 /**
  * One list, two views: the chats waiting for a person, and everything
@@ -21,8 +22,11 @@ export function ChatsApp({
   initial,
   openChat = null,
   themeStyle,
+  adminLink = true,
 }: {
   tenantId: string;
+  /** The shortcut into the admin panel's inbox. Off for a shared device (0100). */
+  adminLink?: boolean;
   tenantName: string;
   logoUrl: string | null;
   initial: { rows: ChatRow[]; connected: boolean };
@@ -68,7 +72,8 @@ export function ChatsApp({
   }, [tenantId, refresh]);
 
   const waitingCount = rows.filter((r) => r.waiting).length;
-  const visible = useMemo(() => (view === 'waiting' ? rows.filter((r) => r.waiting) : rows), [rows, view]);
+  // Each view has its own order (lib/chats/list.ts): recent is by time, not waiting-first.
+  const visible = useMemo(() => chatsFor(rows, view), [rows, view]);
 
   const ago = (iso: string) => {
     const mins = Math.max(0, Math.round((now - new Date(iso).getTime()) / 60000));
@@ -94,9 +99,11 @@ export function ChatsApp({
             </button>
             <button onClick={() => setView('all')} className={`px-3 py-2 ${view === 'all' ? 'bg-white text-neutral-900' : 'text-white/70'}`}>{t('all')}</button>
           </div>
-          <Link href="/whatsapp/inbox" className="rounded-lg bg-white/5 p-2 text-white/70 hover:text-white" title="Inbox">
-            <ExternalLink className="h-4 w-4" />
-          </Link>
+          {adminLink && (
+            <Link href="/whatsapp/inbox" className="rounded-lg bg-white/5 p-2 text-white/70 hover:text-white" title="Inbox">
+              <ExternalLink className="h-4 w-4" />
+            </Link>
+          )}
         </div>
         <div className="relative mt-2">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />

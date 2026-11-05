@@ -112,9 +112,12 @@ function PosTerminalInner({
   demo = false,
   explain = false,
   menuOrders = null,
+  adminLink = true,
 }: {
   tenantId: string;
   userId: string;
+  /** The shortcut into the admin panel's settings. Off for a shared device (0100). */
+  adminLink?: boolean;
   restaurantName: string;
   brand: DisplayBrand;
   /** The menu's orders (Pedidos board) when the restaurant has it on: a view to accept them from. */
@@ -558,16 +561,18 @@ function PosTerminalInner({
             <ChefHat className="h-5 w-5 shrink-0" />
             <span className="hidden xl:inline">{t('kitchen')}</span>
           </Link>
-          <Link
-            href="/ordering"
-            target="_blank"
-            data-help="pos_settings"
-            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-neutral-300 hover:bg-white/5 hover:text-white xl:px-4"
-            title={t('settings')}
-          >
-            <Settings className="h-5 w-5 shrink-0" />
-            <span className="hidden xl:inline">{t('settings')}</span>
-          </Link>
+          {adminLink && (
+            <Link
+              href="/ordering"
+              target="_blank"
+              data-help="pos_settings"
+              className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-neutral-300 hover:bg-white/5 hover:text-white xl:px-4"
+              title={t('settings')}
+            >
+              <Settings className="h-5 w-5 shrink-0" />
+              <span className="hidden xl:inline">{t('settings')}</span>
+            </Link>
+          )}
         </div>
         <button
           onClick={() => {

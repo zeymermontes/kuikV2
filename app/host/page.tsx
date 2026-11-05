@@ -22,7 +22,7 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 /** `?demo=1` shows a sample floor and day in memory: the dashboard preview, and a first look before a plan exists. */
 export default async function HostPage({ searchParams }: { searchParams: Promise<{ d?: string; demo?: string; explain?: string; branch?: string }> }) {
   const ctx = await requireReservations();
-  const { tenant, theme, role, support } = ctx;
+  const { tenant, theme, role, support, user } = ctx;
   const supabase = await createClient();
   const locale = await getLocale();
   const { d, demo: demoParam, explain: explainParam, branch: branchParam } = await searchParams;
@@ -79,6 +79,7 @@ export default async function HostPage({ searchParams }: { searchParams: Promise
       themeStyle={posThemeVars(theme)}
       ordersBoard={ordersBoard}
       currency={resolveMenuSettings(theme.settings ?? null).currency}
+      adminLink={!user.isDevice}
     />
     </>
   );

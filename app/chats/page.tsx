@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 /** `?c=<conversation>` opens that chat at once — the link a notification carries. */
 export default async function ChatsPage({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
   const { c } = await searchParams;
-  const { tenant, theme } = await requireChats();
+  const { tenant, theme, user } = await requireChats();
   const initial = await listChats();
   const openChat = c ? initial.rows.find((r) => r.conversationId === c) ?? (await chatRow(c)) : null;
   return (
@@ -19,6 +19,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
       initial={initial}
       openChat={openChat}
       themeStyle={posThemeVars(theme)}
+      adminLink={!user.isDevice}
     />
   );
 }

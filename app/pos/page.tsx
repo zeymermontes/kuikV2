@@ -116,6 +116,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       soldOutRows={soldOutHere}
       tenantId={tenant.id}
       userId={user.id}
+      adminLink={!user.isDevice}
       restaurantName={tenant.name}
       brand={{ name: tenant.name, logoUrl: theme.logo_url, slogan: theme.slogan, currency, locale }}
       currency={currency}
