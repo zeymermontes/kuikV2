@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useTransition } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 import { capacitorPlugin, shell } from '@/lib/native/shell';
 import { backAction, HUB_PATH } from '@/lib/native/back';
 
@@ -20,6 +21,17 @@ import { backAction, HUB_PATH } from '@/lib/native/back';
 export function ShellBackButton() {
   const router = useRouter();
   const pathname = usePathname();
+  const [leaving, startLeaving] = useTransition();
+
+  // The way back is known in advance: have the hub's frame ready, so back
+  // from a section lands at once instead of after a server round trip.
+  useEffect(() => {
+    if (shell() !== 'terminal' && shell() !== 'mobile') return;
+    if ((pathname.replace(/\/+$/, '') || '/') === HUB_PATH) return;
+    try {
+      router.prefetch(HUB_PATH);
+    } catch {}
+  }, [pathname, router]);
 
   useEffect(() => {
     if (shell() !== 'terminal' && shell() !== 'mobile') return;
@@ -40,7 +52,7 @@ export function ShellBackButton() {
           } catch {}
         } else if (action === 'hub') {
           // Replace, not push: the section just left must not sit behind the hub.
-          router.replace(HUB_PATH);
+          startLeaving(() => router.replace(HUB_PATH));
         } else {
           window.history.back();
         }
@@ -60,5 +72,12 @@ export function ShellBackButton() {
     };
   }, [pathname, router]);
 
-  return null;
+  // Back was pressed and the hub is on its way: say so, so the press does
+  // not look ignored on a slow connection.
+  if (!leaving) return null;
+  return (
+    <div role="status" aria-busy="true" className="pointer-events-none fixed inset-0 z-[90] flex items-center justify-center bg-black/40">
+      <Loader2 className="h-7 w-7 animate-spin text-white" />
+    </div>
+  );
 }

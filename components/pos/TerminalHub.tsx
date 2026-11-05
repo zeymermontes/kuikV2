@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import Link from 'next/link';
+import Link, { useLinkStatus } from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { ChefHat, ClipboardList, LayoutDashboard, Lock, LogOut, MapPin, MessageCircle, Monitor, Users, Wallet } from 'lucide-react';
+import { ChefHat, ClipboardList, LayoutDashboard, Loader2, Lock, LogOut, MapPin, MessageCircle, Monitor, Users, Wallet } from 'lucide-react';
 import { signOut } from '@/app/(auth)/actions';
 import { hubCounts, listRegisters } from '@/app/terminal/actions';
 import { createClient, channelName } from '@/lib/supabase/client';
@@ -285,8 +285,9 @@ export function TerminalHub({
           }
           const href = key === 'admin' || key === 'orders' || key === 'chats' ? HREFS[key] : opsHref(HREFS[key], branch, hasBranches);
           return (
-            <Link key={key} href={href} className={tileClass}>
+            <Link key={key} href={href} className={`${tileClass} relative`}>
               {body}
+              <TilePending />
             </Link>
           );
         })}
@@ -387,5 +388,23 @@ export function TerminalHub({
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * The tapped tile, while its section is on the way. Usually skipped: the
+ * sections are prefetched, so the tap navigates at once. This covers the
+ * tap that lands before the prefetch does, or on a slow connection.
+ * Always rendered and only faded in, so the tile never shifts.
+ */
+function TilePending() {
+  const { pending } = useLinkStatus();
+  return (
+    <span
+      aria-hidden
+      className={`pointer-events-none absolute inset-0 flex items-center justify-center rounded-2xl bg-black/50 transition-opacity duration-150 ${pending ? 'opacity-100 delay-100' : 'opacity-0'}`}
+    >
+      <Loader2 className="h-6 w-6 animate-spin text-white" />
+    </span>
   );
 }
