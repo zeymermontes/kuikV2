@@ -38,6 +38,18 @@ const config: CapacitorConfig = {
     backgroundColor: '#111114',
     allowMixedContent: false,
   },
+  plugins: {
+    // The plugin's default is to let the page run BEHIND the status bar. On
+    // Android 15+ SystemBars pads the WebView and nobody notices; on Android
+    // 14 and earlier nothing pads, and the top of every screen sat under the
+    // time and the signal. The site also says this at runtime
+    // (lib/native/insets.ts), which is what fixed the builds already out;
+    // here it holds from the first frame, and for the offline page too.
+    StatusBar: {
+      overlaysWebView: false,
+      backgroundColor: '#111114',
+    },
+  },
 };
 
 export default config;
