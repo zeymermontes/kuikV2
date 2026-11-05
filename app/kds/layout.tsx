@@ -4,6 +4,7 @@ import { requireTenant } from '@/lib/auth';
 import { showDevFeatures } from '@/lib/features';
 import { StaffIntlProvider } from '@/components/intl/StaffIntlProvider';
 import { ShellBackButton } from '@/components/pos/ShellBackButton';
+import { FreshOnArrival } from '@/components/FreshOnArrival';
 import { ShellUpdateBanner } from '@/components/ShellUpdateBanner';
 import { NewOrderAlert } from '@/components/orders/NewOrderAlert';
 import { StaffAlerts } from '@/components/StaffAlerts';
@@ -25,7 +26,9 @@ export default async function KdsLayout({
   if (!showDevFeatures(ctx)) redirect('/menu');
   return (
     <StaffIntlProvider>
-      <div className="min-h-dvh">{children}</div>
+      <div className="min-h-dvh">
+        <FreshOnArrival>{children}</FreshOnArrival>
+      </div>
       <ShellBackButton />
       {orders.board && <NewOrderAlert tenantId={ctx.tenant.id} enabled={orders.alerts.notifyPos} />}
       <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} userId={ctx.user.id} />

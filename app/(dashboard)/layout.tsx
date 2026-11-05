@@ -10,6 +10,7 @@ import { PwaProvider } from '@/components/dashboard/PwaProvider';
 import { StaffAlerts } from '@/components/StaffAlerts';
 import { ShellUpdateBanner } from '@/components/ShellUpdateBanner';
 import { ShellBackButton } from '@/components/pos/ShellBackButton';
+import { FreshOnArrival } from '@/components/FreshOnArrival';
 import { AdvisorNotice } from '@/components/dashboard/AdvisorNotice';
 import { SITE_URL } from '@/lib/seo';
 import { StaffIntlProvider } from '@/components/intl/StaffIntlProvider';
@@ -119,7 +120,7 @@ export default async function DashboardLayout({
             {/* Forms read best at 4xl; a page that renders a canvas (the flow editor)
                 marks itself data-full-bleed and takes the whole width. */}
             <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 has-[[data-full-bleed]]:max-w-none has-[[data-full-bleed]]:px-2 has-[[data-full-bleed]]:py-2 sm:px-6 sm:has-[[data-full-bleed]]:px-3">
-              {children}
+              <FreshOnArrival>{children}</FreshOnArrival>
             </main>
           </div>
         </div>

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { capacitorPlugin, shell } from '@/lib/native/shell';
 import { backAction, HUB_PATH } from '@/lib/native/back';
+import { markArrival } from '@/lib/native/arrival';
 
 /**
  * Android's back button inside the Terminal and phone apps. On a section's
@@ -28,9 +29,17 @@ export function ShellBackButton() {
   useEffect(() => {
     if (shell() !== 'terminal' && shell() !== 'mobile') return;
     if ((pathname.replace(/\/+$/, '') || '/') === HUB_PATH) return;
-    try {
-      router.prefetch(HUB_PATH);
-    } catch {}
+    // A full prefetch, kept for a few minutes: asked again whenever the app
+    // comes back to the front, so the hub is still at hand after a break.
+    const warm = () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        router.prefetch(HUB_PATH);
+      } catch {}
+    };
+    warm();
+    document.addEventListener('visibilitychange', warm);
+    return () => document.removeEventListener('visibilitychange', warm);
   }, [pathname, router]);
 
   useEffect(() => {
@@ -52,6 +61,8 @@ export function ShellBackButton() {
           } catch {}
         } else if (action === 'hub') {
           // Replace, not push: the section just left must not sit behind the hub.
+          // The hub was prefetched: it shows at once and then fetches itself again.
+          markArrival();
           startLeaving(() => router.replace(HUB_PATH));
         } else {
           window.history.back();

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import Link, { useLinkStatus } from 'next/link';
 import { useRouter } from 'next/navigation';
+import { markArrival } from '@/lib/native/arrival';
 import { useTranslations } from 'next-intl';
 import { ChefHat, ClipboardList, LayoutDashboard, Loader2, Lock, LogOut, MapPin, MessageCircle, Monitor, Users, Wallet } from 'lucide-react';
 import { signOut } from '@/app/(auth)/actions';
@@ -211,6 +212,32 @@ export function TerminalHub({
   const tileClass =
     'flex flex-col items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-left transition hover:bg-white/10 active:bg-white/15';
 
+  type LinkedKey = Exclude<HubKey, 'customer'>;
+  const tileHref = (key: LinkedKey) =>
+    key === 'admin' || key === 'orders' || key === 'chats' ? HREFS[key] : opsHref(HREFS[key], branch, hasBranches);
+
+  // The tiles prefetch their sections in full, so a tap opens them at once.
+  // A prefetched page is kept for a few minutes; when the app comes back to
+  // the front after longer than that (the usual case on a phone), the
+  // sections are asked for again, so the next tap is instant too.
+  const linked = tiles
+    .map((x) => x.key)
+    .filter((k): k is LinkedKey => k !== 'customer')
+    .map(tileHref)
+    .join('\n');
+  useEffect(() => {
+    const warm = () => {
+      if (document.visibilityState !== 'visible') return;
+      for (const href of linked.split('\n').filter(Boolean)) {
+        try {
+          router.prefetch(href);
+        } catch {}
+      }
+    };
+    document.addEventListener('visibilitychange', warm);
+    return () => document.removeEventListener('visibilitychange', warm);
+  }, [linked, router]);
+
   return (
     <div className="mx-auto flex min-h-dvh max-w-3xl flex-col justify-center px-6 py-10">
       <p className="text-sm font-medium text-neutral-400">{restaurantName}</p>
@@ -283,9 +310,10 @@ export function TerminalHub({
               </button>
             );
           }
-          const href = key === 'admin' || key === 'orders' || key === 'chats' ? HREFS[key] : opsHref(HREFS[key], branch, hasBranches);
           return (
-            <Link key={key} href={href} className={`${tileClass} relative`}>
+            // prefetch: the whole section, not only its frame. onClick: tell
+            // the section it was prefetched, so it fetches itself again.
+            <Link key={key} href={tileHref(key)} prefetch={true} onClick={markArrival} className={`${tileClass} relative`}>
               {body}
               <TilePending />
             </Link>

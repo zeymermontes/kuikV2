@@ -7,6 +7,7 @@ import { StaffAlerts } from '@/components/StaffAlerts';
 import { ordersBoardConfig } from '@/lib/orders/board';
 import { NativePush } from '@/components/dashboard/NativePush';
 import { ShellBackButton } from '@/components/pos/ShellBackButton';
+import { FreshOnArrival } from '@/components/FreshOnArrival';
 import { fcmConfigured } from '@/lib/push/fcm';
 import { apnsConfigured } from '@/lib/push/apns';
 import { SITE_URL } from '@/lib/seo';
@@ -27,7 +28,9 @@ export default async function TerminalLayout({ children }: { children: React.Rea
   const orders = await ordersBoardConfig(ctx.tenant.id);
   return (
     <StaffIntlProvider>
-      <div className="min-h-dvh bg-[#111114] text-white">{children}</div>
+      <div className="min-h-dvh bg-[#111114] text-white">
+        <FreshOnArrival>{children}</FreshOnArrival>
+      </div>
       {/* Android back on the hub leaves the app; it never reopens a section. */}
       <ShellBackButton />
       {/* The phone app registers for push here, since it may never open the dashboard. */}

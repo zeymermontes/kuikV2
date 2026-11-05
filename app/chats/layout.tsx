@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { requireChats } from '@/lib/auth';
 import { StaffIntlProvider } from '@/components/intl/StaffIntlProvider';
 import { ShellBackButton } from '@/components/pos/ShellBackButton';
+import { FreshOnArrival } from '@/components/FreshOnArrival';
 import { ShellUpdateBanner } from '@/components/ShellUpdateBanner';
 import { StaffAlerts } from '@/components/StaffAlerts';
 import { SITE_URL } from '@/lib/seo';
@@ -20,7 +21,9 @@ export default async function ChatsLayout({ children }: { children: React.ReactN
   const ctx = await requireChats();
   return (
     <StaffIntlProvider>
-      <div className="min-h-dvh">{children}</div>
+      <div className="min-h-dvh">
+        <FreshOnArrival>{children}</FreshOnArrival>
+      </div>
       <ShellBackButton />
       <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} userId={ctx.user.id} />
       <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />
