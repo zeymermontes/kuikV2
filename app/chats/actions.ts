@@ -3,6 +3,7 @@
 import { requireChats } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isLid } from '@/lib/phone';
+import { isStaffReply } from '@/lib/chats/list';
 
 export interface ChatRow {
   conversationId: string;
@@ -16,6 +17,8 @@ export interface ChatRow {
   lastText: string | null;
   lastAt: string | null;
   lastInbound: boolean;
+  /** The last message is a person's from the restaurant: the diner has their answer. */
+  staffReplied: boolean;
 }
 
 /**
@@ -69,12 +72,12 @@ export async function listChats(q = ''): Promise<{ rows: ChatRow[]; connected: b
 
   const { data: msgs } = await admin
     .from('whatsapp_messages')
-    .select('conversation_id, body, type, direction, created_at')
+    .select('conversation_id, body, type, direction, origin, created_at')
     .in('conversation_id', convs.map((c) => c.id))
     .order('created_at', { ascending: false })
     .limit(400);
-  const lastBy = new Map<string, { body: string | null; type: string; direction: string; created_at: string }>();
-  for (const m of (msgs ?? []) as { conversation_id: string; body: string | null; type: string; direction: string; created_at: string }[]) {
+  const lastBy = new Map<string, { body: string | null; type: string; direction: string; origin: string; created_at: string }>();
+  for (const m of (msgs ?? []) as { conversation_id: string; body: string | null; type: string; direction: string; origin: string; created_at: string }[]) {
     if (!lastBy.has(m.conversation_id)) lastBy.set(m.conversation_id, m);
   }
 
@@ -93,6 +96,7 @@ export async function listChats(q = ''): Promise<{ rows: ChatRow[]; connected: b
         lastText: m ? (m.body || (m.type === 'image' ? '📷 Foto' : m.type === 'audio' ? '🎤 Audio' : m.type === 'sticker' ? 'Sticker' : null)) : null,
         lastAt: m?.created_at ?? c.last_inbound_at ?? c.last_outbound_at,
         lastInbound: m?.direction === 'inbound',
+        staffReplied: m ? isStaffReply(m) : false,
       };
     })
     // A chat with no message at all (opened by number, nothing sent yet) is noise here.
@@ -132,6 +136,7 @@ export async function chatRow(conversationId: string): Promise<ChatRow | null> {
     lastText: null,
     lastAt: c.last_inbound_at ?? c.last_outbound_at,
     lastInbound: false,
+    staffReplied: false,
   };
 }
 

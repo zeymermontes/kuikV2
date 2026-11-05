@@ -8,7 +8,15 @@ import { createClient, channelName } from '@/lib/supabase/client';
 import { closeChat, listChats, type ChatRow } from '@/app/chats/actions';
 import { HUB_PATH } from '@/lib/native/back';
 import { ChatSheet } from '@/components/host/ChatSheet';
-import { chatsFor } from '@/lib/chats/list';
+import { chatTone, chatsFor, type ChatTone } from '@/lib/chats/list';
+
+// Yellow: the diner is waiting on the restaurant. Blue: the restaurant
+// answered and it is the diner's turn. Grey: nobody is waited for.
+const TONE: Record<ChatTone, string> = {
+  needsReply: 'bg-amber-500 text-white',
+  answered: 'bg-blue-500 text-white',
+  idle: 'bg-white/10 text-white/70',
+};
 
 /**
  * One list, two filters: the chats waiting for a person, and everybody,
@@ -156,7 +164,7 @@ export function ChatsApp({
             {visible.map((r) => (
               <li key={r.conversationId} className="flex items-stretch hover:bg-white/5">
                 <button onClick={() => setOpen(r)} className="flex min-w-0 flex-1 items-start gap-3 py-3 pl-3 text-left">
-                  <span className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${r.waiting ? 'bg-amber-500 text-white' : 'bg-white/10 text-white/70'}`}>
+                  <span className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${TONE[chatTone(r)]}`}>
                     {r.waiting ? <Headset className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
                   </span>
                   <span className="min-w-0 flex-1">

@@ -10,6 +10,28 @@ export interface ListedChat {
   lastAt: string | null;
 }
 
+/**
+ * Whether a message is a person at the restaurant answering: sent from the
+ * panel or the apps, or typed on the restaurant's own phone. Not the bot's
+ * "someone will be with you", which leaves the diner still waiting.
+ */
+export function isStaffReply(m: { direction: string; origin: string }): boolean {
+  return m.direction === 'outbound' && (m.origin === 'staff_dashboard' || m.origin === 'staff_device');
+}
+
+export type ChatTone = 'needsReply' | 'answered' | 'idle';
+
+/**
+ * What a row's badge says at a glance. A chat waiting for a person is
+ * yellow while the diner has the last word (or only the bot has spoken),
+ * and blue once somebody from the restaurant answered: still open, but the
+ * next move is the diner's. Everything else is quiet.
+ */
+export function chatTone(row: { waiting: boolean; staffReplied: boolean }): ChatTone {
+  if (!row.waiting) return 'idle';
+  return row.staffReplied ? 'answered' : 'needsReply';
+}
+
 const newestFirst = (a: string | null, b: string | null) => (a === b ? 0 : (b ?? '') > (a ?? '') ? 1 : -1);
 
 /**
