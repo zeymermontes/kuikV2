@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { tryTenant, getMemberships } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -39,6 +40,11 @@ export async function POST(req: NextRequest) {
   if (body.oldEndpoint && body.oldEndpoint !== sub.endpoint) {
     await supabase.from('push_subscriptions').delete().eq('endpoint', body.oldEndpoint);
   }
+
+  // The endpoint is the browser, not the person: one that another account
+  // signed in on still has rows under the previous login, which this session
+  // cannot see and the upsert below would trip over (see push/device).
+  await createAdminClient().from('push_subscriptions').delete().eq('endpoint', sub.endpoint).neq('user_id', ctx.user.id);
 
   // One row per restaurant the person works at, not just the active one:
   // a booking at the other restaurant must reach this phone too, and the

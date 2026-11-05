@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { tryTenant, getMemberships } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,6 +31,14 @@ export async function POST(req: NextRequest) {
   if (body.oldToken && body.oldToken !== token) {
     await supabase.from('device_push_tokens').delete().eq('token', body.oldToken);
   }
+  // The token is the phone, not the person. A phone that changed hands
+  // (another account signed in, or it was linked as a shared device) still
+  // has its rows under the previous login. This session cannot see them, so
+  // the upsert below ran into them and failed with a 500; and while they
+  // stayed, the phone kept receiving the previous person's notifications.
+  // Only the server can remove them. Knowing the token is what proves this
+  // is that phone: it is long, random and never leaves the device.
+  await createAdminClient().from('device_push_tokens').delete().eq('token', token).neq('user_id', ctx.user.id);
   // Every restaurant the person works at, as for web push (push/subscribe).
   const tenantIds = await tenantsFor(ctx.user.id, ctx.tenant.id);
   const { error } = await supabase.from('device_push_tokens').upsert(
