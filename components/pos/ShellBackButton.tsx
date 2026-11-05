@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 import { capacitorPlugin, shell } from '@/lib/native/shell';
 import { backAction, HUB_PATH } from '@/lib/native/back';
 import { FRESH_EVENT, FULL_PREFETCH } from '@/lib/native/arrival';
+import { useShellInsets } from '@/components/ShellInsets';
 
 /**
  * Android's back button inside the Terminal and phone apps. On a section's
@@ -23,6 +24,9 @@ export function ShellBackButton() {
   const router = useRouter();
   const pathname = usePathname();
   const [leaving, startLeaving] = useTransition();
+  // Mounted on every screen the apps show, so this is also where the page
+  // is kept out from under the status bar (lib/native/insets.ts).
+  useShellInsets();
 
   // The way back is known in advance: have the hub's frame ready, so back
   // from a section lands at once instead of after a server round trip.
