@@ -20,12 +20,12 @@ export const dynamic = 'force-dynamic';
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** `?demo=1` shows a sample floor and day in memory: the dashboard preview, and a first look before a plan exists. */
-export default async function HostPage({ searchParams }: { searchParams: Promise<{ d?: string; demo?: string; explain?: string; branch?: string }> }) {
+export default async function HostPage({ searchParams }: { searchParams: Promise<{ d?: string; demo?: string; explain?: string; branch?: string; open?: string }> }) {
   const ctx = await requireReservations();
   const { tenant, theme, role, support, user } = ctx;
   const supabase = await createClient();
   const locale = await getLocale();
-  const { d, demo: demoParam, explain: explainParam, branch: branchParam } = await searchParams;
+  const { d, demo: demoParam, explain: explainParam, branch: branchParam, open } = await searchParams;
   const demo = !!demoParam;
   // Pro only (lib/plan.ts); the demo stays open so anyone can look.
   if (!demo && !canUseHost(ctx.subscription)) return <PosLocked title="Anfitrión" pro />;
@@ -80,6 +80,8 @@ export default async function HostPage({ searchParams }: { searchParams: Promise
       ordersBoard={ordersBoard}
       currency={resolveMenuSettings(theme.settings ?? null).currency}
       adminLink={!user.isDevice}
+      // A notification about a booking waiting for an answer lands on the requests (lib/notify/landing.ts).
+      openRequests={!demo && open === 'requests'}
     />
     </>
   );

@@ -4,6 +4,10 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import type { MemberRole } from '@/lib/database.types';
 import { fcmConfigured, sendFcm } from './fcm';
 import { apnsConfigured, sendApns } from './apns';
+import { pendingCounts } from '@/lib/pending-counts';
+import { effectiveSections } from '@/lib/devices/sections';
+import type { TenantDevice } from '@/lib/database.types';
+import type { AlertSection } from '@/lib/notify/landing';
 
 /**
  * Outbound push to a restaurant's staff: web push to installed PWAs and
@@ -79,11 +83,28 @@ interface Audience {
 
 type Admin = ReturnType<typeof createAdminClient>;
 
-async function resolveAudience(supabase: Admin, tenantId: string, to: PushRecipients): Promise<Audience | null> {
+async function resolveAudience(supabase: Admin, tenantId: string, to: PushRecipients, section?: AlertSection): Promise<Audience | null> {
   let q = supabase.from('tenant_members').select('user_id').eq('tenant_id', tenantId);
   q = Array.isArray(to) ? q.in('role', to) : q.in('user_id', to.userIds);
   const { data: members } = await q;
-  const userIds = (members ?? []).map((m) => (m as { user_id: string }).user_id);
+  let userIds = (members ?? []).map((m) => (m as { user_id: string }).user_id);
+
+  // Addressed to roles: people hear by role, shared devices by section
+  // (lib/notify/landing.ts). A device's role is only the smallest bundle
+  // that covers its sections, so the role list both misses devices that
+  // should hear this and reaches ones that should not. Addressed to one
+  // login, it goes to that login whatever it is.
+  if (Array.isArray(to)) {
+    const { data: rows } = await supabase.from('tenant_devices').select('*').eq('tenant_id', tenantId).not('user_id', 'is', null);
+    const devices = (rows ?? []) as TenantDevice[];
+    if (devices.length > 0) {
+      const logins = new Set(devices.map((d) => d.user_id));
+      userIds = userIds.filter((id) => !logins.has(id));
+      if (section && section !== 'admin') {
+        for (const d of devices) if (d.user_id && effectiveSections(d).includes(section)) userIds.push(d.user_id);
+      }
+    }
+  }
   if (userIds.length === 0) return null;
 
   const [{ data: all }, { data: tenant }] = await Promise.all([
@@ -116,6 +137,8 @@ export async function sendToTenant(
   tenantId: string,
   to: PushRecipients,
   build: (locale: string) => PushPayload,
+  /** The staff app this is about: decides which shared devices hear it. None = people only. */
+  section?: AlertSection,
 ): Promise<void> {
   const web = ensureConfigured();
   const native = fcmConfigured() || apnsConfigured();
@@ -123,10 +146,19 @@ export async function sendToTenant(
   if (!Array.isArray(to) && to.userIds.length === 0) return;
 
   const supabase = createAdminClient();
-  const audience = await resolveAudience(supabase, tenantId, to);
+  const audience = await resolveAudience(supabase, tenantId, to, section);
   if (!audience) return;
 
-  const payloadFor = (locale: string, userId: string) => decorate(build(locale), tenantId, audience, userId);
+  // The app icon's number: everything still waiting for a person, counted
+  // now, with the event that caused this push already in. Counted once for
+  // the whole send. A push that could not be counted still goes, unnumbered.
+  const badge = await pendingCounts(tenantId)
+    .then((c) => c.bookings + c.chats)
+    .catch(() => undefined);
+  const payloadFor = (locale: string, userId: string) => {
+    const payload = build(locale);
+    return decorate(payload.badge === undefined && badge !== undefined ? { ...payload, badge } : payload, tenantId, audience, userId);
+  };
 
   await Promise.all([
     web ? sendWeb(supabase, tenantId, audience.userIds, payloadFor) : Promise.resolve(),

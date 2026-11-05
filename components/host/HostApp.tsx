@@ -77,8 +77,11 @@ export function HostApp({
   ordersBoard = false,
   currency = 'MXN',
   adminLink = true,
+  openRequests = false,
 }: {
   tenantId: string;
+  /** Start with the pending requests open: where a "new booking" notification lands. */
+  openRequests?: boolean;
   /** The shortcut into the admin panel. Off for a shared device (0100): it has no business there. */
   adminLink?: boolean;
   /** The Pedidos board is on: the stand shows takeout/pickup/delivery orders too. */
@@ -119,7 +122,7 @@ export function HostApp({
   const [comboPick, setComboPick] = useState<string[] | null>(null);
   // `fresh`: a walk-in created seconds ago with "seat now"; backing out must not lose them.
   const [seating, setSeating] = useState<{ partyId: string; tableIds: string[]; move: boolean; fresh?: boolean } | null>(null);
-  const [sheet, setSheet] = useState<Sheet>(null);
+  const [sheet, setSheet] = useState<Sheet>(openRequests ? { kind: 'requests' } : null);
   const [collapsed, setCollapsed] = useState<Set<Section>>(new Set());
   const [query, setQuery] = useState('');
   const [toSend, setToSend] = useState<Record<string, { href: string; notificationId: string }>>({});

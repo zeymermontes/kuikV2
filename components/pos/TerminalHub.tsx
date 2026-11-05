@@ -7,8 +7,9 @@ import { FRESH_EVENT, FULL_PREFETCH, PREFETCH_TTL_MS, markArrival, needsRefresh 
 import { useTranslations } from 'next-intl';
 import { ChefHat, ClipboardList, LayoutDashboard, Loader2, Lock, LogOut, MapPin, MessageCircle, Monitor, Users, Wallet } from 'lucide-react';
 import { signOut } from '@/app/(auth)/actions';
-import { hubCounts, listRegisters } from '@/app/terminal/actions';
-import { createClient, channelName } from '@/lib/supabase/client';
+import { listRegisters } from '@/app/terminal/actions';
+import { watchPending } from '@/lib/pending-live';
+import { PushToggle } from '@/components/dashboard/PushToggle';
 import type { PendingCounts } from '@/lib/pending-counts';
 import { PUSH_RETRY_EVENT, PUSH_STATUS_EVENT, readPushStatus, type PushStatus } from '@/components/dashboard/NativePush';
 import { shell, shellVersion } from '@/lib/native/shell';
@@ -152,36 +153,16 @@ export function TerminalHub({
 
   // The badges stay live while the hub sits open on a tablet: any change to
   // a booking or a chat re-counts (throttled — a burst is one query).
+  // The same live counts the tab and the app's icon show (lib/pending-live.ts):
+  // one subscription for the page, so the tiles and the icon cannot disagree.
+  // What this page arrived with may be minutes old (the hub is prefetched);
+  // the live count replaces it as soon as it answers.
   const [counts, setCounts] = useState<PendingCounts>(initialCounts ?? { bookings: 0, chats: 0 });
-  const recountTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Read once: the counts the page was rendered with only seed the watch.
+  const seed = useRef(initialCounts);
   useEffect(() => {
     if (!tenantId) return;
-    const recount = () => {
-      if (recountTimer.current) return;
-      recountTimer.current = setTimeout(() => {
-        recountTimer.current = null;
-        hubCounts().then(setCounts).catch(() => {});
-      }, 1500);
-    };
-    const supabase = createClient();
-    const channel = supabase
-      .channel(channelName(`hub-counts-${tenantId}`))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations', filter: `tenant_id=eq.${tenantId}` }, recount)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'whatsapp_conversations', filter: `tenant_id=eq.${tenantId}` }, recount)
-      // Unfiltered: Realtime cannot filter DELETEs by tenant_id, and a cleared history has to reach the badge.
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'whatsapp_conversations' }, recount)
-      .subscribe();
-    // Coming back to the tab after a while: the numbers may be stale.
-    const onVisible = () => { if (document.visibilityState === 'visible') recount(); };
-    document.addEventListener('visibilitychange', onVisible);
-    // So may the ones this page arrived with: back from a section shows the
-    // hub as it was prefetched, minutes ago at worst.
-    recount();
-    return () => {
-      supabase.removeChannel(channel);
-      document.removeEventListener('visibilitychange', onVisible);
-      if (recountTimer.current) clearTimeout(recountTimer.current);
-    };
+    return watchPending(tenantId, setCounts, seed.current);
   }, [tenantId]);
   const badgeOf: Partial<Record<HubKey, number>> = { host: counts.bookings, chats: counts.chats };
 
@@ -442,6 +423,15 @@ export function TerminalHub({
             {t('go')}
           </button>
         </form>
+      )}
+
+      {/* In a browser the alerts are the browser's own: a switch to turn
+          them on, so a linked computer hears a booking or a chat with the
+          tab in the background. The phone app registers by itself (below). */}
+      {!appVersion && (
+        <div className="mt-6 flex">
+          <PushToggle dark />
+        </div>
       )}
 
       {pushStatus && (

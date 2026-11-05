@@ -1,17 +1,23 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useLocale } from 'next-intl';
 import { Bell, CalendarCheck, CalendarX, MessageCircle, X } from 'lucide-react';
 import { createClient, channelName } from '@/lib/supabase/client';
+import { usePendingBadge } from '@/components/PendingBadge';
+import { hears, landingFor } from '@/lib/notify/landing';
+import type { DeviceSection } from '@/lib/devices/sections';
+import type { MemberRole } from '@/lib/database.types';
 
 /**
  * The staff feed, heard in the room: a new booking request, a guest who
  * confirmed or cancelled, someone waiting for a person on WhatsApp. A chime
  * and a toast on every Kuik screen that is open (dashboard, host stand,
- * register, kitchen, the hub), filtered by the reader's role. The push for
- * phones that are not looking is sent by the same call (lib/alerts.ts).
+ * register, kitchen, the hub). A person hears by role, a shared device by
+ * the sections it was given, and the toast's link lands where that reader
+ * can actually open it (lib/notify/landing.ts). The push for phones that
+ * are not looking is sent by the same call (lib/alerts.ts).
  */
 
 interface AlertRow {
@@ -30,10 +36,30 @@ interface AlertRow {
 
 const TTL_MS = 15_000;
 
-export function StaffAlerts({ tenantId, role, userId }: { tenantId: string; role: string; userId?: string }) {
+export function StaffAlerts({
+  tenantId,
+  role,
+  userId,
+  sections = null,
+}: {
+  tenantId: string;
+  role: string;
+  userId?: string;
+  /** A shared device's sections (lib/devices/access.ts); null for a person. */
+  sections?: DeviceSection[] | null;
+}) {
+  // By value: the array is a new one on every server render.
+  const sectionKey = sections ? sections.join(',') : null;
+  const reader = useMemo(
+    () => ({ role: role as MemberRole, sections: sectionKey === null ? null : (sectionKey.split(',').filter(Boolean) as DeviceSection[]) }),
+    [role, sectionKey],
+  );
   const locale = useLocale();
   const [toasts, setToasts] = useState<AlertRow[]>([]);
   const seen = useRef(new Set<string>());
+  // The count that goes with the alerts, on the tab and on the app's icon:
+  // kept here because this is mounted on every staff screen.
+  usePendingBadge(tenantId);
 
   useEffect(() => {
     const supabase = createClient();
@@ -42,8 +68,8 @@ export function StaffAlerts({ tenantId, role, userId }: { tenantId: string; role
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'staff_alerts', filter: `tenant_id=eq.${tenantId}` }, (payload) => {
         const row = payload.new as AlertRow;
         if (seen.current.has(row.id)) return;
-        // Addressed to a person: only their screens. Otherwise, by role.
-        if (row.user_id ? row.user_id !== userId : !row.roles?.includes(role)) return;
+        // Addressed to a person: only their screens. Otherwise, by role, or by section on a device.
+        if (row.user_id ? row.user_id !== userId : !hears(row.kind, row.roles, reader)) return;
         seen.current.add(row.id);
         // A row replayed on reconnect is not news.
         if (Date.now() - new Date(row.created_at).getTime() > 2 * 60_000) return;
@@ -55,7 +81,7 @@ export function StaffAlerts({ tenantId, role, userId }: { tenantId: string; role
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [tenantId, role, userId]);
+  }, [tenantId, reader, userId]);
 
   if (toasts.length === 0) return null;
 
@@ -77,7 +103,7 @@ export function StaffAlerts({ tenantId, role, userId }: { tenantId: string; role
         );
         return (
           <div key={a.id} className={`flex items-center gap-3 rounded-2xl border bg-neutral-900 px-4 py-3 text-sm text-white shadow-lg ${tone.split(' ')[0]}`}>
-            {a.url ? <Link href={a.url} className="flex min-w-0 flex-1 items-center gap-3">{inner}</Link> : <div className="flex min-w-0 flex-1 items-center gap-3">{inner}</div>}
+            {a.url ? <Link href={landingFor(a.url, reader)} className="flex min-w-0 flex-1 items-center gap-3">{inner}</Link> : <div className="flex min-w-0 flex-1 items-center gap-3">{inner}</div>}
             <button onClick={() => setToasts((cur) => cur.filter((x) => x.id !== a.id))} className="text-white/60 hover:text-white" aria-label="close">
               <X className="h-4 w-4" />
             </button>

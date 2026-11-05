@@ -2,7 +2,7 @@ import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { MemberRole } from '@/lib/database.types';
 import { sendToTenant, type PushPayload } from '@/lib/push/send';
-import { pendingCounts } from '@/lib/pending-counts';
+import { sectionOfKind } from '@/lib/notify/landing';
 
 /**
  * "Something needs a person" — said twice, on purpose: a row in
@@ -24,12 +24,6 @@ export type StaffAlertKind =
 export interface StaffAlertText {
   title: string;
   body: string;
-}
-
-/** The app icon's number: everything waiting for a person, whichever product. */
-export async function pendingBadge(tenantId: string): Promise<number> {
-  const c = await pendingCounts(tenantId);
-  return c.bookings + c.chats;
 }
 
 export async function alertStaff(params: {
@@ -71,7 +65,7 @@ export async function alertStaff(params: {
   await sendToTenant(params.tenantId, userId ? { userIds: [userId] } : params.roles, (locale) => {
     const t = locale === 'en' ? params.en : params.es;
     return { title: t.title, body: t.body, tag: params.tag, url: params.url, ...params.push };
-  }).catch(() => {});
+  }, sectionOfKind(params.kind)).catch(() => {});
 }
 
 /** The person, if they still work here; otherwise the alert falls back to the roles. */

@@ -6,7 +6,7 @@ import { FreshOnArrival } from '@/components/FreshOnArrival';
 import { ShellUpdateBanner } from '@/components/ShellUpdateBanner';
 import { StaffAlerts } from '@/components/StaffAlerts';
 import { SITE_URL } from '@/lib/seo';
-import { requireSection } from '@/lib/devices/access';
+import { requireSection, sectionsFor } from '@/lib/devices/access';
 
 export const metadata: Metadata = {
   title: 'Kuik — Chats',
@@ -21,13 +21,14 @@ export const metadata: Metadata = {
 export default async function ChatsLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireChats();
   await requireSection(ctx.user, 'chats');
+  const sections = await sectionsFor(ctx.user);
   return (
     <StaffIntlProvider>
       <div className="min-h-dvh">
         <FreshOnArrival>{children}</FreshOnArrival>
       </div>
       <ShellBackButton />
-      <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} userId={ctx.user.id} />
+      <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} userId={ctx.user.id} sections={sections} />
       <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />
     </StaffIntlProvider>
   );

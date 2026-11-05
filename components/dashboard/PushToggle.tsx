@@ -25,7 +25,7 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
  * So rather than showing a switch that does nothing, we detect that case and
  * point at the install sheet.
  */
-export function PushToggle() {
+export function PushToggle({ dark = false }: { dark?: boolean } = {}) {
   const t = useTranslations('reservations');
   const locale = useLocale();
   const { installed, isIos } = usePwa();
@@ -133,10 +133,14 @@ export function PushToggle() {
   if (state === 'loading' || state === 'unsupported') return null;
 
   const chip = 'flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm font-medium';
+  // The hub is dark (components/pos/TerminalHub.tsx); the dashboard is not.
+  const muted = dark ? 'border-white/10 text-neutral-500' : 'border-neutral-200 text-neutral-500';
+  const on = dark ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300' : 'border-green-300 bg-green-50 text-green-700';
+  const off = dark ? 'border-white/15 text-neutral-300 hover:bg-white/10' : 'border-neutral-300 text-neutral-600 hover:bg-neutral-50';
 
   if (state === 'ios-needs-install') {
     return (
-      <span className={`${chip} border-neutral-200 text-neutral-500`} title={t('push_iosHint')}>
+      <span className={`${chip} ${muted}`} title={t('push_iosHint')}>
         <BellOff className="h-4 w-4" /> {t('push_iosHint')}
       </span>
     );
@@ -144,7 +148,7 @@ export function PushToggle() {
 
   if (state === 'native') {
     return (
-      <span className={`${chip} border-neutral-200 text-neutral-500`} title={t('push_enabled')}>
+      <span className={`${chip} ${muted}`} title={t('push_enabled')}>
         <BellRing className="h-4 w-4" /> {t('push_enabled')}
       </span>
     );
@@ -154,18 +158,18 @@ export function PushToggle() {
     // Once denied, the page cannot ask again — only the browser's own settings
     // can undo it. Say that instead of offering a button that does nothing.
     return (
-      <span className={`${chip} border-neutral-200 text-neutral-500`} title={t('push_blocked')}>
+      <span className={`${chip} ${muted}`} title={t('push_blocked')}>
         <BellOff className="h-4 w-4" /> {t('push_blocked')}
       </span>
     );
   }
 
   return state === 'on' ? (
-    <button onClick={disable} disabled={busy} className={`${chip} border-green-300 bg-green-50 text-green-700`}>
+    <button onClick={disable} disabled={busy} className={`${chip} ${on}`}>
       <BellRing className="h-4 w-4" /> {t('push_enabled')}
     </button>
   ) : (
-    <button onClick={enable} disabled={busy} className={`${chip} border-neutral-300 text-neutral-600 hover:bg-neutral-50`}>
+    <button onClick={enable} disabled={busy} className={`${chip} ${off}`}>
       <Bell className="h-4 w-4" /> {t('push_enable')}
     </button>
   );

@@ -8,7 +8,7 @@ import { NewOrderAlert } from '@/components/orders/NewOrderAlert';
 import { StaffAlerts } from '@/components/StaffAlerts';
 import { ordersBoardConfig } from '@/lib/orders/board';
 import { SITE_URL } from '@/lib/seo';
-import { requireSection } from '@/lib/devices/access';
+import { requireSection, sectionsFor } from '@/lib/devices/access';
 
 export const metadata: Metadata = {
   title: 'Kuik — Anfitrión',
@@ -19,6 +19,7 @@ export const metadata: Metadata = {
 export default async function HostLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireReservations(); // auth + role gate
   await requireSection(ctx.user, 'host');
+  const sections = await sectionsFor(ctx.user);
   const orders = await ordersBoardConfig(ctx.tenant.id);
   return (
     <StaffIntlProvider>
@@ -27,7 +28,7 @@ export default async function HostLayout({ children }: { children: React.ReactNo
       </div>
       <ShellBackButton />
       {orders.board && <NewOrderAlert tenantId={ctx.tenant.id} enabled={orders.alerts.notifyHost} />}
-      <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} userId={ctx.user.id} />
+      <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} userId={ctx.user.id} sections={sections} />
       <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />
     </StaffIntlProvider>
   );

@@ -146,7 +146,7 @@ export async function notifyPaidOrder(o: OrderLike, tickets: KitchenTicket[]): P
             actions: [{ action: 'accept', title: t.accept }],
             requireInteraction: true,
           };
-        }),
+        }, 'orders'),
       );
     }
 
@@ -197,7 +197,7 @@ export async function notifyWhatsappOrder(o: OrderLike): Promise<void> {
       tag: `order-${o.id}`,
       url: '/orders',
       data: { orderId: o.id },
-    }));
+    }), 'orders');
   } catch (e) {
     console.error('[order-alerts] whatsapp:', e instanceof Error ? e.message : e);
   }
@@ -290,7 +290,7 @@ export async function escalateOrders(now = Date.now()): Promise<{ checked: numbe
         sendToTenant(o.tenant_id, ['owner', 'manager', 'cashier', 'waiter', 'host'], (locale) => {
           const t = tx(locale);
           return { title: t.nudgeTitle(code), body: t.nudgeBody(age), tag: `order-${o.id}`, url: '/orders', data: { orderId: o.id }, actions: [{ action: 'accept', title: t.accept }], requireInteraction: true };
-        }),
+        }, 'orders'),
       );
     }
     if (level === 2 && ctx.bridge) {

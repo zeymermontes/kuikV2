@@ -1,5 +1,6 @@
 'use client';
 
+import { setTabCount } from '@/lib/tab-title';
 import { useEffect, useRef, useState } from 'react';
 import { SelectionLines } from '@/components/menu/SelectionLines';
 import { Clock, UtensilsCrossed, ShoppingBag, Check, RefreshCw, CreditCard, BadgeCheck, Hourglass, AlertTriangle, Phone, MessageCircle, Undo2, Ban, Pencil, Minus, Plus } from 'lucide-react';
@@ -74,14 +75,11 @@ export function OrdersBoard({
   // pending checkout turning paid (announce) or any other update (quiet).
   const seenRef = useRef(new Map(initial.map((o) => [o.id, o.payment_status])));
 
-  // The tab title carries the count of orders waiting to be accepted.
+  // The tab title carries the count of orders waiting to be accepted, added
+  // to whatever else is waiting for a person (lib/tab-title.ts).
   useEffect(() => {
-    const base = document.title.replace(/^\(\d+\) /, '');
-    const n = orders.filter((o) => o.status === 'new').length;
-    document.title = n > 0 ? `(${n}) ${base}` : base;
-    return () => {
-      document.title = base;
-    };
+    setTabCount('orders', orders.filter((o) => o.status === 'new').length);
+    return () => setTabCount('orders', 0);
   }, [orders]);
 
   function announce(row: OrderRow) {

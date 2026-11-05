@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import { loadUser, getMemberships } from '@/lib/auth';
-import type { MemberRole } from '@/lib/database.types';
+import { sectionsFor } from '@/lib/devices/access';
+import { landingFor } from '@/lib/notify/landing';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,8 +16,10 @@ export const dynamic = 'force-dynamic';
  * them on to the section, so the chat or booking they were told about is the
  * one on screen. Every push URL goes through here (lib/push/send.ts).
  *
- * The destination is also fitted to the role: a host has no dashboard inbox,
- * so a chat opens in the chats app instead of bouncing off requireManager.
+ * The destination is also fitted to whoever taps (lib/notify/landing.ts): a
+ * host has no dashboard inbox, so a chat opens in the chats app instead of
+ * bouncing off requireManager; a shared device has no admin panel at all, so
+ * a booking opens its host stand and a chat its chats app.
  *
  * Signed out: the target is kept in a short-lived cookie so the login lands
  * there instead of on the role's home.
@@ -38,7 +41,7 @@ export async function GET(req: NextRequest) {
     cookieStore.set('kuik_tenant', membership.tenant.id, { path: '/', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' });
   }
 
-  return go(destinationFor(to, membership?.role ?? null));
+  return go(landingFor(to, { role: membership?.role ?? null, sections: await sectionsFor(user) }));
 }
 
 /**
@@ -57,14 +60,3 @@ function safePath(raw: string | null): string {
   return raw;
 }
 
-const MANAGERS: MemberRole[] = ['owner', 'manager'];
-
-function destinationFor(path: string, role: MemberRole | null): string {
-  // The dashboard inbox is manager-only; everyone else who gets chat pushes
-  // (a host) has the chats app, which opens the same conversation.
-  if (path.startsWith('/whatsapp/inbox') && role && !MANAGERS.includes(role)) {
-    const c = new URL(path, 'http://x').searchParams.get('c');
-    return c ? `/chats?c=${encodeURIComponent(c)}` : '/chats';
-  }
-  return path;
-}

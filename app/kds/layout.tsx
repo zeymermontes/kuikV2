@@ -1,4 +1,4 @@
-import { requireSection } from '@/lib/devices/access';
+import { requireSection, sectionsFor } from '@/lib/devices/access';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { requireTenant } from '@/lib/auth';
@@ -26,6 +26,7 @@ export default async function KdsLayout({
   // KDS is in development — super admin only.
   if (!showDevFeatures(ctx)) redirect('/menu');
   await requireSection(ctx.user, 'kds');
+  const sections = await sectionsFor(ctx.user);
   return (
     <StaffIntlProvider>
       <div className="min-h-dvh">
@@ -33,7 +34,7 @@ export default async function KdsLayout({
       </div>
       <ShellBackButton />
       {orders.board && <NewOrderAlert tenantId={ctx.tenant.id} enabled={orders.alerts.notifyPos} />}
-      <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} userId={ctx.user.id} />
+      <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} userId={ctx.user.id} sections={sections} />
       <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />
     </StaffIntlProvider>
   );

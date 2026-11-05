@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { HUB_PATH } from '@/lib/native/back';
+import { sectionsFor } from '@/lib/devices/access';
 import { getTranslations } from 'next-intl/server';
 import { requireTenant, getMemberships } from '@/lib/auth';
 import { tenantUrl } from '@/lib/config';
@@ -52,6 +53,9 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const ctx = await requireTenant();
+  // What a shared device may open; null for a person. Decides which alerts
+  // this screen shows and where their links go (lib/notify/landing.ts).
+  const sections = await sectionsFor(ctx.user);
 
   // A shared device (0100) comes through here for one thing, the orders
   // board, which lives among these pages. It gets the page and a way back to
@@ -62,7 +66,7 @@ export default async function DashboardLayout({
     return (
       <StaffIntlProvider>
         <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />
-        <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} userId={ctx.user.id} />
+        <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} userId={ctx.user.id} sections={sections} />
         <ShellBackButton />
         <div className="flex min-h-screen flex-col bg-neutral-50">
           <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-neutral-200 bg-white px-3 py-2">
@@ -101,7 +105,7 @@ export default async function DashboardLayout({
     <StaffIntlProvider>
       <PwaProvider nativePush={{ android: fcmConfigured(), ios: apnsConfigured() }}>
         <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />
-        <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} userId={ctx.user.id} />
+        <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} userId={ctx.user.id} sections={sections} />
         {/* Inside the native apps the dashboard is one tile of the hub; this is the way back. */}
         <ShellBackButton />
         <div className="flex min-h-screen bg-neutral-50">
