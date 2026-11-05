@@ -6,6 +6,7 @@ import { FreshOnArrival } from '@/components/FreshOnArrival';
 import { ShellUpdateBanner } from '@/components/ShellUpdateBanner';
 import { StaffAlerts } from '@/components/StaffAlerts';
 import { SITE_URL } from '@/lib/seo';
+import { requireSection } from '@/lib/devices/access';
 
 export const metadata: Metadata = {
   title: 'Kuik — Chats',
@@ -19,6 +20,7 @@ export const metadata: Metadata = {
  */
 export default async function ChatsLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireChats();
+  await requireSection(ctx.user, 'chats');
   return (
     <StaffIntlProvider>
       <div className="min-h-dvh">

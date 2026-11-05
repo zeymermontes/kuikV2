@@ -9,11 +9,13 @@ import { resolveOrderAlerts } from '@/lib/orders/alerts';
 import { listOrders, enableOrdersBoard } from './actions';
 import { ClipboardList } from 'lucide-react';
 import { ordersBoardEnabled } from '@/lib/orders/board';
+import { requireSection } from '@/lib/devices/access';
 
 export const dynamic = 'force-dynamic';
 
 export default async function OrdersPage() {
   const ctx = await requireTenant();
+  await requireSection(ctx.user, 'orders');
   const { tenant, theme } = ctx;
   const t = await getTranslations('orders');
   // The board is switched on per restaurant (0085): off, the page is where

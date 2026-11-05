@@ -631,13 +631,9 @@
     "hint": "Tablets, cajas y pantallas compartidas. Entran con un código de un solo uso, sin cuenta ni correo, y puedes quitar cualquiera cuando quieras.",
     "name": "Nombre del dispositivo",
     "namePlaceholder": "Caja 2, Cocina, Recepción…",
-    "role": "Rol",
     "branch": "Sucursal",
     "branchMain": "Sede principal",
     "generate": "Generar código",
-    "roleHint_cashier": "Cajero: puede abrir caja, cocina, pedidos, anfitrión y chats.",
-    "roleHint_waiter": "Mesero: puede abrir caja, cocina, pedidos y anfitrión.",
-    "roleHint_host": "Anfitrión: puede abrir reservaciones, plano del salón y chats.",
     "codeFor": "Código para {name}",
     "howTo": "En el dispositivo abre Kuik, toca «Vincúlala con un código» en la pantalla de inicio de sesión y escribe este código.",
     "howToQr": "El QR abre esa misma pantalla en el navegador del dispositivo, con el código ya escrito. En la app instalada se escribe a mano.",
@@ -657,10 +653,17 @@
     "revokeConfirm": "¿Quitar {name}? Pierde el acceso de inmediato y para volver a usarlo hará falta un código nuevo.",
     "cancelConfirm": "¿Eliminar {name}? Su código deja de servir.",
     "error_name": "Ponle un nombre al dispositivo.",
-    "error_role": "Elige un rol.",
     "error_branch": "Esa sucursal ya no existe.",
     "error_limit": "Llegaste al máximo de 50 dispositivos. Quita alguno que ya no uses.",
-    "error_failed": "No se pudo completar. Inténtalo de nuevo."
+    "error_failed": "No se pudo completar. Inténtalo de nuevo.",
+    "sections": "Puede abrir",
+    "section_host": "Anfitrión",
+    "section_chats": "Chats",
+    "section_orders": "Pedidos",
+    "section_pos": "Caja",
+    "section_kds": "Cocina",
+    "sectionsHint": "Toca una sección para dársela o quitársela a un dispositivo. El cambio aplica al momento, sin vincularlo de nuevo.",
+    "error_sections": "Elige al menos una sección."
   },
   "loyaltyCard": {
     "button": "Lealtad",
@@ -3055,7 +3058,8 @@
     "push_error": "error",
     "pushRetry": "Reintentar",
     "appVersion": "App {v}",
-    "signOutDevice": "Este dispositivo entró con un código. Si cierras la sesión, hará falta un código nuevo del dueño para volver a entrar. ¿Cerrar sesión?"
+    "signOutDevice": "Este dispositivo entró con un código. Si cierras la sesión, hará falta un código nuevo del dueño para volver a entrar. ¿Cerrar sesión?",
+    "backToHub": "Volver al menú"
   },
   "shellUpdate": {
     "available": "Hay una versión nueva de la app ({version}).",
@@ -3128,14 +3132,18 @@
   },
   "chats": {
     "title": "Chats",
-    "waiting": "Esperando a una persona",
-    "all": "Recientes",
     "empty": "No hay conversaciones todavía.",
     "emptyWaiting": "Nadie espera en WhatsApp 🎉",
     "search": "Buscar nombre o teléfono…",
     "waitingSince": "esperando desde hace {x}",
-    "bot": "bot",
-    "noWhatsapp": "Conecta WhatsApp en el panel para ver aquí las conversaciones."
+    "noWhatsapp": "Conecta WhatsApp en el panel para ver aquí las conversaciones.",
+    "filterHelp": "Ayuda",
+    "filterAll": "Todos",
+    "botAttending": "Lo atiende el bot",
+    "back": "Volver al menú",
+    "remove": "Quitar de la lista",
+    "removeConfirm": "¿Quitar el chat de {name} de la lista? No se borra nada: vuelve a aparecer si escribe de nuevo.",
+    "removeConfirmWaiting": "¿Quitar el chat de {name}? Deja de contar como pendiente y vuelve al bot. No se borra nada: aparece de nuevo si escribe."
   },
   "waTemplate": {
     "title": "Enviar plantilla",

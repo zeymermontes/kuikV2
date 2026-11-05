@@ -1,3 +1,4 @@
+import { requireSection } from '@/lib/devices/access';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { requireTenant } from '@/lib/auth';
@@ -25,6 +26,7 @@ export default async function PosLayout({
   const orders = await ordersBoardConfig(ctx.tenant.id);
   // POS is in development — super admin only.
   if (!showDevFeatures(ctx)) redirect('/menu');
+  await requireSection(ctx.user, 'pos');
   return (
     <StaffIntlProvider>
       <div className="min-h-dvh">

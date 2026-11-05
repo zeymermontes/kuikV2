@@ -5,7 +5,8 @@ import { requireOwner } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { TenantDevice } from '@/lib/database.types';
-import { cleanName, isDeviceRole } from '@/lib/devices/code';
+import { cleanName } from '@/lib/devices/code';
+import { cleanSections, roleForSections } from '@/lib/devices/sections';
 import { issueCode, removeDeviceLogin } from '@/lib/devices/server';
 
 /** A code as the owner sees it: once, right after it is generated. */
@@ -16,7 +17,7 @@ export interface IssuedCode {
 }
 
 export interface DeviceResult {
-  error?: 'name' | 'role' | 'branch' | 'limit' | 'failed';
+  error?: 'name' | 'sections' | 'branch' | 'limit' | 'failed';
   issued?: IssuedCode;
 }
 
@@ -25,21 +26,26 @@ const DEVICES_MAX = 50;
 // Two codes colliding is a one in a trillion event; the loop is for form.
 const CODE_ATTEMPTS = 3;
 const UNIQUE_VIOLATION = '23505';
+// PostgREST's "no such column": the sections column (0101) is not there yet.
+const NO_SUCH_COLUMN = 'PGRST204';
 
 /**
- * Name a device, say what it may do and where, and get the code that joins
- * it. Owner only, like the rest of the team page: a code is a way into the
- * restaurant.
+ * Name a device, say which sections it may open and where, and get the
+ * code that joins it. Owner only, like the rest of the team page: a code is
+ * a way into the restaurant. The role is not chosen: it is the smallest one
+ * that covers the sections (lib/devices/sections.ts).
  *
  * Device rows are written with the service role, here and below: the table
  * is read-only to everyone else (0100), and requireOwner() has already
  * established whose restaurant this is. Every write names that restaurant.
  */
-export async function createDevice(input: { name: string; role: string; branchId: string | null }): Promise<DeviceResult> {
+export async function createDevice(input: { name: string; sections: string[]; branchId: string | null }): Promise<DeviceResult> {
   const { tenant, user } = await requireOwner();
   const name = cleanName(input.name ?? '');
   if (!name) return { error: 'name' };
-  if (!isDeviceRole(input.role)) return { error: 'role' };
+  const sections = cleanSections(input.sections);
+  if (sections.length === 0) return { error: 'sections' };
+  const role = roleForSections(sections);
   const supabase = await createClient();
 
   let branchId: string | null = null;
@@ -54,20 +60,66 @@ export async function createDevice(input: { name: string; role: string; branchId
   if ((count ?? 0) >= DEVICES_MAX) return { error: 'limit' };
 
   const admin = createAdminClient();
+  // Until 0101 is applied there is nowhere to keep the sections: the device
+  // is then created with its role alone, which opens all of that role's.
+  let withSections = true;
   for (let i = 0; i < CODE_ATTEMPTS; i++) {
     const { code, code_hash, code_expires_at } = issueCode();
     const { data, error } = await admin
       .from('tenant_devices')
-      .insert({ tenant_id: tenant.id, name, role: input.role, branch_id: branchId, code_hash, code_expires_at, created_by: user.id })
+      .insert({
+        tenant_id: tenant.id,
+        name,
+        role,
+        branch_id: branchId,
+        code_hash,
+        code_expires_at,
+        created_by: user.id,
+        ...(withSections ? { sections } : {}),
+      })
       .select('id')
       .single<{ id: string }>();
     if (data) {
       revalidatePath('/staff');
       return { issued: { deviceId: data.id, code, expiresAt: code_expires_at } };
     }
-    if (error?.code !== UNIQUE_VIOLATION) break;
+    if (error?.code === NO_SUCH_COLUMN && withSections) withSections = false;
+    else if (error?.code !== UNIQUE_VIOLATION) break;
   }
   return { error: 'failed' };
+}
+
+/**
+ * Change what a device may open. It applies at once, linked or not: the
+ * device's role is read on every request, so nothing has to be linked again.
+ */
+export async function setDeviceSections(id: string, input: string[]): Promise<{ error?: 'sections' | 'failed' }> {
+  const { tenant } = await requireOwner();
+  const sections = cleanSections(input);
+  if (sections.length === 0) return { error: 'sections' };
+  const role = roleForSections(sections);
+  const admin = createAdminClient();
+  const { data: device, error } = await admin
+    .from('tenant_devices')
+    .update({ sections, role })
+    .eq('tenant_id', tenant.id)
+    .eq('id', id)
+    .select('id, user_id')
+    .maybeSingle<Pick<TenantDevice, 'id' | 'user_id'>>();
+  if (error || !device) return { error: 'failed' };
+  // The membership is what the policies read. Only this restaurant's, only
+  // this device's login, and never anything but the three device roles.
+  if (device.user_id) {
+    const { error: memberError } = await admin
+      .from('tenant_members')
+      .update({ role })
+      .eq('tenant_id', tenant.id)
+      .eq('user_id', device.user_id)
+      .in('role', ['cashier', 'waiter', 'host']);
+    if (memberError) return { error: 'failed' };
+  }
+  revalidatePath('/staff');
+  return {};
 }
 
 /**

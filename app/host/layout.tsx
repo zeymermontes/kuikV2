@@ -8,6 +8,7 @@ import { NewOrderAlert } from '@/components/orders/NewOrderAlert';
 import { StaffAlerts } from '@/components/StaffAlerts';
 import { ordersBoardConfig } from '@/lib/orders/board';
 import { SITE_URL } from '@/lib/seo';
+import { requireSection } from '@/lib/devices/access';
 
 export const metadata: Metadata = {
   title: 'Kuik — Anfitrión',
@@ -17,6 +18,7 @@ export const metadata: Metadata = {
 /** The host stand: a full-screen app for the door, like /pos is for the register. */
 export default async function HostLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireReservations(); // auth + role gate
+  await requireSection(ctx.user, 'host');
   const orders = await ordersBoardConfig(ctx.tenant.id);
   return (
     <StaffIntlProvider>

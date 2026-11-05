@@ -4,16 +4,17 @@ import { useState, useTransition } from 'react';
 import { Check, Copy, KeyRound, Loader2, Plus, TabletSmartphone, Trash2, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useLocale, useTranslations } from 'next-intl';
-import type { DeviceRole } from '@/lib/database.types';
-import { DEVICE_ROLES, NAME_MAX, formatCode, type DeviceStatus } from '@/lib/devices/code';
+import { NAME_MAX, formatCode, type DeviceStatus } from '@/lib/devices/code';
+import type { DeviceSection } from '@/lib/devices/sections';
 import { Card, Input, Button } from '@/components/ui';
-import { createDevice, renewDeviceCode, revokeDevice, type DeviceResult, type IssuedCode } from '@/app/(dashboard)/staff/device-actions';
+import { createDevice, renewDeviceCode, revokeDevice, setDeviceSections, type DeviceResult, type IssuedCode } from '@/app/(dashboard)/staff/device-actions';
 
 /** A device as the team page lists it: what the owner needs, none of the secrets. */
 export interface DeviceView {
   id: string;
   name: string;
-  role: DeviceRole;
+  /** What it may open, as the hub will show it. */
+  sections: DeviceSection[];
   branchId: string | null;
   status: DeviceStatus;
   /** Whether a login exists: a linked device waiting on a new code still has one. */
@@ -25,25 +26,29 @@ export interface DeviceView {
 
 /**
  * Shared devices: tablets, registers and screens that join with a one-time
- * code instead of an account. The owner names one, picks its role and branch,
- * and reads the code to whoever holds the device; here they also see which
- * are in use and take any of them out.
+ * code instead of an account. The owner names one, ticks the sections it may
+ * open, picks its branch, and reads the code to whoever holds the device.
+ * Here they also see which are in use, give or take a section at any time
+ * (it applies at once, with nothing to link again), and take a device out.
  */
 export function DevicesManager({
   devices,
   branches,
+  available,
   linkUrl,
 }: {
   devices: DeviceView[];
   branches: { id: string; name: string }[];
+  /** The sections this restaurant has at all (plan, switches): the ones worth offering. */
+  available: DeviceSection[];
   /** The page a device opens to type its code; the QR carries the code to it. */
   linkUrl: string;
 }) {
   const t = useTranslations('devices');
-  const tr = useTranslations('staff');
   const locale = useLocale();
   const [name, setName] = useState('');
-  const [role, setRole] = useState<DeviceRole>('cashier');
+  // The door and the chats: what the tablet at the entrance needs.
+  const [picked, setPicked] = useState<DeviceSection[]>(() => available.filter((s) => s === 'host' || s === 'chats'));
   const [branchId, setBranchId] = useState('');
   const [issued, setIssued] = useState<(IssuedCode & { name: string }) | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,11 +68,24 @@ export function DevicesManager({
     }
   }
 
+  const toggled = (list: DeviceSection[], s: DeviceSection) => (list.includes(s) ? list.filter((x) => x !== s) : [...list, s]);
+
+  // A section given or taken on a device that already exists: saved at once.
+  function toggleOn(d: DeviceView, s: DeviceSection) {
+    const next = toggled(d.sections, s);
+    if (next.length === 0) return setError(t('error_sections'));
+    start(async () => {
+      const res = await setDeviceSections(d.id, next);
+      setError(res.error ? t(`error_${res.error}`) : null);
+    });
+  }
+
   function add() {
     const n = name.trim();
     if (!n) return;
+    if (picked.length === 0) return setError(t('error_sections'));
     start(async () => {
-      const res = await createDevice({ name: n, role, branchId: branchId || null });
+      const res = await createDevice({ name: n, sections: picked, branchId: branchId || null });
       show(res, n);
       if (res.issued) setName('');
     });
@@ -113,18 +131,6 @@ export function DevicesManager({
             aria-label={t('name')}
             className="min-w-0 flex-1"
           />
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value as DeviceRole)}
-            aria-label={t('role')}
-            className="rounded-lg border border-neutral-300 px-3 py-2.5 text-sm"
-          >
-            {DEVICE_ROLES.map((r) => (
-              <option key={r} value={r}>
-                {tr(`role_${r}`)}
-              </option>
-            ))}
-          </select>
           {branches.length > 0 && (
             <select
               value={branchId}
@@ -144,7 +150,25 @@ export function DevicesManager({
             {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} {t('generate')}
           </Button>
         </div>
-        <p className="mt-2 text-xs text-neutral-500">{t(`roleHint_${role}`)}</p>
+        <div className="mt-3 flex flex-wrap items-center gap-1.5" role="group" aria-label={t('sections')}>
+          <span className="mr-1 text-xs font-medium text-neutral-500">{t('sections')}</span>
+          {available.map((s) => {
+            const on = picked.includes(s);
+            return (
+              <button
+                key={s}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setPicked((cur) => toggled(cur, s))}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                  on ? 'bg-neutral-900 text-white' : 'border border-neutral-300 text-neutral-600 hover:bg-neutral-50'
+                }`}
+              >
+                {t(`section_${s}`)}
+              </button>
+            );
+          })}
+        </div>
         {error && (
           <p className="mt-2 text-sm text-red-600" role="alert">
             {error}
@@ -186,22 +210,39 @@ export function DevicesManager({
 
       {devices.length > 0 && (
         <Card>
-          <h2 className="mb-3 font-semibold">{t('list')}</h2>
+          <h2 className="mb-1 font-semibold">{t('list')}</h2>
+          <p className="mb-3 text-xs text-neutral-500">{t('sectionsHint')}</p>
           <div className="divide-y divide-neutral-100">
             {devices.map((d) => {
               const place = branchName(d.branchId);
               return (
-                <div key={d.id} className="flex items-center gap-3 py-2.5">
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${d.status === 'linked' ? 'bg-emerald-500' : d.status === 'pending' ? 'bg-amber-400' : 'bg-neutral-300'}`} />
+                <div key={d.id} className="flex items-start gap-3 py-2.5">
+                  <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${d.status === 'linked' ? 'bg-emerald-500' : d.status === 'pending' ? 'bg-amber-400' : 'bg-neutral-300'}`} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">
                       {d.name}
-                      <span className="font-normal text-neutral-500">
-                        {' · '}
-                        {tr(`role_${d.role}`)}
-                        {place ? ` · ${place}` : ''}
-                      </span>
+                      {place && <span className="font-normal text-neutral-500"> · {place}</span>}
                     </p>
+                    <div className="my-1 flex flex-wrap gap-1" role="group" aria-label={t('sections')}>
+                      {/* A section it holds but the restaurant no longer has still shows, so it can be taken away. */}
+                      {[...available, ...d.sections.filter((s) => !available.includes(s))].map((s) => {
+                        const on = d.sections.includes(s);
+                        return (
+                          <button
+                            key={s}
+                            type="button"
+                            aria-pressed={on}
+                            disabled={pending}
+                            onClick={() => toggleOn(d, s)}
+                            className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium transition disabled:opacity-60 ${
+                              on ? 'bg-neutral-900 text-white' : 'border border-neutral-300 text-neutral-500 hover:bg-neutral-50'
+                            }`}
+                          >
+                            {t(`section_${s}`)}
+                          </button>
+                        );
+                      })}
+                    </div>
                     <p className="truncate text-xs text-neutral-500" suppressHydrationWarning>
                       {d.status === 'linked' && d.linkedAt && t('statusLinked', { when: when(d.linkedAt) })}
                       {d.status === 'linked' && d.lastSeenAt && ` · ${t('lastSeen', { when: when(d.lastSeenAt) })}`}

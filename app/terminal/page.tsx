@@ -8,8 +8,9 @@ import { listRegisters } from './actions';
 import { ordersBoardEnabled } from '@/lib/orders/board';
 import { pendingCounts } from '@/lib/pending-counts';
 import { touchDevice } from '@/lib/devices/server';
+import { deviceOf } from '@/lib/devices/access';
+import { effectiveSections } from '@/lib/devices/sections';
 import type { DeviceBranch } from '@/lib/pos/branch';
-import type { TenantDevice } from '@/lib/database.types';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,14 +53,7 @@ export default async function TerminalPage() {
     ordersBoardEnabled(tenant.id),
     pendingCounts(tenant.id).catch(() => ({ bookings: 0, chats: 0 })),
     // A device that joined with a code (0100) reads its own row.
-    user.isDevice
-      ? supabase
-          .from('tenant_devices')
-          .select('id, branch_id, last_seen_at')
-          .eq('user_id', user.id)
-          .maybeSingle<Pick<TenantDevice, 'id' | 'branch_id' | 'last_seen_at'>>()
-          .then((r) => r.data)
-      : null,
+    deviceOf(user),
   ]);
   const branches = (branchRows ?? []) as { id: string; name: string; slug: string }[];
   // The owner decided where a linked device works, so its hub has no chooser:
@@ -82,7 +76,16 @@ export default async function TerminalPage() {
     has(CHAT_ROLES) ? ({ key: 'chats' } as HubTile) : null,
     posTile('customer'),
     has(ADMIN_ROLES) ? ({ key: 'admin' } as HubTile) : null,
-  ].filter((t): t is HubTile => t !== null);
+  ]
+    .filter((t): t is HubTile => t !== null)
+    // A shared device opens what its owner gave it (0101), which may be less
+    // than its role covers. The customer screen goes with the register;
+    // the admin panel is never a device's.
+    .filter((t) => {
+      if (!device) return true;
+      const key = t.key === 'customer' ? 'pos' : t.key;
+      return key !== 'admin' && effectiveSections(device).includes(key);
+    });
 
   return (
     <TerminalHub

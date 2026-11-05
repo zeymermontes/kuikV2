@@ -10,6 +10,8 @@ export interface ChatRow {
   phone: string | null;
   /** The bot stepped aside and nobody has picked up. */
   waiting: boolean;
+  /** The bot is the one answering this chat right now. */
+  botActive: boolean;
   since: string | null;
   lastText: string | null;
   lastAt: string | null;
@@ -17,9 +19,12 @@ export interface ChatRow {
 }
 
 /**
- * The chats app's list: every conversation with a recent message, the ones
- * waiting for a person first. Fifty is a shift's worth; the search box
- * narrows by name or number.
+ * The chats app's list: every conversation with a recent message. Fifty is
+ * a shift's worth; the search box narrows by name or number.
+ *
+ * A chat somebody removed from the list (closeChat) stays out of it until
+ * the diner writes again. Searching still finds it: looking a person up by
+ * name is how a removed chat is opened again.
  */
 export async function listChats(q = ''): Promise<{ rows: ChatRow[]; connected: boolean }> {
   const { tenant } = await requireChats();
@@ -48,14 +53,16 @@ export async function listChats(q = ''): Promise<{ rows: ChatRow[]; connected: b
 
   let query = admin
     .from('whatsapp_conversations')
-    .select('id, handoff_at, last_inbound_at, last_outbound_at, updated_at, contact:whatsapp_contacts(profile_name, phone_e164, wa_id)')
+    .select('id, handoff_at, bot_enabled, last_inbound_at, last_outbound_at, updated_at, contact:whatsapp_contacts(profile_name, phone_e164, wa_id)')
     .eq('tenant_id', tenant.id)
     .order('updated_at', { ascending: false })
     .limit(50);
   if (contactIds) query = query.in('contact_id', contactIds);
+  // Waiting for a person always shows, whatever else is true of the chat.
+  else query = query.or('status.eq.open,handoff_at.not.is.null');
   const { data } = await query;
   const convs = (data ?? []) as unknown as {
-    id: string; handoff_at: string | null; last_inbound_at: string | null; last_outbound_at: string | null; updated_at: string;
+    id: string; handoff_at: string | null; bot_enabled: boolean; last_inbound_at: string | null; last_outbound_at: string | null; updated_at: string;
     contact: { profile_name: string | null; phone_e164: string; wa_id: string } | { profile_name: string | null; phone_e164: string; wa_id: string }[] | null;
   }[];
   if (convs.length === 0) return { rows: [], connected: !!number };
@@ -81,6 +88,7 @@ export async function listChats(q = ''): Promise<{ rows: ChatRow[]; connected: b
         name: contact?.profile_name || phone || 'Cliente',
         phone,
         waiting: !!c.handoff_at,
+        botActive: c.bot_enabled && !c.handoff_at,
         since: c.handoff_at,
         lastText: m ? (m.body || (m.type === 'image' ? '📷 Foto' : m.type === 'audio' ? '🎤 Audio' : m.type === 'sticker' ? 'Sticker' : null)) : null,
         lastAt: m?.created_at ?? c.last_inbound_at ?? c.last_outbound_at,
@@ -103,12 +111,12 @@ export async function chatRow(conversationId: string): Promise<ChatRow | null> {
   const admin = createAdminClient();
   const { data } = await admin
     .from('whatsapp_conversations')
-    .select('id, handoff_at, last_inbound_at, last_outbound_at, contact:whatsapp_contacts(profile_name, phone_e164)')
+    .select('id, handoff_at, bot_enabled, last_inbound_at, last_outbound_at, contact:whatsapp_contacts(profile_name, phone_e164)')
     .eq('tenant_id', tenant.id)
     .eq('id', conversationId)
     .maybeSingle();
   const c = data as unknown as {
-    id: string; handoff_at: string | null; last_inbound_at: string | null; last_outbound_at: string | null;
+    id: string; handoff_at: string | null; bot_enabled: boolean; last_inbound_at: string | null; last_outbound_at: string | null;
     contact: { profile_name: string | null; phone_e164: string } | { profile_name: string | null; phone_e164: string }[] | null;
   } | null;
   if (!c) return null;
@@ -119,9 +127,31 @@ export async function chatRow(conversationId: string): Promise<ChatRow | null> {
     name: contact?.profile_name || phone || 'Cliente',
     phone,
     waiting: !!c.handoff_at,
+    botActive: c.bot_enabled && !c.handoff_at,
     since: c.handoff_at,
     lastText: null,
     lastAt: c.last_inbound_at ?? c.last_outbound_at,
     lastInbound: false,
   };
+}
+
+/**
+ * Take a finished chat off the list. Nothing is deleted: the conversation
+ * and its messages stay (the admin panel's inbox still shows them), and the
+ * chat is back here the moment the diner writes again (lib/whatsapp/inbound.ts).
+ *
+ * A chat that was waiting for a person stops waiting, which is the point:
+ * a handoff used to stay "waiting" until the diner wrote again, so chats
+ * settled days ago piled up on top of the ones that do need somebody. It
+ * goes back to the bot, like "hand back to the bot" in the chat itself
+ * (resumeBot), without answering anything now.
+ */
+export async function closeChat(conversationId: string): Promise<{ ok: boolean }> {
+  const { tenant } = await requireChats();
+  const { error } = await createAdminClient()
+    .from('whatsapp_conversations')
+    .update({ status: 'closed', bot_enabled: true, handoff_at: null, handoff_by: null })
+    .eq('id', conversationId)
+    .eq('tenant_id', tenant.id);
+  return { ok: !error };
 }

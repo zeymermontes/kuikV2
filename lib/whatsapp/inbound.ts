@@ -286,6 +286,8 @@ async function handleInbound(supabase: Supabase, row: EventRow): Promise<void> {
         window_expires_at: windowExpiryFrom(now),
         last_inbound_at: now.toISOString(),
         updated_at: now.toISOString(),
+        // A chat taken off the staff's list comes back when the diner writes.
+        status: 'open',
       })
       .eq('id', conversationId);
 

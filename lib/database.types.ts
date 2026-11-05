@@ -238,6 +238,8 @@ export interface TenantDevice {
   tenant_id: string;
   name: string;
   role: DeviceRole;
+  /** The sections it may open (0101); null or absent = all of its role's. */
+  sections?: string[] | null;
   branch_id: string | null;
   code_hash: string | null;
   code_expires_at: string | null;
