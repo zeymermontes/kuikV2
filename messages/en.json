@@ -33,7 +33,23 @@
     "checkEmail": "Check your email to confirm your account.",
     "accountExists": "An account with this email already exists. Sign in to continue.",
     "confirmed": "Email confirmed. Sign in to continue.",
-    "invitedNotice": "Create your account with this email and your invitation is accepted as soon as you sign in."
+    "invitedNotice": "Create your account with this email and your invitation is accepted as soon as you sign in.",
+    "isDevice": "Is this the restaurant's tablet or register?",
+    "linkDevice": "Link it with a code"
+  },
+  "deviceLink": {
+    "title": "Link this device",
+    "hint": "Type the code the restaurant owner gave you. No account or email needed.",
+    "code": "Code",
+    "submit": "Link",
+    "linked": "Device linked. Opening…",
+    "replacesPerson": "{name} is signed in on this browser. Linking ends that session here.",
+    "replacesDevice": "This device is already linked as {name}. A new code replaces it.",
+    "error_invalid": "That code is not valid or has expired. Ask for a new one.",
+    "error_rate": "Too many attempts. Wait a few minutes and try again.",
+    "error_failed": "Could not link. Try again; if it keeps failing, ask for a new code.",
+    "haveAccount": "Have an account?",
+    "signIn": "Sign in"
   },
   "onboarding": {
     "title": "Set up your restaurant",
@@ -609,6 +625,42 @@
     "errName": "Enter a name.",
     "clearPin": "Remove PIN",
     "noEmployees": "No employees yet. Without employees the register asks for no PIN."
+  },
+  "devices": {
+    "title": "Devices",
+    "hint": "Shared tablets, registers and screens. They join with a one-time code, no account or email, and you can remove any of them whenever you like.",
+    "name": "Device name",
+    "namePlaceholder": "Register 2, Kitchen, Front desk…",
+    "role": "Role",
+    "branch": "Branch",
+    "branchMain": "Main location",
+    "generate": "Generate code",
+    "roleHint_cashier": "Cashier: can open the register, kitchen, orders, host stand and chats.",
+    "roleHint_waiter": "Waiter: can open the register, kitchen, orders and host stand.",
+    "roleHint_host": "Host: can open reservations, the floor plan and chats.",
+    "codeFor": "Code for {name}",
+    "howTo": "On the device open Kuik, tap \"Link it with a code\" on the sign-in screen and type this code.",
+    "howToQr": "The QR opens that same screen in the device's browser with the code filled in. In the installed app it is typed by hand.",
+    "codeOnce": "It works once and expires on {when}. It is not shown again: if you lose it, generate another.",
+    "copy": "Copy code",
+    "done": "Close",
+    "list": "The restaurant's devices",
+    "statusLinked": "Linked on {when}",
+    "lastSeen": "last in use on {when}",
+    "statusPending": "Waiting for its code, which expires on {when}",
+    "statusRelinking": "Linked, with a new code pending that expires on {when}",
+    "statusExpired": "Its code expired unused",
+    "newCode": "New code",
+    "revoke": "Remove device",
+    "cancel": "Delete",
+    "renewConfirm": "{name} is already linked and keeps working until someone uses the new code; at that moment its previous session stops working. Generate the code?",
+    "revokeConfirm": "Remove {name}? It loses access at once and will need a new code to be used again.",
+    "cancelConfirm": "Delete {name}? Its code stops working.",
+    "error_name": "Give the device a name.",
+    "error_role": "Pick a role.",
+    "error_branch": "That branch no longer exists.",
+    "error_limit": "You have reached the limit of 50 devices. Remove one you no longer use.",
+    "error_failed": "Could not complete that. Try again."
   },
   "loyaltyCard": {
     "button": "Rewards",
@@ -3002,7 +3054,8 @@
     "push_registered": "active on this phone",
     "push_error": "error",
     "pushRetry": "Retry",
-    "appVersion": "App {v}"
+    "appVersion": "App {v}",
+    "signOutDevice": "This device joined with a code. If you sign out, it will need a new code from the owner to get back in. Sign out?"
   },
   "shellUpdate": {
     "available": "A new version of the app is out ({version}).",

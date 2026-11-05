@@ -20,6 +20,8 @@ export async function createTenant(
   formData: FormData,
 ): Promise<OnboardingResult> {
   const user = await requireUser();
+  // A shared device is not somebody who can own a restaurant.
+  if (user.isDevice) redirect('/device');
   const supabase = await createClient();
 
   const memberships = await getMemberships(user.id);

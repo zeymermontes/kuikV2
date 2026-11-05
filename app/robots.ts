@@ -19,7 +19,7 @@ import { SITE_URL } from '@/lib/seo';
 const PRIVATE_ROOT_PATHS = [
   '/admin', '/billing', '/branches', '/contact', '/dashboard', '/design', '/domain', '/landing',
   '/loyalty', '/menu', '/ordering', '/orders', '/reports', '/reservations', '/staff', '/tutorial',
-  '/whatsapp', '/pos', '/kds', '/host', '/onboarding', '/demo/', '/api/', '/login', '/signup',
+  '/whatsapp', '/pos', '/kds', '/host', '/onboarding', '/demo/', '/api/', '/login', '/signup', '/device',
 ];
 
 export const dynamic = 'force-dynamic';

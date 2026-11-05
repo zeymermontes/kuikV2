@@ -50,6 +50,12 @@ The public menu stays on the web: nobody installs an app per restaurant.
   (owners and managers). Tiles a role cannot use are not drawn; a plan gate
   shows as a lock to the owner only. The floating grid button (bottom right,
   only inside the apps) returns to the hub; Android's back button does too.
+- **A device without an account.** A shared tablet does not need anybody's
+  email and password: the owner names it under Equipo → Dispositivos, picks
+  its role and branch, and gets a one-time code; the sign-in screen links to
+  `/device`, where the code is typed (migration 0100, `lib/devices/`). The
+  hub then opens for that branch with no chooser, and the owner can remove
+  the device from the same list.
 - **Orientation.** Both apps rotate with the device (`fullUser` on Android,
   all orientations in `Info.plist`), so a tablet can stand in portrait and a
   phone can lie flat for the kitchen.

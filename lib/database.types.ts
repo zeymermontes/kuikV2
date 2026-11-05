@@ -228,6 +228,26 @@ export interface TenantInvite {
   created_at: string;
   accepted_at: string | null;
 }
+
+/** What a shared device may be signed in as (0100): never owner or manager. */
+export type DeviceRole = Extract<MemberRole, 'cashier' | 'waiter' | 'host'>;
+
+/** A tablet, register or screen that joined with a one-time code (0100). */
+export interface TenantDevice {
+  id: string;
+  tenant_id: string;
+  name: string;
+  role: DeviceRole;
+  branch_id: string | null;
+  code_hash: string | null;
+  code_expires_at: string | null;
+  /** The login created when the code was used; null while it waits. */
+  user_id: string | null;
+  linked_at: string | null;
+  last_seen_at: string | null;
+  created_by: string | null;
+  created_at: string;
+}
 export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'canceled';
 export type DomainStatus = 'none' | 'pending' | 'verified' | 'error';
 export type SeparatorStyle = 'line' | 'space' | 'title';

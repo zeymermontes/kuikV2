@@ -33,7 +33,23 @@
     "checkEmail": "Revisa tu correo para confirmar tu cuenta.",
     "accountExists": "Ya existe una cuenta con este correo. Inicia sesión para continuar.",
     "confirmed": "Correo confirmado. Inicia sesión para continuar.",
-    "invitedNotice": "Crea tu cuenta con este correo y tu invitación se acepta sola al entrar."
+    "invitedNotice": "Crea tu cuenta con este correo y tu invitación se acepta sola al entrar.",
+    "isDevice": "¿Es una tablet o caja del restaurante?",
+    "linkDevice": "Vincúlala con un código"
+  },
+  "deviceLink": {
+    "title": "Vincular este dispositivo",
+    "hint": "Escribe el código que te dio el dueño del restaurante. No hace falta cuenta ni correo.",
+    "code": "Código",
+    "submit": "Vincular",
+    "linked": "Dispositivo vinculado. Abriendo…",
+    "replacesPerson": "En este navegador hay una sesión abierta de {name}. Al vincular, esa sesión se cierra aquí.",
+    "replacesDevice": "Este dispositivo ya está vinculado como {name}. Un código nuevo lo reemplaza.",
+    "error_invalid": "Ese código no es válido o ya venció. Pide uno nuevo.",
+    "error_rate": "Demasiados intentos. Espera unos minutos y vuelve a intentar.",
+    "error_failed": "No se pudo vincular. Inténtalo de nuevo; si sigue fallando, pide un código nuevo.",
+    "haveAccount": "¿Tienes cuenta?",
+    "signIn": "Inicia sesión"
   },
   "onboarding": {
     "title": "Configura tu restaurante",
@@ -609,6 +625,42 @@
     "errName": "Escribe un nombre.",
     "clearPin": "Quitar PIN",
     "noEmployees": "Aún no hay empleados. Sin empleados, la caja no pide PIN."
+  },
+  "devices": {
+    "title": "Dispositivos",
+    "hint": "Tablets, cajas y pantallas compartidas. Entran con un código de un solo uso, sin cuenta ni correo, y puedes quitar cualquiera cuando quieras.",
+    "name": "Nombre del dispositivo",
+    "namePlaceholder": "Caja 2, Cocina, Recepción…",
+    "role": "Rol",
+    "branch": "Sucursal",
+    "branchMain": "Sede principal",
+    "generate": "Generar código",
+    "roleHint_cashier": "Cajero: puede abrir caja, cocina, pedidos, anfitrión y chats.",
+    "roleHint_waiter": "Mesero: puede abrir caja, cocina, pedidos y anfitrión.",
+    "roleHint_host": "Anfitrión: puede abrir reservaciones, plano del salón y chats.",
+    "codeFor": "Código para {name}",
+    "howTo": "En el dispositivo abre Kuik, toca «Vincúlala con un código» en la pantalla de inicio de sesión y escribe este código.",
+    "howToQr": "El QR abre esa misma pantalla en el navegador del dispositivo, con el código ya escrito. En la app instalada se escribe a mano.",
+    "codeOnce": "Sirve una sola vez y vence el {when}. No se vuelve a mostrar: si lo pierdes, genera otro.",
+    "copy": "Copiar código",
+    "done": "Cerrar",
+    "list": "Dispositivos del restaurante",
+    "statusLinked": "Vinculado el {when}",
+    "lastSeen": "en uso por última vez el {when}",
+    "statusPending": "Esperando su código, que vence el {when}",
+    "statusRelinking": "Vinculado, con un código nuevo pendiente que vence el {when}",
+    "statusExpired": "Su código venció sin usarse",
+    "newCode": "Nuevo código",
+    "revoke": "Quitar dispositivo",
+    "cancel": "Eliminar",
+    "renewConfirm": "{name} ya está vinculado y sigue funcionando hasta que alguien use el código nuevo; en ese momento su sesión anterior deja de servir. ¿Generar el código?",
+    "revokeConfirm": "¿Quitar {name}? Pierde el acceso de inmediato y para volver a usarlo hará falta un código nuevo.",
+    "cancelConfirm": "¿Eliminar {name}? Su código deja de servir.",
+    "error_name": "Ponle un nombre al dispositivo.",
+    "error_role": "Elige un rol.",
+    "error_branch": "Esa sucursal ya no existe.",
+    "error_limit": "Llegaste al máximo de 50 dispositivos. Quita alguno que ya no uses.",
+    "error_failed": "No se pudo completar. Inténtalo de nuevo."
   },
   "loyaltyCard": {
     "button": "Lealtad",
@@ -3002,7 +3054,8 @@
     "push_registered": "activas en este teléfono",
     "push_error": "error",
     "pushRetry": "Reintentar",
-    "appVersion": "App {v}"
+    "appVersion": "App {v}",
+    "signOutDevice": "Este dispositivo entró con un código. Si cierras la sesión, hará falta un código nuevo del dueño para volver a entrar. ¿Cerrar sesión?"
   },
   "shellUpdate": {
     "available": "Hay una versión nueva de la app ({version}).",

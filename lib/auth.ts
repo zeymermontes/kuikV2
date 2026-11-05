@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { DEVICE_CLAIM } from '@/lib/devices/server';
 import type {
   Profile,
   Tenant,
@@ -17,6 +18,11 @@ export interface AuthedUser {
   id: string;
   email: string | null;
   profile: Profile;
+  /**
+   * A shared device that joined with a code (0100), not a person. Read from
+   * the token's app metadata, which only the server can write.
+   */
+  isDevice: boolean;
 }
 
 /**
@@ -48,6 +54,7 @@ export const loadUser = cache(async (): Promise<AuthedUser | null> => {
     id: claims.sub,
     email: typeof claims.email === 'string' ? claims.email : null,
     profile,
+    isDevice: (claims.app_metadata as Record<string, unknown> | undefined)?.[DEVICE_CLAIM] === true,
   };
 });
 
@@ -118,7 +125,7 @@ export interface TenantContext {
 
 type TenantLoad =
   | { ok: true; ctx: TenantContext }
-  | { ok: false; reason: 'unauthenticated' | 'no_tenant' };
+  | { ok: false; reason: 'unauthenticated' | 'no_tenant' | 'device_unlinked' };
 
 /**
  * The whole of requireTenant's work, minus the redirects.
@@ -157,7 +164,9 @@ const loadTenantContext = cache(async (): Promise<TenantLoad> => {
 
   if (!tenant) {
     const membership = await getMembership(user.id);
-    if (!membership) return { ok: false, reason: 'no_tenant' };
+    // A device whose restaurant is gone has nothing to set up: it goes back
+    // to asking for a code, never to "create your restaurant".
+    if (!membership) return { ok: false, reason: user.isDevice ? 'device_unlinked' : 'no_tenant' };
     tenant = membership.tenant;
     role = membership.role;
   }
@@ -196,7 +205,7 @@ const loadTenantContext = cache(async (): Promise<TenantLoad> => {
 export const requireTenant = cache(async (): Promise<TenantContext> => {
   const loaded = await loadTenantContext();
   if (loaded.ok) return loaded.ctx;
-  redirect(loaded.reason === 'unauthenticated' ? '/login' : '/onboarding');
+  redirect(loaded.reason === 'unauthenticated' ? '/login' : loaded.reason === 'device_unlinked' ? '/device' : '/onboarding');
 });
 
 /**

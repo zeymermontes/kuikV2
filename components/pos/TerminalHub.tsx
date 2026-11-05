@@ -126,6 +126,8 @@ export function TerminalHub({
   userName,
   tiles,
   branches = [],
+  fixedBranch,
+  isDevice = false,
   registers: initialRegisters = [],
   counts: initialCounts,
 }: {
@@ -134,6 +136,13 @@ export function TerminalHub({
   userName: string;
   tiles: HubTile[];
   branches?: DeviceBranch[];
+  /**
+   * The branch a linked device was given by its owner (null = the main
+   * location): it replaces the chooser. Undefined = this device may choose.
+   */
+  fixedBranch?: DeviceBranch | null;
+  /** Signed in with a code, not an account: signing out needs a new code to come back. */
+  isDevice?: boolean;
   registers?: HubRegister[];
   /** What waits for a person, per product: the tiles' badges. */
   counts?: PendingCounts;
@@ -191,7 +200,17 @@ export function TerminalHub({
   const branchId = useSyncExternalStore(subscribeBranch, rememberedBranchId, () => null);
   // A remembered branch that no longer exists reads as the main location;
   // opening a tile then sends `?branch=main`, which clears the memory.
-  const branch = branches.find((b) => b.id === branchId) ?? null;
+  const branch = fixedBranch !== undefined ? fixedBranch : (branches.find((b) => b.id === branchId) ?? null);
+  // What the device remembers follows what it was given, so a page opened
+  // without `?branch=` (a bookmark, the customer screen) lands in the same place.
+  const fixedId = fixedBranch === undefined ? undefined : (fixedBranch?.id ?? null);
+  useEffect(() => {
+    if (fixedBranch === undefined || fixedId === rememberedBranchId()) return;
+    saveDeviceBranch(fixedBranch);
+    branchListeners.forEach((cb) => cb());
+    // fixedId stands for fixedBranch: the object is new on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fixedId]);
 
   function pickBranch(next: DeviceBranch | null) {
     saveDeviceBranch(next);
@@ -276,7 +295,13 @@ export function TerminalHub({
       <h1 className="mt-1 text-2xl font-bold">{t('title')}</h1>
       <p className="mt-2 text-sm text-neutral-400">{t('subtitle')}</p>
 
-      {hasBranches && (
+      {hasBranches && fixedBranch !== undefined && (
+        <p className="mt-6 flex items-center gap-1.5 text-sm text-neutral-300">
+          <MapPin className="h-3.5 w-3.5 text-neutral-500" /> {fixedBranch ? fixedBranch.name : t('branchMain')}
+        </p>
+      )}
+
+      {hasBranches && fixedBranch === undefined && (
         <div className="mt-6">
           <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500">
             <MapPin className="h-3.5 w-3.5" /> {t('branch')}
@@ -441,7 +466,11 @@ export function TerminalHub({
         </span>
         <button
           type="button"
-          onClick={() => void signOut()}
+          onClick={() => {
+            // Nobody on the floor can sign a device back in: that takes a new code from the owner.
+            if (isDevice && !window.confirm(t('signOutDevice'))) return;
+            void signOut();
+          }}
           className="flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm text-neutral-400 hover:bg-white/5 hover:text-white"
         >
           <LogOut className="h-4 w-4" /> {t('signOut')}

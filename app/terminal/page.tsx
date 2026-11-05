@@ -7,6 +7,9 @@ import { TerminalHub, type HubTile } from '@/components/pos/TerminalHub';
 import { listRegisters } from './actions';
 import { ordersBoardEnabled } from '@/lib/orders/board';
 import { pendingCounts } from '@/lib/pending-counts';
+import { touchDevice } from '@/lib/devices/server';
+import type { DeviceBranch } from '@/lib/pos/branch';
+import type { TenantDevice } from '@/lib/database.types';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,13 +46,30 @@ export default async function TerminalPage() {
   };
 
   const supabase = await createClient();
-  const [{ data: branchRows }, registers, board, counts] = await Promise.all([
+  const [{ data: branchRows }, registers, board, counts, device] = await Promise.all([
     supabase.from('branches').select('id, name, slug').eq('tenant_id', tenant.id).order('position'),
     listRegisters(),
     ordersBoardEnabled(tenant.id),
     pendingCounts(tenant.id).catch(() => ({ bookings: 0, chats: 0 })),
+    // A device that joined with a code (0100) reads its own row.
+    user.isDevice
+      ? supabase
+          .from('tenant_devices')
+          .select('id, branch_id, last_seen_at')
+          .eq('user_id', user.id)
+          .maybeSingle<Pick<TenantDevice, 'id' | 'branch_id' | 'last_seen_at'>>()
+          .then((r) => r.data)
+      : null,
   ]);
   const branches = (branchRows ?? []) as { id: string; name: string; slug: string }[];
+  // The owner decided where a linked device works, so its hub has no chooser:
+  // the branch it was given, or the main location (null). Undefined leaves
+  // the choice to whoever holds the device, as for any account.
+  let fixedBranch: DeviceBranch | null | undefined;
+  if (device) {
+    fixedBranch = branches.find((b) => b.id === device.branch_id) ?? null;
+    await touchDevice(device);
+  }
 
   const tiles = [
     posTile('pos'),
@@ -71,6 +91,8 @@ export default async function TerminalPage() {
       userName={user.profile.full_name || user.email || ''}
       tiles={tiles}
       branches={branches}
+      fixedBranch={fixedBranch}
+      isDevice={user.isDevice}
       registers={registers}
       counts={counts}
     />

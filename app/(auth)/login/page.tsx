@@ -56,6 +56,13 @@ function LoginForm() {
           {t('signUp')}
         </Link>
       </p>
+      {/* A shared tablet or register has no account to sign in with. */}
+      <p className="mt-2 text-center text-sm text-neutral-500">
+        {t('isDevice')}{' '}
+        <Link href="/device" className="font-medium text-neutral-900 underline">
+          {t('linkDevice')}
+        </Link>
+      </p>
     </form>
   );
 }

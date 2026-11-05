@@ -59,7 +59,7 @@ export async function rateLimit(
  * Cloudflare, can forge `cf-connecting-ip`. Closing that is Cloudflare-side
  * work (an origin secret / authenticated pulls), not more parsing here.
  */
-export function clientIp(req: Request): string {
+export function clientIp(req: { headers: Pick<Headers, 'get'> }): string {
   const cf = req.headers.get('cf-connecting-ip');
   if (cf) return cf.trim();
   const fwd = req.headers.get('x-forwarded-for');
