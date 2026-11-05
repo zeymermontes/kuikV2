@@ -3,16 +3,19 @@
 import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { capacitorPlugin, shell } from '@/lib/native/shell';
+import { backAction, HUB_PATH } from '@/lib/native/back';
 
 /**
  * Android's back button inside the Terminal and phone apps. On a section's
  * first screen (the door, the register, the chats, the admin home) it goes
  * back to the hub; deeper in, it goes back one page, and to the hub when
- * there is nothing behind. Replaces the floating hub button, which sat on
+ * there is nothing behind; on the hub itself it puts the app in the
+ * background and goes no further. Mounted on the hub too: without a
+ * listener there, Capacitor's default walks the WebView history and reopens
+ * the section left last. Replaces the floating hub button, which sat on
  * top of controls the sections put in that corner. Renders nothing; a no-op
  * in a browser (which has its own back) and on iOS (which has no button).
  */
-const SECTION_HOMES = new Set(['/host', '/pos', '/kds', '/chats', '/orders', '/dashboard']);
 
 export function ShellBackButton() {
   const router = useRouter();
@@ -29,9 +32,18 @@ export function ShellBackButton() {
       if (!app?.addListener) return;
       const listen = app.addListener as (ev: string, cb: (e: { canGoBack: boolean }) => void) => Promise<{ remove: () => Promise<void> }> | { remove: () => Promise<void> };
       Promise.resolve(listen('backButton', ({ canGoBack }) => {
-        const here = pathname.replace(/\/+$/, '') || '/';
-        if (SECTION_HOMES.has(here) || !canGoBack) router.push('/terminal');
-        else window.history.back();
+        const action = backAction(pathname, canGoBack);
+        if (action === 'minimize') {
+          // A shell too old to know the call simply stays on the hub.
+          try {
+            void Promise.resolve(app.minimizeApp?.()).catch(() => {});
+          } catch {}
+        } else if (action === 'hub') {
+          // Replace, not push: the section just left must not sit behind the hub.
+          router.replace(HUB_PATH);
+        } else {
+          window.history.back();
+        }
       }))
         .then((h) => {
           if (!h || typeof h.remove !== 'function') return;
