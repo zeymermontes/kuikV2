@@ -43,7 +43,7 @@ export function BookingsList({
   areas = [],
   branches = [],
   onOpen,
-  openKind = 'day',
+  onChat,
 }: {
   tenantId: string;
   /** The restaurant's zone: what "today" and "tomorrow" mean here. */
@@ -52,10 +52,13 @@ export function BookingsList({
   branchId?: string | null;
   areas?: { id: string; name: string }[];
   branches?: { id: string; name: string }[];
-  /** A row was tapped. With `openKind` 'chat', only bookings tied to a chat can be tapped. */
+  /** A row was tapped: open the booking. */
   onOpen?: (r: Reservation) => void;
-  /** What tapping a row does, for its icon and label. */
-  openKind?: 'day' | 'chat';
+  /**
+   * Given, a booking that came through a chat gets a second target at its
+   * right edge that opens that chat straight away.
+   */
+  onChat?: (r: Reservation) => void;
 }) {
   const t = useTranslations('bookings');
   const tr = useTranslations('reservations');
@@ -122,8 +125,6 @@ export function BookingsList({
     return near ? `${t(near)} · ${long}` : long.charAt(0).toUpperCase() + long.slice(1);
   };
 
-  const OpenIcon = openKind === 'chat' ? MessageCircle : ChevronRight;
-
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-white/10 px-3 py-2" role="radiogroup" aria-label={t('tab')}>
@@ -161,7 +162,8 @@ export function BookingsList({
               const crossing = filter === 'all' && past && (!prev || !isPast(prev.starts_at, now));
               const newDay = !prev || prev.date !== r.date || crossing;
               const area = areaName(r.area_id);
-              const canOpen = Boolean(onOpen) && (openKind !== 'chat' || Boolean(r.whatsapp_conversation_id));
+              const canOpen = Boolean(onOpen);
+              const hasChat = Boolean(onChat) && Boolean(r.whatsapp_conversation_id);
               const off = r.status === 'cancelled' || r.status === 'no_show';
               const body = (
                 <>
@@ -202,7 +204,7 @@ export function BookingsList({
                       </span>
                     )}
                   </span>
-                  {canOpen && <OpenIcon className="mt-1 h-4 w-4 shrink-0 text-white/30" />}
+                  {canOpen && !onChat && <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-white/30" />}
                 </>
               );
               return (
@@ -215,18 +217,31 @@ export function BookingsList({
                       <CalendarDays className="h-3.5 w-3.5" /> {dayLabel(r.date)}
                     </p>
                   )}
-                  {canOpen ? (
-                    <button
-                      type="button"
-                      onClick={() => onOpen?.(r)}
-                      title={t(openKind === 'chat' ? 'openChat' : 'openDay')}
-                      className="flex w-full items-start gap-3 border-b border-white/5 px-3 py-3 text-left hover:bg-white/5"
-                    >
-                      {body}
-                    </button>
-                  ) : (
-                    <div className="flex items-start gap-3 border-b border-white/5 px-3 py-3">{body}</div>
-                  )}
+                  <div className="flex items-stretch border-b border-white/5 hover:bg-white/5">
+                    {canOpen ? (
+                      <button
+                        type="button"
+                        onClick={() => onOpen?.(r)}
+                        title={t(onChat ? 'openBooking' : 'openDay')}
+                        className="flex min-w-0 flex-1 items-start gap-3 px-3 py-3 text-left"
+                      >
+                        {body}
+                      </button>
+                    ) : (
+                      <div className="flex min-w-0 flex-1 items-start gap-3 px-3 py-3">{body}</div>
+                    )}
+                    {hasChat && (
+                      <button
+                        type="button"
+                        onClick={() => onChat?.(r)}
+                        title={t('openChat')}
+                        aria-label={`${t('openChat')}: ${r.customer_name}`}
+                        className="shrink-0 px-4 text-white/40 hover:text-white"
+                      >
+                        <MessageCircle className="h-5 w-5" />
+                      </button>
+                    )}
+                  </div>
                 </li>
               );
             })}

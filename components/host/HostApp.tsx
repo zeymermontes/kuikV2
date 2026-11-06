@@ -29,6 +29,7 @@ import { OrdersSheet } from './OrdersSheet';
 import { ChatSheet } from './ChatSheet';
 import { ReservationForm } from '@/components/dashboard/ReservationForm';
 import { BookingsList } from '@/components/reservations/BookingsList';
+import { PendingPanel } from '@/components/chats/PendingPanel';
 import { HUB_PATH } from '@/lib/native/back';
 import { FloorPlan } from './FloorPlan';
 import { Timeline } from './Timeline';
@@ -801,6 +802,8 @@ export function HostApp({
       {/* Sheets */}
       {party && (
         <PartySheet
+          // The questions its chat is still owed. Accepting the booking itself is this sheet's own buttons.
+          pendings={!demo && party.whatsapp_conversation_id ? <PendingPanel key={party.id} reservationId={party.id} only="question" watch={party.status} /> : null}
           party={party}
           tables={tables}
           areas={areas}

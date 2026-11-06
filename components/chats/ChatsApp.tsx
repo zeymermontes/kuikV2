@@ -3,16 +3,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, Bot, CalendarDays, CalendarPlus, ExternalLink, Headset, MessageCircle, Search, X } from 'lucide-react';
+import { ArrowLeft, Bot, CalendarDays, CalendarPlus, ClipboardList, ExternalLink, Headset, MessageCircle, Search, X } from 'lucide-react';
 import { createClient, channelName } from '@/lib/supabase/client';
 import { chatRow, closeChat, listChats, type ChatRow } from '@/app/chats/actions';
 import { BookingsList } from '@/components/reservations/BookingsList';
+import { BookingSheet } from './BookingSheet';
+import { totalPending } from '@/lib/chats/pendings';
 import { ReservationForm } from '@/components/dashboard/ReservationForm';
-import type { ReservationArea } from '@/lib/database.types';
+import type { Reservation, ReservationArea } from '@/lib/database.types';
 import { nowHHMMInTz, todayInTz } from '@/lib/time';
 import { HUB_PATH } from '@/lib/native/back';
 import { ChatSheet } from '@/components/host/ChatSheet';
-import { chatTone, chatsFor, type ChatTone } from '@/lib/chats/list';
+import { chatTone, chatsFor, needsPerson, type ChatTone } from '@/lib/chats/list';
 
 // Yellow: the diner is waiting on the restaurant. Blue: the restaurant
 // answered and it is the diner's turn. Grey: nobody is waited for.
@@ -30,10 +32,15 @@ const TONE: Record<ChatTone, string> = {
  * takes a finished chat off the list (closeChat). The list refreshes on
  * every new message and every handoff, over Realtime.
  *
+ * A chat that is owed something (a question the bot left for a person, a
+ * booking to accept) counts as waiting too, says how many, and shows them
+ * when opened (PendingPanel).
+ *
  * A second tab lists every booking (components/reservations/BookingsList.tsx,
- * the same list the host stand shows), and an open chat can take a booking:
- * the form opens with the chat's name and number, and the booking is tied to
- * the chat.
+ * the same list the host stand shows): a tap opens the booking, to accept or
+ * reject it, and the icon at its edge opens its chat. An open chat can take
+ * a booking: the form opens with the chat's name and number, and the booking
+ * is tied to the chat.
  */
 export function ChatsApp({
   tenantId,
@@ -65,12 +72,14 @@ export function ChatsApp({
   const tb = useTranslations('bookings');
   const [rows, setRows] = useState<ChatRow[]>(initial.rows);
   const [connected] = useState(initial.connected);
-  const [view, setView] = useState<'waiting' | 'all'>(initial.rows.some((r) => r.waiting) ? 'waiting' : 'all');
+  const [view, setView] = useState<'waiting' | 'all'>(initial.rows.some(needsPerson) ? 'waiting' : 'all');
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState<ChatRow | null>(openChat);
   const [tab, setTab] = useState<'chats' | 'bookings'>('chats');
   // The chat a booking is being taken for; the form sits on top of the chat.
   const [booking, setBooking] = useState<ChatRow | null>(null);
+  // The booking opened from the bookings tab.
+  const [bookingOpen, setBookingOpen] = useState<Reservation | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   useEffect(() => {
     if (!toast) return;
@@ -116,10 +125,20 @@ export function ChatsApp({
     closeChat(r.conversationId).then((res) => !res.ok && refresh()).catch(refresh);
   }
 
-  const waitingCount = rows.filter((r) => r.waiting).length;
+  const waitingCount = rows.filter(needsPerson).length;
+
+  // The chat a booking came through, whether or not the list above holds it.
+  const openChatOf = (conversationId: string) => {
+    const known = rows.find((x) => x.conversationId === conversationId);
+    if (known) return setOpen(known);
+    chatRow(conversationId).then((row) => row && setOpen(row)).catch(() => {});
+  };
   // Each view has its own order (lib/chats/list.ts): recent is by time, not waiting-first.
   const visible = useMemo(() => chatsFor(rows, view), [rows, view]);
 
+  // Minutes since, by this screen's clock: the server's render and the
+  // browser's can land on either side of a minute, hence the spans that
+  // show it do not insist on matching.
   const ago = (iso: string) => {
     const mins = Math.max(0, Math.round((now - new Date(iso).getTime()) / 60000));
     return mins < 1 ? 'ahora' : mins < 60 ? `${mins} min` : mins < 1440 ? `${Math.round(mins / 60)} h` : `${Math.round(mins / 1440)} d`;
@@ -210,15 +229,8 @@ export function ChatsApp({
             timezone={timezone}
             areas={areas}
             branches={branches}
-            openKind="chat"
-            onOpen={(r) => {
-              const c = r.whatsapp_conversation_id;
-              if (!c) return;
-              // The chat the booking came through, whether or not the list above holds it.
-              const known = rows.find((x) => x.conversationId === c);
-              if (known) return setOpen(known);
-              chatRow(c).then((row) => row && setOpen(row)).catch(() => {});
-            }}
+            onOpen={setBookingOpen}
+            onChat={(r) => r.whatsapp_conversation_id && openChatOf(r.whatsapp_conversation_id)}
           />
         </main>
       )}
@@ -238,13 +250,18 @@ export function ChatsApp({
                   <span className="min-w-0 flex-1">
                     <span className="flex items-baseline justify-between gap-2">
                       <span className="truncate font-semibold">{r.name}</span>
-                      {r.lastAt && <span className="shrink-0 text-xs text-white/40">{ago(r.lastAt)}</span>}
+                      {r.lastAt && <span className="shrink-0 text-xs text-white/40" suppressHydrationWarning>{ago(r.lastAt)}</span>}
                     </span>
                     <span className={`block truncate text-sm ${r.lastInbound ? 'text-white/80' : 'text-white/50'}`}>
                       {!r.lastInbound && <Bot className="mr-1 inline h-3.5 w-3.5 align-[-2px]" />}
                       {r.lastText ?? '…'}
                     </span>
-                    {r.waiting && r.since && <span className="mt-0.5 block text-xs text-amber-300">{t('waitingSince', { x: ago(r.since) })}</span>}
+                    {r.waiting && r.since && <span className="mt-0.5 block text-xs text-amber-300" suppressHydrationWarning>{t('waitingSince', { x: ago(r.since) })}</span>}
+                    {totalPending(r.pending) > 0 && (
+                      <span className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-amber-300">
+                        <ClipboardList className="h-3 w-3" /> {t('pendingCount', { n: totalPending(r.pending) })}
+                      </span>
+                    )}
                     {r.botActive && (
                       <span className="mt-0.5 flex items-center gap-1 text-xs text-emerald-300">
                         <Bot className="h-3 w-3" /> {t('botAttending')}
@@ -288,6 +305,21 @@ export function ChatsApp({
             if (window.location.search) window.history.replaceState(null, '', window.location.pathname);
             refresh();
           }}
+        />
+      )}
+
+      {bookingOpen && (
+        <BookingSheet
+          key={bookingOpen.id}
+          booking={bookingOpen}
+          areaName={areas.find((a) => a.id === bookingOpen.area_id)?.name ?? null}
+          onClose={() => setBookingOpen(null)}
+          onChanged={refresh}
+          onChat={bookingOpen.whatsapp_conversation_id ? () => {
+            const c = bookingOpen.whatsapp_conversation_id!;
+            setBookingOpen(null);
+            openChatOf(c);
+          } : undefined}
         />
       )}
 

@@ -7,6 +7,7 @@ import { createClient, channelName } from '@/lib/supabase/client';
 import { getChat, sendPartyMessage, setPartyChatBot, type PartyChat, type PartyChatMessage } from '@/app/host/actions';
 import { WaTemplateModal } from '@/components/whatsapp/WaTemplateModal';
 import { WaTemplatePreview } from '@/components/whatsapp/WaTemplatePreview';
+import { PendingPanel } from '@/components/chats/PendingPanel';
 import { Sheet, GHOST, PRIMARY } from './ui';
 
 /**
@@ -241,6 +242,10 @@ export function ChatSheet({
         <p className="py-10 text-center text-sm text-white/50">…</p>
       ) : (
         <div className="space-y-1.5">
+          {/* What this chat is still owed stays in view while the messages scroll under it. */}
+          {conversationId && (
+            <PendingPanel conversationId={conversationId} watch={chat.messages.length} canAdd className="sticky top-0 z-10 mb-3 rounded-2xl bg-pos-sidebar" />
+          )}
           {chat.messages.length === 0 && <p className="py-10 text-center text-sm text-white/50">{t('chatEmpty')}</p>}
           {chat.messages.map((m, i) => {
             const day = new Date(m.created_at).toLocaleDateString();

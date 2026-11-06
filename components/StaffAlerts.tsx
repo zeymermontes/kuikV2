@@ -88,8 +88,8 @@ export function StaffAlerts({
   return (
     <div className="fixed inset-x-3 top-3 z-[56] mx-auto flex max-w-md flex-col gap-2">
       {toasts.map((a) => {
-        const Icon = a.kind === 'handoff' || a.kind === 'customer_reply' || a.kind === 'flow_notify' ? MessageCircle : a.kind === 'reservation_cancelled' ? CalendarX : a.kind === 'reservation_new' ? Bell : CalendarCheck;
-        const tone = a.kind === 'handoff' || a.kind === 'customer_reply' ? 'border-sky-300 text-sky-300' : a.kind === 'reservation_cancelled' ? 'border-red-300 text-red-300' : 'border-amber-300 text-amber-300';
+        const Icon = a.kind === 'handoff' || a.kind === 'customer_reply' || a.kind === 'flow_notify' || a.kind === 'chat_pending' ? MessageCircle : a.kind === 'reservation_cancelled' ? CalendarX : a.kind === 'reservation_new' ? Bell : CalendarCheck;
+        const tone = a.kind === 'handoff' || a.kind === 'customer_reply' ? 'border-sky-300 text-sky-300' : a.kind === 'chat_pending' ? 'border-amber-300 text-amber-300' : a.kind === 'reservation_cancelled' ? 'border-red-300 text-red-300' : 'border-amber-300 text-amber-300';
         const title = locale === 'en' ? a.title_en : a.title_es;
         const body = locale === 'en' ? a.body_en : a.body_es;
         const inner = (

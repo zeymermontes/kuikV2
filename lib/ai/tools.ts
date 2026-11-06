@@ -9,6 +9,7 @@ import { completeRunFromAi } from '@/lib/whatsapp/flows/complete';
 import { endRun, loadRun } from '@/lib/whatsapp/flows/run-store';
 import type { FlowSlot } from '@/lib/whatsapp/flows/schema';
 import { renderTemplate, type RenderVars } from '@/lib/whatsapp/render';
+import { leavePending } from '@/lib/whatsapp/pendings';
 import type { ToolDef } from './types';
 
 /**
@@ -33,6 +34,11 @@ const Empty = z.object({});
 
 const Handoff = z.object({
   motivo: z.string().max(200).optional(),
+});
+
+const LeavePending = z.object({
+  resumen: z.string().min(3).max(200)
+    .describe('La pregunta o petición del cliente en una línea, como la leería quien la va a contestar: "Pregunta si se requiere anticipo para 13 personas".'),
 });
 
 const CancelReservation = z.object({
@@ -148,6 +154,7 @@ export const TOOL_SCHEMAS = {
   enviar_menu: Empty,
   crear_reserva: CreateReservationInput,
   pasar_con_humano: Handoff,
+  dejar_pendiente: LeavePending,
   finalizar_flujo: Empty,
   cancelar_flujo: Empty,
   cancelar_reserva: CancelReservation,
@@ -202,6 +209,15 @@ export function toolDefinitions(collecting = false, replySchema: z.ZodType = Rep
       name: 'pasar_con_humano',
       description: 'Deja de responder y avisa a una persona del restaurante.',
       parameters: toJsonSchema(Handoff),
+    },
+    {
+      name: 'dejar_pendiente',
+      description:
+        'Deja anotada una pregunta del cliente que tú no puedes contestar, para que una persona del restaurante ' +
+        'la responda en este chat. Llámala SIEMPRE que le digas al cliente que alguien le responderá o que vas a ' +
+        'preguntar (anticipos, eventos, excepciones, algo que no está en la ficha). Sin esta llamada nadie se entera. ' +
+        'NO pausa la conversación: sigue ayudando con lo demás.',
+      parameters: toJsonSchema(LeavePending),
     },
   ];
 
@@ -441,6 +457,12 @@ export async function runTool(
       const r = result.data?.reservation as OwnReservation | null;
       const text = r ? describeReservation(r) : 'cambio aplicado';
       return { content: `Reservación actualizada: ${text}. Queda pendiente de que el restaurante la confirme; díselo al cliente.`, facts: extractNumbers(text) };
+    }
+
+    case 'dejar_pendiente': {
+      const { resumen } = parsed.data as z.infer<typeof LeavePending>;
+      await leavePending(ctx, resumen);
+      return { content: 'Anotado: una persona del restaurante lo verá y le responderá por este chat. Díselo al cliente y sigue con lo demás.', facts: [] };
     }
 
     case 'pasar_con_humano': {

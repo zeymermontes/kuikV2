@@ -3146,7 +3146,8 @@
     "back": "Volver al menú",
     "remove": "Quitar de la lista",
     "removeConfirm": "¿Quitar el chat de {name} de la lista? No se borra nada: vuelve a aparecer si escribe de nuevo.",
-    "removeConfirmWaiting": "¿Quitar el chat de {name}? Deja de contar como pendiente y vuelve al bot. No se borra nada: aparece de nuevo si escribe."
+    "removeConfirmWaiting": "¿Quitar el chat de {name}? Deja de contar como pendiente y vuelve al bot. No se borra nada: aparece de nuevo si escribe.",
+    "pendingCount": "{n, plural, one {# pendiente} other {# pendientes}}"
   },
   "bookings": {
     "tab": "Reservas",
@@ -3168,7 +3169,28 @@
     "mainBranch": "Sede principal",
     "count": "{n, plural, one {# reserva} other {# reservas}}",
     "book": "Reservar",
-    "booked": "Reserva creada para {name}."
+    "booked": "Reserva creada para {name}.",
+    "openBooking": "Ver reserva",
+    "cancelBooking": "Cancelar reserva",
+    "cancelConfirm": "¿Cancelar la reserva de {name}? Se le avisa al cliente."
+  },
+  "pendings": {
+    "title": "Pendientes",
+    "done": "Listo",
+    "byBot": "Lo dejó el bot",
+    "byStaff": "Anotado por el equipo",
+    "bookingToAccept": "Reserva por aceptar",
+    "cancelAsked": "El cliente pide cancelar",
+    "accept": "Aceptar",
+    "reject": "Rechazar",
+    "cancelIt": "Cancelar reserva",
+    "keepIt": "Mantener",
+    "people": "{n, plural, one {# persona} other {# personas}}",
+    "told": "Se le avisó al cliente por WhatsApp.",
+    "tell": "Avisarle al cliente por WhatsApp",
+    "addOne": "Agregar pendiente",
+    "addPlaceholder": "Qué falta resolver…",
+    "add": "Agregar"
   },
   "waTemplate": {
     "title": "Enviar plantilla",

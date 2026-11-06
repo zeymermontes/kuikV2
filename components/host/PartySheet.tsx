@@ -35,7 +35,10 @@ export function PartySheet({
   onChat,
   onKeep,
   onAck,
+  pendings,
 }: {
+  /** What this booking's chat is still owed, shown above everything else. */
+  pendings?: React.ReactNode;
   party: Reservation;
   tables: FloorTable[];
   areas: ReservationArea[];
@@ -217,6 +220,7 @@ export function PartySheet({
       }
     >
       <div className="space-y-5">
+        {pendings}
         {(party.tags.length > 0 || party.note) && (
           <div className="rounded-xl bg-white/5 p-3 text-sm">
             {party.tags.length > 0 && (

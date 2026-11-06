@@ -3146,7 +3146,8 @@
     "back": "Back to the menu",
     "remove": "Remove from the list",
     "removeConfirm": "Remove {name}'s chat from the list? Nothing is deleted: it comes back if they write again.",
-    "removeConfirmWaiting": "Remove {name}'s chat? It stops counting as pending and goes back to the bot. Nothing is deleted: it comes back if they write."
+    "removeConfirmWaiting": "Remove {name}'s chat? It stops counting as pending and goes back to the bot. Nothing is deleted: it comes back if they write.",
+    "pendingCount": "{n, plural, one {# pending} other {# pending}}"
   },
   "bookings": {
     "tab": "Bookings",
@@ -3168,7 +3169,28 @@
     "mainBranch": "Main location",
     "count": "{n, plural, one {# booking} other {# bookings}}",
     "book": "Book",
-    "booked": "Booking made for {name}."
+    "booked": "Booking made for {name}.",
+    "openBooking": "Open booking",
+    "cancelBooking": "Cancel booking",
+    "cancelConfirm": "Cancel {name}'s booking? The guest is told."
+  },
+  "pendings": {
+    "title": "Pending",
+    "done": "Done",
+    "byBot": "Left by the bot",
+    "byStaff": "Noted by the team",
+    "bookingToAccept": "Booking to accept",
+    "cancelAsked": "The guest asks to cancel",
+    "accept": "Accept",
+    "reject": "Reject",
+    "cancelIt": "Cancel booking",
+    "keepIt": "Keep it",
+    "people": "{n, plural, one {# guest} other {# guests}}",
+    "told": "The guest was told over WhatsApp.",
+    "tell": "Tell the guest over WhatsApp",
+    "addOne": "Add a pending",
+    "addPlaceholder": "What is left to settle…",
+    "add": "Add"
   },
   "waTemplate": {
     "title": "Send a template",

@@ -19,6 +19,7 @@ export type StaffAlertKind =
   | 'reservation_changed'
   | 'handoff'
   | 'customer_reply'
+  | 'chat_pending'
   | 'flow_notify';
 
 export interface StaffAlertText {

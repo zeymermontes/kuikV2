@@ -16,6 +16,8 @@ import { buildRestaurantContext } from './context';
 import { buildSystemPrompt } from './prompt';
 import { threadFrom, type StoredMessage } from './thread';
 import { bookingHold, finalizeHold, summaryOf } from './confirm';
+import { promisesFollowUp, summaryFromDiner } from '@/lib/chats/pendings';
+import { leavePending } from '@/lib/whatsapp/pendings';
 import { describeReservation, type OwnReservation } from '@/lib/whatsapp/actions';
 import { completeRunFromAi, reservationErrorMessage } from '@/lib/whatsapp/flows/complete';
 
@@ -162,6 +164,14 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
   // Whether finalizar_flujo ran this turn — the only thing that makes
   // "quedó registrada" true.
   let finalized = false;
+  // Whether the model wrote down that a person owes this diner an answer,
+  // or handed the whole chat to one. If it only SAID so, the pending is
+  // written for it once the reply is out (lib/chats/pendings.ts).
+  let personTold = false;
+  const sent = async (reply: string): Promise<void> => {
+    if (personTold || !promisesFollowUp(reply)) return;
+    await leavePending(turn.ctx, summaryFromDiner(turn.text)).catch(() => {});
+  };
 
   try {
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
@@ -231,7 +241,7 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
                 ? `Para registrarla me falta: ${stillMissing.join(', ')}. ¿Me lo compartes?`
                 : summaryOf(turn.collecting.slots ?? [], merged);
               await logRun(turn, provider.id, provider.model, 'guard_blocked', promptTokens, completionTokens, started, 'claimed done before the summary was confirmed');
-              return finish(turn, provider, honest, facts, promptTokens, completionTokens, started);
+              return finish(turn, provider, honest, facts, promptTokens, completionTokens, started, sent);
             }
             const done = await completeRunFromAi(turn.collecting.runId, turn.ctx, turn.vars);
             facts.push(...done.facts);
@@ -242,10 +252,10 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
                   ? reservationErrorMessage(done.error)
                   : 'Todavía no pude registrar tu solicitud. Un momento y te atiende una persona.';
               await logRun(turn, provider.id, provider.model, 'guard_blocked', promptTokens, completionTokens, started, 'claimed done without finalizar_flujo');
-              return finish(turn, provider, honest, facts, promptTokens, completionTokens, started);
+              return finish(turn, provider, honest, facts, promptTokens, completionTokens, started, sent);
             }
           }
-          return finish(turn, provider, mensaje, facts, promptTokens, completionTokens, started);
+          return finish(turn, provider, mensaje, facts, promptTokens, completionTokens, started, sent);
         }
         // Malformed arguments: hand the error back so it can correct itself,
         // rather than dropping the diner's turn on the floor.
@@ -271,6 +281,7 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
             continue;
           }
           if (call.name === 'finalizar_flujo') finalized = true;
+          if (call.name === 'dejar_pendiente' || call.name === 'pasar_con_humano') personTold = true;
           const outcome = await runTool(call.name, call.arguments, turn.ctx, turn.vars);
           facts.push(...outcome.facts);
           messages.push({
@@ -300,7 +311,7 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
         return false;
       }
 
-      return finish(turn, provider, reply, facts, promptTokens, completionTokens, started);
+      return finish(turn, provider, reply, facts, promptTokens, completionTokens, started, sent);
     }
 
     await logRun(turn, provider.id, provider.model, 'error', promptTokens, completionTokens, started, 'tool rounds exhausted');
@@ -325,6 +336,8 @@ async function finish(
   promptTokens: number,
   completionTokens: number,
   started: number,
+  /** Runs once the reply has really gone out, with the reply. */
+  afterSent?: (reply: string) => Promise<void>,
 ): Promise<boolean> {
   // The control, not the instruction: a figure the tools never produced means
   // the model made it up, and the reply is discarded.
@@ -347,6 +360,7 @@ async function finish(
   );
   await recordUsage(turn.ctx.tenantId, promptTokens, completionTokens);
   await logRun(turn, provider.id, provider.model, 'replied', promptTokens, completionTokens, started);
+  await afterSent?.(reply);
   return true;
 }
 

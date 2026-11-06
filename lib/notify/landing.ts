@@ -13,6 +13,7 @@
 //     handoff                the bot stepped aside: someone asked for a person
 //     customer_reply         the diner wrote back to the person helping them
 //     flow_notify            the bot's flow flagged a conversation
+//     chat_pending           the bot promised an answer only a person can give
 //   on the orders board (orders)
 //     new / paid / still unaccepted (lib/orders/notify.ts, push only)
 //   the admin panel (admin)
@@ -33,7 +34,7 @@ export const HUB = '/terminal';
 /** The staff app an alert kind belongs to. */
 export function sectionOfKind(kind: string): AlertSection {
   if (kind.startsWith('reservation_')) return 'host';
-  if (kind === 'handoff' || kind === 'customer_reply' || kind === 'flow_notify') return 'chats';
+  if (kind === 'handoff' || kind === 'customer_reply' || kind === 'flow_notify' || kind === 'chat_pending') return 'chats';
   if (kind.startsWith('order')) return 'orders';
   return 'admin';
 }

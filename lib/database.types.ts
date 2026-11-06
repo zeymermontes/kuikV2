@@ -232,6 +232,19 @@ export interface TenantInvite {
 /** What a shared device may be signed in as (0100): never owner or manager. */
 export type DeviceRole = Extract<MemberRole, 'cashier' | 'waiter' | 'host'>;
 
+/** Something a chat still owes its diner: a question left for a person (migration 0102). */
+export interface WhatsappPending {
+  id: string;
+  tenant_id: string;
+  conversation_id: string;
+  summary: string;
+  created_by: 'bot' | 'staff';
+  /** Null while it is open. */
+  done_at: string | null;
+  done_by: string | null;
+  created_at: string;
+}
+
 /** A tablet, register or screen that joined with a one-time code (0100). */
 export interface TenantDevice {
   id: string;
