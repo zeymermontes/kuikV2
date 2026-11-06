@@ -2762,7 +2762,8 @@
     "ostatus_rejected": "Rejected",
     "ordersDay": "Day",
     "ordersLive": "Live",
-    "ordersBackToday": "Back to today"
+    "ordersBackToday": "Back to today",
+    "backToHub": "Back to the menu"
   },
   "tutorial": {
     "title": "Tutorials",
@@ -2912,6 +2913,8 @@
     "host_view_floor_b": "The table map with live status. The host's main view.",
     "host_view_timeline_t": "Timeline",
     "host_view_timeline_b": "One row per table across the shift's hours. Each party is a bar as long as its turn time; the green line is now.",
+    "host_view_bookings_t": "Bookings",
+    "host_view_bookings_b": "Every booking, nearest first. Pick upcoming, past or all at the top; a booking stays under upcoming until an hour after its time.",
     "host_view_list_t": "List",
     "host_view_list_b": "Every list in full, including Finished and Cancelled / no-shows.",
     "host_search_t": "Search",
@@ -3144,6 +3147,28 @@
     "remove": "Remove from the list",
     "removeConfirm": "Remove {name}'s chat from the list? Nothing is deleted: it comes back if they write again.",
     "removeConfirmWaiting": "Remove {name}'s chat? It stops counting as pending and goes back to the bot. Nothing is deleted: it comes back if they write."
+  },
+  "bookings": {
+    "tab": "Bookings",
+    "upcoming": "Upcoming",
+    "past": "Past",
+    "all": "All",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "yesterday": "Yesterday",
+    "people": "{n, plural, one {# guest} other {# guests}}",
+    "emptyUpcoming": "No upcoming bookings.",
+    "emptyPast": "No past bookings.",
+    "emptyAll": "No bookings yet.",
+    "cancelRequested": "Asks to cancel",
+    "pastDivider": "Past",
+    "loading": "Loading bookings…",
+    "openChat": "Open chat",
+    "openDay": "See at the host stand",
+    "mainBranch": "Main location",
+    "count": "{n, plural, one {# booking} other {# bookings}}",
+    "book": "Book",
+    "booked": "Booking made for {name}."
   },
   "waTemplate": {
     "title": "Send a template",

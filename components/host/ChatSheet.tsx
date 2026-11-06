@@ -24,7 +24,10 @@ export function ChatSheet({
   name,
   phone,
   onClose,
+  headerAction,
 }: {
+  /** Shown beside the name: what the screen that opened the chat lets you do about it. */
+  headerAction?: React.ReactNode;
   /** Open by booking… */
   partyId?: string;
   /** …or straight by conversation (a diner waiting for a person, booking or not)… */
@@ -230,7 +233,7 @@ export function ChatSheet({
   );
 
   return (
-    <Sheet title={name} subtitle={phone ?? t('chatTitle')} onClose={onClose} footer={footer}>
+    <Sheet title={name} subtitle={phone ?? t('chatTitle')} onClose={onClose} footer={footer} action={headerAction}>
       {templateOpen && conversationId && (
         <WaTemplateModal conversationId={conversationId} onClose={() => setTemplateOpen(false)} onSent={templateSent} manageHref={null} />
       )}

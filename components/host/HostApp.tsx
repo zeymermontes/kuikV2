@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   ChevronLeft, ChevronRight, Users, Search, Plus, Settings, LayoutGrid, List, Pencil, Check, X,
-  CalendarClock, ExternalLink, Bell, Clock, Link2, Trash2, ShoppingBag,
+  CalendarClock, ExternalLink, Bell, Clock, Link2, Trash2, ShoppingBag, ArrowLeft, CalendarDays,
 } from 'lucide-react';
 import type {
   FloorTable, FloorCombination, Reservation, ReservationArea, ReservationStatus, TableStatus, TableShape,
@@ -28,6 +28,8 @@ import { RequestsSheet } from './RequestsSheet';
 import { OrdersSheet } from './OrdersSheet';
 import { ChatSheet } from './ChatSheet';
 import { ReservationForm } from '@/components/dashboard/ReservationForm';
+import { BookingsList } from '@/components/reservations/BookingsList';
+import { HUB_PATH } from '@/lib/native/back';
 import { FloorPlan } from './FloorPlan';
 import { Timeline } from './Timeline';
 import { PartyList, type HostSettings } from './PartyList';
@@ -38,7 +40,7 @@ import { HostSettingsSheet } from './HostSettingsSheet';
 import { PRIMARY } from './ui';
 import { ExplainLayer } from '@/components/ExplainLayer';
 
-type View = 'floor' | 'timeline' | 'list';
+type View = 'floor' | 'timeline' | 'bookings' | 'list';
 type Sheet =
   | { kind: 'party'; id: string }
   | { kind: 'walkin'; preset: { party?: number; quote?: number; tableIds?: string[] } }
@@ -107,6 +109,7 @@ export function HostApp({
   explain?: boolean;
 }) {
   const t = useTranslations('host');
+  const tb = useTranslations('bookings');
   const router = useRouter();
   const [, startTransition] = useTransition();
   // In demo mode the optimistic update IS the update.
@@ -496,6 +499,7 @@ export function HostApp({
         [
           ['floor', LayoutGrid, t('floor')],
           ['timeline', Clock, t('timeline')],
+          ['bookings', CalendarDays, tb('tab')],
           ['list', List, t('list')],
         ] as const
       ).map(([key, Icon, label]) => (
@@ -659,19 +663,46 @@ export function HostApp({
     <Timeline tables={roomTables} parties={reservations} now={now} isToday={day === today} settings={settings} onSelect={(id) => setSheet({ kind: 'party', id })} />
   );
 
-  const mainFor = (v: View) => (v === 'floor' ? floor : v === 'timeline' ? timeline : <div className="h-full overflow-y-auto md:max-w-3xl">{list(true)}</div>);
+  // Every booking, any day: the same list the chats app shows. A booking of
+  // the day on screen opens its sheet; one of another day takes the stand
+  // to that day, where the list on the left (the first tab on a phone) has it.
+  const bookings = demo ? (
+    <p className="py-16 text-center text-sm text-white/50">{tb('emptyAll')}</p>
+  ) : (
+    <BookingsList
+      tenantId={tenantId}
+      timezone={timezone}
+      branchId={branchId}
+      areas={areas}
+      onOpen={(r) => {
+        if (r.date === day && reservations.some((x) => x.id === r.id)) return setSheet({ kind: 'party', id: r.id });
+        setMobileTab('list');
+        router.push(href(r.date));
+      }}
+    />
+  );
+
+  const mainFor = (v: View) =>
+    v === 'floor' ? floor : v === 'timeline' ? timeline : v === 'bookings' ? bookings : <div className="h-full overflow-y-auto md:max-w-3xl">{list(true)}</div>;
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-pos-dark text-white" style={themeStyle}>
       {/* Top bar: one row on tablets, two on phones so nothing is squeezed out */}
       <header className="border-b border-white/10 px-2 py-2 md:px-3">
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 md:gap-2">
+            {/* The launcher every section is opened from, as in the chats app. Not in the demo, which has no hub behind it. */}
+            {!demo && (
+              <Link href={HUB_PATH} prefetch={true} className="rounded-lg p-2 text-white/70 hover:bg-white/5 hover:text-white" title={t('backToHub')} aria-label={t('backToHub')}>
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+            )}
+            {/* The logo gives way where the row is short of room: on a phone and on anything held upright. */}
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt="" className="h-8 w-8 rounded-lg bg-white object-cover" />
+              <img src={logoUrl} alt="" className="hidden h-8 w-8 rounded-lg bg-white object-cover md:landscape:block" />
             ) : (
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-pos-accent text-sm font-black text-pos-accent-text">K</span>
+              <span className="hidden h-8 w-8 items-center justify-center rounded-lg bg-pos-accent text-sm font-black text-pos-accent-text md:landscape:flex">K</span>
             )}
             <span className="hidden max-w-[140px] truncate text-sm font-bold lg:block">{tenantName}</span>
           </div>
@@ -754,6 +785,7 @@ export function HostApp({
             ['list', List, t('list')],
             ['floor', LayoutGrid, t('floor')],
             ['timeline', Clock, t('timeline')],
+            ['bookings', CalendarDays, tb('tab')],
           ] as const
         ).map(([key, Icon, label]) => (
           <button key={key} data-help={`host_view_${key}`} onClick={() => setMobileTab(key)} className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${mobileTab === key ? 'text-white' : 'text-white/40'}`}>

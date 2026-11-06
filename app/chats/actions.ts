@@ -19,6 +19,8 @@ export interface ChatRow {
   lastInbound: boolean;
   /** The last message is a person's from the restaurant: the diner has their answer. */
   staffReplied: boolean;
+  /** The branch the chat's number belongs to; null is the main location. */
+  branchId: string | null;
 }
 
 /**
@@ -56,7 +58,7 @@ export async function listChats(q = ''): Promise<{ rows: ChatRow[]; connected: b
 
   let query = admin
     .from('whatsapp_conversations')
-    .select('id, handoff_at, bot_enabled, last_inbound_at, last_outbound_at, updated_at, contact:whatsapp_contacts(profile_name, phone_e164, wa_id)')
+    .select('id, branch_id, handoff_at, bot_enabled, last_inbound_at, last_outbound_at, updated_at, contact:whatsapp_contacts(profile_name, phone_e164, wa_id)')
     .eq('tenant_id', tenant.id)
     .order('updated_at', { ascending: false })
     .limit(50);
@@ -65,7 +67,7 @@ export async function listChats(q = ''): Promise<{ rows: ChatRow[]; connected: b
   else query = query.or('status.eq.open,handoff_at.not.is.null');
   const { data } = await query;
   const convs = (data ?? []) as unknown as {
-    id: string; handoff_at: string | null; bot_enabled: boolean; last_inbound_at: string | null; last_outbound_at: string | null; updated_at: string;
+    id: string; branch_id: string | null; handoff_at: string | null; bot_enabled: boolean; last_inbound_at: string | null; last_outbound_at: string | null; updated_at: string;
     contact: { profile_name: string | null; phone_e164: string; wa_id: string } | { profile_name: string | null; phone_e164: string; wa_id: string }[] | null;
   }[];
   if (convs.length === 0) return { rows: [], connected: !!number };
@@ -97,6 +99,7 @@ export async function listChats(q = ''): Promise<{ rows: ChatRow[]; connected: b
         lastAt: m?.created_at ?? c.last_inbound_at ?? c.last_outbound_at,
         lastInbound: m?.direction === 'inbound',
         staffReplied: m ? isStaffReply(m) : false,
+        branchId: c.branch_id,
       };
     })
     // A chat with no message at all (opened by number, nothing sent yet) is noise here.
@@ -115,12 +118,12 @@ export async function chatRow(conversationId: string): Promise<ChatRow | null> {
   const admin = createAdminClient();
   const { data } = await admin
     .from('whatsapp_conversations')
-    .select('id, handoff_at, bot_enabled, last_inbound_at, last_outbound_at, contact:whatsapp_contacts(profile_name, phone_e164)')
+    .select('id, branch_id, handoff_at, bot_enabled, last_inbound_at, last_outbound_at, contact:whatsapp_contacts(profile_name, phone_e164)')
     .eq('tenant_id', tenant.id)
     .eq('id', conversationId)
     .maybeSingle();
   const c = data as unknown as {
-    id: string; handoff_at: string | null; bot_enabled: boolean; last_inbound_at: string | null; last_outbound_at: string | null;
+    id: string; branch_id: string | null; handoff_at: string | null; bot_enabled: boolean; last_inbound_at: string | null; last_outbound_at: string | null;
     contact: { profile_name: string | null; phone_e164: string } | { profile_name: string | null; phone_e164: string }[] | null;
   } | null;
   if (!c) return null;
@@ -137,6 +140,7 @@ export async function chatRow(conversationId: string): Promise<ChatRow | null> {
     lastAt: c.last_inbound_at ?? c.last_outbound_at,
     lastInbound: false,
     staffReplied: false,
+    branchId: c.branch_id,
   };
 }
 

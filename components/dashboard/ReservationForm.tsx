@@ -22,7 +22,13 @@ export function ReservationForm({
   onCreated,
   initial,
   onSaved,
+  prefill,
+  conversationId,
 }: {
+  /** A new booking that starts from what is already known (the chat's name and number). */
+  prefill?: { name?: string; phone?: string | null };
+  /** The WhatsApp chat the booking is taken in: it is tied to it (createReservationAction). */
+  conversationId?: string;
   areas: ReservationArea[];
   defaultDate: string;
   defaultTime: string;
@@ -34,8 +40,8 @@ export function ReservationForm({
   onSaved?: (r: { href?: string; notificationId?: string }) => void;
 }) {
   const t = useTranslations('reservations');
-  const [name, setName] = useState(initial?.customer_name ?? '');
-  const [phone, setPhone] = useState(initial?.phone ?? '');
+  const [name, setName] = useState(initial?.customer_name ?? prefill?.name ?? '');
+  const [phone, setPhone] = useState(initial?.phone ?? prefill?.phone ?? '');
   const [party, setParty] = useState(initial?.party_size ?? 2);
   const [date, setDate] = useState(initial?.date ?? defaultDate);
   const [time, setTime] = useState(initial?.time.slice(0, 5) ?? defaultTime);
@@ -81,6 +87,7 @@ export function ReservationForm({
         area_id: areaId || null,
         source: 'manual',
         force,
+        conversation_id: conversationId ?? null,
       });
       if (result.ok) {
         onCreated();

@@ -2762,7 +2762,8 @@
     "ostatus_rejected": "Rechazado",
     "ordersDay": "Día",
     "ordersLive": "En curso",
-    "ordersBackToday": "Volver a hoy"
+    "ordersBackToday": "Volver a hoy",
+    "backToHub": "Volver al menú"
   },
   "tutorial": {
     "title": "Tutoriales",
@@ -2912,6 +2913,8 @@
     "host_view_floor_b": "El mapa de mesas con su estado en vivo. Es la vista principal del anfitrión.",
     "host_view_timeline_t": "Línea de tiempo",
     "host_view_timeline_b": "Una fila por mesa y las horas del turno. Cada grupo es una barra tan larga como su tiempo de mesa; la línea verde es ahora.",
+    "host_view_bookings_t": "Reservas",
+    "host_view_bookings_b": "Todas las reservas, de la más próxima a la más lejana. Arriba eliges próximas, pasadas o todas; una reserva sigue en próximas hasta una hora después de su hora.",
     "host_view_list_t": "Lista",
     "host_view_list_b": "Todas las listas completas, incluidas Terminadas y Canceladas / no llegaron.",
     "host_search_t": "Buscar",
@@ -3144,6 +3147,28 @@
     "remove": "Quitar de la lista",
     "removeConfirm": "¿Quitar el chat de {name} de la lista? No se borra nada: vuelve a aparecer si escribe de nuevo.",
     "removeConfirmWaiting": "¿Quitar el chat de {name}? Deja de contar como pendiente y vuelve al bot. No se borra nada: aparece de nuevo si escribe."
+  },
+  "bookings": {
+    "tab": "Reservas",
+    "upcoming": "Próximas",
+    "past": "Pasadas",
+    "all": "Todas",
+    "today": "Hoy",
+    "tomorrow": "Mañana",
+    "yesterday": "Ayer",
+    "people": "{n, plural, one {# persona} other {# personas}}",
+    "emptyUpcoming": "No hay reservas próximas.",
+    "emptyPast": "No hay reservas pasadas.",
+    "emptyAll": "Todavía no hay reservas.",
+    "cancelRequested": "Pide cancelar",
+    "pastDivider": "Pasadas",
+    "loading": "Cargando reservas…",
+    "openChat": "Abrir chat",
+    "openDay": "Ver en Anfitrión",
+    "mainBranch": "Sede principal",
+    "count": "{n, plural, one {# reserva} other {# reservas}}",
+    "book": "Reservar",
+    "booked": "Reserva creada para {name}."
   },
   "waTemplate": {
     "title": "Enviar plantilla",

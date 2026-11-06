@@ -27,9 +27,12 @@ export function Sheet({
   onClose,
   children,
   footer,
+  action,
 }: {
   title: React.ReactNode;
   subtitle?: React.ReactNode;
+  /** Something to do about what the sheet shows, beside its title. */
+  action?: React.ReactNode;
   onClose: () => void;
   children: React.ReactNode;
   footer?: React.ReactNode;
@@ -48,6 +51,7 @@ export function Sheet({
             <h2 className="truncate text-lg font-bold">{title}</h2>
             {subtitle && <p className="truncate text-sm text-white/50">{subtitle}</p>}
           </div>
+          {action}
           <button onClick={onClose} aria-label="close" className="rounded-full p-1.5 text-white/60 hover:bg-white/10">
             <X className="h-5 w-5" />
           </button>

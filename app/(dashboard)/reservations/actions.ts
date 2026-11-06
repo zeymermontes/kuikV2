@@ -7,6 +7,9 @@ import { revalidateTenant } from '@/lib/revalidate';
 import { createReservation, type CreateReservationResult } from '@/lib/reservations/create';
 import { getNotifier, renderNotification } from '@/lib/notify';
 import { NEEDS_DECISION } from '@/lib/pending-counts';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { branchFilter } from '@/lib/branches';
+import { pastCutoff } from '@/lib/reservations/bookings-list';
 import type {
   Reservation, ReservationArea, ReservationStatus, ReservationNotification,
 } from '@/lib/database.types';
@@ -235,6 +238,29 @@ export async function listPendingReservations(): Promise<Reservation[]> {
   return (data ?? []) as Reservation[];
 }
 
+/**
+ * Every booking, for the list the host stand and the chats app share
+ * (components/reservations/BookingsList.tsx): what is coming, soonest first,
+ * and what has passed, latest first. Walk-ins are not bookings and stay out.
+ *
+ * `branchId`: a branch, null for the main location, or left out for all of
+ * them (the chats app, which is not tied to one).
+ */
+export async function listBookings(input: { branchId?: string | null } = {}): Promise<{ upcoming: Reservation[]; past: Reservation[] }> {
+  const { tenant } = await requireReservations();
+  const supabase = await createClient();
+  const cutoff = pastCutoff(Date.now());
+  const base = () => {
+    const q = supabase.from('reservations').select('*').eq('tenant_id', tenant.id).neq('source', 'walkin');
+    return input.branchId === undefined ? q : branchFilter(q, input.branchId);
+  };
+  const [{ data: upcoming }, { data: past }] = await Promise.all([
+    base().gte('starts_at', cutoff).order('starts_at', { ascending: true }).limit(300),
+    base().lt('starts_at', cutoff).order('starts_at', { ascending: false }).limit(200),
+  ]);
+  return { upcoming: (upcoming ?? []) as Reservation[], past: (past ?? []) as Reservation[] };
+}
+
 /** Re-read one day. Used by the refresh button and after a realtime reconnect. */
 export async function listDayReservations(day: string): Promise<Reservation[]> {
   const { tenant } = await requireReservations();
@@ -265,13 +291,32 @@ export async function createReservationAction(input: {
   branch_id?: string | null;
   source?: 'manual' | 'phone';
   force?: boolean;
+  /**
+   * The WhatsApp chat the booking is being taken in (the chats app). The
+   * booking is tied to it, so its notices go to that chat and the diner can
+   * change or cancel it from there, and it is made for the chat's branch.
+   */
+  conversation_id?: string | null;
 }): Promise<CreateReservationResult> {
   const { tenant } = await requireReservations();
   const supabase = await createClient();
 
+  // Read with the service role (staff who mind the chats cannot all select
+  // conversations) and always within this restaurant: the id came from the browser.
+  let chat: { id: string; branch_id: string | null } | null = null;
+  if (input.conversation_id) {
+    const { data } = await createAdminClient()
+      .from('whatsapp_conversations')
+      .select('id, branch_id')
+      .eq('tenant_id', tenant.id)
+      .eq('id', input.conversation_id)
+      .maybeSingle<{ id: string; branch_id: string | null }>();
+    chat = data ?? null;
+  }
+
   const result = await createReservation(supabase, {
     tenantId: tenant.id,
-    branchId: input.branch_id ?? null,
+    branchId: input.branch_id ?? chat?.branch_id ?? null,
     areaId: input.area_id ?? null,
     customerName: input.customer_name,
     phone: input.phone ?? null,
@@ -283,6 +328,9 @@ export async function createReservationAction(input: {
     force: input.force ?? false,
   });
 
+  if (result.ok && chat) {
+    await createAdminClient().from('reservations').update({ whatsapp_conversation_id: chat.id }).eq('tenant_id', tenant.id).eq('id', result.id);
+  }
   if (result.ok) revalidatePath('/reservations');
   return result;
 }

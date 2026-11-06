@@ -3,9 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, Bot, ExternalLink, Headset, MessageCircle, Search, X } from 'lucide-react';
+import { ArrowLeft, Bot, CalendarDays, CalendarPlus, ExternalLink, Headset, MessageCircle, Search, X } from 'lucide-react';
 import { createClient, channelName } from '@/lib/supabase/client';
-import { closeChat, listChats, type ChatRow } from '@/app/chats/actions';
+import { chatRow, closeChat, listChats, type ChatRow } from '@/app/chats/actions';
+import { BookingsList } from '@/components/reservations/BookingsList';
+import { ReservationForm } from '@/components/dashboard/ReservationForm';
+import type { ReservationArea } from '@/lib/database.types';
+import { nowHHMMInTz, todayInTz } from '@/lib/time';
 import { HUB_PATH } from '@/lib/native/back';
 import { ChatSheet } from '@/components/host/ChatSheet';
 import { chatTone, chatsFor, type ChatTone } from '@/lib/chats/list';
@@ -25,6 +29,11 @@ const TONE: Record<ChatTone, string> = {
  * uses, so a reply here and a reply at the door are the same thing; the X
  * takes a finished chat off the list (closeChat). The list refreshes on
  * every new message and every handoff, over Realtime.
+ *
+ * A second tab lists every booking (components/reservations/BookingsList.tsx,
+ * the same list the host stand shows), and an open chat can take a booking:
+ * the form opens with the chat's name and number, and the booking is tied to
+ * the chat.
  */
 export function ChatsApp({
   tenantId,
@@ -34,8 +43,15 @@ export function ChatsApp({
   openChat = null,
   themeStyle,
   adminLink = true,
+  timezone,
+  areas = [],
+  branches = [],
 }: {
   tenantId: string;
+  /** The restaurant's zone, for the bookings tab and the booking form's defaults. */
+  timezone: string;
+  areas?: ReservationArea[];
+  branches?: { id: string; name: string }[];
   /** The shortcut into the admin panel's inbox. Off for a shared device (0100). */
   adminLink?: boolean;
   tenantName: string;
@@ -46,11 +62,21 @@ export function ChatsApp({
   themeStyle?: React.CSSProperties;
 }) {
   const t = useTranslations('chats');
+  const tb = useTranslations('bookings');
   const [rows, setRows] = useState<ChatRow[]>(initial.rows);
   const [connected] = useState(initial.connected);
   const [view, setView] = useState<'waiting' | 'all'>(initial.rows.some((r) => r.waiting) ? 'waiting' : 'all');
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState<ChatRow | null>(openChat);
+  const [tab, setTab] = useState<'chats' | 'bookings'>('chats');
+  // The chat a booking is being taken for; the form sits on top of the chat.
+  const [booking, setBooking] = useState<ChatRow | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  useEffect(() => {
+    if (!toast) return;
+    const id = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(id);
+  }, [toast]);
   const [now, setNow] = useState(() => Date.now());
   const queryRef = useRef(query);
   useEffect(() => { queryRef.current = query; }, [query]);
@@ -114,13 +140,33 @@ export function ChatsApp({
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-pos-accent text-sm font-black text-pos-accent-text">K</span>
           )}
           <span className="hidden max-w-[160px] truncate text-sm font-bold sm:block">{tenantName}</span>
-          <span className="flex items-center gap-1.5 text-sm font-semibold"><MessageCircle className="h-4 w-4 text-white/60" /> {t('title')}</span>
+          <div className="flex overflow-hidden rounded-lg bg-white/5 text-sm font-semibold" role="tablist">
+            {(
+              [
+                ['chats', MessageCircle, t('title')],
+                ['bookings', CalendarDays, tb('tab')],
+              ] as const
+            ).map(([key, Icon, label]) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={tab === key}
+                onClick={() => setTab(key)}
+                className={`flex items-center gap-1.5 px-3 py-2 ${tab === key ? 'bg-white text-neutral-900' : 'text-white/70 hover:text-white'}`}
+              >
+                <Icon className="h-4 w-4" /> {label}
+              </button>
+            ))}
+          </div>
           {adminLink && (
             <Link href="/whatsapp/inbox" className="ml-auto rounded-lg bg-white/5 p-2 text-white/70 hover:text-white" title="Inbox">
               <ExternalLink className="h-4 w-4" />
             </Link>
           )}
         </div>
+        {tab === 'chats' && (
+        <>
         <div className="relative mt-2">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
           <input
@@ -153,9 +199,31 @@ export function ChatsApp({
             );
           })}
         </div>
+        </>
+        )}
       </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto">
+      {tab === 'bookings' && (
+        <main className="min-h-0 flex-1">
+          <BookingsList
+            tenantId={tenantId}
+            timezone={timezone}
+            areas={areas}
+            branches={branches}
+            openKind="chat"
+            onOpen={(r) => {
+              const c = r.whatsapp_conversation_id;
+              if (!c) return;
+              // The chat the booking came through, whether or not the list above holds it.
+              const known = rows.find((x) => x.conversationId === c);
+              if (known) return setOpen(known);
+              chatRow(c).then((row) => row && setOpen(row)).catch(() => {});
+            }}
+          />
+        </main>
+      )}
+
+      <main className={`min-h-0 flex-1 overflow-y-auto ${tab === 'chats' ? '' : 'hidden'}`}>
         {!connected && <p className="m-3 rounded-xl bg-amber-400/10 p-3 text-sm text-amber-200">{t('noWhatsapp')}</p>}
         {visible.length === 0 ? (
           <p className="py-16 text-center text-sm text-white/50">{view === 'waiting' ? t('emptyWaiting') : t('empty')}</p>
@@ -204,6 +272,16 @@ export function ChatsApp({
           conversationId={open.conversationId}
           name={open.name}
           phone={open.phone}
+          headerAction={
+            <button
+              type="button"
+              onClick={() => setBooking(open)}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-neutral-900 hover:bg-white/90"
+              title={tb('book')}
+            >
+              <CalendarPlus className="h-4 w-4" /> {tb('book')}
+            </button>
+          }
           onClose={() => {
             setOpen(null);
             // Opened by link: a reload should show the list, not the chat again.
@@ -212,6 +290,31 @@ export function ChatsApp({
           }}
         />
       )}
+
+      {booking && (
+        <ReservationForm
+          // The areas of the chat's own branch: the booking is made for it.
+          areas={areas.filter((a) => (a.branch_id ?? null) === (booking.branchId ?? null))}
+          defaultDate={todayInTz(timezone)}
+          defaultTime={nextHalfHour(nowHHMMInTz(timezone))}
+          // A chat with no profile name is listed by its number: that is not a name to book under.
+          prefill={{ name: booking.name === booking.phone || booking.name === 'Cliente' ? '' : booking.name, phone: booking.phone }}
+          conversationId={booking.conversationId}
+          onClose={() => setBooking(null)}
+          onCreated={() => setToast(tb('booked', { name: booking.name }))}
+        />
+      )}
+
+      {toast && (
+        <div className="animate-slide-up fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-2xl bg-white px-4 py-3 text-sm text-neutral-900 shadow-xl" role="status">{toast}</div>
+      )}
     </div>
   );
+}
+
+/** The next half hour from a wall-clock "HH:MM", so the booking form opens on a sensible time. */
+function nextHalfHour(hhmm: string): string {
+  const [h, m] = hhmm.split(':').map(Number);
+  const total = Math.min(Math.ceil(((h || 0) * 60 + (m || 0) + 1) / 30) * 30, 23 * 60 + 30);
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 }
