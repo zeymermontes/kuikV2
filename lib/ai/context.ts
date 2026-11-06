@@ -5,6 +5,7 @@ import { parseSchedule, hoursOn, upcomingSpecials } from '@/lib/hours';
 import { addDays, nowHHMMInTz, todayInTz, weekdayInTz } from '@/lib/time';
 import { formatPrice } from '@/lib/utils';
 import { dayAvailability, weekdayOfDate } from '@/lib/reservations/day';
+import { bareHourLines } from './hours-guide';
 import type { RenderVars } from '@/lib/whatsapp/render';
 import { renderTemplate } from '@/lib/whatsapp/render';
 
@@ -83,10 +84,22 @@ export async function buildRestaurantContext(params: {
       !todayHours ? 'horario no configurado' : todayHours.closed ? 'CERRADO (hoy no abre)' : openNow ? `ABIERTO hasta las ${todayHours.close}` : `CERRADO (hoy abre de ${todayHours.open} a ${todayHours.close})`
     }`,
   );
+  // The model is poor at calendar arithmetic (seen: "el sábado", said on a
+  // Friday, written down as the Saturday of the week after). The days ahead
+  // are spelled out so a weekday is looked up, not computed.
+  lines.push(
+    `- Calendario (para pasar "mañana" o "el sábado" a fecha, búscalo aquí; no lo calcules): ${
+      Array.from({ length: 14 }, (_, i) => {
+        const date = addDays(today, i + 1);
+        return `${i === 0 ? 'mañana ' : ''}${DAY_SHORT[weekdayOfDate(date)]} ${date}`;
+      }).join(' · ')
+    }`,
+  );
   if (week) {
     lines.push('- Horario semanal:');
     for (const [i, d] of week.entries()) lines.push(`  ${DAY_SHORT[i]}: ${d.closed ? 'cerrado' : `${d.open}–${d.close}`}`);
   }
+  if (week) lines.push(...bareHourLines(week));
   // Holidays and one-off days: these override the week, and a diner asking
   // "¿abren el 25?" wants exactly this.
   const specials = schedule ? upcomingSpecials(schedule, today) : [];

@@ -7,12 +7,14 @@ import { sendMessage } from '../send';
 import { botHandoff, type BotContext } from '../actions';
 import type { RenderVars } from '../render';
 import type { OutboundDraft, WhatsappFlow, WhatsappFlowRun } from '../types';
-import { completeGraph, flowBooks, promptDraft, resumeNodeId, slotByKey, spanishSlotParser, stepGraph, type GraphEngineCtx } from './engine';
+import { completeGraph, flowBooks, resumeNodeId, slotByKey, spanishSlotParser, stepGraphUnits, unitsOf, type GraphEngineCtx } from './engine';
 import type { FlowGraph } from './schema';
 import { slotsOf } from './schema';
 import { executeActions, getCanned, reservationErrorMessage, reservationErrorNeedsHuman } from './complete';
 import { reservationDayStatus } from '@/lib/reservations/availability';
 import { dayUnavailableMessage } from '@/lib/reservations/day';
+import { dateMismatch } from '@/lib/ai/confirm';
+import { longDate } from '@/lib/notify/messages';
 import {
   createRun, endRun, loadPublishedGraph, loadRun,
   mergeAnswers, plainAnswers, timerDues,
@@ -33,7 +35,7 @@ export interface FlowTurnParams {
   contactId: string;
   botCtx: BotContext;
   vars: RenderVars;
-  turn: { text: string; replyId?: string | null };
+  turn: { text: string; replyId?: string | null; parts?: { text: string; replyId?: string | null }[] };
   /** Enabled + published flows, priority-ordered (they also feed matchGoal). */
   flows: WhatsappFlow[];
   aiEnabled: boolean;
@@ -193,6 +195,29 @@ export async function runFlowTurn(params: FlowTurnParams): Promise<boolean> {
                 const dateSlot = slots.find((s) => s.type === 'date');
                 const date = dateSlot ? datos[dateSlot.key] : undefined;
                 if (typeof date !== 'string' || date === answers[dateSlot!.key]) return { ok: true };
+                // What the diner said, counted here: the model reads "el
+                // sábado" correctly and still lands on the wrong week.
+                const { data: before } = await supabase
+                  .from('whatsapp_messages')
+                  .select('body')
+                  .eq('conversation_id', conv.id)
+                  .eq('direction', 'inbound')
+                  .gte('created_at', run!.started_at)
+                  .order('created_at', { ascending: false })
+                  .limit(8);
+                const said = dateMismatch({
+                  written: date,
+                  now: turn.text,
+                  earlier: ((before ?? []) as { body: string | null }[]).map((m) => m.body ?? ''),
+                  today: ctx.today,
+                });
+                if (said) {
+                  return {
+                    ok: false, key: dateSlot!.key,
+                    detail: `La fecha ${date} no es la que dijo el cliente: lo que escribió corresponde a ${said} (${longDate(said, 'es')}).`,
+                    fix: `Usa ${said} en \`datos\` y en el mensaje, y vuelve a llamar a responder.`,
+                  };
+                }
                 const partySlot = slots.find((s) => s.type === 'number');
                 const party = Number((partySlot && datos[partySlot.key]) ?? (partySlot && answers[partySlot.key]) ?? 1);
                 const status = await reservationDayStatus(supabase, { tenantId: conv.tenant_id, branchId: ctx.branchId, date, partySize: party });
@@ -289,39 +314,30 @@ export async function runFlowTurn(params: FlowTurnParams): Promise<boolean> {
 
   const engineCtx: GraphEngineCtx = { vars, parse: spanishSlotParser(ctx.today) };
 
-  const result = stepGraph(
+  // Everything they sent since the bot last spoke: several messages, a list,
+  // or one sentence that answers three questions. A date found anywhere in
+  // it on a booking flow is checked against the calendar before it is kept;
+  // if that day cannot be booked they are told why and asked the day again.
+  const books = flowBooks(graph);
+  const partyKey = slotsOf(graph).find((s) => s.type === 'number')?.key;
+  const result = await stepGraphUnits(
     graph,
     { currentNodeId: run.current_node_id, answers },
-    { text: turn.text, replyId: turn.replyId },
+    unitsOf(turn),
     engineCtx,
+    books
+      ? async (capture, soFar) => {
+          if (slotByKey(graph, capture.key)?.type !== 'date') return null;
+          const status = await reservationDayStatus(supabase, {
+            tenantId: conv.tenant_id,
+            branchId: ctx.branchId,
+            date: String(capture.value),
+            partySize: partyKey ? Number(soFar[partyKey] ?? 1) : undefined,
+          });
+          return status.ok ? null : dayUnavailableMessage(status.reason, vars.telefono);
+        }
+      : undefined,
   );
-
-  // A date just captured on a booking flow: is that day bookable at all?
-  // If not, say why and ask the same question again — the run stays put.
-  const dateCapture = result.captured.find((c) => slotByKey(graph, c.key)?.type === 'date');
-  if (dateCapture && flowBooks(graph)) {
-    const partyKey = slotsOf(graph).find((s) => s.type === 'number')?.key;
-    const status = await reservationDayStatus(supabase, {
-      tenantId: conv.tenant_id,
-      branchId: ctx.branchId,
-      date: String(dateCapture.value),
-      partySize: partyKey ? Number(result.state.answers[partyKey] ?? 1) : undefined,
-    });
-    if (!status.ok) {
-      const again = promptDraft(graph, run.current_node_id, answers, engineCtx);
-      await supabase
-        .from('whatsapp_flow_runs')
-        .update({ last_inbound_at: new Date().toISOString(), nudge_count: 0, ...timerDues(flow) })
-        .eq('id', run.id)
-        .eq('status', 'active');
-      await say(conv.id, [
-        ...params.pendingReplies,
-        { type: 'text', body: dayUnavailableMessage(status.reason, vars.telefono) },
-        ...(again ? [again] : []),
-      ]);
-      return true;
-    }
-  }
 
   const executed = await executeActions(supabase, ctx, result.actions, vars);
   // Action outcomes ("tu solicitud quedó registrada") read best before the

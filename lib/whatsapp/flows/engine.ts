@@ -14,7 +14,7 @@
  */
 
 import { digitsOnly } from '@/lib/utils';
-import { normalizeText, parsePartySize, parseSpanishDate, parseSpanishTime } from '../parse';
+import { normalizeText, parseCount, parseSpanishDate, parseSpanishTime, parseYesNo } from '../parse';
 import { renderTemplate } from '../render';
 import type { OutboundDraft } from '../types';
 import {
@@ -45,8 +45,11 @@ export interface GraphEngineCtx {
   vars?: Record<string, string | undefined>;
   /** Options computed at runtime for a slot, e.g. open days. */
   dynamicOptions?: Record<string, SlotOption[]>;
-  /** Free-text parser (Spanish dates/times/party size live in parse.ts). */
-  parse?: (slot: FlowSlot, text: string) => string | number | null;
+  /**
+   * Free-text parser (Spanish dates and times live in parse.ts). `strict`
+   * asks for only what the text says outright; see `stepGraphUnits`.
+   */
+  parse?: (slot: FlowSlot, text: string, strict?: boolean) => string | number | null;
 }
 
 export interface GraphActionRequest {
@@ -164,31 +167,53 @@ function confirmDraft(body: string): OutboundDraft {
   };
 }
 
-function coerce(slot: FlowSlot, raw: string, ctx: GraphEngineCtx): string | number | null {
+/**
+ * The answer in `raw`, as the slot's kind of value.
+ *
+ * `strict` is for reading a message for a question it was NOT asked: only a
+ * value the text states outright counts ("a las 8", "4 personas", an option
+ * by its name), never a bare number that could be anything.
+ */
+function coerce(slot: FlowSlot, raw: string, ctx: GraphEngineCtx, strict = false): string | number | null {
   if (slot.type === 'number') {
-    const digits = raw.match(/\d+/);
-    const n = digits ? Number(digits[0]) : NaN;
-    if (Number.isNaN(n)) return ctx.parse?.(slot, raw) ?? null;
+    const n = parseCount(raw, { strict });
+    if (n === null) return null;
     if (slot.min != null && n < slot.min) return null;
     if (slot.max != null && n > slot.max) return null;
     return n;
   }
   if (slot.type === 'date' || slot.type === 'time') {
-    return ctx.parse?.(slot, raw) ?? null;
+    return ctx.parse?.(slot, raw, strict) ?? null;
   }
   if (slot.type === 'phone') {
+    if (strict && !/^[\s+()\d.-]+$/.test(raw.trim())) return null;
     const digits = digitsOnly(raw);
-    return digits.length >= 8 && digits.length <= 15 ? digits : null;
+    return digits.length >= (strict ? 10 : 8) && digits.length <= 15 ? digits : null;
   }
   if (slot.type === 'email') {
-    const m = raw.trim().match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
+    const m = strict ? raw.match(/[^\s@<>]+@[^\s@<>]+\.[^\s@<>.,;]+/) : raw.trim().match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
     return m ? m[0].toLowerCase() : null;
   }
   if (slot.type === 'choice') {
     const opts = ctx.dynamicOptions?.[slot.key] ?? slot.options;
-    return optionByAnswer(opts, raw)?.id ?? null;
+    return (strict ? optionNamed(opts, raw) : optionByAnswer(opts, raw))?.id ?? null;
   }
-  return raw.trim() || null;
+  // Free text is whatever was said — and so is never read out of a message
+  // that was answering something else.
+  return strict ? null : raw.trim() || null;
+}
+
+/** The one option a sentence names in full ("en la terraza, por favor"). */
+function optionNamed<T extends { id: string; title: string }>(opts: T[] | undefined, raw: string): T | null {
+  if (!opts?.length) return null;
+  const byId = opts.find((o) => o.id === raw.trim());
+  if (byId) return byId;
+  const plain = ` ${normalizeText(raw).replace(/[^a-z0-9]+/g, ' ').trim()} `;
+  const named = opts.filter((o) => {
+    const title = normalizeText(o.title).replace(/[^a-z0-9]+/g, ' ').trim();
+    return title.length >= 4 && plain.includes(` ${title} `);
+  });
+  return named.length === 1 ? named[0] : null;
 }
 
 /**
@@ -248,6 +273,8 @@ export function stepGraph(
   state: GraphRunState,
   turn: GraphTurn,
   ctx: GraphEngineCtx = {},
+  /** Read the answer strictly (see `coerce`); only `stepGraphUnits` asks for it. */
+  strict = false,
 ): GraphStep {
   const answers = { ...state.answers };
   const replies: OutboundDraft[] = [];
@@ -266,7 +293,7 @@ export function stepGraph(
     next = targetOf(graph, start.id);
   } else if (current.type === 'question') {
     const slot = current.data.slot;
-    const value = input ? coerce(slot, input, ctx) : null;
+    const value = input ? coerce(slot, input, ctx, strict) : null;
     if (value === null) {
       // Unparseable — re-ask with the same affordances rather than advancing
       // on a guess.
@@ -282,8 +309,9 @@ export function stepGraph(
     // word boundary after the í — the single most common yes in Spanish.
     // "1" / "2" answer the numbered buttons a linked device sends as text.
     const plain = normalizeText(input);
-    const yes = input === GRAPH_YES || /^1[.)]?$/.test(plain) || /^(si|yes|correcto|confirmo|confirmar|ok|dale|va|claro)\b/.test(plain);
-    const no = input === GRAPH_NO || /^2[.)]?$/.test(plain) || /^(no|cancela|cancelar|mejor no)\b/.test(plain);
+    const said = parseYesNo(input);
+    const yes = input === GRAPH_YES || /^1[.)]?$/.test(plain) || said === 'yes';
+    const no = input === GRAPH_NO || /^2[.)]?$/.test(plain) || said === 'no';
     if (yes) {
       next = targetOf(graph, current.id, HANDLE_YES);
     } else if (no) {
@@ -360,11 +388,130 @@ export function stepGraph(
  * (Digits are handled by coerce() first; this only sees what digits missed.)
  */
 export function spanishSlotParser(today: string): NonNullable<GraphEngineCtx['parse']> {
-  return (slot, raw) =>
-    slot.type === 'date' ? parseSpanishDate(raw, today)
-    : slot.type === 'time' ? parseSpanishTime(raw)
-    : slot.type === 'number' ? parsePartySize(raw)
+  return (slot, raw, strict = false) =>
+    slot.type === 'date' ? parseSpanishDate(raw, today, { strict })
+    : slot.type === 'time' ? parseSpanishTime(raw, { strict })
+    : slot.type === 'number' ? parseCount(raw, { strict })
     : null;
+}
+
+/* ------------------------------------------------------- several answers */
+
+/**
+ * What a diner sent since the bot last spoke, cut into the pieces they would
+ * call answers: one per message, and one per line of a message written as a
+ * list. A tapped button is one piece, whatever its title says.
+ */
+export function unitsOf(turn: GraphTurn & { parts?: GraphTurn[] }): GraphTurn[] {
+  const parts = turn.parts?.length ? turn.parts : [{ text: turn.text, replyId: turn.replyId }];
+  const units: GraphTurn[] = [];
+  for (const part of parts) {
+    if (part.replyId) {
+      units.push({ text: part.text, replyId: part.replyId });
+      continue;
+    }
+    for (const line of (part.text ?? '').split(/\n+/)) {
+      const text = line.replace(/^\s*(?:[-•*·]|\d{1,2}[.)])\s+/, '').trim();
+      if (text) units.push({ text });
+    }
+  }
+  return units.length ? units : [{ text: (turn.text ?? '').trim(), replyId: turn.replyId }];
+}
+
+/** A value the restaurant cannot take (a closed day): what to tell the diner. */
+export type CaptureCheck = (capture: GraphCapture, answers: GraphRunState['answers']) => Promise<string | null>;
+
+/**
+ * Advance the run by everything the diner sent, which may be more than the
+ * one answer the script was waiting for: three messages in a row, a list
+ * with a line per detail, or one sentence that says it all ("somos 4, mañana
+ * a las 8").
+ *
+ * The question they were asked takes what they sent in reply to it. After
+ * that the run only skips a question when the diner has ALREADY answered it
+ * in so many words: a question nobody has seen is never answered by a bare
+ * number, free text is never guessed, and a summary is never confirmed
+ * before it has been read to them. Whatever stays unclear is simply the
+ * next thing asked.
+ */
+export async function stepGraphUnits(
+  graph: FlowGraph,
+  state: GraphRunState,
+  units: GraphTurn[],
+  ctx: GraphEngineCtx = {},
+  check?: CaptureCheck,
+): Promise<GraphStep> {
+  const all = units.length ? units : [{ text: '' }];
+  const joined = (list: GraphTurn[], glue = ' '): GraphTurn =>
+    list.length === 1 ? list[0] : { text: list.map((u) => u.text).filter(Boolean).join(glue) };
+
+  const asked = nodeById(graph, state.currentNodeId);
+  let step: GraphStep;
+  // How many pieces the asked question took.
+  let taken = 0;
+
+  if (asked?.type === 'question' && asked.data.slot.type !== 'text') {
+    // The fewest pieces that make an answer: "13" alone, or "somos" + "13".
+    step = stepGraph(graph, state, all[0], ctx);
+    for (taken = 1; step.captured.length === 0 && taken < all.length;) {
+      taken += 1;
+      step = stepGraph(graph, state, joined(all.slice(0, taken)), ctx);
+    }
+  } else {
+    // A name, a note, a yes — or the message that starts the flow: all of
+    // it is the one answer.
+    step = stepGraph(graph, state, joined(all, asked?.type === 'question' ? ' ' : '\n'), ctx);
+  }
+
+  const refusal = async (at: GraphRunState, captures: GraphCapture[], answers: GraphRunState['answers']): Promise<GraphStep | null> => {
+    if (!check) return null;
+    for (const capture of captures) {
+      const why = await check(capture, answers);
+      if (!why) continue;
+      // Said why, and the same question asked again; the run stays put.
+      const again = promptDraft(graph, at.currentNodeId, at.answers, ctx);
+      return { state: at, replies: [{ type: 'text', body: why }, ...(again ? [again] : [])], actions: [], captured: [] };
+    }
+    return null;
+  };
+
+  const refusedFirst = await refusal(state, step.captured, step.state.answers);
+  if (refusedFirst) return refusedFirst;
+
+  const carried: OutboundDraft[] = [];
+  const captured: GraphCapture[] = [...step.captured];
+  // A piece answers a kind of question once: two number questions are not
+  // both answered by the same "4 personas".
+  const used = new Set<string>();
+  if (asked?.type === 'question' && step.captured.length > 0) {
+    for (let i = 0; i < taken; i++) used.add(`${i}:${asked.data.slot.type}`);
+  }
+
+  for (let hops = 0; hops < MAX_HOPS; hops++) {
+    // Over, or with something to run, or still on the question they were
+    // asked: nothing further is read into what they sent.
+    if (step.outcome || step.actions.length > 0 || (asked && step.captured.length === 0)) break;
+    const node = nodeById(graph, step.state.currentNodeId);
+    if (!node || node.type !== 'question' || node.data.slot.type === 'text') break;
+    const slot = node.data.slot;
+    const at = all.findIndex((u, i) => !used.has(`${i}:${slot.type}`) && !u.replyId && coerce(slot, u.text, ctx, true) !== null);
+    if (at < 0) break;
+    used.add(`${at}:${slot.type}`);
+
+    const next = stepGraph(graph, step.state, all[at], ctx, true);
+    if (next.captured.length === 0) break;
+    const refused = await refusal(step.state, next.captured, next.state.answers);
+    if (refused) {
+      return { ...refused, replies: [...carried, ...step.replies.slice(0, -1), ...refused.replies], captured };
+    }
+    // The question this piece answered was never sent: only what came before
+    // it (a message node's text) is kept.
+    carried.push(...step.replies.slice(0, -1));
+    captured.push(...next.captured);
+    step = next;
+  }
+
+  return { ...step, replies: [...carried, ...step.replies], captured };
 }
 
 /**

@@ -37,6 +37,12 @@ export interface BotTurn {
   conversationId: string;
   text: string;
   replyId?: string | null;
+  /**
+   * The messages this turn answers, in order, when the diner sent several in
+   * a row (settle.ts). `text` is all of them, a line each; the scripted
+   * engine walks them one by one.
+   */
+  parts?: { text: string; replyId?: string | null }[];
   /** A voice note that couldn't be transcribed — answer that, not silence. */
   kind?: 'audio_unreadable';
 }
@@ -211,7 +217,7 @@ export async function runBot(turn: BotTurn): Promise<void> {
   // Active run, or a flow whose triggers match: the runtime takes it from here.
   const handled = await runFlowTurn({
     supabase, conv, contactId: contact.id, botCtx: ctx, vars,
-    turn: { text: turn.text, replyId: turn.replyId },
+    turn: { text: turn.text, replyId: turn.replyId, parts: turn.parts },
     flows, aiEnabled: aiAllowed, botsAllowed, aiGoals, wantsHuman,
     pendingReplies: replies, reservationsEnabled, startFlow, hasBookings: myReservations.length > 0, intake,
     deferAi: scheduleAiRetry,
@@ -542,8 +548,10 @@ async function isNewConversation(
     .select('created_at')
     .eq('conversation_id', conversationId)
     .eq('direction', 'outbound')
-    // A reply that never left is not a greeting the diner heard.
-    .neq('status', 'failed')
+    // A reply that never left is not a greeting the diner heard. Spelled
+    // with the null case: `status <> 'failed'` alone drops every row that
+    // has no status.
+    .or('status.is.null,status.neq.failed')
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();

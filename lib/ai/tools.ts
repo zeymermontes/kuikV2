@@ -122,13 +122,17 @@ export function buildCollectSchema(slots: FlowSlot[]): z.ZodObject {
  * The reply schema for a flow run: the flow's own slots instead of the fixed
  * booking fields, plus a pocket for whatever the diner volunteers unprompted.
  */
-export function buildReplySchema(slots?: FlowSlot[]) {
-  if (!slots?.length) return Reply;
+export function buildReplySchema(slots?: FlowSlot[], declared = false) {
+  if (!slots?.length) return declared ? Reply.required({ datos: true }) : Reply;
+  const datos = buildCollectSchema(slots)
+    .describe('TODOS los datos que el cliente ya dijo con claridad, no solo los de este turno. Omite los que sigan sin aclarar; si aún no ha dicho ninguno, manda {}.');
   return z.object({
     mensaje: z.string().min(1).max(900)
       .describe('El texto que se le manda al cliente por WhatsApp.'),
-    datos: buildCollectSchema(slots).optional()
-      .describe('TODOS los datos confirmados hasta ahora, no solo los de este turno. Omite los que sigan sin confirmar.'),
+    // Declared to the model as required, accepted from it as optional: the
+    // model that is told the field is optional leaves it out exactly when it
+    // matters (a partial answer), and a reply is never refused for lacking it.
+    datos: declared ? datos : datos.optional(),
     datos_extra: z.record(z.string(), z.string()).optional()
       .describe('Datos útiles que el cliente dé sin que se los pidas (alergias, ocasión especial, etc.), como pares clave-valor cortos.'),
   });
@@ -145,6 +149,7 @@ export const TOOL_SCHEMAS = {
   crear_reserva: CreateReservationInput,
   pasar_con_humano: Handoff,
   finalizar_flujo: Empty,
+  cancelar_flujo: Empty,
   cancelar_reserva: CancelReservation,
   modificar_reserva: UpdateReservationInput,
 } as const;
@@ -239,6 +244,15 @@ export function toolDefinitions(collecting = false, replySchema: z.ZodType = Rep
         'Ejecuta la acción del flujo en curso (registrar la solicitud, avisar al restaurante). ' +
         'Llámala SOLO cuando ya confirmaste con el cliente todos los datos requeridos y él ' +
         'dio el sí al resumen. Antes de llamarla, asegúrate de haber reportado todos los datos en `responder`.',
+      parameters: toJsonSchema(Empty),
+    });
+    // Without this a diner who says "mejor ya no" is told "sin problema" and
+    // then nudged twice about a booking they dropped: the run never ended.
+    base.push({
+      name: 'cancelar_flujo',
+      description:
+        'Cierra la tarea en curso SIN registrar nada. Llámala cuando el cliente diga que ya no quiere ' +
+        'continuar ("mejor ya no", "olvídalo", "luego te aviso"). No la uses si solo quiere cambiar un dato.',
       parameters: toJsonSchema(Empty),
     });
   }
@@ -389,6 +403,14 @@ export async function runTool(
       }
       const result = await completeRunFromAi(ctx.flowRunId, ctx, vars);
       return { content: result.detail, facts: result.facts };
+    }
+
+    case 'cancelar_flujo': {
+      if (!ctx.flowRunId) return { content: 'No hay una tarea en curso.', facts: [] };
+      const supabase = createAdminClient();
+      const run = await loadRun(supabase, ctx.flowRunId);
+      if (run) await endRun(supabase, run, 'canceled', 'ai_canceled');
+      return { content: 'Tarea cerrada, no se registró nada. Despídete con amabilidad y deja la puerta abierta.', facts: [] };
     }
 
     case 'cancelar_reserva': {

@@ -13,6 +13,9 @@ import { toolDefinitions, runTool, buildReplySchema } from './tools';
 import { checkGrounding, claimsBookingDone, GROUNDING_FALLBACK } from './guard';
 import type { ChatMessage } from './types';
 import { buildRestaurantContext } from './context';
+import { buildSystemPrompt } from './prompt';
+import { threadFrom, type StoredMessage } from './thread';
+import { bookingHold, finalizeHold, summaryOf } from './confirm';
 import { describeReservation, type OwnReservation } from '@/lib/whatsapp/actions';
 import { completeRunFromAi, reservationErrorMessage } from '@/lib/whatsapp/flows/complete';
 
@@ -31,6 +34,8 @@ const MAX_TOOL_ROUNDS = 5;
 // the booking itself; 12 s cut that short and the script restarted.
 const TURN_TIMEOUT_MS = 25_000;
 const MAX_REPLY_CHARS = 700;
+// How much of the conversation the model is handed.
+const HISTORY_MESSAGES = 10;
 
 export interface AiTurn {
   ctx: BotContext;
@@ -58,7 +63,7 @@ export interface AiTurn {
      * day, say). A refusal goes back to the model as a tool error so it
      * rewrites its reply; the value is not persisted.
      */
-    validate?: (datos: Record<string, unknown>) => Promise<{ ok: true } | { ok: false; key: string; detail: string }>;
+    validate?: (datos: Record<string, unknown>) => Promise<{ ok: true } | { ok: false; key: string; detail: string; /** What the model should do about it; defaults to asking for another date. */ fix?: string }>;
   };
   /** Online reservations on for this restaurant; off = say so, do not collect. */
   reservationsEnabled?: boolean;
@@ -94,14 +99,12 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
   const [{ data: history }, sheet] = await Promise.all([
     supabase
       .from('whatsapp_messages')
-      .select('direction, origin, body')
+      .select('direction, body, status')
       .eq('conversation_id', turn.ctx.conversationId)
-      // A reply that never left is not something the model said: with it in
-      // the thread, a greeting that failed to send turns the next "hola"
-      // into "hola de nuevo".
-      .neq('status', 'failed')
       .order('created_at', { ascending: false })
-      .limit(10),
+      // A few more than the thread holds: the ones that never left are
+      // dropped afterwards (threadFrom) and must not eat into it.
+      .limit(HISTORY_MESSAGES + 6),
     buildRestaurantContext({
       tenantId: turn.ctx.tenantId,
       branchId: turn.ctx.branchId,
@@ -110,17 +113,43 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
     }).catch(() => ({ text: '', facts: [] as string[] })),
   ]);
 
-  const messages: ChatMessage[] = ((history ?? []) as { direction: string; body: string | null }[])
-    .reverse()
-    .filter((m) => m.body)
-    .map((m) => ({ role: m.direction === 'inbound' ? 'user' : 'assistant', content: m.body! }));
+  const messages: ChatMessage[] = threadFrom((history ?? []) as StoredMessage[], { limit: HISTORY_MESSAGES, current: turn.text });
 
-  const system = buildSystemPrompt(turn, provider.systemExtra, sheet.text);
+  const system = buildSystemPrompt({
+    restaurant: turn.vars.restaurante ?? '',
+    today: turn.ctx.today,
+    phone: turn.vars.telefono,
+    intake: turn.intake,
+    sheet: sheet.text,
+    goals: turn.goals,
+    reservations: turn.reservations?.map((r) => ({ id: r.id, text: describeReservation(r) })),
+    reservationsEnabled: turn.reservationsEnabled,
+    collecting: turn.collecting && {
+      goalName: turn.collecting.goalName,
+      needed: turn.collecting.needed,
+      known: turn.collecting.known,
+      viaRun: Boolean(turn.collecting.runId),
+    },
+    extra: provider.systemExtra,
+  });
   // The reply schema is derived from the flow's own slots, so what the model
   // may write down is exactly what the restaurant drew on the canvas.
   const replySchema = buildReplySchema(turn.collecting?.slots);
-  const tools = toolDefinitions(Boolean(turn.collecting), replySchema, (turn.reservations?.length ?? 0) > 0);
+  const tools = toolDefinitions(Boolean(turn.collecting), buildReplySchema(turn.collecting?.slots, true), (turn.reservations?.length ?? 0) > 0);
   const signal = AbortSignal.timeout(TURN_TIMEOUT_MS);
+
+  // What decides whether a booking may be made on this turn (confirm.ts):
+  // what was on record before the diner's message, and what the bot last
+  // read back to them.
+  const slotLabel = (key: string) => turn.collecting?.slots?.find((s) => s.key === key)?.label || key;
+  const missingBefore = (turn.collecting?.needed ?? []).filter((n) => !n.optional).map((n) => slotLabel(n.key));
+  const lastBotMessage = [...messages].reverse().find((m) => m.role === 'assistant')?.content;
+  const holdFor = (name: string, args: Record<string, unknown>): string | null =>
+    name === 'finalizar_flujo' && turn.collecting
+      ? finalizeHold({ missingRequired: missingBefore, said: turn.text, today: turn.ctx.today })
+      : name === 'crear_reserva'
+        ? bookingHold({ lastBotMessage, args: args as { customer_name?: string; party_size?: number }, said: turn.text, today: turn.ctx.today })
+        : null;
 
   // Everything the tools actually returned this turn, seeded with the sheet's
   // own figures. The guard checks the model's reply against exactly this.
@@ -172,7 +201,7 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
                 messages.push({ role: 'assistant', content: res.text ?? '', toolCalls: [replyCall] });
                 messages.push({
                   role: 'tool',
-                  content: `${verdict.detail} No la anotes en \`datos\`; díselo al cliente con esas palabras y pide otra fecha. Vuelve a llamar a responder.`,
+                  content: `${verdict.detail} ${verdict.fix ?? 'No la anotes en `datos`; díselo al cliente con esas palabras y pide otra fecha. Vuelve a llamar a responder.'}`,
                   toolCallId: replyCall.id,
                   toolName: 'responder',
                 });
@@ -190,6 +219,20 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
           // and a run left active, no reservation). Words must match the
           // database: do the finalisation here, or say what is missing.
           if (turn.collecting?.runId && !finalized && claimsBookingDone(mensaje)) {
+            // …and not before the diner has seen the details and said yes.
+            // If that has not happened, they get the summary now, written
+            // here, instead of a claim that is not true.
+            if (holdFor('finalizar_flujo', {})) {
+              const merged = { ...turn.collecting.known, ...(toPersist ?? {}) };
+              const stillMissing = (turn.collecting.slots ?? [])
+                .filter((s) => s.required !== false && merged[s.key] === undefined)
+                .map((s) => s.label || s.key);
+              const honest = stillMissing.length
+                ? `Para registrarla me falta: ${stillMissing.join(', ')}. ¿Me lo compartes?`
+                : summaryOf(turn.collecting.slots ?? [], merged);
+              await logRun(turn, provider.id, provider.model, 'guard_blocked', promptTokens, completionTokens, started, 'claimed done before the summary was confirmed');
+              return finish(turn, provider, honest, facts, promptTokens, completionTokens, started);
+            }
             const done = await completeRunFromAi(turn.collecting.runId, turn.ctx, turn.vars);
             facts.push(...done.facts);
             if (!done.ok) {
@@ -219,6 +262,14 @@ export async function runAi(turn: AiTurn): Promise<boolean> {
       if (res.toolCalls.length > 0 && round < MAX_TOOL_ROUNDS) {
         messages.push({ role: 'assistant', content: res.text ?? '', toolCalls: res.toolCalls });
         for (const call of res.toolCalls) {
+          // Booking is held until the summary has been read back and
+          // answered with a yes; the model is told why and writes the
+          // summary instead.
+          const hold = holdFor(call.name, call.arguments);
+          if (hold) {
+            messages.push({ role: 'tool', content: hold, toolCallId: call.id, toolName: call.name });
+            continue;
+          }
           if (call.name === 'finalizar_flujo') finalized = true;
           const outcome = await runTool(call.name, call.arguments, turn.ctx, turn.vars);
           facts.push(...outcome.facts);
@@ -297,104 +348,6 @@ async function finish(
   await recordUsage(turn.ctx.tenantId, promptTokens, completionTokens);
   await logRun(turn, provider.id, provider.model, 'replied', promptTokens, completionTokens, started);
   return true;
-}
-
-function buildSystemPrompt(turn: AiTurn, extra: string | null, sheet = ''): string {
-  const options = turn.goals
-    .map((g) => `- ${g.name}${g.description ? `: ${g.description}` : ''}`)
-    .join('\n');
-
-  const lines = [
-    `Eres el asistente de WhatsApp del restaurante "${turn.vars.restaurante ?? ''}".`,
-    `Hoy es ${turn.ctx.today}.`,
-    '',
-    'REGLAS DURAS:',
-    '- Responde SIEMPRE en español, breve y cordial, como mensaje de WhatsApp.',
-    '- Solo puedes afirmar hechos sobre el restaurante que estén en la FICHA de abajo o que',
-    '  te haya devuelto una herramienta. Para lo que la ficha no cubra, consulta: el menú',
-    '  completo con `buscar_menu` y la información adicional con `consultar_info`.',
-    '- Antes de decir que no sabes algo, intenta `consultar_info`. Si tampoco ahí está,',
-    '  NO lo inventes ni lo niegues: di que no tienes ese dato y ofrece preguntarle a',
-    '  alguien del restaurante.',
-    '- Si no tienes un dato, dilo con naturalidad y ofrece lo que sí sabes.',
-    '- Una reservación queda como SOLICITUD pendiente de confirmar. NUNCA digas',
-    '  "reserva confirmada", "quedó confirmada" ni nada parecido: quien confirma es',
-    '  el restaurante, después. Di que quedó registrada y que le avisarán.',
-    '- Formato de WhatsApp, no Markdown: *negritas* con un asterisco, _cursivas_ con guion bajo.',
-    '  Nunca uses **dobles asteriscos**, ## títulos ni tablas: se ven como basura en el chat.',
-    '',
-    'CÓMO CONVERSAR:',
-    '- Nunca supongas un dato ambiguo. Si dice "el 30" y no sabes el mes, pregunta de qué mes.',
-    '  Lo mismo con "a las 8" cuando podría ser mañana o noche, o "el viernes" cuando hay dos cerca.',
-    '- Si te piden una sugerencia y no tienes el dato exacto, no cortes la conversación:',
-    '  consulta lo que sí puedas (horarios, menú) y ofrece una recomendación razonable,',
-    '  dejando claro que es una sugerencia y no una regla del restaurante.',
-    '- Puedes contestar una pregunta lateral a media reservación y luego retomar donde ibas.',
-    turn.intake === 'all_at_once'
-      ? '- Para una reservación, pide en UN solo mensaje todos los datos que falten, como lista con viñetas (uno por línea). Si el cliente contesta solo algunos, pide únicamente los que sigan faltando.'
-      : '- Una pregunta a la vez. No pidas cuatro datos en el mismo mensaje.',
-    '- Si ofreces opciones numeradas y el cliente contesta solo con un número, es la',
-    '  opción con ese número en el orden en que se las diste.',
-  ];
-
-  if (sheet) lines.push('', sheet);
-
-  if (turn.reservations?.length) {
-    lines.push(
-      '',
-      'RESERVACIONES DEL CLIENTE (las suyas; puedes decirle su estado sin consultar nada):',
-      ...turn.reservations.map((r) => `- id ${r.id}: ${describeReservation(r)}`),
-      '- Si pregunta por su reserva, contesta con estos datos. "Pendiente" significa que el restaurante aún no la confirma.',
-      '- Si quiere cancelarla: confirma con él y llama a `cancelar_reserva`. Si la herramienta responde que quedó como SOLICITUD, dile que el restaurante la confirma en breve y que le avisas por aquí; no digas que ya está cancelada.',
-      '- Si ya dice "CANCELACIÓN SOLICITADA", no vuelvas a llamar `cancelar_reserva`: el restaurante la está revisando.',
-      '- Si quiere cambiar fecha, hora, personas o nombre: repite el cambio, espera su sí y llama a `modificar_reserva`.',
-      '- Si quiere OTRA reservación además de esta, es una nueva.',
-    );
-  }
-
-  if (turn.reservationsEnabled === false) {
-    lines.push(
-      '',
-      'RESERVACIONES: por ahora el restaurante NO toma reservaciones por este medio.',
-      '- Si el cliente quiere reservar, dilo con claridad desde su primer mensaje sobre el tema.',
-      turn.vars.telefono ? `  Ofrece el teléfono ${turn.vars.telefono} o que alguien del restaurante le escriba.` : '  Ofrece que alguien del restaurante le escriba.',
-      '- No pidas fecha, hora ni número de personas.',
-    );
-  }
-
-  if (turn.collecting) {
-    const known = Object.entries(turn.collecting.known)
-      .map(([k, v]) => `  - ${k}: ${JSON.stringify(v)}`)
-      .join('\n');
-    const missing = turn.collecting.needed
-      .map((n) => `  - ${n.key}${n.optional ? ' (opcional)' : ''}${n.options?.length ? ` (opciones: ${n.options.map((o, i) => `${i + 1}) ${o}`).join(', ')})` : ''}: ${n.prompt}`)
-      .join('\n');
-
-    lines.push(
-      '',
-      `TAREA EN CURSO: ${turn.collecting.goalName}.`,
-      known ? `Ya sabes:\n${known}` : 'Todavía no sabes nada del cliente.',
-      missing ? `Te falta:\n${missing}` : 'Ya tienes todo.',
-      '',
-      '- SIEMPRE contesta llamando a `responder`. Es la única forma de hablarle al cliente.',
-      '- En `datos` repite todo lo que ya confirmaste, no solo lo de este turno.',
-      '  Si el cliente se corrige ("mejor 6"), manda el valor nuevo: reemplaza al anterior.',
-      '- Si una pregunta tiene opciones, ofrécelas numeradas; un número como respuesta es esa opción.',
-      '- Un dato marcado (opcional) se pregunta una vez; si el cliente dice que no o no contesta, sigue sin él.',
-      '- Las fechas van como YYYY-MM-DD y las horas como HH:MM de 24 horas.',
-      '  Tradúcelas tú a partir de lo que dijo el cliente y de la fecha de hoy.',
-      '- Cuando ya tengas todo, LEE EL RESUMEN al cliente y espera su confirmación.',
-      turn.collecting.runId
-        ? '- Solo después de que confirme, llama a `finalizar_flujo`. NUNCA digas que quedó registrada,'
-        : '- Solo después de que confirme, llama a `crear_reserva`. NUNCA digas que quedó registrada,',
-      '  anotada ni lista sin haber llamado esa herramienta en este mismo turno: hasta entonces no existe.',
-    );
-  } else {
-    lines.push('', 'Puedes ayudar con:', options);
-  }
-
-  if (extra) lines.push(`\nTono e indicaciones del restaurante:\n${extra}`);
-  return lines.join('\n');
 }
 
 async function logRun(

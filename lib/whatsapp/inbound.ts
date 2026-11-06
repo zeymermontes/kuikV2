@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizeWaId } from '@/lib/phone';
 import { windowExpiryFrom } from './window';
 import { runBot } from './bot';
+import { createSettler, type PendingPart, type Settler } from './settle';
 import { notifyHandoffReply } from './actions';
 import { transcribeAudio } from './transcribe';
 import { downloadCloudMedia, storeInboundMedia } from './media';
@@ -203,6 +204,8 @@ async function handleInbound(supabase: Supabase, row: EventRow): Promise<void> {
     ? 'bridge' as const
     : 'cloud' as const;
 
+  const turns: { conversationId: string; part: PendingPart }[] = [];
+
   for (const msg of value.messages ?? []) {
     const profile = value.contacts?.find((c) => c.wa_id === msg.from);
     const { conversationId } = await upsertConversation(
@@ -316,11 +319,54 @@ async function handleInbound(supabase: Supabase, row: EventRow): Promise<void> {
       continue;
     }
 
-    await runBot({
-      tenantId, conversationId, text: body, replyId,
-      ...(audioUnreadable ? { kind: 'audio_unreadable' as const } : {}),
+    turns.push({
+      conversationId,
+      part: {
+        id: (inserted[0] as { id: string }).id,
+        text: body,
+        replyId,
+        ...(audioUnreadable ? { kind: 'audio_unreadable' as const } : {}),
+      },
     });
   }
+
+  // Everything is stored before anything is answered, so messages that came
+  // in one delivery wait together and get one reply (settle.ts).
+  await Promise.all(turns.map((t) => settler().push(`${tenantId}|${t.conversationId}`, t.part)));
+}
+
+/** Answer everything that waited together, as one turn. */
+async function answerBatch(key: string, parts: PendingPart[]): Promise<void> {
+  const [tenantId, conversationId] = key.split('|');
+  const spoken = parts.filter((p) => p.text.trim() || p.replyId);
+  const last = parts[parts.length - 1];
+  await runBot({
+    tenantId,
+    conversationId,
+    text: spoken.map((p) => p.text.trim()).filter(Boolean).join('\n'),
+    // A tap is the latest thing they decided.
+    replyId: last.replyId ?? null,
+    parts: spoken.map((p) => ({ text: p.text.trim(), replyId: p.replyId ?? null })),
+    // Only when there is nothing to read at all: a voice note sent along
+    // with text is answered through the text.
+    ...(spoken.length === 0 && parts.some((p) => p.kind === 'audio_unreadable') ? { kind: 'audio_unreadable' as const } : {}),
+  });
+}
+
+/**
+ * One queue for the whole process, whichever route's bundle got here first:
+ * the webhook, the bridge webhook and the cron all feed the same waits. The
+ * queue outlives a reloaded module, so it reaches the answering code through
+ * the global too, where every load of this file leaves its own copy; a queue
+ * holding the function it was born with would go on running old code.
+ */
+type Shared = { __kuikWhatsappSettler?: Settler; __kuikWhatsappAnswer?: typeof answerBatch };
+(globalThis as Shared).__kuikWhatsappAnswer = answerBatch;
+
+function settler(): Settler {
+  const g = globalThis as Shared;
+  g.__kuikWhatsappSettler ??= createSettler({ run: (key, parts) => (g.__kuikWhatsappAnswer ?? answerBatch)(key, parts) });
+  return g.__kuikWhatsappSettler;
 }
 
 const MEDIA_LABEL: Record<string, string> = { image: '📷 Foto', audio: '🎤 Audio', sticker: 'Sticker' };
