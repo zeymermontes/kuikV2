@@ -3,8 +3,31 @@
 import { useEffect } from 'react';
 import { useLocale } from 'next-intl';
 import { nativePush, shell } from '@/lib/native/shell';
+import { rememberTap, tapId } from '@/lib/native/push-tap';
 
 const TOKEN_KEY = 'kuik_push_token';
+/** The taps already acted on (lib/native/push-tap.ts). */
+const TAPS_KEY = 'kuik_push_taps';
+
+/**
+ * Whether this tap is a new one. Android relaunches the app with the intent
+ * that first opened it, notification tap included, so the same tap arrives
+ * again on every cold start until the task is swiped away; acting on it
+ * again would open that chat every time. Without storage every tap counts.
+ */
+function firstTap(notification: { id?: unknown; data?: Record<string, unknown> } | undefined): boolean {
+  const id = tapId(notification);
+  if (!id) return true;
+  try {
+    const seen = JSON.parse(localStorage.getItem(TAPS_KEY) ?? '[]');
+    const next = rememberTap(id, Array.isArray(seen) ? seen.filter((s): s is string => typeof s === 'string') : []);
+    if (!next) return false;
+    localStorage.setItem(TAPS_KEY, JSON.stringify(next));
+  } catch {
+    // no storage: better a repeated open than a tap that does nothing
+  }
+  return true;
+}
 
 /**
  * What the phone's push registration is doing, for a status line in the
@@ -100,7 +123,10 @@ export function NativePush({ enabled }: { enabled: { android: boolean; ios: bool
         await push.addListener('registrationError', (ev: { error?: string }) => {
           setStatus({ state: 'error', detail: ev?.error ?? 'registration' });
         }),
-        await push.addListener('pushNotificationActionPerformed', (ev: { notification: { data?: { url?: string } } }) => {
+        await push.addListener('pushNotificationActionPerformed', (ev: { notification: { id?: unknown; data?: Record<string, unknown> } }) => {
+          // A replayed tap (see firstTap) opens nothing: the app starts on
+          // the hub as on any other launch.
+          if (!firstTap(ev.notification)) return;
           // A full navigation, not router.push: the URL goes through /open,
           // which may switch the active restaurant, and then everything on
           // screen belongs to the other one (see tenant-actions.ts).
