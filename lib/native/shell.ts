@@ -108,8 +108,9 @@ export interface NativePush {
   checkPermissions: () => Promise<{ receive: PushPermission }>;
   requestPermissions: () => Promise<{ receive: PushPermission }>;
   register: () => Promise<void>;
+  /** A promise of the handle on current plugins; the shells already installed return the handle itself. Always `await` or `Promise.resolve` it, never `.then` on the call. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  addListener: (event: string, cb: (data: any) => void) => Promise<{ remove: () => Promise<void> }>;
+  addListener: (event: string, cb: (data: any) => void) => Promise<{ remove: () => Promise<void> }> | { remove: () => Promise<void> };
 }
 
 /** Capacitor's push plugin (native/mobile), or null. */

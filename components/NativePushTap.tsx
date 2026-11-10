@@ -42,22 +42,33 @@ export function NativePushTap() {
     if (!push) return;
     let handle: { remove: () => Promise<void> } | null = null;
     let cancelled = false;
-    push
-      .addListener('pushNotificationActionPerformed', (ev: { notification: { id?: unknown; data?: Record<string, unknown> } }) => {
-        // A replayed tap (see firstTap) opens nothing: the app starts on
-        // the hub as on any other launch.
-        if (!firstTap(ev.notification)) return;
-        // A full navigation, not router.push: the URL goes through /open,
-        // which may switch the active restaurant, and then everything on
-        // screen belongs to the other one (see tenant-actions.ts).
-        const url = ev.notification?.data?.url;
-        if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) window.location.assign(url);
-      })
-      .then((h) => {
-        if (cancelled) void h.remove();
-        else handle = h;
-      })
-      .catch(() => {});
+    // Promise.resolve, not `.then` on the call: the shells already installed
+    // hand back the handle itself, not a promise, and `.then` on it threw
+    // inside this effect and took the whole screen down to "Algo salió mal".
+    // Nothing here may throw: a tap that cannot be heard is a tap, a page
+    // that cannot open is everyone's problem.
+    try {
+      Promise.resolve(
+        push.addListener('pushNotificationActionPerformed', (ev: { notification: { id?: unknown; data?: Record<string, unknown> } }) => {
+          // A replayed tap (see firstTap) opens nothing: the app starts on
+          // the hub as on any other launch.
+          if (!firstTap(ev.notification)) return;
+          // A full navigation, not router.push: the URL goes through /open,
+          // which may switch the active restaurant, and then everything on
+          // screen belongs to the other one (see tenant-actions.ts).
+          const url = ev.notification?.data?.url;
+          if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) window.location.assign(url);
+        }),
+      )
+        .then((h) => {
+          if (!h || typeof h.remove !== 'function') return;
+          if (cancelled) void h.remove();
+          else handle = h;
+        })
+        .catch(() => {});
+    } catch {
+      // a shell without the event: the hub's own listener still runs
+    }
     return () => {
       cancelled = true;
       if (handle) void handle.remove();
