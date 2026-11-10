@@ -294,6 +294,7 @@ export function ChatsApp({
           conversationId={open.conversationId}
           name={open.name}
           phone={open.phone}
+          areas={areas}
           headerAction={
             <button
               type="button"
@@ -317,6 +318,7 @@ export function ChatsApp({
         <BookingSheet
           key={bookingOpen.id}
           booking={bookingOpen}
+          areas={areas}
           areaName={areas.find((a) => a.id === bookingOpen.area_id)?.name ?? null}
           onClose={() => setBookingOpen(null)}
           onChanged={refresh}

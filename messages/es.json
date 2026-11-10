@@ -3177,7 +3177,10 @@
     "booked": "Reserva creada para {name}.",
     "openBooking": "Ver reserva",
     "cancelBooking": "Cancelar reserva",
-    "cancelConfirm": "¿Cancelar la reserva de {name}? Se le avisa al cliente."
+    "cancelConfirm": "¿Cancelar la reserva de {name}? Se le avisa al cliente.",
+    "inChat": "Reservaciones de este chat",
+    "edit": "Editar reserva",
+    "edited": "Reserva actualizada."
   },
   "pendings": {
     "title": "Pendientes",

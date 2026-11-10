@@ -3177,7 +3177,10 @@
     "booked": "Booking made for {name}.",
     "openBooking": "Open booking",
     "cancelBooking": "Cancel booking",
-    "cancelConfirm": "Cancel {name}'s booking? The guest is told."
+    "cancelConfirm": "Cancel {name}'s booking? The guest is told.",
+    "inChat": "Bookings in this chat",
+    "edit": "Edit booking",
+    "edited": "Booking updated."
   },
   "pendings": {
     "title": "Pending",

@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { CalendarDays, Check, Clock, Loader2, MapPin, MessageCircle, Phone, StickyNote, Users, X } from 'lucide-react';
-import type { Reservation, ReservationStatus } from '@/lib/database.types';
+import { CalendarDays, Check, Clock, Loader2, MapPin, MessageCircle, Pencil, Phone, StickyNote, Users, X } from 'lucide-react';
+import type { Reservation, ReservationArea, ReservationStatus } from '@/lib/database.types';
+import { ReservationForm } from '@/components/dashboard/ReservationForm';
 import { setReservationStatus } from '@/app/(dashboard)/reservations/actions';
 import { Sheet, DANGER, GHOST, PRIMARY } from '@/components/host/ui';
 import { PendingPanel } from './PendingPanel';
@@ -24,12 +25,15 @@ const STATUS_TONE: Partial<Record<ReservationStatus, string>> = {
 export function BookingSheet({
   booking,
   areaName,
+  areas,
   onClose,
   onChat,
   onChanged,
 }: {
   booking: Reservation;
   areaName?: string | null;
+  /** With the areas, the booking can be changed from here (name, date, time, people, area, note). */
+  areas?: ReservationArea[];
   onClose: () => void;
   /** Open the chat this booking came through; absent when it has none. */
   onChat?: () => void;
@@ -45,6 +49,7 @@ export function BookingSheet({
   const [notice, setNotice] = useState<{ href?: string; text: string } | null>(null);
   const [pending, start] = useTransition();
   const [tick, setTick] = useState(0);
+  const [editing, setEditing] = useState(false);
 
   const [y, m, d] = booking.date.split('-').map(Number);
   const when = new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
@@ -70,6 +75,8 @@ export function BookingSheet({
 
   const open = status === 'pending';
   const live = status === 'confirmed';
+  // Anything still ahead can be changed: a date, an hour, two more people.
+  const editable = Boolean(areas) && (open || live);
 
   const footer = (
     <div className="space-y-2">
@@ -91,6 +98,11 @@ export function BookingSheet({
             <X className="h-4 w-4" /> {tp('reject')}
           </button>
         </div>
+      )}
+      {editable && (
+        <button onClick={() => setEditing(true)} disabled={pending} className={`${GHOST} w-full`}>
+          <Pencil className="h-4 w-4" /> {t('edit')}
+        </button>
       )}
       {live && (
         <button onClick={() => decide('cancelled')} disabled={pending} className={`${GHOST} w-full text-red-300`}>
@@ -127,6 +139,25 @@ export function BookingSheet({
           {booking.phone && <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-white/40" /> {booking.phone}</div>}
           {booking.note && <div className="flex items-start gap-2"><StickyNote className="mt-0.5 h-4 w-4 shrink-0 text-white/40" /> <span className="text-white/80">{booking.note}</span></div>}
         </dl>
+
+        {editing && areas && (
+          <ReservationForm
+            initial={booking}
+            areas={areas}
+            defaultDate={booking.date}
+            defaultTime={booking.time.slice(0, 5)}
+            onClose={() => setEditing(false)}
+            onCreated={() => {}}
+            onSaved={(r) => {
+              // A confirmed booking that moved was told to the diner by itself,
+              // or is left as a link a person has to tap; a pending one is not told yet.
+              if (r.href) setNotice({ href: r.href, text: tp('tell') });
+              else setNotice({ text: t('edited') });
+              setTick((n) => n + 1);
+              onChanged?.(status);
+            }}
+          />
+        )}
 
         {/* What its chat is still owed. The decision on this very booking is the buttons below. */}
         {booking.whatsapp_conversation_id && (

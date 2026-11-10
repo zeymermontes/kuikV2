@@ -3,9 +3,10 @@
 import { requireChats } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isLid } from '@/lib/phone';
+import { bookingsOfChat, phoneTail } from '@/lib/chats/bookings';
 import { isStaffReply } from '@/lib/chats/list';
 import { cleanSummary, type PendingCounts } from '@/lib/chats/pendings';
-import type { ReservationStatus } from '@/lib/database.types';
+import type { ReservationStatus, Reservation } from '@/lib/database.types';
 
 export interface ChatRow {
   conversationId: string;
@@ -321,4 +322,39 @@ export async function addPending(conversationId: string, summary: string): Promi
   if (!conv) return { ok: false };
   const { leavePending } = await import('@/lib/whatsapp/pendings');
   return leavePending({ tenantId: tenant.id, conversationId }, text, 'staff');
+}
+
+/**
+ * The bookings a chat is about (lib/chats/bookings.ts): made through it, or
+ * booked under its number any other way, asked for or accepted, nearest
+ * first. Candidates are pulled wide (the chat's, plus anything whose phone
+ * ends like the contact's) and matched in code, where a phone written with
+ * spaces or a country code still counts as the same phone.
+ */
+export async function listChatBookings(conversationId: string): Promise<Reservation[]> {
+  const { tenant } = await requireChats();
+  const admin = createAdminClient();
+  const { data: conv } = await admin
+    .from('whatsapp_conversations')
+    .select('id, contact:whatsapp_contacts(phone_e164)')
+    .eq('tenant_id', tenant.id)
+    .eq('id', conversationId)
+    .maybeSingle();
+  if (!conv) return [];
+  const contact = (conv as { contact: { phone_e164: string } | { phone_e164: string }[] | null }).contact;
+  const raw = (Array.isArray(contact) ? contact[0] : contact)?.phone_e164 ?? null;
+  const phone = raw && !raw.startsWith('lid:') && !isLid(raw.replace('+', '')) ? raw : null;
+  const tail = phoneTail(phone);
+
+  let q = admin
+    .from('reservations')
+    .select('*')
+    .eq('tenant_id', tenant.id)
+    .in('status', ['pending', 'confirmed'])
+    .gte('starts_at', new Date(Date.now() - 60 * 60_000).toISOString())
+    .order('starts_at')
+    .limit(20);
+  q = tail ? q.or(`whatsapp_conversation_id.eq.${conversationId},phone.ilike.%${tail.slice(-6)}`) : q.eq('whatsapp_conversation_id', conversationId);
+  const { data } = await q;
+  return bookingsOfChat((data ?? []) as Reservation[], { conversationId, phone });
 }

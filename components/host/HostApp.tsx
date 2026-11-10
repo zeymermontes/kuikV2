@@ -849,7 +849,7 @@ export function HostApp({
       )}
 
       {sheet?.kind === 'chat' && chatParty && (
-        <ChatSheet partyId={chatParty.id} name={chatParty.customer_name} phone={chatParty.phone} onClose={() => setSheet({ kind: 'party', id: chatParty.id })} />
+        <ChatSheet partyId={chatParty.id} name={chatParty.customer_name} phone={chatParty.phone} areas={areas} onClose={() => setSheet({ kind: 'party', id: chatParty.id })} />
       )}
 
       {sheet?.kind === 'requests' && (
@@ -868,7 +868,7 @@ export function HostApp({
       )}
 
       {sheet?.kind === 'handoffChat' && (
-        <ChatSheet conversationId={sheet.conversationId} name={sheet.name} phone={sheet.phone} onClose={() => setSheet({ kind: 'requests' })} />
+        <ChatSheet conversationId={sheet.conversationId} name={sheet.name} phone={sheet.phone} areas={areas} onClose={() => setSheet({ kind: 'requests' })} />
       )}
 
       {sheet?.kind === 'orders' && (

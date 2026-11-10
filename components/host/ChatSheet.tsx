@@ -8,6 +8,8 @@ import { getChat, sendPartyMessage, setPartyChatBot, type PartyChat, type PartyC
 import { WaTemplateModal } from '@/components/whatsapp/WaTemplateModal';
 import { WaTemplatePreview } from '@/components/whatsapp/WaTemplatePreview';
 import { PendingPanel } from '@/components/chats/PendingPanel';
+import { ChatBookings } from '@/components/chats/ChatBookings';
+import type { ReservationArea } from '@/lib/database.types';
 import { Sheet, GHOST, PRIMARY } from './ui';
 
 /**
@@ -24,9 +26,12 @@ export function ChatSheet({
   byPhone,
   name,
   phone,
+  areas,
   onClose,
   headerAction,
 }: {
+  /** The restaurant's areas: with them the chat's bookings can be edited from here. */
+  areas?: ReservationArea[];
   /** Shown beside the name: what the screen that opened the chat lets you do about it. */
   headerAction?: React.ReactNode;
   /** Open by booking… */
@@ -246,6 +251,8 @@ export function ChatSheet({
           {conversationId && (
             <PendingPanel conversationId={conversationId} watch={chat.messages.length} canAdd className="sticky top-0 z-10 mb-3 rounded-2xl bg-pos-sidebar" />
           )}
+          {/* The bookings this chat is about: asked for or accepted, still ahead. */}
+          {conversationId && <ChatBookings conversationId={conversationId} areas={areas} watch={chat.messages.length} className="mb-3" />}
           {chat.messages.length === 0 && <p className="py-10 text-center text-sm text-white/50">{t('chatEmpty')}</p>}
           {chat.messages.map((m, i) => {
             const day = new Date(m.created_at).toLocaleDateString();
