@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { requireChats } from '@/lib/auth';
 import { StaffIntlProvider } from '@/components/intl/StaffIntlProvider';
 import { ShellBackButton } from '@/components/pos/ShellBackButton';
+import { NativePushTap } from '@/components/NativePushTap';
 import { FreshOnArrival } from '@/components/FreshOnArrival';
 import { ShellUpdateBanner } from '@/components/ShellUpdateBanner';
 import { StaffAlerts } from '@/components/StaffAlerts';
@@ -28,6 +29,7 @@ export default async function ChatsLayout({ children }: { children: React.ReactN
         <FreshOnArrival>{children}</FreshOnArrival>
       </div>
       <ShellBackButton />
+      <NativePushTap />
       <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} userId={ctx.user.id} sections={sections} />
       <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />
     </StaffIntlProvider>

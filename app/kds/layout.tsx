@@ -5,6 +5,7 @@ import { requireTenant } from '@/lib/auth';
 import { showDevFeatures } from '@/lib/features';
 import { StaffIntlProvider } from '@/components/intl/StaffIntlProvider';
 import { ShellBackButton } from '@/components/pos/ShellBackButton';
+import { NativePushTap } from '@/components/NativePushTap';
 import { FreshOnArrival } from '@/components/FreshOnArrival';
 import { ShellUpdateBanner } from '@/components/ShellUpdateBanner';
 import { NewOrderAlert } from '@/components/orders/NewOrderAlert';
@@ -33,6 +34,7 @@ export default async function KdsLayout({
         <FreshOnArrival>{children}</FreshOnArrival>
       </div>
       <ShellBackButton />
+      <NativePushTap />
       {orders.board && <NewOrderAlert tenantId={ctx.tenant.id} enabled={orders.alerts.notifyPos} />}
       <StaffAlerts tenantId={ctx.tenant.id} role={ctx.role} userId={ctx.user.id} sections={sections} />
       <ShellUpdateBanner appsUrl={`${SITE_URL}/apps`} />

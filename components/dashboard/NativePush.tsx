@@ -3,31 +3,9 @@
 import { useEffect } from 'react';
 import { useLocale } from 'next-intl';
 import { nativePush, shell } from '@/lib/native/shell';
-import { rememberTap, tapId } from '@/lib/native/push-tap';
+import { NativePushTap } from '@/components/NativePushTap';
 
 const TOKEN_KEY = 'kuik_push_token';
-/** The taps already acted on (lib/native/push-tap.ts). */
-const TAPS_KEY = 'kuik_push_taps';
-
-/**
- * Whether this tap is a new one. Android relaunches the app with the intent
- * that first opened it, notification tap included, so the same tap arrives
- * again on every cold start until the task is swiped away; acting on it
- * again would open that chat every time. Without storage every tap counts.
- */
-function firstTap(notification: { id?: unknown; data?: Record<string, unknown> } | undefined): boolean {
-  const id = tapId(notification);
-  if (!id) return true;
-  try {
-    const seen = JSON.parse(localStorage.getItem(TAPS_KEY) ?? '[]');
-    const next = rememberTap(id, Array.isArray(seen) ? seen.filter((s): s is string => typeof s === 'string') : []);
-    if (!next) return false;
-    localStorage.setItem(TAPS_KEY, JSON.stringify(next));
-  } catch {
-    // no storage: better a repeated open than a tap that does nothing
-  }
-  return true;
-}
 
 /**
  * What the phone's push registration is doing, for a status line in the
@@ -66,8 +44,8 @@ export const PUSH_RETRY_EVENT = 'kuik:push-retry';
 /**
  * Inside the Kuik phone app (native/mobile), registers this device for
  * native push and posts the FCM token to /api/push/device. Re-posts on every
- * launch, so a rotated token replaces the old one. A tap on a notification
- * opens the URL it carries (through /open, so the right restaurant is active). Renders nothing; a no-op outside that shell.
+ * launch, so a rotated token replaces the old one. The tap on a notification
+ * is handled by NativePushTap, mounted here and by every other staff screen. Renders nothing; a no-op outside that shell.
  */
 export function NativePush({ enabled }: { enabled: { android: boolean; ios: boolean } }) {
   const locale = useLocale();
@@ -123,16 +101,6 @@ export function NativePush({ enabled }: { enabled: { android: boolean; ios: bool
         await push.addListener('registrationError', (ev: { error?: string }) => {
           setStatus({ state: 'error', detail: ev?.error ?? 'registration' });
         }),
-        await push.addListener('pushNotificationActionPerformed', (ev: { notification: { id?: unknown; data?: Record<string, unknown> } }) => {
-          // A replayed tap (see firstTap) opens nothing: the app starts on
-          // the hub as on any other launch.
-          if (!firstTap(ev.notification)) return;
-          // A full navigation, not router.push: the URL goes through /open,
-          // which may switch the active restaurant, and then everything on
-          // screen belongs to the other one (see tenant-actions.ts).
-          const url = ev.notification?.data?.url;
-          if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) window.location.assign(url);
-        }),
       );
       if (cancelled) return;
       await register();
@@ -148,5 +116,5 @@ export function NativePush({ enabled }: { enabled: { android: boolean; ios: bool
     };
   }, [locale, android, ios]);
 
-  return null;
+  return <NativePushTap />;
 }

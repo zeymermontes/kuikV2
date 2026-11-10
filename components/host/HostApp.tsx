@@ -12,6 +12,7 @@ import type {
   FloorTable, FloorCombination, Reservation, ReservationArea, ReservationStatus, TableStatus, TableShape,
 } from '@/lib/database.types';
 import { createClient, channelName } from '@/lib/supabase/client';
+import { onReturn } from '@/lib/native/return';
 import { addDays, nowHHMMInTz } from '@/lib/time';
 import {
   minutesSince, sectionOf, shiftAt, suggestSeating, tableViews, turnMinutesFor, type Section,
@@ -161,8 +162,10 @@ export function HostApp({
       .channel(channelName(`host-orders-count-${tenantId}`))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `tenant_id=eq.${tenantId}` }, load)
       .subscribe();
+    const off = onReturn(load);
     return () => {
       cancelled = true;
+      off();
       supabase.removeChannel(channel);
     };
   }, [tenantId, demo, ordersBoard]);
@@ -186,8 +189,11 @@ export function HostApp({
       // old row carries only its key), and a needless recount is harmless.
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'whatsapp_conversations' }, load)
       .subscribe();
+    // Back from the background (lib/native/return.ts): count again.
+    const off = onReturn(load);
     return () => {
       cancelled = true;
+      off();
       supabase.removeChannel(channel);
     };
   }, [tenantId, demo]);
@@ -266,7 +272,15 @@ export function HostApp({
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') void refresh();
       });
+    // Back from the background: the book and the requests, in case the
+    // socket missed a change while the phone was in the pocket.
+    const off = onReturn(() => {
+      void refresh();
+      void getPendingSummary().then((s) => setPendingCount(s.total)).catch(() => {});
+      void listPendingReservations().then(setPendingPrefetch).catch(() => {});
+    });
     return () => {
+      off();
       supabase.removeChannel(channel);
     };
   }, [tenantId, day, refresh, demo]);

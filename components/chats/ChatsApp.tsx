@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft, Bot, CalendarDays, CalendarPlus, ClipboardList, ExternalLink, Headset, MessageCircle, Search, X } from 'lucide-react';
 import { createClient, channelName } from '@/lib/supabase/client';
+import { onReturn } from '@/lib/native/return';
 import { chatRow, closeChat, listChats, type ChatRow } from '@/app/chats/actions';
 import { BookingsList } from '@/components/reservations/BookingsList';
 import { BookingSheet } from './BookingSheet';
@@ -112,7 +113,11 @@ export function ChatsApp({
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'whatsapp_messages', filter: `tenant_id=eq.${tenantId}` }, refresh)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'whatsapp_conversations', filter: `tenant_id=eq.${tenantId}` }, refresh)
       .subscribe();
+    // Back from the background: whatever the socket missed while the phone
+    // was in the pocket is fetched now, not on the next message.
+    const off = onReturn(refresh);
     return () => {
+      off();
       supabase.removeChannel(channel);
     };
   }, [tenantId, refresh]);
