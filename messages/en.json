@@ -1391,7 +1391,9 @@
     "addSpecial": "Add date",
     "specialDate": "Date",
     "specialLabel": "Reason (Christmas, Mother’s Day…)",
-    "removeSpecial": "Remove date"
+    "removeSpecial": "Remove date",
+    "afterMidnight": "until the small hours of the next day",
+    "midnightHint": "To close at midnight enter 12:00 AM (00:00); 12:00 PM is noon. A closing time earlier than the opening is read as the following small hours."
   },
   "contact": {
     "title": "Contact information",
@@ -1410,7 +1412,10 @@
     "pixelInvalid": "A pixel ID is digits only (15 or 16 of them).",
     "pixelFailed": "Could not save. Try again.",
     "businessName": "Business name",
-    "businessNameHint": "Shown on the menu, in the bot's messages and in reservation notices."
+    "businessNameHint": "Shown on the menu, in the bot's messages and in reservation notices.",
+    "timezone": "Time zone",
+    "timezoneNow": "It is {time} at the restaurant right now.",
+    "timezoneHint": "The bot and the host stand use this clock to decide whether you are open and what day it is. If the bot says “closed” when you are not, check this."
   },
   "domain": {
     "title": "Custom domain",

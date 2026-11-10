@@ -1391,7 +1391,9 @@
     "addSpecial": "Agregar fecha",
     "specialDate": "Fecha",
     "specialLabel": "Motivo (Navidad, Día de las madres…)",
-    "removeSpecial": "Quitar fecha"
+    "removeSpecial": "Quitar fecha",
+    "afterMidnight": "hasta la madrugada del día siguiente",
+    "midnightHint": "Para cerrar a medianoche escribe 12:00 a.m. (00:00); 12:00 p.m. es mediodía. Un cierre más temprano que la apertura se toma como de la madrugada siguiente."
   },
   "contact": {
     "title": "Información de contacto",
@@ -1410,7 +1412,10 @@
     "pixelInvalid": "El ID del píxel son solo números (15 o 16 dígitos).",
     "pixelFailed": "No se pudo guardar. Intenta de nuevo.",
     "businessName": "Nombre del negocio",
-    "businessNameHint": "Así aparece en el menú, en los mensajes del bot y en los avisos de reservación."
+    "businessNameHint": "Así aparece en el menú, en los mensajes del bot y en los avisos de reservación.",
+    "timezone": "Zona horaria",
+    "timezoneNow": "Ahora son las {time} en el restaurante.",
+    "timezoneHint": "Con esta hora el bot y el anfitrión deciden si están abiertos y qué día es. Si el bot dice «cerrado» cuando no lo están, revisa esto."
   },
   "domain": {
     "title": "Dominio personalizado",

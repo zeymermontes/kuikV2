@@ -12,7 +12,7 @@ export default async function ContactPage() {
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">{t('title')}</h1>
-      <ContactForm contact={contact} name={tenant.name} />
+      <ContactForm contact={contact} name={tenant.name} timezone={tenant.timezone} />
       <div className="mt-6">
         <PixelSettings
           initial={tenant.meta_pixel_id}

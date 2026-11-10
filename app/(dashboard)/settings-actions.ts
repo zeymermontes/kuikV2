@@ -8,6 +8,7 @@ import type { ServiceType, LoyaltyType, PaymentMethod, PrintReceiptMode } from '
 import type { MenuSettings } from '@/lib/menu-settings';
 import { getPreset, presetSettings } from '@/lib/menu-presets';
 import { validPixelId } from '@/lib/pixel';
+import { isValidTimeZone } from '@/lib/timezones';
 
 export async function updateTheme(
   fields: Partial<{
@@ -242,6 +243,27 @@ export async function renameTenant(name: string): Promise<{ error?: string }> {
   const { error } = await supabase
     .from('tenants')
     .update({ name: clean, updated_at: new Date().toISOString() })
+    .eq('id', tenant.id);
+  if (error) return { error: 'failed' };
+  revalidatePath('/', 'layout');
+  revalidateTenant(tenant.subdomain, tenant.custom_domain);
+  return {};
+}
+
+/**
+ * The clock the restaurant lives by (lib/timezones.ts). Everything that asks
+ * "is it open now", "what day is it" or "a las 8" reads it; it was fixed at
+ * signup and a restaurant an hour behind the capital heard "cerrado" an hour
+ * early. Only a zone the runtime can read is accepted.
+ */
+export async function updateTimezone(tz: string): Promise<{ error?: string }> {
+  const { tenant } = await requireTenant();
+  const clean = tz.trim();
+  if (!isValidTimeZone(clean)) return { error: 'invalid' };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('tenants')
+    .update({ timezone: clean, updated_at: new Date().toISOString() })
     .eq('id', tenant.id);
   if (error) return { error: 'failed' };
   revalidatePath('/', 'layout');

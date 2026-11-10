@@ -68,10 +68,12 @@ export function HoursEditor({
                 <input type="time" value={d.open} onChange={(e) => patch(i, { open: e.target.value })} className={time} />
                 <span className="text-neutral-400">–</span>
                 <input type="time" value={d.close} onChange={(e) => patch(i, { close: e.target.value })} className={time} />
+                {d.close <= d.open && <span className="text-xs text-neutral-500">{t('afterMidnight')}</span>}
               </div>
             )}
           </div>
         ))}
+        <p className="text-xs text-neutral-500">{t('midnightHint')}</p>
       </div>
 
       <div>
