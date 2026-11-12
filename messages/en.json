@@ -2363,7 +2363,11 @@
       "simCanceled": "✖️ Flow canceled",
       "simRestart": "Restart",
       "simDone": "Test finished — restart to try again",
-      "simPlaceholder": "Type like the customer…"
+      "simPlaceholder": "Type like the customer…",
+      "activeUntil": "Available until",
+      "activeUntilHint": "Last day the bot offers it (in the menu and by keyword). Empty = always. A conversation already under way finishes normally.",
+      "until": "until {date}",
+      "expiredOn": "expired on {date}"
     },
     "inbox": {
       "title": "Bot inbox",

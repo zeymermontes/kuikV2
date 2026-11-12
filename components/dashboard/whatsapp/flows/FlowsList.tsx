@@ -104,6 +104,9 @@ function FlowCard({
               ? t('publishedV', { version: flow.published_version })
               : t('draftOnly')}
             {keywords.length > 0 && <> · {keywords.slice(0, 4).join(', ')}</>}
+            {flow.active_until && (
+              <> · <span className={flow.active_until < new Date().toISOString().slice(0, 10) ? 'text-red-600' : ''}>{t(flow.active_until < new Date().toISOString().slice(0, 10) ? 'expiredOn' : 'until', { date: fmtDay(flow.active_until) })}</span></>
+            )}
           </p>
         </button>
         <label className="flex shrink-0 cursor-pointer items-center gap-2 text-xs text-neutral-500">
@@ -239,4 +242,10 @@ function DropoffDrawer({ item, onClose }: { item: FlowListItem; onClose: () => v
       )}
     </Drawer>
   );
+}
+
+/** "24 dic" from "2026-12-24", read as a calendar day and not an instant. */
+function fmtDay(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(undefined, { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }

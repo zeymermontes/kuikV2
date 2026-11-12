@@ -79,6 +79,8 @@ export interface WhatsappFlow {
   nudge_message: string | null;
   close_after_minutes: number | null;
   close_message: string | null;
+  /** Last day it is offered ("YYYY-MM-DD" in the restaurant's calendar); null = always. Migration 0103. */
+  active_until: string | null;
   created_at: string;
   updated_at: string;
 }

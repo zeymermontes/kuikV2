@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 import { parseSchedule, isOpenNowIn, todayHoursIn, upcomingSpecials, mapHref } from '@/lib/hours';
 import { todayInTz } from '@/lib/time';
+import { currentFlows } from '@/lib/whatsapp/flows/active';
 import { tenantBaseUrl } from '@/lib/config';
 import { rateLimit, bucketKey } from '@/lib/rate-limit';
 import { canUse, effectivePlan } from '@/lib/plan';
@@ -155,7 +156,7 @@ export async function runBot(turn: BotTurn): Promise<void> {
       .maybeSingle(),
     supabase
       .from('whatsapp_flows')
-      .select('id, tenant_id, key, name, description, enabled, priority, triggers, mode, published_version, nudge_after_minutes, max_nudges, nudge_message, close_after_minutes, close_message')
+      .select('id, tenant_id, key, name, description, enabled, priority, triggers, mode, published_version, nudge_after_minutes, max_nudges, nudge_message, close_after_minutes, close_message, active_until')
       .eq('tenant_id', turn.tenantId)
       .eq('enabled', true)
       .gt('published_version', 0)
@@ -170,7 +171,9 @@ export async function runBot(turn: BotTurn): Promise<void> {
     : false;
   const aiAllowed = Boolean(settings.ai_enabled) && botsAllowed;
 
-  const flows = (flowRows ?? []) as unknown as WhatsappFlow[];
+  // A seasonal flow past its last day is gone from the menu, the triggers
+  // and the model's goals alike; a run already under way keeps its graph.
+  const flows = currentFlows((flowRows ?? []) as unknown as WhatsappFlow[], ctx.today);
   const aiGoals = flows.map((f) => ({ key: f.key, name: f.name, description: f.description }));
 
   // The diner's own upcoming bookings: the model reads them, the script

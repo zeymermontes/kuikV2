@@ -10,6 +10,7 @@ import {
 } from '@/lib/whatsapp/flows/schema';
 import type { Trigger } from '@/lib/whatsapp/intent';
 import { slugify } from '@/lib/utils';
+import { cleanActiveUntil } from '@/lib/whatsapp/flows/active';
 
 /**
  * Mutations for the flow builder. Every action re-authorizes (server actions
@@ -93,6 +94,8 @@ export async function saveFlowSettings(input: {
   nudge_message: string | null;
   close_after_minutes: number | null;
   close_message: string | null;
+  /** Last day the flow is offered; null = always (lib/whatsapp/flows/active.ts). */
+  active_until?: string | null;
 }): Promise<{ ok: boolean }> {
   const { tenant, supabase } = await ctx();
   const clean = (n: number | null, max: number) =>
@@ -113,6 +116,7 @@ export async function saveFlowSettings(input: {
       nudge_message: input.nudge_message?.trim().slice(0, 500) || null,
       close_after_minutes: clean(input.close_after_minutes, 30 * 24 * 60),
       close_message: input.close_message?.trim().slice(0, 500) || null,
+      active_until: cleanActiveUntil(input.active_until),
       updated_at: new Date().toISOString(),
     })
     .eq('id', input.id)

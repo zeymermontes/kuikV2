@@ -37,6 +37,7 @@ export function FlowSettingsPanel({
   const [nudgeMessage, setNudgeMessage] = useState(flow.nudge_message ?? '');
   const [closeAfter, setCloseAfter] = useState(flow.close_after_minutes?.toString() ?? '');
   const [closeMessage, setCloseMessage] = useState(flow.close_message ?? '');
+  const [activeUntil, setActiveUntil] = useState(flow.active_until ?? '');
 
   const save = () => startTransition(async () => {
     const triggers: Trigger[] = [
@@ -56,6 +57,7 @@ export function FlowSettingsPanel({
       nudge_message: nudgeMessage || null,
       close_after_minutes: closeAfter ? Number(closeAfter) : null,
       close_message: closeMessage || null,
+      active_until: activeUntil || null,
     });
     if (res.ok) {
       onClose();
@@ -97,6 +99,9 @@ export function FlowSettingsPanel({
           </div>
         </Field>
 
+        <Field label={t('activeUntil')} hint={t('activeUntilHint')}>
+          <Input type="date" value={activeUntil} onChange={(e) => setActiveUntil(e.target.value)} />
+        </Field>
         <Field label={t('triggers')} hint={t('triggersHint')}>
           <Textarea rows={2} value={keywords} onChange={(e) => setKeywords(e.target.value)}
             placeholder={t('triggersPlaceholder')} />
